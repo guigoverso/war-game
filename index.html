@@ -1,0 +1,154 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Fronteira Cúbica</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+*{box-sizing:border-box;user-select:none}
+html,body{margin:0;height:100%;overflow:hidden;background:#8fc4f2;font-family:'Courier New',monospace;color:#fff}
+canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+.hidden{display:none!important}
+.px{text-shadow:2px 2px 0 rgba(0,0,0,.7)}
+#hud{position:fixed;inset:0;pointer-events:none}
+#crosshair{position:absolute;left:50%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px}
+#crosshair:before,#crosshair:after{content:"";position:absolute;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.6)}
+#crosshair:before{left:10px;top:0;width:2px;height:22px;clip-path:polygon(0 0,100% 0,100% 35%,0 35%,0 65%,100% 65%,100% 100%,0 100%)}
+#crosshair:after{top:10px;left:0;height:2px;width:22px;clip-path:polygon(0 0,35% 0,35% 100%,0 100%,65% 0,100% 0,100% 100%,65% 100%)}
+#crosshair.hit:before,#crosshair.hit:after{background:#ff4040}
+#crosshair.kill:before,#crosshair.kill:after{background:#ffd23a}
+#hpbox{position:absolute;left:18px;bottom:18px;width:300px}
+#hpbar{height:22px;border:3px solid #111;background:#3a0d0d}
+#hpfill{height:100%;width:100%;background:linear-gradient(#ff5a5a,#c22);transition:width .15s}
+#hptext{font-size:16px;margin-bottom:4px}
+#coins{margin-top:6px;font-size:20px;color:#ffd23a}
+#ammobox{position:absolute;right:18px;bottom:18px;text-align:right}
+#ammo{font-size:38px}
+#ammo small{font-size:20px;opacity:.8}
+#wname{font-size:16px;margin-bottom:4px}
+#wlist{display:flex;gap:6px;justify-content:flex-end;margin-top:8px}
+.ws{border:2px solid #111;background:rgba(0,0,0,.5);padding:3px 6px;font-size:13px;opacity:.45}
+.ws.own{opacity:.9}.ws.cur{border-color:#ffd23a;opacity:1;background:rgba(80,60,0,.7)}
+#mmwrap{position:absolute;right:14px;top:14px;width:176px;height:176px;border:4px solid #111;border-radius:50%;overflow:hidden;background:#123}
+#mm{width:100%;height:100%;display:block}
+#obj{position:absolute;right:14px;top:200px;width:176px;font-size:13px;text-align:center;background:rgba(0,0,0,.45);padding:6px;border:2px solid #111}
+#arrow{display:inline-block;font-size:22px;color:#ffd23a;transition:transform .1s}
+#cityinfo{position:absolute;left:50%;top:14px;transform:translateX(-50%);font-size:18px;text-align:center}
+#prompt{position:absolute;left:50%;bottom:22%;transform:translateX(-50%);font-size:20px;text-align:center;line-height:1.5}
+#toasts{position:absolute;left:50%;top:70px;transform:translateX(-50%);text-align:center;font-size:20px}
+.toast{margin:4px;padding:6px 14px;background:rgba(0,0,0,.6);border:2px solid #111;animation:fade .3s}
+@keyframes fade{from{opacity:0;transform:translateY(-8px)}to{opacity:1}}
+#tags{position:absolute;left:18px;top:14px;font-size:16px;line-height:1.6}
+#god{color:#7dff7d}#invis{color:#c9a7ff}#cover{color:#7ad0ff}#crouchtag{color:#ddd}
+#flash{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(255,0,0,0) 40%,rgba(200,0,0,.75));opacity:0}
+#under{position:absolute;inset:0;background:rgba(30,80,200,.45)}
+#scope{position:absolute;inset:0;background:radial-gradient(circle at center,transparent 0,transparent 24vh,#000 24.3vh)}
+#scope:before{content:"";position:absolute;left:0;right:0;top:50%;height:2px;background:#000}
+#scope:after{content:"";position:absolute;top:0;bottom:0;left:50%;width:2px;background:#000}
+.edge{position:absolute;opacity:0;background:rgba(255,0,0,.75)}
+#eT{left:25%;right:25%;top:0;height:26px;border-radius:0 0 50% 50%}#eB{left:25%;right:25%;bottom:0;height:26px;border-radius:50% 50% 0 0}
+#eL{top:25%;bottom:25%;left:0;width:26px;border-radius:0 50% 50% 0}#eR{top:25%;bottom:25%;right:0;width:26px;border-radius:50% 0 0 50%}
+.screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,20,40,.78);z-index:10}
+.panel{background:#2b2b33;border:4px solid #111;box-shadow:inset 0 0 0 3px #5a5a66;padding:22px 26px;max-width:880px;max-height:92vh;overflow:auto;text-align:left}
+.panel h1{margin:0 0 6px;font-size:34px;color:#ffd23a;text-shadow:3px 3px 0 #000;letter-spacing:2px}
+.panel h2{margin:0 0 12px;color:#ffd23a}
+.panel p,.panel li{font-size:14px;line-height:1.55;color:#ddd}
+.panel ul{margin:6px 0;padding-left:18px;columns:2}
+button,input[type=text]{font-family:inherit;font-size:16px}
+button{pointer-events:auto;cursor:pointer;background:#4a8a3a;color:#fff;border:3px solid #111;box-shadow:inset 0 -4px 0 rgba(0,0,0,.3),inset 0 3px 0 rgba(255,255,255,.2);padding:8px 14px;margin:4px 6px 4px 0;text-shadow:1px 1px 0 #000}
+button:hover{filter:brightness(1.15)}button:disabled{filter:grayscale(1) brightness(.6);cursor:not-allowed}
+.mixrow{display:flex;align-items:center;gap:10px;margin:5px 0;font-size:14px;color:#ddd}.mixrow span:first-child{flex:0 0 250px}.mixrow input{flex:1;accent-color:#ffd23a;cursor:pointer}.mixrow b{flex:0 0 46px;text-align:right;color:#ffd23a}
+button.alt{background:#5a5a72}button.red{background:#a83a3a}button.gold{background:#b08a1a}
+input[type=text]{background:#111;color:#fff;border:3px solid #555;padding:7px 10px;width:170px}
+label{font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.card{border:3px solid #111;background:#3a3a44;padding:10px}
+.card b{color:#ffd23a}.card .st{font-size:12px;color:#bbb;margin:4px 0 8px}
+.card.locked{opacity:.7}
+#loadmsg{margin-top:12px;color:#9fe;min-height:20px}
+.big{font-size:24px;color:#ffd23a;margin:8px 0}
+#bigmap{display:block;background:#123;border:4px solid #111;max-width:90vw;max-height:80vh}
+#clock{font-size:18px;color:#ffe9a0}#arbox{display:none;margin-top:5px}#artext{font-size:13px;color:#9ad0ff}#arbar{height:12px;border:3px solid #111;background:#10202e}#arfill{height:100%;width:0;background:linear-gradient(#7ac0ff,#3a7ac8)}#subtitle{position:absolute;left:50%;bottom:11%;transform:translateX(-50%);max-width:70vw;padding:8px 18px;font-size:22px;text-align:center;background:rgba(0,0,0,.72);border:2px solid #111;opacity:0;transition:opacity .25s}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="hud" class="hidden px">
+  <div id="under" class="hidden"></div>
+  <div id="scope" class="hidden"></div>
+  <div id="flash"></div>
+  <div id="eT" class="edge"></div><div id="eB" class="edge"></div><div id="eL" class="edge"></div><div id="eR" class="edge"></div>
+  <div id="crosshair"></div>
+  <div id="tags"><div id="clock"></div><div id="god" class="hidden">🛡 MODO INVENCÍVEL</div><div id="invis" class="hidden">👻 MODO INVISÍVEL</div><div id="cover" class="hidden">▣ EM COBERTURA</div><div id="crouchtag" class="hidden">▼ AGACHADO (segure o botão para espiar)</div></div>
+  <div id="cityinfo"></div>
+  <div id="toasts"></div>
+  <div id="prompt"></div><div id="subtitle"></div>
+  <div id="hpbox"><div id="hptext">VIDA</div><div id="hpbar"><div id="hpfill"></div></div><div id="arbox"><div id="artext">COLETE</div><div id="arbar"><div id="arfill"></div></div></div><div id="coins">◉ 0</div></div>
+  <div id="ammobox"><div id="wname"></div><div id="ammo"></div><div id="wlist"></div></div>
+  <div id="mmwrap"><canvas id="mm" width="176" height="176"></canvas></div>
+  <div id="obj"></div>
+</div>
+
+<div id="start" class="screen">
+  <div class="panel" style="max-width:760px">
+    <h1>FRONTEIRA CÚBICA</h1>
+    <p>Um tiroteio em mundo de blocos totalmente procedural: terreno, rios, estradas, cidades e moradores nascem de uma semente. Conquiste as 6 cidades inimigas e una as 7 sob a sua bandeira.</p>
+    <p><b>Semente do mundo:</b> <input type="text" id="seed" placeholder="aleatória"></p>
+    <p><b>Bioma predominante:</b> <select id="biosel"><option value="">Aleatório</option><option value="plains">Planícies</option><option value="forest">Florestas</option><option value="mountain">Montanhas</option><option value="snow">Neve</option><option value="desert">Deserto</option></select></p>
+    <button id="playbtn" class="gold" style="font-size:20px;padding:12px 24px">▶ JOGO NORMAL</button><button id="createbtn" class="alt" style="font-size:20px;padding:12px 24px">🛠 MODO CRIATIVO</button>
+    <p style="margin:2px 0 0;font-size:12px;color:#aaa">O modo criativo libera os truques de teste: invencível, invisível, munição infinita, atravessar paredes, invocar animais, moedas, armas e mais.</p>
+    <div id="loadmsg"></div>
+    <ul>
+      <li><b>WASD</b> mover • <b>Shift</b> correr</li><li><b>Espaço</b> pular</li>
+      <li><b>C</b> agachar / cobertura</li><li><b>Mouse</b> mirar • <b>Botão dir.</b> zoom</li>
+      <li><b>Botão esq.</b> atirar • <b>R</b> recarregar</li><li><b>1-6</b> / roda do mouse: armas</li>
+      <li><b>E</b> interagir (loja, clínica, falar)</li><li><b>F</b> atacar cidade inimiga</li>
+      <li><b>M</b> mapa • <b>K</b> som on/off</li><li><b>U</b> destravar (se ficar preso)</li><li><b>Esc</b>, <b>Tab</b> ou <b>O</b>: pausa e configurações</li><li>Criativo: <b>G</b> invencível • <b>I</b> invisível • <b>N</b> atravessar paredes • <b>P</b> congelar (prints)</li>
+    </ul>
+    <p>Dica: agachado atrás de caixas, sacos de areia e muros baixos, os inimigos não te veem. Segure o tiro para levantar e espiar. A vida <b>não</b> regenera: cure-se na clínica.</p>
+  </div>
+</div>
+
+<div id="shop" class="screen hidden"><div class="panel"><h2>⚔ ARMEIRO</h2><div class="big" id="shopcoins"></div><div class="grid" id="shopgrid"></div><button class="alt" id="shopclose">Fechar (E)</button></div></div>
+<div id="clinic" class="screen hidden"><div class="panel" style="min-width:380px"><h2>✚ CLÍNICA</h2><p id="clinictxt"></p><div id="clinicbtns"></div><button class="alt" id="clinicclose">Fechar (E)</button></div></div>
+<div id="barracks" class="screen hidden"><div class="panel"><h2>★ QUARTEL</h2><div class="big" id="bkinfo"></div><div id="bkbody"></div><button class="alt" id="bkclose">Fechar (E)</button></div></div>
+<div id="quests" class="screen hidden"><div class="panel"><h2>📜 QUADRO DE MISSÕES</h2><div class="big" id="qinfo"></div><div id="qbody"></div><button class="alt" id="qclose">Fechar (E)</button></div></div>
+<div id="pause" class="screen hidden"><div class="panel" style="min-width:420px"><h2>⏸ PAUSA</h2>
+  <button id="resume" class="gold">▶ Continuar</button><br>
+  <p><b>Configurações</b></p>
+  <button id="cMute" class="alt">Som: ?</button><button id="cMixer" class="gold">🔊 Volume dos sons…</button><button id="cStuck" class="alt">Estou preso! Destravar (U)</button><br>
+  <div id="creativeBox" class="hidden">
+  <p><b>Modo criativo — truques de teste</b></p>
+  <button id="cInvis" class="alt">Invisível: ?</button><button id="cGod" class="alt">Invencível: ?</button><button id="cAmmo" class="alt">Munição infinita: ?</button><button id="cMag" class="alt">Pente infinito: ?</button><br>
+  <select id="packsel" style="font-family:inherit;font-size:15px;padding:6px"><option value="">Bando: do bioma</option><option value="wolf">Lobos</option><option value="bear">Ursos</option><option value="spider">Aranhas</option><option value="boar">Javalis</option><option value="scorpion">Escorpiões</option></select><button id="cPack" class="gold">🐾 Invocar bando de animais</button><br>
+  <button id="cCoins" class="alt">+1000 moedas</button><button id="cWeap" class="alt">Liberar todas as armas</button><br>
+  <button id="cTp" class="alt">Teleportar p/ próxima cidade</button><button id="cKill" class="alt">Eliminar inimigos da cidade atual</button><br>
+  <button id="cTime" class="alt">Alternar dia/noite</button><button id="cNoclip" class="alt">Atravessar paredes (N)</button><br><button id="cNew" class="red">Novo mundo</button></div></div></div>
+<div id="mixer" class="screen hidden" style="z-index:20"><div class="panel" style="min-width:440px"><h2>🔊 VOLUME DOS SONS</h2>
+  <p style="margin:0 0 8px">Ajuste cada som do ambiente. 0% silencia, 100% é o padrão, até 200%. Vale na hora e fica salvo.</p>
+  <div id="mixrows"></div>
+  <button id="mixreset" class="alt">Restaurar padrão</button><button id="mixclose" class="gold">Fechar</button></div></div>
+<div id="map" class="screen hidden"><div><canvas id="bigmap" width="800" height="800"></canvas><div style="text-align:center"><div style="margin:6px;font-size:13px;text-shadow:1px 1px 0 #000">Cidades: <b style="color:#3a8aff">■ sua</b> <b style="color:#6a7a2a">■ nível 1</b> <b style="color:#c8641e">■ 2</b> <b style="color:#d03030">■ 3</b> <b style="color:#a060e0">■ 4</b> <b style="color:#8a8a9a">■ 5</b> <b style="color:#d8b830">■ 6</b></div><button id="mapclose" class="alt">Fechar (M)</button></div></div></div>
+<div id="dead" class="screen hidden"><div class="panel"><h1 style="color:#ff6a6a">VOCÊ MORREU</h1><p>Você perde 10% das moedas. Os inimigos sobreviventes se recuperam e voltam aos postos.</p><button id="respawn" class="red">Voltar à sua cidade</button></div></div>
+<div id="victory" class="screen hidden"><div class="panel" style="text-align:center"><h1>VITÓRIA!</h1><p>As 7 cidades hasteiam a sua bandeira. A fronteira é sua.</p><p>Você ainda pode explorar o mundo à vontade.</p><button id="vclose" class="gold">Continuar explorando</button></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="js/util.js"></script>
+<script src="js/render.js"></script>
+<script src="js/voxel.js"></script>
+<script src="js/phys.js"></script>
+<script src="js/world.js"></script>
+<script src="js/city.js"></script>
+<script src="js/nav.js"></script>
+<script src="js/entities.js"></script>
+<script src="js/weapons.js"></script>
+<script src="js/allies.js"></script>
+<script src="js/poi.js"></script>
+<script src="js/quests.js"></script>
+<script src="js/ambient.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
+
+
