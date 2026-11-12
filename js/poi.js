@@ -56,7 +56,7 @@ function addChest(x,y,z,yaw,gold,lockedBy){
 function openChest(ch){
   if(ch.opened)return;
   if(ch.lockedBy&&ch.lockedBy.state!=='cleared'){toast('🔒 Trancado: elimine os bandidos primeiro.',1800);return}
-  ch.opened=true;if(ch.lockedBy)ch.lockedBy.completed=true;addCoins(ch.gold);sfx('coin',0);toast('📦 Baú aberto! +'+ch.gold+' moedas',2500);
+  ch.opened=true;if(ch.lockedBy)ch.lockedBy.completed=true;addCoins(ch.gold);sfx('coin',0);const lt=lootChest();toast('📦 Baú aberto! +'+ch.gold+' moedas'+(lt?'  •  '+lt:''),3500);
 }
 function updateChests(dt){
   for(const ch of WORLD.chests){

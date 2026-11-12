@@ -541,6 +541,7 @@ function damageEnemy(e,amount,head,byAlly,src){   // src: outro bicho/soldado qu
   if(e.hp<=0){
     e.alive=false;e.deadT=0;e.city.aliveEnemies--;
     const rw=Math.round(e.def.reward*(0.8+Math.random()*0.5));if(!src)addCoins(rw);
+    if(!byAlly&&!src)dropLoot(e);   // itens do inimigo morto pelo jogador
     if(!byAlly&&!src){giveRandomAmmo();game_kills++;toast('+'+rw+' moedas  ('+e.def.name+')',1200);sfx('kill',0)}
     checkConquest(e.city);
   }

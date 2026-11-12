@@ -1,9 +1,10 @@
 'use strict';
 // ---------- Estado do jogo, livro de recursos, preços e ganchos (Fase 0) ----------
 // Tudo o que precisa sobreviver a um salvamento e que não faz parte do mundo gerado pela semente fica em STATE (JSON puro).
-const SAVE_VERSION=1;
+const SAVE_VERSION=2;
 const STATE={version:SAVE_VERSION,round:1,phase:'commander',res:{food:0,ore:0,wood:0}};
-function resetState(){STATE.version=SAVE_VERSION;STATE.round=1;STATE.phase='commander';STATE.res={food:0,ore:0,wood:0}}
+// zera o estado para uma partida nova; sistemas que guardam coisas em STATE (inventário, durabilidade...) assinam 'resetState'
+function resetState(){STATE.version=SAVE_VERSION;STATE.round=1;STATE.phase='commander';STATE.res={food:0,ore:0,wood:0};Hooks.emit('resetState')}
 
 // ---------- ganchos (eventos internos): outros sistemas assinam sem precisar mexer neste arquivo ----------
 const Hooks={

@@ -118,7 +118,7 @@ function damagePlayer(dmg,fx,fz){
 }
 function die(){P.dead=true;G.fireHeld=false;G.aiming=false;openPanel('dead')}
 function respawn(){
-  P.dead=false;P.hp=P.maxhp;P.armor=0;P.coins=Math.floor(P.coins*0.9);P.crouch=false;
+  P.dead=false;P.hp=P.maxhp;P.armor=0;P.coins=P.coins>0?Math.floor(P.coins*0.9):P.coins;P.crouch=false;P.regen=null;
   for(const c of WORLD.cities)if(c.state==='attacking'){c.state='idle';for(const e of c.enemies)if(e.alive){e.hp=e.maxhp;e.x=e.homeX;e.z=e.homeZ;e.y=tH(e.x,e.z)}}
   placePlayerHome();closePanel();
 }
@@ -136,7 +136,7 @@ function conquerCity(c){
 }
 
 // ---------- Painéis ----------
-const SCREENS=['start','shop','clinic','barracks','quests','pause','map','dead','victory'];
+const SCREENS=['start','shop','clinic','barracks','quests','pause','map','dead','victory','inv'];
 function openPanel(name){
   if(G.frozen)setFrozen(false);
   SCREENS.forEach(s=>$(s).classList.add('hidden'));$(name).classList.remove('hidden');
@@ -176,15 +176,32 @@ function renderShop(){
   $('shopgrid').innerHTML=WEAPONS.map((w,i)=>{
     const own=WS.owned[i],pr=pc(w.price,c),pk=pc(w.packCost,c);
     return '<div class="card'+(own?'':' locked')+'"><b>'+(i+1)+'. '+w.name+'</b><div class="st">'+w.desc+'<br>Dano '+w.dmg+(w.pellets>1?' ×'+w.pellets:'')+' • '+w.rpm+' dpm • Pente '+w.mag+'</div>'+
-      (own?'<div class="st">Munição reserva: '+WS.reserve[i]+'</div><button data-a="ammo" data-i="'+i+'" '+(P.coins<pk?'disabled':'')+'>+'+w.pack+' munição ◉'+pk+'</button>'
+      (own?'<div class="st">Munição reserva: '+WS.reserve[i]+'<br>Durabilidade: '+(weaponBroken(i)?'<b style="color:#ff6a6a">QUEBRADA</b>':Math.round(durOf(i))+'%')+'</div><button data-a="ammo" data-i="'+i+'" '+(P.coins<pk?'disabled':'')+'>+'+w.pack+' munição ◉'+pk+'</button>'+(durOf(i)<100?'<button data-a="repair" data-i="'+i+'">🔧 Consertar ◉'+repairCost(i,c)+(P.coins<repairCost(i,c)?' (gera dívida)':'')+'</button>':'')
           :'<button class="gold" data-a="buy" data-i="'+i+'" '+(P.coins<pr?'disabled':'')+'>Comprar ◉'+pr+'</button>')+'</div>';
-  }).join('')+'<div class="card"><b>🛡 Colete à prova de bala</b><div class="st">Absorve 60% do dano recebido até acabar (100 de proteção).<br>Proteção atual: '+Math.ceil(P.armor)+'/100</div><button class="gold" data-a="vest" '+(P.coins<pc(180,c)||P.armor>=100?'disabled':'')+'>Comprar ◉'+pc(180,c)+'</button></div>';
+  }).join('')+'<div class="card"><b>🛡 Colete à prova de bala</b><div class="st">Absorve 60% do dano recebido até acabar (100 de proteção).<br>Proteção atual: '+Math.ceil(P.armor)+'/100</div><button class="gold" data-a="vest" '+(P.coins<pc(180,c)||P.armor>=100?'disabled':'')+'>Comprar ◉'+pc(180,c)+'</button></div>'+sellCards(c);
+}
+// ---------- vender itens da bolsa no armeiro ----------
+const sellPrice=(id,c)=>{const d=itemDef(id);return Math.max(1,Math.round(d.value*(c&&c.owner==='enemy'?0.5:1)))};
+function sellCards(c){
+  const tot={};for(const s of STATE.inv.slots)if(s&&!itemDef(s.id).noSell)tot[s.id]=(tot[s.id]||0)+s.n;
+  const ids=Object.keys(tot);
+  if(!ids.length)return '<div class="card" style="grid-column:1/-1"><b>🎒 Vender itens</b><div class="st">Você não tem itens para vender. Itens vêm de inimigos, animais e baús.</div></div>';
+  return '<div style="grid-column:1/-1"><b>🎒 Vender itens da bolsa</b>'+(c&&c.owner==='enemy'?' <span class="st">(cidade inimiga paga metade)</span>':'')+'</div>'+ids.map(id=>{
+    const d=itemDef(id),n=tot[id],p=sellPrice(id,c);
+    return '<div class="card"><b>'+d.icon+' '+d.name+' ×'+n+'</b><div class="st">◉'+p+' cada</div><button data-a="sell" data-id="'+id+'">Vender 1</button>'+(n>1?'<button class="gold" data-a="sellall" data-id="'+id+'">Vender tudo ◉'+(p*n)+'</button>':'')+'</div>';
+  }).join('');
 }
 $('shopgrid').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;const c=G.shopCity;
+  if(b.dataset.a==='sell'||b.dataset.a==='sellall'){
+    const id=b.dataset.id,n=b.dataset.a==='sell'?1:invCount(id),got=invRemove(id,n);
+    if(got>0){Ledger.add('gold',sellPrice(id,c)*got);sfx('coin',0);toast('Vendido: '+got+'× '+itemDef(id).name+'  +◉'+sellPrice(id,c)*got,1600)}
+    renderShop();return;
+  }
+  if(b.dataset.a==='repair'){repairWeapon(+b.dataset.i,c);renderShop();return}
   if(b.dataset.a==='vest'){const pr=pc(180,c);if(P.coins>=pr&&P.armor<100){P.coins-=pr;P.armor=100;sfx('coin',0);toast('Colete equipado!',1500)}renderShop();return}
   const i=+b.dataset.i,w=WEAPONS[i],pr=pc(w.price,c),pk=pc(w.packCost,c);
-  if(b.dataset.a==='buy'&&P.coins>=pr){P.coins-=pr;WS.owned[i]=true;WS.mag[i]=w.mag;WS.reserve[i]=w.pack;sfx('coin',0);selectWeapon(i);toast(w.name+' adquirida!',1500)}
+  if(b.dataset.a==='buy'&&P.coins>=pr){P.coins-=pr;WS.owned[i]=true;WS.mag[i]=w.mag;WS.reserve[i]=w.pack;STATE.dur[i]=100;sfx('coin',0);selectWeapon(i);toast(w.name+' adquirida!',1500)}
   else if(b.dataset.a==='ammo'&&P.coins>=pk){P.coins-=pk;WS.reserve[i]=Math.min(WS.reserve[i]+w.pack,w.pack*8);sfx('coin',0)}
   renderShop();
 });
@@ -193,22 +210,37 @@ const clinicCost=(h,c)=>Math.max(1,Math.round(h*0.5*cityMul(c)));
 function renderClinic(){
   const c=G.clinicCity,miss=Math.ceil(P.maxhp-P.hp),full=clinicCost(miss,c),q=Math.min(miss,25),qc=clinicCost(q,c);
   $('clinictxt').innerHTML='Vida: <b>'+Math.ceil(P.hp)+'/'+P.maxhp+'</b> • Moedas: <b>◉ '+P.coins+'</b><br>'+priceLabel(c)+'. Aqui a vida <b>não</b> volta sozinha: cada ponto custa ◉'+(0.5*cityMul(c)).toFixed(2).replace('.',',')+'.';
-  $('clinicbtns').innerHTML=miss<=0?'<p>Você está saudável!</p>':'<button class="gold" data-h="'+miss+'" '+(P.coins<full?'disabled':'')+'>Curar tudo (+'+miss+') ◉'+full+'</button><button data-h="'+q+'" '+(P.coins<qc?'disabled':'')+'>+'+q+' vida ◉'+qc+'</button>';
+  $('clinicbtns').innerHTML=(miss<=0?'<p>Você está saudável!</p>':'<button class="gold" data-h="'+miss+'" '+(P.coins<full?'disabled':'')+'>Curar tudo (+'+miss+') ◉'+full+'</button><button data-h="'+q+'" '+(P.coins<qc?'disabled':'')+'>+'+q+' vida ◉'+qc+'</button>')
+    +'<p class="st" style="margin-top:10px">Itens de cura (ficam na bolsa; atalhos 7, 8, 9):</p>'
+    +Object.values(DATA.items).filter(d=>d.price).map(d=>{const p=pc(d.price,c);return '<button data-buy="'+d.id+'" '+(P.coins<p||Ledger.anyDebt()?'disabled':'')+'>'+d.icon+' '+d.name+' ◉'+p+'</button>'}).join('');
 }
 $('clinicbtns').addEventListener('click',e=>{
-  const b=e.target.closest('button');if(!b)return;const h=+b.dataset.h,cost=clinicCost(h,G.clinicCity);
+  const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.buy){
+    const id=b.dataset.buy,d=itemDef(id),p=pc(d.price,G.clinicCity);
+    if(invRoomFor(id)<1)toast('Bolsa cheia! Descarte algo antes de comprar.',2000);
+    else if(Ledger.spend({gold:p})){invGive([[id,1]]);sfx('coin',0);toast(d.icon+' '+d.name+' comprada',1500)}
+    renderClinic();return;
+  }
+  const h=+b.dataset.h,cost=clinicCost(h,G.clinicCity);
   if(P.coins>=cost){P.coins-=cost;P.hp=Math.min(P.maxhp,P.hp+h);sfx('coin',0)}renderClinic();
 });$('bkclose').onclick=closePanel;$('qclose').onclick=closePanel;$('shopclose').onclick=closePanel;$('clinicclose').onclick=closePanel;$('mapclose').onclick=closePanel;$('vclose').onclick=closePanel;
 $('resume').onclick=()=>{document.querySelector('#pause h2').textContent='⏸ PAUSA';if(AC&&AC.state==='suspended')AC.resume();closePanel()};$('respawn').onclick=respawn;
 function toggleMute(){G.muted=!G.muted;if(master)master.gain.value=G.muted?0:0.35;refreshCheats();toast(G.muted?'Som desligado':'Som ligado',1000)}
 function toggleInvis(){G.invis=!G.invis;if(G.invis){for(const e of ENEMIES)e.aggro=false}}
-function refreshCheats(){$('ledgerline').textContent='Rodada '+STATE.round+'  •  '+Ledger.summary()+(Ledger.anyDebt()?'  •  ⚠ EM DÍVIDA: compras bloqueadas':'');$('cInvis').textContent='Invisível: '+(G.invis?'LIGADO':'desligado');$('cMute').textContent='Som: '+(G.muted?'desligado':'LIGADO');$('cGod').textContent='Invencível: '+(G.god?'LIGADO':'desligado');$('cAmmo').textContent='Munição infinita: '+(G.infAmmo?'LIGADA':'desligada');$('cMag').textContent='Pente infinito (sem recarregar): '+(G.noReload?'LIGADO':'desligado')}
+function refreshCheats(){$('cNoWear').textContent='Desgaste das armas: '+(G.noWear?'desligado':'LIGADO');$('ledgerline').textContent='Rodada '+STATE.round+'  •  '+Ledger.summary()+(Ledger.anyDebt()?'  •  ⚠ EM DÍVIDA: compras bloqueadas':'');$('cInvis').textContent='Invisível: '+(G.invis?'LIGADO':'desligado');$('cMute').textContent='Som: '+(G.muted?'desligado':'LIGADO');$('cGod').textContent='Invencível: '+(G.god?'LIGADO':'desligado');$('cAmmo').textContent='Munição infinita: '+(G.infAmmo?'LIGADA':'desligada');$('cMag').textContent='Pente infinito (sem recarregar): '+(G.noReload?'LIGADO':'desligado')}
 $('cMute').onclick=toggleMute;
 $('cSave').onclick=()=>SaveUI.open('game');
 $('loadbtn').onclick=()=>SaveUI.open('load');
 $('cRes').onclick=()=>{for(const k of['food','ore','wood'])Ledger.add(k,100);refreshCheats()};
 $('cDebt').onclick=()=>{Ledger.borrow({gold:50});refreshCheats()};
 $('cRound').onclick=()=>{Rounds.advance();refreshCheats()};
+$('cItems').onclick=()=>{toast('Itens de teste: '+(invGive(Object.keys(DATA.items).map(id=>[id,1]))||'(bolsa cheia)'),2500)};
+$('cFill').onclick=()=>{const sl=STATE.inv.slots;for(let i=0;i<sl.length;i++)if(!sl[i])sl[i]={id:'sucata',n:20};invChanged();toast('Bolsa cheia de sucata. Dê um item novo para testar o descarte.',3000)};
+$('cWear').onclick=()=>{STATE.dur[WS.cur]=Math.max(0,STATE.dur[WS.cur]-40);toast('Durabilidade de '+WEAPONS[WS.cur].name+': '+Math.round(STATE.dur[WS.cur])+'%',1800)};
+$('cFix').onclick=()=>{STATE.dur=WEAPONS.map(()=>100);toast('Todas as armas consertadas',1500)};
+$('cNoWear').onclick=()=>{G.noWear=!G.noWear;refreshCheats()};
+$('invclose').onclick=closePanel;$('invup').onclick=()=>{invUpgrade();renderInventory()};
 function buildMixer(){
   const box=$('mixrows');box.innerHTML='';
   for(const [k,label] of SND){
@@ -285,6 +317,7 @@ window.addEventListener('keydown',e=>{
   }
   if(e.code==='KeyM'){if(G.panel==='map')closePanel();else if(!G.panel){drawBigMap();openPanel('map')}return}
   if(G.panel==='shop'||G.panel==='clinic'||G.panel==='barracks'||G.panel==='quests'){if(e.code==='KeyE'||e.code==='Escape')closePanel();return}
+  if(G.panel==='inv'){if(e.code==='KeyB'||e.code==='Escape'){if(!UI.closeTop())closePanel()}return}
   if(G.panel)return;
   if(e.repeat)return;
   if(e.code==='KeyC')P.crouch=!P.crouch;
@@ -296,6 +329,8 @@ window.addEventListener('keydown',e=>{
   else if(e.code==='KeyG'&&G.creative){setGod(!G.god);toast(G.god?'Modo invencível LIGADO (munição infinita)':'Modo invencível desligado',1200)}
   else if(e.code==='KeyE')doInteract();
   else if(e.code==='KeyF'){if(G.attackCity)startAttack(G.attackCity)}
+  else if(e.code==='KeyB')openInventory();
+  else if(e.code==='Digit7'||e.code==='Digit8'||e.code==='Digit9')useBar(+e.code.slice(5)-7);
   else if(e.code.startsWith('Digit')){const i=+e.code.slice(5)-1;if(i>=0&&i<6)selectWeapon(i)}
 });
 window.addEventListener('keyup',e=>{G.keys[e.code]=false});
@@ -367,9 +402,9 @@ function updatePlayer(dt){
 let wlistBuilt=false;
 function updateHUD(dt){
   $('hpfill').style.width=(P.hp/P.maxhp*100)+'%';$('hptext').textContent='VIDA '+Math.ceil(P.hp)+' / '+P.maxhp;$('arfill').style.width=P.armor+'%';$('arbox').style.display=P.armor>0?'block':'none';
-  $('coins').textContent='◉ '+P.coins;
+  $('coins').textContent='◉ '+P.coins+(P.coins<0?'  (dívida)':'');$('coins').classList.toggle('debt',P.coins<0);
   const w=WEAPONS[WS.cur];
-  $('wname').textContent=w.name+(WS.reload>0?'  (recarregando...)':'');
+  $('wname').textContent=w.name+(weaponBroken()?'  💥 QUEBRADA':'  •  '+Math.round(durOf(WS.cur))+'%')+(WS.reload>0?'  (recarregando...)':'');
   $('ammo').innerHTML=(G.noReload?'∞':WS.mag[WS.cur])+' <small>/ '+(G.infAmmo?'∞':WS.reserve[WS.cur])+'</small>';
   if(!wlistBuilt){$('wlist').innerHTML=WEAPONS.map((x,i)=>'<div class="ws" id="ws'+i+'">'+(i+1)+'</div>').join('');wlistBuilt=true}
   WEAPONS.forEach((x,i)=>{$('ws'+i).className='ws'+(WS.owned[i]?' own':'')+(i===WS.cur?' cur':'')});
@@ -517,7 +552,7 @@ function update(dt){
   if(!P.dead)updatePlayer(dt);
   updateWeapons(dt);
   updateActors(dt);updateAllies(dt);updateCritters(dt);updateWild(dt);updateChests(dt);updateDayNight(dt);updateQuests(dt);
-  updateFx(dt);checkStuck(dt);
+  updateFx(dt);checkStuck(dt);updateInventory(dt);
   updateInteract();
   // recuo: cidade em ataque se o jogador se afastou demais
   for(const c of WORLD.cities)if(c.state==='attacking'&&Math.hypot(c.cx-P.x,c.cz-P.z)>170){c.state='idle';toast('Você recuou. Os inimigos voltam aos postos.',2500);for(const e of c.enemies)if(e.alive){e.hp=e.maxhp}}
@@ -544,7 +579,7 @@ async function startGame(creative,loadData){
   const q=new URLSearchParams(location.search);
   const sv=$('seed').value.trim();
   const seed=sv?(/^\d+$/.test(sv)?(+sv>>>0):hashStr(sv)):((Math.random()*4294967296)>>>0);
-  if(G.creative){setGod(!!q.get('god'));G.noReload=!!q.get('mag')}
+  if(G.creative){setGod(true);G.noReload=true}   // modo criativo: invencível, munição infinita e disparo infinito por padrão (dá para desligar na pausa)
   $('playbtn').disabled=true;$('createbtn').disabled=true;
   const msg=m=>{$('loadmsg').textContent=m};
   try{
@@ -553,6 +588,7 @@ async function startGame(creative,loadData){
     msg('Calculando rotas...');await tick();buildNav();initWeapons();buildViewmodels(camera);initFx();initSky();initDayNight();populateCities();populateWild();placePlayerHome();
     WS.vm[0].visible=true;
     if(loadData)applySave(loadData);
+    refreshHotbar();
     G.running=true;$('hud').classList.remove('hidden');
     refreshCheats();
     $('seed').value=String(seed);

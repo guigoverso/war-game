@@ -120,8 +120,10 @@ function actorHit(a,ox,oy,oz,dx,dy,dz,maxT){
 function fireWeapon(){
   const w=WEAPONS[WS.cur];
   if(WS.cool>0||WS.reload>0||P.dead)return;
+  if(weaponBroken()){sfx('empty',0);WS.cool=0.4;if(!G.brokenToast||G.t-G.brokenToast>3){toast('💥 '+w.name+' quebrada! Troque de arma ou conserte no armeiro.',2500);G.brokenToast=G.t}return}
   if(WS.mag[WS.cur]<=0&&!G.noReload){if(WS.reserve[WS.cur]>0||G.infAmmo)startReload();else{sfx('empty',0);WS.cool=0.3}return}
   if(!G.noReload)WS.mag[WS.cur]--;WS.cool=60/w.rpm;WS.recoil=1;WS.flash=0.05;
+  const dmul=durMul();wearWeapon();   // desgaste: arma muito gasta causa menos dano
   camera.getWorldDirection(_d);camera.getWorldPosition(_o);
   _r.set(1,0,0).applyQuaternion(camera.quaternion);_u.set(0,1,0).applyQuaternion(camera.quaternion);
   const aimed=G.aiming,mulSp=(aimed?0.35:1)*(P.crouch?0.7:1)*(P.speed>2?1.35:1)*(P.ground?1:1.8);
@@ -145,7 +147,7 @@ function fireWeapon(){
     const hx=_o.x+dx*best,hy=_o.y+dy*best,hz=_o.z+dz*best;
     tracer(mx,my,mz,hx,hy,hz,0xfff2a0);
     if(tgt){
-      let dmg=w.dmg;
+      let dmg=w.dmg*dmul;
       if(w.pellets>1)dmg*=1-clamp((best-12)/(w.range*0.9),0,0.65);
       const head=hy>tgt.y+tgt.lift+tgt.hitH*0.78&&tgt.kind==='enemy'&&!tgt.model.quad;
       if(head){dmg*=2;headshot=true}
