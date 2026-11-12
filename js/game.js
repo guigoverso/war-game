@@ -164,7 +164,9 @@ function cityMul(c){
   if(c.home){let m=1;for(const k of WORLD.cities)if(k.owner==='player'&&!k.home)m=Math.min(m,1-DISCOUNT[k.rank]);return m}
   return 1-DISCOUNT[c.rank];
 }
-const pc=(base,c)=>Math.max(1,Math.round(base*cityMul(c)));
+// o preço passa pela função única priceOf (state.js), que encadeia modificadores; a cidade é o primeiro deles
+addPriceMod('city',(p,ctx)=>p*cityMul(ctx.city),10);
+const pc=(base,c,kind)=>priceOf(base,{city:c,kind});
 function priceLabel(c){const m=cityMul(c);return m>1?'Cidade inimiga: preços ×2':m<1?'Desconto de '+Math.round((1-m)*100)+'% nesta cidade':'Preço normal'}
 function mulTag(c){const m=cityMul(c);return m>1?' (preço ×2)':m<1?' (−'+Math.round((1-m)*100)+'%)':''}
 function openShop(c){G.shopCity=c;openPanel('shop');renderShop()}
@@ -197,11 +199,16 @@ $('clinicbtns').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;const h=+b.dataset.h,cost=clinicCost(h,G.clinicCity);
   if(P.coins>=cost){P.coins-=cost;P.hp=Math.min(P.maxhp,P.hp+h);sfx('coin',0)}renderClinic();
 });$('bkclose').onclick=closePanel;$('qclose').onclick=closePanel;$('shopclose').onclick=closePanel;$('clinicclose').onclick=closePanel;$('mapclose').onclick=closePanel;$('vclose').onclick=closePanel;
-$('resume').onclick=()=>{document.querySelector('#pause h2').textContent='⏸ PAUSA';closePanel()};$('respawn').onclick=respawn;
+$('resume').onclick=()=>{document.querySelector('#pause h2').textContent='⏸ PAUSA';if(AC&&AC.state==='suspended')AC.resume();closePanel()};$('respawn').onclick=respawn;
 function toggleMute(){G.muted=!G.muted;if(master)master.gain.value=G.muted?0:0.35;refreshCheats();toast(G.muted?'Som desligado':'Som ligado',1000)}
 function toggleInvis(){G.invis=!G.invis;if(G.invis){for(const e of ENEMIES)e.aggro=false}}
-function refreshCheats(){$('cInvis').textContent='Invisível: '+(G.invis?'LIGADO':'desligado');$('cMute').textContent='Som: '+(G.muted?'desligado':'LIGADO');$('cGod').textContent='Invencível: '+(G.god?'LIGADO':'desligado');$('cAmmo').textContent='Munição infinita: '+(G.infAmmo?'LIGADA':'desligada');$('cMag').textContent='Pente infinito (sem recarregar): '+(G.noReload?'LIGADO':'desligado')}
+function refreshCheats(){$('ledgerline').textContent='Rodada '+STATE.round+'  •  '+Ledger.summary()+(Ledger.anyDebt()?'  •  ⚠ EM DÍVIDA: compras bloqueadas':'');$('cInvis').textContent='Invisível: '+(G.invis?'LIGADO':'desligado');$('cMute').textContent='Som: '+(G.muted?'desligado':'LIGADO');$('cGod').textContent='Invencível: '+(G.god?'LIGADO':'desligado');$('cAmmo').textContent='Munição infinita: '+(G.infAmmo?'LIGADA':'desligada');$('cMag').textContent='Pente infinito (sem recarregar): '+(G.noReload?'LIGADO':'desligado')}
 $('cMute').onclick=toggleMute;
+$('cSave').onclick=()=>SaveUI.open('game');
+$('loadbtn').onclick=()=>SaveUI.open('load');
+$('cRes').onclick=()=>{for(const k of['food','ore','wood'])Ledger.add(k,100);refreshCheats()};
+$('cDebt').onclick=()=>{Ledger.borrow({gold:50});refreshCheats()};
+$('cRound').onclick=()=>{Rounds.advance();refreshCheats()};
 function buildMixer(){
   const box=$('mixrows');box.innerHTML='';
   for(const [k,label] of SND){
@@ -270,6 +277,7 @@ window.addEventListener('keydown',e=>{
   if(G.frozen)return;
   if(e.code==='Tab'||e.code==='KeyO'){   // abre/fecha as configurações sem usar o Esc
     e.preventDefault();if(e.repeat)return;
+    if(UI.closeTop())return;
     if(!$('mixer').classList.contains('hidden')){$('mixer').classList.add('hidden');return}
     if(G.panel==='pause'){document.querySelector('#pause h2').textContent='⏸ PAUSA';closePanel()}
     else if(!G.panel){refreshCheats();openPanel('pause')}
@@ -529,8 +537,9 @@ function frame(){
 }
 
 // ---------- Início ----------
-async function startGame(creative){
+async function startGame(creative,loadData){
   G.creative=creative===true;$('creativeBox').classList.toggle('hidden',!G.creative);
+  resetState();G.startBio=$('biosel').value;
   initAudio();if(AC){AC.resume();initMusic()}
   const q=new URLSearchParams(location.search);
   const sv=$('seed').value.trim();
@@ -543,10 +552,11 @@ async function startGame(creative){
     msg('Populando cidades...');await tick();
     msg('Calculando rotas...');await tick();buildNav();initWeapons();buildViewmodels(camera);initFx();initSky();initDayNight();populateCities();populateWild();placePlayerHome();
     WS.vm[0].visible=true;
+    if(loadData)applySave(loadData);
     G.running=true;$('hud').classList.remove('hidden');
     refreshCheats();
     $('seed').value=String(seed);
-    document.querySelector('#pause h2').textContent='✔ MUNDO PRONTO — semente '+seed;
+    document.querySelector('#pause h2').textContent=(loadData?'✔ JOGO CARREGADO — semente ':'✔ MUNDO PRONTO — semente ')+seed;
     openPanel('pause');
     toast('Mapa: '+WORLD.shapeName+' ('+DOM_NAMES[WORLD.dominant]+' predominante).  Bem-vindo a '+WORLD.home.name+'! Visite o armeiro e a clínica; depois ataque as cidades vizinhas.',6000);
   }catch(err){
@@ -558,7 +568,10 @@ $('playbtn').onclick=()=>startGame(false);$('createbtn').onclick=()=>startGame(t
   const q=new URLSearchParams(location.search);
   if(q.get('seed'))$('seed').value=q.get('seed');
   if(q.get('bio'))$('biosel').value=q.get('bio');
-  if(q.get('auto'))setTimeout(()=>startGame(q.get('auto')!=='normal'),200);   // ?auto=1 inicia no modo criativo (testes); ?auto=normal inicia o normal
+  let ls=null;try{ls=sessionStorage.getItem('fc_loadslot');sessionStorage.removeItem('fc_loadslot')}catch(e){}
+  if(ls)setTimeout(()=>startFromSave(+ls),200);          // carregar de dentro do jogo: a página recarregou e inicia direto do salvamento
+  else if(q.get('load'))setTimeout(()=>startFromSave(+q.get('load')),200);   // ?load=1 carrega o espaço 1 (testes)
+  else if(q.get('auto'))setTimeout(()=>startGame(q.get('auto')!=='normal'),200);   // ?auto=1 inicia no modo criativo (testes); ?auto=normal inicia o normal
 })();
 frame();
 

@@ -57,6 +57,10 @@ canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block}
 button,input[type=text]{font-family:inherit;font-size:16px}
 button{pointer-events:auto;cursor:pointer;background:#4a8a3a;color:#fff;border:3px solid #111;box-shadow:inset 0 -4px 0 rgba(0,0,0,.3),inset 0 3px 0 rgba(255,255,255,.2);padding:8px 14px;margin:4px 6px 4px 0;text-shadow:1px 1px 0 #000}
 button:hover{filter:brightness(1.15)}button:disabled{filter:grayscale(1) brightness(.6);cursor:not-allowed}
+.saverow{display:flex;align-items:center;gap:8px;margin:8px 0;padding:8px;background:#23232b;border:2px solid #111}.saveinfo{flex:1;font-size:14px;color:#ddd}.saveinfo span{font-size:12px;color:#aaa}
+.slotgrid{display:grid;gap:4px}.slot{position:relative;width:48px;height:48px;background:#23232b;border:2px solid #111;box-shadow:inset 0 0 0 2px #3a3a46;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer}.slot b{position:absolute;right:2px;bottom:0;font-size:12px;color:#ffd23a;text-shadow:1px 1px 0 #000}.slot:hover{filter:brightness(1.25)}
+.uitip{position:fixed;z-index:200;display:none;background:#111;color:#eee;border:2px solid #5a5a66;padding:5px 8px;font-size:13px;max-width:260px;pointer-events:none}
+#ledgerline{font-size:13px;color:#ddd;margin:4px 0}
 .mixrow{display:flex;align-items:center;gap:10px;margin:5px 0;font-size:14px;color:#ddd}.mixrow span:first-child{flex:0 0 250px}.mixrow input{flex:1;accent-color:#ffd23a;cursor:pointer}.mixrow b{flex:0 0 46px;text-align:right;color:#ffd23a}
 button.alt{background:#5a5a72}button.red{background:#a83a3a}button.gold{background:#b08a1a}
 input[type=text]{background:#111;color:#fff;border:3px solid #555;padding:7px 10px;width:170px}
@@ -96,7 +100,7 @@ label{font-size:14px}
     <p>Um tiroteio em mundo de blocos totalmente procedural: terreno, rios, estradas, cidades e moradores nascem de uma semente. Conquiste as 6 cidades inimigas e una as 7 sob a sua bandeira.</p>
     <p><b>Semente do mundo:</b> <input type="text" id="seed" placeholder="aleatória"></p>
     <p><b>Bioma predominante:</b> <select id="biosel"><option value="">Aleatório</option><option value="plains">Planícies</option><option value="forest">Florestas</option><option value="mountain">Montanhas</option><option value="snow">Neve</option><option value="desert">Deserto</option></select></p>
-    <button id="playbtn" class="gold" style="font-size:20px;padding:12px 24px">▶ JOGO NORMAL</button><button id="createbtn" class="alt" style="font-size:20px;padding:12px 24px">🛠 MODO CRIATIVO</button>
+    <button id="playbtn" class="gold" style="font-size:20px;padding:12px 24px">▶ JOGO NORMAL</button><button id="createbtn" class="alt" style="font-size:20px;padding:12px 24px">🛠 MODO CRIATIVO</button><button id="loadbtn" class="alt" style="font-size:20px;padding:12px 24px">📂 CARREGAR JOGO</button>
     <p style="margin:2px 0 0;font-size:12px;color:#aaa">O modo criativo libera os truques de teste: invencível, invisível, munição infinita, atravessar paredes, invocar animais, moedas, armas e mais.</p>
     <div id="loadmsg"></div>
     <ul>
@@ -117,9 +121,11 @@ label{font-size:14px}
 <div id="pause" class="screen hidden"><div class="panel" style="min-width:420px"><h2>⏸ PAUSA</h2>
   <button id="resume" class="gold">▶ Continuar</button><br>
   <p><b>Configurações</b></p>
-  <button id="cMute" class="alt">Som: ?</button><button id="cMixer" class="gold">🔊 Volume dos sons…</button><button id="cStuck" class="alt">Estou preso! Destravar (U)</button><br>
+  <button id="cSave" class="gold">💾 Salvar / Carregar…</button><button id="cMute" class="alt">Som: ?</button><button id="cMixer" class="gold">🔊 Volume dos sons…</button><button id="cStuck" class="alt">Estou preso! Destravar (U)</button><br>
   <div id="creativeBox" class="hidden">
   <p><b>Modo criativo — truques de teste</b></p>
+  <div id="ledgerline"></div>
+  <button id="cRes" class="alt">+100 alimentos, minério e madeira</button><button id="cDebt" class="alt">Dívida de teste (−50 ouro)</button><button id="cRound" class="alt">Rodada +1</button><br>
   <button id="cInvis" class="alt">Invisível: ?</button><button id="cGod" class="alt">Invencível: ?</button><button id="cAmmo" class="alt">Munição infinita: ?</button><button id="cMag" class="alt">Pente infinito: ?</button><br>
   <select id="packsel" style="font-family:inherit;font-size:15px;padding:6px"><option value="">Bando: do bioma</option><option value="wolf">Lobos</option><option value="bear">Ursos</option><option value="spider">Aranhas</option><option value="boar">Javalis</option><option value="scorpion">Escorpiões</option></select><button id="cPack" class="gold">🐾 Invocar bando de animais</button><br>
   <button id="cCoins" class="alt">+1000 moedas</button><button id="cWeap" class="alt">Liberar todas as armas</button><br>
@@ -147,6 +153,10 @@ label{font-size:14px}
 <script src="js/poi.js"></script>
 <script src="js/quests.js"></script>
 <script src="js/ambient.js"></script>
+<script src="js/data.js"></script>
+<script src="js/state.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/save.js"></script>
 <script src="js/game.js"></script>
 </body>
 </html>
