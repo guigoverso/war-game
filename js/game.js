@@ -372,6 +372,7 @@ window.addEventListener('blur',()=>{G.keys={};G.fireHeld=false;G.aiming=false});
 
 function doInteract(){
   const t=G.target;if(!t)return;
+  if(t.c&&raidLocked(t.c))return;
   if(t.type==='hall')openQuests(t.c);else if(t.type==='barracks')openBarracks(t.c);else if(t.type==='shop')openShop(t.c);else if(t.type==='clinic')openClinic(t.c);else if(t.type==='portal'){if(RAID.active&&!RAID.engaged)toast('Há um ataque em andamento! Defenda a cidade antes.',2500);else enterDungeon(t.p)}else if(t.type==='dgexit')leaveDungeon();else if(t.type==='store')openStore(t.c,'store');else if(t.type==='tavern')openStore(t.c,'tavern');else if(t.type==='stove')openCooking('tavern');else if(t.type==='fire')openCooking('fire');else if(t.type==='npc')npcTalk(t.n);else if(t.type==='chest')openChest(t.ch);else if(t.type==='vein')mineVein();else if(t.type==='cage')openCage(t.c);else if(t.type==='book')openBook();else if(t.type==='leader')hallRoundAction(t.c);else if(t.type==='warehouse')openWarehouse(t.c);
 }
 function updateInteract(){
@@ -381,6 +382,7 @@ function updateInteract(){
     const d=Math.max(Math.abs(P.x-c.cx),Math.abs(P.z-c.cz));
     if(d<c.half+8&&d<bestD){bestD=d;G.curCity=c}
     if(d>c.half+25)continue;
+    if(raidLocked(c)){if(c.owner==='enemy'&&c.state==='idle'&&d<c.half+10){G.attackCity=c;lines.push('[F] ATACAR '+c.name.toUpperCase())}continue}   // cidade em combate de raid: sem serviços (nem a opção aparece)
     if(c.shop){const ds=Math.hypot(P.x-c.shop.x,P.z-c.shop.z);if(ds<4.5){G.target={type:'shop',c};lines.push('[E] Comprar armas e munição'+mulTag(c))}}
     if(c.barracks){const ds=Math.hypot(P.x-c.barracks.x,P.z-c.barracks.z);if(ds<4.5){G.target={type:'barracks',c};lines.push('[E] Quartel: recrutar e equipar soldados'+mulTag(c))}}
     if(c.clinic){const ds=Math.hypot(P.x-c.clinic.x,P.z-c.clinic.z);if(ds<4.5){G.target={type:'clinic',c};lines.push('[E] Clínica: curar ferimentos'+mulTag(c))}}

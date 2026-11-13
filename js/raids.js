@@ -18,6 +18,8 @@ function raidSides(c,n){
   return dirs.slice(0,n);
 }
 function raidSidePos(c,d){const off=c.half+3;return d==='E'?[c.cx+off,c.cz]:d==='W'?[c.cx-off,c.cz]:d==='S'?[c.cx,c.cz+off]:[c.cx,c.cz-off]}
+// Cidade em combate: durante uma onda (bandidos vivos) os serviços da cidade atacada ficam fechados; só abrem no intervalo entre as ondas.
+function raidLocked(c){return !!(RAID.active&&RAID.city===c&&RAID.area&&RAID.area.enemies.some(e=>e.alive))}
 function spawnRaidWave(){
   const W=RAID.waves,c=RAID.city,a=RAID.area,spec=RAID_WAVES[W.i],rank=a.rank;
   for(const d of raidSides(c,spec.sides)){
@@ -28,6 +30,7 @@ function spawnRaidWave(){
     }
   }
   W.i++;W.gapT=null;
+  if(['shop','clinic','barracks','quests','store','cook','warehouse'].includes(G.panel))closePanel();   // a onda chegou: fecha qualquer serviço aberto
   sfx('alarm',0);toast('⚔ Onda '+W.i+'/'+RAID_WAVES.length+': '+(spec.sides*spec.per)+' bandidos por '+spec.sides+' entrada'+(spec.sides>1?'s':'')+'!',4000);
 }
 // opts.teleport: o jogador é levado à praça da cidade e a luta começa na hora (política "Raid de bandidos", opção A)
