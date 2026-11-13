@@ -157,6 +157,8 @@ function polRunQueue(){
 function polBookHtml(){
   normalizePol();const P=STATE.pol;let h='';
   if(P.pending){const d=POL.byId[P.pending.pid];h+='<p class="ldwarn">📜 Política pendente: <b>'+(d?d.name:'?')+'</b> <button data-a="polopen">Abrir</button></p>'}
+  const pr=playerCities().filter(c=>ec(c).press);
+  if(pr.length)h+='<h4>Cidades sob repressão</h4><ul class="ldul">'+pr.map(c=>'<li>'+c.name+': necessidades +'+50*ec(c).press.n+'% (máx. 300%). Supra tudo numa rodada para acabar.</li>').join('')+'</ul>';
   if(P.fx.length)h+='<h4>Efeitos ativos</h4><ul class="ldul">'+P.fx.map(f=>'<li>'+f.txt+' <small>(mais '+f.left+' rodada'+(f.left>1?'s':'')+')</small></li>').join('')+'</ul>';
   return h;
 }
@@ -238,4 +240,29 @@ definePolicy({id:'epidemia',name:'Epidemia',city:true,
         if(dead)x.toast('☠ '+dead+' soldado(s) seu(s) morreram na epidemia.',4500);
         if(e.ups>=ECON.rebelUps&&!c.home){STATE.rd.report.push('🔥 '+c.name+' SE REBELOU por causa da epidemia!');rebelCity(c)}
       }}
+  ]});
+
+// ---------- Etapa 2 da 4C: rebelião e traição de um oficial ----------
+definePolicy({id:'rebeliao',name:'Rebelião',city:true,cool:2,
+  cityOk:c=>!c.home&&((ec(c).ups||0)>=1)&&!ec(c).press,   // cidade sua (menos a capital) que já está descontente por falta de suprimentos
+  text:c=>'Nas ruas de '+c.name+', o descontentamento virou fúria. Panelas batem, portas são trancadas e uma multidão cerca a prefeitura exigindo pão e respostas. Se nada for feito, a revolta vai tomar a cidade inteira.',
+  options:[
+    {k:'A',label:'Importar suprimentos e suspender os impostos',type:'debuff',cost:{gold:150},eff:c=>'−◉150. '+c.name+' fica sem imposto por '+POL.dur+' rodadas. O descontentamento zera.',
+      apply:x=>{const e=ec(x.city);e.ups=0;e.mood='ok';e.joyAdj=0;x.fx({t:'noTax',txt:x.city.name+': sem imposto (anistia)'})}},
+    {k:'B',label:'Reprimir com os soldados',type:'both',eff:c=>c.name+' não se rebela e não perde os impostos. Em compensação, as necessidades sobem 50% a cada rodada (sem sorteio de necessidades), até 300%. Se dois recursos chegarem a 300%, os oficiais se juntam aos rebeldes e a cidade se rebela. Suprindo tudo numa rodada, a repressão acaba e as necessidades voltam ao valor anterior.',
+      apply:x=>{ec(x.city).press={n:0}}},
+    {k:'C',label:'Esperar que o povo se acalme',type:'neutral',eff:()=>'Nada muda. A contagem de descontentamento continua.'}
+  ]});
+
+definePolicy({id:'traicao',name:'Traição de um oficial',city:true,cool:4,
+  cond:()=>allyCount()>=1,
+  text:c=>'Na guarnição de '+c.name+', um oficial foi pego desviando soldos e vendendo informações. A tropa está dividida: uns pedem justiça, outros dizem que ele tem mais amigos do que parece. Todo o seu exército espera para ver como o governante vai agir, e o povo de '+c.name+' acompanha cada passo.',
+  options:[
+    {k:'A',label:'Punir o oficial',type:'both',eff:c=>'Perde metade dos soldados que recrutou, mas a felicidade de '+c.name+' sobe 1.',
+      apply:x=>{const live=ALLIES.filter(a=>a.alive),n=Math.ceil(live.length/2);for(let i=0;i<n;i++){live[i].alive=false;live[i].deadT=0}
+        joyShift(x.city,1);x.toast('⚖ '+n+' soldado(s) foram expulsos; '+x.city.name+' ficou mais feliz.')}},
+    {k:'B',label:'Perdoar publicamente',type:'both',eff:c=>'Melhorar soldados custa 20% menos e recrutar custa 20% mais por '+POL.dur+' rodadas. O descontentamento de '+c.name+' sobe 1 (não afeta a contagem de rebelião).',
+      apply:x=>{x.fx({c:-1,t:'price',p:{mul:0.8,sel:'soldierup'},txt:'Melhorar soldados −20% (perdão ao oficial)'});x.fx({c:-1,t:'price',p:{mul:1.2,sel:'recruit'},txt:'Recrutar soldados +20% (perdão ao oficial)'});joyShift(x.city,-1)}},
+    {k:'C',label:'Fingir que nada aconteceu',type:'debuff',eff:c=>'Perde 30% do ouro armazenado (cofre dos armazéns) e o descontentamento de '+c.name+' sobe 1 (não afeta a contagem de rebelião).',
+      apply:x=>{const sh=shOf(),l=Math.floor(sh.vault*0.3);sh.vault-=l;joyShift(x.city,-1);x.toast('💸 O oficial levou ◉'+l+' do cofre.')}}
   ]});

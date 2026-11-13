@@ -89,6 +89,7 @@ function portPct(pf,ps){   // porto: o jogador escolhe o que produz (0%) e o que
 const tradePct=p=>p===100?0:p===150?100:p===200?150:p;   // caravana: 100% some, 150% cai para 100%, 200% cai para 150%
 function pctOf(c,res){
   const e=ec(c);let pct=e.pct[res]||0;
+  if(e.press&&pct>0)pct=Math.min(300,pct+50*e.press.n);   // cidade reprimida (política Rebelião B): +50% por rodada, no máximo 300%
   for(const r of STATE.rd.routes){
     if(r.a!==c.id&&r.b!==c.id)continue;
     const o=WORLD.cities[r.a===c.id?r.b:r.a];if(focusOf(o)===res)pct=tradePct(pct);   // caravana: 150% some, 200% cai para 100%, 100% não muda
@@ -125,7 +126,7 @@ function endRound(city){
   const prep=STATE.round<1;   // rodada 0: preparação, sem cobrança, imposto nem produção
   if(prep)rep.push('Rodada 0 (preparação): sem cobrança, imposto ou produção. A contagem começa agora, na rodada 1.');
   else{
-    const rebels=[];
+    const rebels=[],officers=new Set();
     for(const c of pcs){
       const e=ec(c),carry2={};delete e.debt;   // recursos não geram dívida
       let short=false,over=false;
@@ -141,10 +142,16 @@ function endRound(city){
       {const ORD=['upset','ok','rich'];e.mood=short?'upset':ORD[clamp((over?2:1)+(e.joyAdj||0)+(polFlag('prosper',c.id)?1:0),polFlag('prosper',c.id)?2:0,2)];e.joyAdj=0}
       e.ups=short?(e.ups||0)+1:0;
       // níveis: 1ª falta = Descontente (1); 2ª = (0); 3ª = (−1); 4ª = rebelião (os efeitos de 0 e −1 ainda são os do nível 1)
-      if(short){
+      if(short&&e.press){   // reprimida: não se rebela por falta, continua pagando imposto; as necessidades sobem 50% a cada rodada (até 300%)
+        e.press.n++;
+        const tax=Math.round((TAX_BASE+TAX_RANK*Math.max(1,c.rank||1)));if(tax>0){shOf().vault+=tax;rep.push('⚔ '+c.name+' está sob repressão: faltou suprimento, mas pagou imposto de ◉'+tax+'. As necessidades subiram 50% (até 300%).')}
+        const at300=NEEDS.filter(r=>(e.pct[r]||0)>0&&pctOf(c,r)>=300).length;
+        if(at300>=2&&!c.home){rebels.push(c);officers.add(c.id)}
+      }else if(short){
         if(e.ups>=ECON.rebelUps&&!c.home)rebels.push(c);
         else rep.push('😠 '+c.name+' está '+moodLbl(c)+': sem imposto e sem produção.'+(c.home?' (A capital não se rebela, mas sofre os mesmos efeitos.)':' Se continuar faltando, ela se rebela em '+(ECON.rebelUps-e.ups)+' rodada(s)!'));
       }else{
+        if(e.press){delete e.press;rep.push('✔ '+c.name+' supriu tudo: a repressão acabou e as necessidades voltaram ao normal.')}   // supriu tudo: os recursos que subiram voltam ao valor anterior
         const gt=goldTradeOf(c);if(gt>0){shOf().vault+=gt;rep.push('🛒 '+c.name+': comércio com cidades de ouro rendeu ◉'+gt+' no cofre.')}
         const tax=taxOf(c);if(tax>0){shOf().vault+=tax;rep.push(MOOD[e.mood].icon+' '+c.name+' está '+MOOD[e.mood].n.toLowerCase()+': imposto de ◉'+tax+' no cofre.')}
         const f=focusOf(c),amt=prodOf(c);
@@ -153,7 +160,7 @@ function endRound(city){
         else{const got=prodAdd(c,f,amt);rep.push('✔ '+c.name+' produziu '+got+' de '+resName(f).toLowerCase()+(f==='gold'?' (no cofre).':' (na reserva do armazém).'))}
       }
     }
-    for(const c of rebels){rep.push('🔥 '+c.name+' SE REBELOU depois de '+ECON.rebelUps+' rodadas sem suprimentos! Reconquiste-a.');rebelCity(c)}
+    for(const c of rebels){rep.push(officers.has(c.id)?'🔥 '+c.name+': dois suprimentos chegaram a 300% e os oficiais se juntaram aos rebeldes! A cidade se rebelou. Reconquiste-a.':'🔥 '+c.name+' SE REBELOU depois de '+ECON.rebelUps+' rodadas sem suprimentos! Reconquiste-a.');rebelCity(c)}
   }
   // cidades que não são suas: o humor é simulado por números (depende do nível e da sorte)
   if(!prep)for(const c of WORLD.cities){
@@ -173,7 +180,7 @@ function rebelCity(c){
   const e=ec(c);
   c.owner='enemy';c.state='idle';if(c.flagMat)c.flagMat.color.setHex(RANK_COL[c.rank]||0xcc2222);
   STATE.rd.routes=STATE.rd.routes.filter(r=>r.a!==c.id&&r.b!==c.id);rebuildCaravans();
-  e.wh=null;whOf(c);e.got={};e.carry={};e.ups=0;e.mood='upset';   // perde os suprimentos e a produção da cidade (o armazenamento e o cofre são seus)
+  e.wh=null;whOf(c);e.got={};e.carry={};e.ups=0;e.mood='upset';delete e.press;   // perde os suprimentos e a produção da cidade (o armazenamento e o cofre são seus)
   const n=3+Math.max(1,c.rank||1),pts=(c.walk||[]).filter(p=>Math.hypot(p.x-c.cx,p.z-c.cz)>4);
   for(let i=0;i<n&&pts.length;i++){const p=pts[Math.floor(Math.random()*pts.length)];spawnEnemy(c,i===n-1&&(c.rank||1)>=2?'hound':'soldier',p.x,p.z)}
 }function beginLeaderTurn(){
@@ -605,7 +612,7 @@ function dealSummary(A,B,onYes){
 
 // ---------- as necessidades mudam a cada rodada: "joga-se o dado" para ver qual recurso pesa mais ----------
 function rerollNeeds(c){
-  const e=ec(c);if(!e||e.type==='port')return;   // o porto é distribuído pelo jogador
+  const e=ec(c);if(!e||e.type==='port'||e.press)return;   // o porto é distribuído pelo jogador; cidade reprimida não gira o dado
   const foc=e.type,others=NEEDS.filter(r=>r!==foc),lv=[200,150,100,100].slice(0,others.length);
   for(let i=lv.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));const x=lv[i];lv[i]=lv[j];lv[j]=x}
   e.pct={};if(NEEDS.includes(foc))e.pct[foc]=0;others.forEach((r,i)=>e.pct[r]=lv[i]);
