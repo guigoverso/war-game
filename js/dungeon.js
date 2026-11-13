@@ -27,16 +27,8 @@ function genDungeons(rng,cities,taken){
   if(!best)return;
   DG.rx=best[0];DG.rz=best[1];DG.Y=SEA-250;DG.ok=true;   // a região fica muito abaixo do mapa (fora da vista, escondida pela névoa); só se chega por portal
   taken.push({x:DG.rx+S/2,z:DG.rz+S/2,r:S*0.75});
-  // o mar cobre a região: qualquer terra que houvesse ali desce suavemente até o fundo do mar (sem buraco visível)
-  const seabed=SEA-5;
-  for(let dz=-M;dz<S+M;dz++)for(let dx=-M;dx<S+M;dx++){
-    const x=DG.rx+dx,z=DG.rz+dz;if(x<1||z<1||x>=W-1||z>=W-1)continue;
-    const i=z*W+x,inside=dx>=0&&dz>=0&&dx<S&&dz<S;
-    if(inside){H[i]=DG.Y;B[i]=BIO_ROCK;T[i]=T_WILD}
-    else{const e=Math.max(-dx,dx-S+1,-dz,dz-S+1);if(H[i]>seabed){H[i]=Math.min(H[i],Math.round(lerp(seabed,H[i],clamp((e-1)/M,0,1))));if(H[i]<SEA){T[i]=T_NAT}}}
-  }
-  // fundo do mar invisível sobre a região: quem nadar por cima não cai na dungeon
-  Col.add({x0:DG.rx,y0:seabed-3,z0:DG.rz,x1:DG.rx+S,y1:seabed,z1:DG.rz+S});  for(let k=0;k<WING_OFF.length;k++)DG.wings.push(buildWing(new RNG((WORLD.seed*57+k*911+13)>>>0),k));
+  // o terreno de cima NÃO é alterado: a região fica no "mundo de baixo" (Y muito negativo), com um chão invisível próprio
+  Col.add({x0:DG.rx,y0:DG.Y-3,z0:DG.rz,x1:DG.rx+S,y1:DG.Y,z1:DG.rz+S});  for(let k=0;k<WING_OFF.length;k++)DG.wings.push(buildWing(new RNG((WORLD.seed*57+k*911+13)>>>0),k));
   genOffice();   // o 4º quadrante da região guarda o escritório do líder (rounds.js)
 }
 
@@ -69,8 +61,6 @@ function buildWing(rng,k){
   // pontos de aparição de inimigos: salas comuns (longe da entrada)
   for(const r of rooms.slice(1)){if(r===boss)continue;for(let n=0;n<4;n++)wing.spawns.push({x:wx(r.x+1+((r.w-2)*((n*37)%10)/10)|0)+0.5,z:wz(r.z+1+((r.h-2)*((n*53)%10)/10)|0)+0.5})}
   buildWingBoxes(wing,rng);
-  // marca o terreno: chão de caverna (som e piso de pedra) onde há piso
-  for(let z=0;z<N;z++)for(let x=0;x<N;x++)if(g[z*N+x])T[(oz+z)*W+ox+x]=T_CAVE;
   return wing;
 }
 
@@ -192,7 +182,23 @@ function updatePortals(dt){
   for(const m of PORTALS)m.group.visible=Math.hypot(m.p.x-P.x,m.p.z-P.z)<260;   // o brilho do portal é estático
   const dh=document.getElementById('dghud');   // contagem de inimigos restantes (só no modo criativo)
   if(dh){if(G.dg&&G.creative){const n=G.dg.area.enemies.filter(e=>e.alive).length;dh.style.display='block';dh.textContent='👁 Inimigos restantes: '+n}else dh.style.display='none'}
+  updateBarrier();
   updateDungeonMood();
+}
+// barreira entre o mundo de cima e o de baixo: quem se aproxima dela (ou a cruza) é devolvido (jogador) ou some (bichos), antes de atravessar
+function updateBarrier(){
+  if(!DG.ok)return;
+  const under=!!(G.dg||G.office);
+  if(!P.dead&&!G.noclip){
+    if(!under&&P.y<BAR_UP){placePlayerHome();toast('Você voltou para a sua cidade.',2000)}
+    else if(under&&P.y>BAR_DOWN){
+      const s=G.dg?G.dg.wing.entrance:OFFICE.spawn;P.x=s.x;P.z=s.z;P.y=DG.Y+0.2;P.vy=0;P.camY=P.y;
+    }
+  }
+  const gone=(e,low)=>{if(low?e.y<BAR_UP:e.y>BAR_DOWN){e.alive=false;e.gone=true;scene.remove(e.group);if(e.city&&e.city.aliveEnemies>0)e.city.aliveEnemies--;return true}return false};
+  for(const e of ENEMIES){if(!e.alive||e.gone)continue;gone(e,!(e.city&&e.city.kind==='dungeon'))}
+  for(const n of NPCS){if(!n.alive||n.gone)continue;if(n.y<BAR_UP){n.alive=false;n.gone=true;scene.remove(n.group)}}
+  for(const a of ALLIES){if(a.alive&&!a.gone&&a.y<BAR_UP){a.alive=false;a.gone=true;scene.remove(a.group)}}
 }
 Hooks.on('round',()=>{if(DG.ok&&!G.dg)spawnPortals()});
 
@@ -215,8 +221,8 @@ function drawDungeonMinimap(){
 }
 
 // ---------- ambiente escuro dentro da dungeon ----------
-function inDungeonRegion(){return DG.ok&&P.x>=DG.rx&&P.x<DG.rx+DG.S&&P.z>=DG.rz&&P.z<DG.rz+DG.S}
-const inDGxz=(x,z)=>DG.ok&&x>=DG.rx-1&&x<DG.rx+DG.S+1&&z>=DG.rz-1&&z<DG.rz+DG.S+1;
+function inDungeonRegion(){return DG.ok&&P.y<UNDER_Y&&P.x>=DG.rx&&P.x<DG.rx+DG.S&&P.z>=DG.rz&&P.z<DG.rz+DG.S}   // só vale no mundo de baixo (em cima da região há mar ou terra normais)
+const inDGxz=(x,z)=>false;   // (antes escondia a região; hoje ela fica em outro mundo)
 function updateDungeonMood(){
   const inside=inDungeonRegion();
   if(DN.group)DN.group.visible=!inside;
@@ -262,8 +268,8 @@ function populateWing(p,w,area){
   const plan={1:['spider','spider','hound','hound','bot'],2:['spider','spider','scorpion','scorpion','hound','hound','bot','bot'],3:['spider','spider','spider','scorpion','scorpion','scorpion','bot','bot','bot','brute']}[p.tier];
   const pts=w.spawns.slice().sort(()=>Math.random()-0.5),dead=p.dead||[];
   // quem já foi eliminado em visitas anteriores continua morto (a dungeon fica como estava)
-  plan.forEach((t,i)=>{if(dead.includes(i))return;const s=pts[i%pts.length],e=spawnEnemy(area,t,s.x,s.z);e.dgIdx=i});
-  if(!dead.includes(plan.length)){const e=spawnEnemy(area,p.tier===1?'scorpion':p.tier===2?'brute':'golem',w.boss.x-3,w.boss.z-3);e.dgIdx=plan.length}   // chefe
+  plan.forEach((t,i)=>{if(dead.includes(i))return;const s=pts[i%pts.length],e=spawnEnemy(area,t,s.x,s.z);e.dgIdx=i;e.y=DG.Y});
+  if(!dead.includes(plan.length)){const e=spawnEnemy(area,p.tier===1?'scorpion':p.tier===2?'brute':'golem',w.boss.x-3,w.boss.z-3);e.dgIdx=plan.length;e.y=DG.Y}   // chefe
   if(area.aliveEnemies<=0)area.state='cleared';
 }
 function leaveDungeon(noTeleport){

@@ -54,7 +54,7 @@ function genFishSpots(){
   const rng=new RNG((WORLD.seed*131+7)>>>0);let tries=0;
   while(SPOTS.length<SPOT_COUNT&&tries++<8000){
     const x=rng.int(12,W-12),z=rng.int(12,W-12);
-    if(H[z*W+x]>=SEA-1||inDGxz(x,z))continue;   // precisa de água com alguma profundidade (e fora da região subterrânea)
+    if(H[z*W+x]>=SEA-1)continue;   // precisa de água com alguma profundidade (e fora da região subterrânea)
     let land=false;
     for(let k=0;k<16&&!land;k++){const a=k*0.3927;for(const r of[5,8,11]){const xx=Math.floor(x+Math.cos(a)*r),zz=Math.floor(z+Math.sin(a)*r);if(xx>0&&zz>0&&xx<W&&zz<W&&H[zz*W+xx]>=SEA+0.5){land=true;break}}}
     if(!land)continue;

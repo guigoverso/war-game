@@ -220,6 +220,7 @@ function freeSpot(x,z,r,hgt,boxStep){
   return[x,z];
 }
 function rescueStuck(e,dt,r,hgt){
+  if(e.y<UNDER_Y)return;   // no mundo de baixo não há resgate (o resgate usa o terreno de cima)
   e.chkT=(e.chkT||0)-dt;if(e.chkT>0)return;e.chkT=0.3;
   probe(e.x,e.z,r*0.6,e.y,hgt,1.05,e.boxStep);
   if(GR.blocked){
@@ -450,7 +451,7 @@ function updateEnemy(e,dt){  const def=e.def,m=e.model;
     active=!!e.aggro&&!P.dead;
   }
   if(e.fightW)active=true;   // briga entre bichos e soldados/bandidos
-  if(G.invis&&tg===P){active=false;e.aggro=false;e.lunge=0;e.wind=0;e.sees=false}   // modo invisível: ninguém ataca o jogador
+  if((G.invis||((P.y<UNDER_Y)!==(e.y<UNDER_Y)))&&tg===P){active=false;e.aggro=false;e.lunge=0;e.wind=0;e.sees=false}   // invisível, ou o jogador está no outro mundo (em cima/embaixo): ninguém ataca   // modo invisível: ninguém ataca o jogador
   let moving=false;
   if(!active){
     e.sees=false;

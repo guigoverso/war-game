@@ -182,11 +182,10 @@ function genOffice(){
   for(const wx0 of[3,Wd-6]){ob(wx0-0.1,1.7,Dp-0.12,wx0+3.1,3.9,Dp,DK,false,{j:0});ob(wx0,1.8,Dp-0.16,wx0+3,3.8,Dp-0.1,0xcfe8ff,false,{j:0});ob(wx0+1.45,1.8,Dp-0.2,wx0+1.55,3.8,Dp-0.14,DK,false,{j:0})}
   for(const lx of[3.2,Wd-3.8]){ob(lx,0,2.6,lx+0.6,0.2,3.2,DK,false);ob(lx+0.25,0.2,2.85,lx+0.35,2.0,2.95,DK,false);ob(lx-0.1,2.0,2.5,lx+0.7,2.7,3.3,0xffc060,false,{j:0})}
   // marca o chão (som de piso interno) e guarda os pontos de interesse
-  for(let z=0;z<Dp;z++)for(let x=0;x<Wd;x++)T[(oz+z)*W+ox+x]=T_FLOOR;
   OFFICE.desk={x:ox+mx,z:oz+3.1};OFFICE.spawn={x:ox+mx,z:oz+Dp-4.2};OFFICE.ok=true;
 }
 const nearBook=()=>!!(G.office&&OFFICE.desk&&Math.hypot(P.x-OFFICE.desk.x,P.z-OFFICE.desk.z)<5.5);   // alcance generoso: basta estar diante da mesa
-function inOfficeRoom(){return OFFICE.ok&&P.x>=OFFICE.ox-1&&P.x<=OFFICE.ox+OFFICE.Wd+1&&P.z>=OFFICE.oz-1&&P.z<=OFFICE.oz+OFFICE.Dp+1}
+function inOfficeRoom(){return OFFICE.ok&&P.y<UNDER_Y&&P.x>=OFFICE.ox-1&&P.x<=OFFICE.ox+OFFICE.Wd+1&&P.z>=OFFICE.oz-1&&P.z<=OFFICE.oz+OFFICE.Dp+1}
 // objetos de cena do escritório: o soldado-comandante na porta e o livro sobre a mesa
 function initOffice(){
   if(!OFFICE.ok||OFFICE.soldier)return;

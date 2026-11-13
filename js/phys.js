@@ -1,6 +1,10 @@
 'use strict';
 // ---------- Colisão, raycast e movimento ----------
 const W=640,SEA=10,CHK=32,NCH=W/CHK;
+// Mundo de baixo: as dungeons e o escritório ficam bem abaixo do mapa, nas mesmas posições (x,z). Abaixo de UNDER_Y o terreno é ignorado.
+// A barreira separa os dois mundos: o que cruza o plano de UNDER_Y (de cima ou de baixo) é bloqueado/removido, e quem chega perto (40 blocos) some antes.
+const UNDER_Y=-100,BAR_UP=UNDER_Y+40,BAR_DOWN=UNDER_Y-80;   // BAR_UP: limite inferior do mundo de cima; BAR_DOWN: limite superior do mundo de baixo
+const isUnder=y=>y<UNDER_Y;
 let H=null,T=null,B=null;               // mapas do mundo (alturas, tipos de tile, bioma)
 function tH(x,z){x=Math.floor(x);z=Math.floor(z);if(x<0||z<0||x>=W||z>=W)return SEA-3;return H[z*W+x]}
 
@@ -39,10 +43,11 @@ function rayBox(ox,oy,oz,dx,dy,dz,b,maxT){
 }
 const RAY={t:0,kind:0};  // kind: 0 nada, 1 terreno, 2 bloco
 function rayWorld(ox,oy,oz,dx,dy,dz,maxT){
-  let best=maxT,kind=0;const step=0.4;
+  let best=maxT,kind=0;const step=0.4,over=oy>UNDER_Y;
   for(let t=step;t<best;t+=step){
     const x=ox+dx*t,y=oy+dy*t,z=oz+dz*t;
-    if(y<tH(x,z)){best=Math.max(0,t-step*0.5);kind=1;break}
+    if(over?y<UNDER_Y:y>UNDER_Y){best=Math.max(0,t-step*0.5);kind=2;break}   // barreira entre os dois mundos
+    if(over&&y<tH(x,z)){best=Math.max(0,t-step*0.5);kind=1;break}
     if(y>90&&dy>0)break;
   }
   const n=Math.ceil(best/3),s=++Col.stamp;
@@ -64,7 +69,7 @@ function losClear(ax,ay,az,bx,by,bz){
 const GR={g:0,blocked:false};
 function probe(x,z,r,y,hgt,stepH,boxS){
   const bst=boxS===undefined?stepH:boxS;
-  let g=Math.max(tH(x,z),tH(x+r,z),tH(x-r,z),tH(x,z+r),tH(x,z-r));
+  let g=y<UNDER_Y?-1e9:Math.max(tH(x,z),tH(x+r,z),tH(x-r,z),tH(x,z+r),tH(x,z-r));   // no mundo de baixo o terreno não conta (só os blocos)
   GR.blocked=false;
   const bs=Col.near(x-r,z-r,x+r,z+r);
   for(let i=0;i<bs.length;i++){

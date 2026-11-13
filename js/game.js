@@ -563,7 +563,7 @@ function unstuck(manual){
 }
 let stuckT=0;
 function checkStuck(dt){
-  if(G.noclip||P.dead)return;
+  if(G.noclip||P.dead||P.y<UNDER_Y)return;   // no mundo de baixo não há "destravar" (usa o terreno de cima)
   probe(P.x,P.z,P.r*0.6,P.y,1.8,1.05);
   if(GR.blocked){stuckT+=dt;if(stuckT>1.5){stuckT=0;unstuck(false)}}else stuckT=0;
 }

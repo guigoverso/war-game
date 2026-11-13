@@ -474,17 +474,15 @@ function tileColor(x,z,i){
   return shadec(c,v);
 }
 function meshTerrain(){
-  // a região subterrânea (dungeons) só existe na física: visualmente o mar continua com o fundo normal por cima dela
-  const inReg=(x,z)=>DG.ok&&x>=DG.rx&&x<DG.rx+DG.S&&z>=DG.rz&&z<DG.rz+DG.S,hv=(x,z)=>inReg(x,z)?SEA-5:H[z*W+x];
   for(let cz=0;cz<NCH;cz++)for(let cx=0;cx<NCH;cx++){
     const bt=CHUNKS[cz*NCH+cx];
     for(let z=cz*CHK;z<(cz+1)*CHK;z++)for(let x=cx*CHK;x<(cx+1)*CHK;x++){
-      const i=z*W+x,rg=inReg(x,z),h=rg?SEA-5:H[i],tc=hex2rgb(rg?shadec(0x8d8a7e,0.93+hash2(x,z,7)*0.14):tileColor(x,z,i));
+      const i=z*W+x,h=H[i],tc=hex2rgb(tileColor(x,z,i));
       bt.face(2,x,h,z,x+1,h,z+1,tc[0],tc[1],tc[2]);
       const dirs=[[1,0,0],[-1,0,1],[0,1,4],[0,-1,5]];
       for(const dd of dirs){
         const nx=x+dd[0],nz=z+dd[1];if(nx<0||nz<0||nx>=W||nz>=W)continue;
-        const nh=hv(nx,nz);if(nh>=h)continue;
+        const nh=H[nz*W+nx];if(nh>=h)continue;
         const sc=hex2rgb(subColor(x,z,i)),gf=(T[i]===T_NAT&&B[i]!==BIO_ROCK&&h>=SEA)?0.82:1;
         const top=Math.min(0.3,h-nh);
         if(T[i]===T_NAT&&h>=SEA&&B[i]!==BIO_ROCK&&B[i]!==BIO_DESERT)bt.face(dd[2],x,h-top,z,x+1,h,z+1,tc[0]*gf,tc[1]*gf,tc[2]*gf);
