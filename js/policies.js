@@ -156,12 +156,36 @@ function polRunQueue(){
   }
 }
 // bloco do livro (Resumo): política pendente e efeitos ativos
-function polBookHtml(){
+// invoca uma política específica (modo criativo, só no turno do Líder); devolve uma mensagem de erro ou null
+function polSummon(id){
+  normalizePol();const P=STATE.pol;
+  if(STATE.phase!=='leader')return 'Só no turno do líder.';
+  if(P.pending)return 'Já há uma política pendente: decida primeiro.';
+  const d=POL.byId[id];if(!d)return 'Política desconhecida.';
+  if(d.cond&&!d.cond())return 'Condição não atendida agora (ex.: precisa de rota ativa, soldados ou espaço para a dungeon).';
+  let city=null;
+  if(d.city){const cs=playerCities().filter(c=>!d.cityOk||d.cityOk(c));if(!cs.length)return 'Nenhuma cidade sua atende à condição desta política (ex.: Rebelião exige uma cidade descontente).';city=cs[Math.floor(Math.random()*cs.length)]}
+  P.pending={pid:id,city:city?city.id:-1,round:STATE.round};
+  if(d.data)P.pending.data=d.data(new RNG((Math.random()*1e9)|0));
+  toast('📜 Há uma política a decidir. Abra o livro na mesa (E).',4500);polNoteUpdate();return null;
+}
+// informação da política atual: a da rodada (pendente ou já decidida) e os efeitos ativos com a rodada em que terminam
+function polInfoHtml(){
   normalizePol();const P=STATE.pol;let h='';
-  if(P.pending){const d=POL.byId[P.pending.pid];h+='<p class="ldwarn">📜 Política pendente: <b>'+(d?d.name:'?')+'</b> <button data-a="polopen">Abrir</button></p>'}
+  const last=P.log.length?P.log[P.log.length-1]:null;
+  if(P.pending){const d=POL.byId[P.pending.pid],c=polCityOf(P.pending);h+='<p><b>📜 Política desta rodada:</b> '+(d?d.name:'?')+(c?' ('+c.name+')':'')+' — <i>a decidir</i></p>'}
+  else if(last&&last.round===STATE.round){const d=POL.byId[last.pid],op=d&&d.options.find(o=>o.k===last.k),c=last.city>=0?WORLD.cities[last.city]:null;
+    h+='<p><b>📜 Política desta rodada:</b> '+(d?d.name:'?')+(c?' ('+c.name+')':'')+'<br><small>Escolha: '+last.k+'. '+(op?op.label:'')+(op?' — '+op.eff(c,last.data):'')+'</small></p>'}
+  else h+='<p><b>📜 Política desta rodada:</b> nenhuma.</p>';
+  return h;
+}
+function polBookHtml(){
+  normalizePol();const P=STATE.pol;let h=polInfoHtml();
+  if(P.pending)h+='<p class="ldwarn"><button data-a="polopen">Abrir a política a decidir</button></p>';
   const pr=playerCities().filter(c=>ec(c).press);
   if(pr.length)h+='<h4>Cidades sob repressão</h4><ul class="ldul">'+pr.map(c=>'<li>'+c.name+': necessidades +'+50*ec(c).press.n+'% (máx. 300%). Supra tudo numa rodada para acabar.</li>').join('')+'</ul>';
-  if(P.fx.length)h+='<h4>Efeitos ativos</h4><ul class="ldul">'+P.fx.map(f=>'<li>'+f.txt+' <small>(mais '+f.left+' rodada'+(f.left>1?'s':'')+')</small></li>').join('')+'</ul>';
+  if(P.fx.length)h+='<h4>Efeitos ativos</h4><ul class="ldul">'+P.fx.map(f=>'<li>'+f.txt+'<br><small>até o fim da rodada '+(STATE.round+f.left-1)+' (mais '+f.left+' rodada'+(f.left>1?'s':'')+')</small></li>').join('')+'</ul>';
+  else h+='<p class="ldsm">Nenhum efeito temporário ativo.</p>';
   return h;
 }
 
@@ -327,3 +351,14 @@ definePolicy({id:'dourada',name:'Dungeon dourada',city:true,cool:6,
       apply:x=>{x.fx({t:'gold',c:-1,p:{add:50},txt:'Mineradores contratados (dungeon dourada)'});x.fx({t:'need',p:{mul:2,sel:'food'},txt:'Necessidade de comida +100% em '+x.city.name+' (mineradores e soldados)'})}},
     {k:'C',label:'Deixar para depois',type:'neutral',eff:()=>'Nada muda.'}
   ]});
+
+// linha curta no HUD: política da rodada e efeitos ativos (com a rodada em que terminam)
+function polHud(){
+  const P=STATE.pol;if(!P||!P.log)return '';
+  const last=P.log[P.log.length-1];let t='';
+  if(P.pending){const d=POL.byId[P.pending.pid];t='📜 Política a decidir: '+(d?d.name:'')}
+  else if(last&&last.round===STATE.round&&POL.byId[last.pid])t='📜 '+POL.byId[last.pid].name+' ('+last.k+')';
+  const n=P.fx.length;
+  if(n)t+=(t?' • ':'📜 ')+n+' efeito'+(n>1?'s':'')+' ativo'+(n>1?'s':'')+' (até a rodada '+Math.max(...P.fx.map(f=>STATE.round+f.left-1))+'; detalhes no livro, B)';
+  return t?'<br><small>'+t+'</small>':'';
+}

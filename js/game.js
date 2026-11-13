@@ -228,6 +228,7 @@ $('resume').onclick=()=>{document.querySelector('#pause h2').textContent='⏸ PA
 function toggleMute(){G.muted=!G.muted;if(master)master.gain.value=G.muted?0:0.35;refreshCheats();toast(G.muted?'Som desligado':'Som ligado',1000)}
 function toggleInvis(){G.invis=!G.invis;if(G.invis){for(const e of ENEMIES)e.aggro=false}}
 function refreshCheats(){
+  refreshPolicyCheats();
   {const ss=$('seedshow');if(ss&&typeof WORLD!=='undefined'&&WORLD.seed!==undefined)ss.textContent=WORLD.seed}
   $('cPolicyNext').textContent='Disparar evento na próxima rodada: '+(POL.forceNext?'SIM':'não');
   $('cSupplied').textContent='Cidades sempre supridas: '+(G.alwaysSupplied?'LIGADO':'desligado');
@@ -244,7 +245,12 @@ $('cRound').onclick=()=>{endRound();refreshCheats();closePanel()};
 $('cLeader').onclick=()=>{if(STATE.phase==='leader'||G.office){closePanel();return}STATE.rd.hallCity=WORLD.home.id;beginLeaderTurn();closePanel()};
 $('cPolicyNext').onclick=()=>{POL.forceNext=!POL.forceNext;refreshCheats();toast(POL.forceNext?'Uma política será sorteada no próximo turno do Líder.':'Sorteio normal (30%) de volta.',2500)};
 $('cSupplied').onclick=()=>{G.alwaysSupplied=!G.alwaysSupplied;refreshCheats();toast(G.alwaysSupplied?'Cidades sempre supridas: as rodadas passam sem faltar suprimentos.':'Cidades voltam a precisar de suprimentos.',2500)};
-$('cPolicy').onclick=()=>{if(STATE.phase!=='leader'){toast('Políticas só no turno do líder: vá ao escritório antes.',2500);return}closePanel();rollPolicy(true)};
+$('cPolicy').onclick=()=>{
+  if(STATE.phase!=='leader'){toast('Eventos só no turno do líder: vá ao escritório antes.',2500);return}
+  const id=$('polsel').value,err=id?polSummon(id):(rollPolicy(true),STATE.pol.pending?null:'Nenhuma política disponível agora.');
+  if(err){toast(err,3500);return}
+  closePanel();
+};
 $('cActions').onclick=()=>{STATE.rd.lvl=Math.min(CAP_MAX_LVL,STATE.rd.lvl+1);toast('Capital nível '+STATE.rd.lvl,1500)};
 $('cItems').onclick=()=>{toast('Itens de teste: '+(invGive(Object.keys(DATA.items).map(id=>[id,1]))||'(bolsa cheia)'),2500)};
 $('cFill').onclick=()=>{const sl=STATE.inv.slots;for(let i=0;i<sl.length;i++)if(!sl[i])sl[i]={id:'sucata',n:20};invChanged();toast('Bolsa cheia de sucata. Dê um item novo para testar o descarte.',3000)};
@@ -621,7 +627,7 @@ function frame(){
 
 // ---------- Início ----------
 async function startGame(creative,loadData){
-  G.creative=creative===true;$('creativeBox').classList.toggle('hidden',!G.creative);
+  G.creative=creative===true;$('creativeBox').classList.toggle('hidden',!G.creative);$('ptabsC').classList.toggle('hidden',!G.creative);pauseTab('geral');
   resetState();G.startBio=$('biosel').value;
   initAudio();if(AC){AC.resume();initMusic()}
   const q=new URLSearchParams(location.search);
@@ -661,3 +667,22 @@ $('playbtn').onclick=()=>startGame(false);$('createbtn').onclick=()=>startGame(t
 frame();
 
 
+
+// ---------- abas da tela de opções (pausa) ----------
+let pauseTabName='geral';
+function pauseTab(name){
+  if(!G.creative&&name!=='geral')name='geral';
+  pauseTabName=name;
+  document.querySelectorAll('#pause .ppage').forEach(p=>p.classList.toggle('hidden',p.dataset.pp!==name));
+  document.querySelectorAll('#ptabs button').forEach(b=>b.classList.toggle('sel',b.dataset.pt===name));
+  if(name==='rod')refreshPolicyCheats();
+}
+document.addEventListener('click',e=>{const b=e.target.closest('#ptabs button');if(b&&b.dataset.pt)pauseTab(b.dataset.pt)});
+// aba Rodadas: lista de eventos para invocar (só no turno do Líder) e o resumo da política atual
+function refreshPolicyCheats(){
+  const sel=$('polsel');if(!sel||typeof POL==='undefined')return;
+  if(!sel.options.length){const o=document.createElement('option');o.value='';o.textContent='🎲 Sortear (aleatório)';sel.appendChild(o);for(const d of POL.defs){const x=document.createElement('option');x.value=d.id;x.textContent=d.name;sel.appendChild(x)}}
+  const lead=STATE.phase==='leader';
+  $('polbox').classList.toggle('hidden',!lead);$('polhint').style.display=lead?'none':'block';
+  $('polstatus').innerHTML=typeof polInfoHtml==='function'?polInfoHtml():'';
+}
