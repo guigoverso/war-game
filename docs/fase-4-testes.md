@@ -89,4 +89,16 @@ Por quê (semente de teste, 7 cidades): antes a necessidade total era 225 unidad
 ## Últimos ajustes
 - **Minimapa e mapa grande** mostram o **armazém** (letra **Z**); o mapa grande tem uma legenda das letras dos edifícios.
 - **Couro: um slot por tipo de item que vale como couro** (hoje 2: couro e pele de lobo). A quantidade se ajusta sozinha se novos itens de couro forem criados.
-- **Configurações (pausa, nos dois modos)**: aparece a **semente do mundo** com o botão **📋 Copiar**.
+- **Configurações (pausa, nos dois modos)**: aparece a **semente do mundo** com o botão **📋 Copiar**.## Fundação da Fase 4 (4I, 4H, 4A)
+### 4I — Save versionado (SAVE_VERSION = 8)
+- Regras no topo de `migrateSave` (`js/save.js`): cada fase que muda o estado soma 1 à versão, acrescenta um passo `if(d.v<N)` e só **acrescenta** campos (ausentes = padrão).
+- `saveProblem()` valida o arquivo (corrompido, sem versão, de versão mais nova, incompleto). A janela de salvar mostra "⚠ salvamento … (não pode ser carregado)" em vez de "vazio" e deixa sobrescrever.
+- Ao sobrescrever um espaço, o anterior vai para `fc_save_N_bak` (um nível de desfazer). Apagar remove os dois.
+### 4H — Garantias do mundo
+- Cidades sempre em terra firme (a busca de último recurso também), e **todas ligadas por estrada/ponte**: após a árvore de estradas, qualquer grupo isolado é ligado ao mais próximo (`WORLD.links`).
+- Cada cidade ganha `coast` (água ao redor) e `coastal`. O **porto** é a cidade mais forte **litorânea** que não é a capital; **se nenhuma cidade for litorânea, o mundo não tem porto** (só vale para partidas novas; saves mantêm o porto).
+### 4A — Ações do líder
+- Tudo em `ECON.act` (`js/rounds.js`): capital 1, evoluir cidade 1, caravana 0 (só ouro; troque para 1 se quiser que gaste ação). Porto, paz e guerra não gastam. Funções `canAct`/`spendAct`.
+- **Evoluir cidade** (aba Cidades, só cidades suas que não são a capital): ◉200 × nível, 1 ação, nível máx. 3, **5% de desconto nas lojas por nível**. Não sobe o nível do líder. A capital também dá o desconto conforme o nível dela.
+- As ações restantes (◆) aparecem em todas as abas do livro no turno do líder.
+- Testado: seeds 11 e 5 (cidades ligadas, porto litorâneo), gasto de ação e ouro, desconto de 5%, salvar/validar versões antigas e inválidas; console sem erros.

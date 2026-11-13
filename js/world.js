@@ -147,7 +147,12 @@ async function genWorld(seed,status,dominant){
     }
     sites.push(bestC);
   }
-  while(sites.length<7){const x=rng.int(76,W-76),z=rng.int(76,W-76);if(sites.every(s=>Math.hypot(s.x-x,s.z-z)>90))sites.push({x,z,b:B[z*W+x]})}
+  // último recurso (poucos candidatos): sempre em terra firme, afastado das outras; relaxa a distância se não achar
+  for(let tries=0,minD=90;sites.length<7&&tries<20000;tries++){
+    if(tries&&tries%2000===0)minD=Math.max(40,minD-12);
+    const x=rng.int(76,W-76),z=rng.int(76,W-76);
+    if(H[z*W+x]>=SEA+1&&sites.every(s=>Math.hypot(s.x-x,s.z-z)>minD))sites.push({x,z,b:B[z*W+x]});
+  }
   const used=new Set();
   const cities=sites.map((s,i)=>{
     const bio=B[s.z*W+s.x];
@@ -203,7 +208,29 @@ async function genWorld(seed,status,dominant){
   }
   extra.sort((a,b)=>a[2]-b[2]);
   for(let k=0;k<2&&k<extra.length;k++)if(extra[k][2]<150)edges.push([extra[k][0],extra[k][1]]);
+  // garantia (Fase 4H): todas as cidades precisam estar ligadas por estrada/ponte. A árvore geradora acima já cobre isso;
+  // se alguma sobrar isolada (ex.: poucas cidades no mapa), liga o par mais próximo entre os grupos.
+  {
+    const par=cities.map((_,i)=>i),find=i=>{while(par[i]!==i){par[i]=par[par[i]];i=par[i]}return i};
+    for(const e of edges)par[find(e[0])]=find(e[1]);
+    for(;;){
+      let best=null,bd=1e9;
+      for(let i=0;i<cities.length;i++)for(let j=i+1;j<cities.length;j++){
+        if(find(i)===find(j))continue;const d=Math.hypot(cities[i].cx-cities[j].cx,cities[i].cz-cities[j].cz);if(d<bd){bd=d;best=[i,j]}}
+      if(!best)break;edges.push(best);par[find(best[0])]=find(best[1]);
+    }
+  }
+  WORLD.links=edges.map(e=>[e[0],e[1]]);
   for(const e of edges){carveRoad(cities[e[0]],cities[e[1]],cities);await tick()}
+  // litoral: conta água nas redondezas de cada cidade (anel de 4 a 45 blocos além da muralha). É o que decide quem pode ser o porto.
+  for(const c of cities){
+    let wet=0;
+    for(let dz=-(c.half+45);dz<=c.half+45;dz+=3)for(let dx=-(c.half+45);dx<=c.half+45;dx+=3){
+      if(Math.max(Math.abs(dx),Math.abs(dz))<c.half+4)continue;
+      const x=c.cx+dx,z=c.cz+dz;if(x>=0&&z>=0&&x<W&&z<W&&H[z*W+x]<SEA)wet++;
+    }
+    c.coast=wet;c.coastal=wet>=12;
+  }
 
   // 4) Cidades
   for(const c of cities){

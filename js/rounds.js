@@ -14,12 +14,22 @@ const MOOD={rich:{n:'Próspera',icon:'😄',col:'#ffd23a'},ok:{n:'Contente',icon
 // goldMul: ouro por unidade na cidade de foco dinheiro • taxBase/taxRank: imposto por rodada (×1,5 se próspera, 0 se descontente) • caravan/capital: custos em ouro
 const ECON={baseNeed:4,prodBase:7,prodRank:1,goldMul:8,taxBase:25,taxRank:10,caravan:300,capital:300,shopMul:2,tradeGold:0.5};   // tradeGold: fração da produção de ouro da cidade parceira que vira ouro por rodada para quem negocia com ela   // shopMul: o estoque da Loja da cidade = (produção da cidade) × shopMul para o recurso dela (25% dos outros)
 const TAX_BASE=ECON.taxBase,TAX_RANK=ECON.taxRank;
-const CAP_MAX_LVL=4;
+// ações do líder (Fase 4A): quanto cada decisão gasta por rodada. 0 = não gasta (hoje a caravana é só ouro; o porto e, no futuro, paz e guerra são grátis).
+// Para a caravana também gastar ação, troque caravan para 1. cityUp = custo base (× nível atual) de evoluir uma cidade que não é a capital; cityDisc = desconto nas lojas por nível dela.
+ECON.act={caravan:0,capital:1,city:1};ECON.cityUp=200;ECON.cityDisc=0.05;
+const CAP_MAX_LVL=4,CITY_MAX_LVL=3;
 const TYPE_NAME={food:'Alimentos',ore:'Minérios',wood:'Madeira',leather:'Couro',gold:'Dinheiro',port:'Porto'};
 const CITY_COLS=[0xe0402a,0x2aa04a,0xe8b820,0x8a3ac8,0x20b0c8,0xe87820,0xd0409a,0x8a8a8a];   // cor de identidade de cada cidade (faixa da bandeira)
 const resIcon=k=>DATA.resources[k].icon,resName=k=>DATA.resources[k].name;
 
-Hooks.on('resetState',()=>{STATE.phase='commander';STATE.rd={lvl:1,actions:1,cities:{},routes:[],rbuf:{},debuff:{},report:[],hallCity:0}});
+Hooks.on('resetState',()=>{STATE.phase='commander';STATE.rd={lvl:1,actions:1,cities:{},routes:[],rbuf:{},debuff:{},report:[],hallCity:0,clv:{}}});
+// ---------- ações do líder: um só lugar para gastar e conferir ----------
+const actCost=kind=>ECON.act[kind]||0;
+const canAct=kind=>isLeader()&&STATE.rd.actions>=actCost(kind);
+function spendAct(kind){if(!canAct(kind))return false;STATE.rd.actions-=actCost(kind);return true}
+const cityLvl=c=>(STATE.rd.clv&&STATE.rd.clv[c.id])||1;   // nível das cidades do jogador (a capital usa rd.lvl, que também dá ações)
+const cityUpCost=c=>({gold:ECON.cityUp*cityLvl(c)});
+addPriceMod('clv',(p,ctx)=>ctx.city&&ctx.city.owner==='player'&&!ctx.city.home?p*(1-ECON.cityDisc*(cityLvl(ctx.city)-1)):ctx.city&&ctx.city.home?p*(1-ECON.cityDisc*(STATE.rd.lvl-1)):p,70);   // cidade evoluída: desconto nas lojas dela
 const rbufOn=r=>!!(STATE.rd&&STATE.rd.rbuf&&STATE.rd.rbuf[r]);
 const debOn=r=>!!(STATE.rd&&STATE.rd.debuff&&STATE.rd.debuff[r]);   // debuff: faltou suprimento na rodada anterior
 // dívida em itens (o que faltou e ainda não foi pago) das cidades do jogador
@@ -53,8 +63,9 @@ function portPct(pf,ps){   // porto: o jogador escolhe o que produz (0%) e o que
 }function initEconomy(){
   const rd=STATE.rd;if(!rd.cities)rd.cities={};
   const hasPort=Object.values(rd.cities).some(e=>e.type==='port');
-  // o porto é a cidade mais forte que não é a capital
-  const cand=WORLD.cities.filter(c=>!c.home).sort((a,b)=>(b.rank||0)-(a.rank||0)||a.id-b.id)[0];
+  // o porto é uma cidade forte que não é a capital e fica no litoral: a mais forte entre as litorâneas; sem litoral, a mais forte de todas
+  const strong=WORLD.cities.filter(c=>!c.home).sort((a,b)=>(b.rank||0)-(a.rank||0)||a.id-b.id);
+  const cand=strong.find(c=>c.coastal);   // sem cidade litorânea, o mundo não tem porto
   for(const c of WORLD.cities){
     if(rd.cities[c.id])continue;
     const rng=new RNG((WORLD.seed*31+c.id*977+5)>>>0);
@@ -71,7 +82,7 @@ function portPct(pf,ps){   // porto: o jogador escolhe o que produz (0%) e o que
   }
   for(const c of WORLD.cities){const e=rd.cities[c.id];if(e&&e.type!=='port'&&NEEDS.some(r=>r!==e.type&&e.pct[r]===undefined))rerollNeeds(c)}   // salvamentos antigos: sorteia as necessidades que faltam (couro)
   for(const c of WORLD.cities)whOf(c);   // cada cidade tem o seu armazém (salvamentos antigos ganham um vazio)
-  if(!rd.routes)rd.routes=[];if(!rd.rbuf)rd.rbuf={};if(!rd.report)rd.report=[];if(!rd.lvl)rd.lvl=1;if(rd.actions===undefined)rd.actions=maxActions();
+  if(!rd.routes)rd.routes=[];if(!rd.rbuf)rd.rbuf={};if(!rd.report)rd.report=[];if(!rd.lvl)rd.lvl=1;if(rd.actions===undefined)rd.actions=maxActions();if(!rd.clv)rd.clv={};
 }
 // necessidade (em unidades) de um recurso numa cidade; uma caravana que traz o foco do parceiro zera a necessidade dele
 const tradePct=p=>p===100?0:p===150?100:p===200?150:p;   // caravana: 100% some, 150% cai para 100%, 200% cai para 150%
@@ -400,7 +411,7 @@ function bookPages(){
       +(STATE.round<1?'<h4>Rodada 0</h4><p class="ldsm">Não há decisões agora e nada é cobrado: a contagem começa na rodada 1. Veja de que suprimentos cada cidade precisa (aba <b>Cidades</b>) e comece a juntá-los: compre na loja ou ache na natureza (caça, pesca, baús) e entregue no <b>armazém</b> de cada cidade. Quando estiver pronto, encerre a rodada no quadro da prefeitura.</p>'
         :'<h4>Relatório da rodada anterior</h4>'+(rd.report.length?'<ul class="ldul">'+rd.report.map(t=>'<li>'+t+'</li>').join('')+'</ul>':'<p>Nada a relatar.</p>'))
       +'<h4>Humor das outras cidades</h4><p class="ldsm">'+WORLD.cities.filter(c=>c.owner!=='player').map(c=>c.name+': '+MOOD[moodOf(c)].icon+' '+MOOD[moodOf(c)].n).join('<br>')+'</p>'
-      +(port||!hasWorldPort?'':'<p class="ldwarn">⚓ Você ainda não tem um porto. Ele fica na cidade mais forte do mapa.</p>');
+      +(port||!hasWorldPort?'':'<p class="ldwarn">⚓ Você ainda não tem um porto. Ele fica na cidade litorânea mais forte do mapa.</p>');
     return[L,R];
   }
   if(LB.tab==='cidades'){
@@ -424,6 +435,11 @@ function bookPages(){
             +'<div>Falta: '+NEEDS.map(r=>'<button class="ldmini'+(cs===r?' sel':'')+'" data-a="ps" data-r="'+r+'">'+resIcon(r)+'</button>').join('')+'</div>';
         }else R+='<p class="ldsm">⚓ O porto produz '+resIcon(e.pf)+' e lhe falta '+resIcon(e.ps)+'. Essa distribuição só muda no turno do líder.</p>';
       }
+      if(!c.home){   // evoluir uma cidade que não é a capital: gasta ação e ouro; dá desconto nas lojas dela (não sobe o nível do líder)
+        const lv=cityLvl(c),cc=cityUpCost(c),ok=isLeader()&&lv<CITY_MAX_LVL&&canAct('city')&&Ledger.canAfford(cc);
+        R+='<h4>Evoluir a cidade</h4><p class="ldsm">Nível <b>'+lv+'</b> / '+CITY_MAX_LVL+' • lojas '+Math.round(ECON.cityDisc*(lv-1)*100)+'% mais baratas. Não aumenta o nível do líder (só a capital faz isso).</p>'
+          +(lv>=CITY_MAX_LVL?'<p>Nível máximo.</p>':'<p>Custo: <b>◉ '+cc.gold+'</b> + '+actCost('city')+' ação</p><button data-a="cityup" '+(ok?'':'disabled')+'>Evoluir '+c.name+'</button>'+leaderOnly()+(isLeader()&&!canAct('city')?'<p class="ldwarn">Sem ações do líder nesta rodada.</p>':''));
+      }
     }    return[L,R];
   }
   if(LB.tab==='caravanas'){
@@ -431,11 +447,11 @@ function bookPages(){
       return '<div class="ldroute"><b>'+routeName(r)+'</b><br><small>'+A.name+' recebe '+resIcon(focusOf(B))+' • '+B.name+' recebe '+resIcon(focusOf(A))+'</small><br><button data-a="unroute" data-i="'+i+'" '+(isLeader()?'':'disabled')+'>Desfazer</button></div>'}).join(''):'<p>Nenhuma caravana ainda.</p>')
       +'<p class="ldsm">Quem recebe o produto da outra cidade: a necessidade dele <b>100% some</b>, <b>150% cai para 100%</b> e <b>200% cai para 150%</b> (mostrado numa tabela antes de fechar o acordo). Negociar com uma cidade de <b>ouro</b> rende ouro por rodada (e uma cidade de ouro com acordo não rende imposto). A produção levada pela caravana não vai para o armazém.</p>';
     const R='<h3>Nova caravana</h3><p>Escolha no <b>mapa</b> a cidade de <b>origem</b> (uma das suas) e a de <b>destino</b> (sua, aliada ou neutra). A sua cidade passa a receber o produto do destino por caravana (reduz a necessidade dele ou rende ouro).</p>'
-      +'<p>Preço: <b>◉ '+CARAVAN_COST+'</b></p><button data-a="route" class="gold" '+(isLeader()&&Ledger.canAfford({gold:CARAVAN_COST})?'':'disabled')+'>🗺 Escolher no mapa</button>'+leaderOnly()+(Ledger.anyDebt()?'<p class="ldwarn">Com dívida não é possível comprar.</p>':'');    return[L,R];
+      +'<p>Preço: <b>◉ '+CARAVAN_COST+'</b></p><button data-a="route" class="gold" '+(canAct('caravan')&&Ledger.canAfford({gold:CARAVAN_COST})?'':'disabled')+'>🗺 Escolher no mapa</button>'+leaderOnly()+(Ledger.anyDebt()?'<p class="ldwarn">Com dívida não é possível comprar.</p>':'');    return[L,R];
   }
-  const lvl=rd.lvl,cost=capCost(),can=isLeader()&&lvl<CAP_MAX_LVL&&rd.actions>=1;
+  const lvl=rd.lvl,cost=capCost(),can=isLeader()&&lvl<CAP_MAX_LVL&&canAct('capital');
   const L='<h3>'+WORLD.home.name+' — a capital</h3><p>Nível do líder: <b>'+lvl+'</b> / '+CAP_MAX_LVL+'</p><p>Ações por rodada: <b>'+maxActions()+'</b></p><p class="ldsm">A capital evolui até virar uma cidade fortificada. Cada nível aumenta o número de ações do líder por rodada.</p>';
-  const R='<h3>Evoluir a capital</h3>'+(lvl>=CAP_MAX_LVL?'<p>A capital já é uma cidade fortificada.</p>':'<p>Próximo nível: <b>'+(lvl+1)+'</b> (+1 ação por rodada, a partir da próxima rodada).</p><p>Custo: <b>◉ '+cost.gold+'</b> + 1 ação</p><button data-a="cap" '+(can&&Ledger.canAfford(cost)?'':'disabled')+'>Evoluir</button>'+leaderOnly()+(Ledger.anyDebt()?'<p class="ldwarn">Com dívida não é possível comprar.</p>':''));
+  const R='<h3>Evoluir a capital</h3>'+(lvl>=CAP_MAX_LVL?'<p>A capital já é uma cidade fortificada.</p>':'<p>Próximo nível: <b>'+(lvl+1)+'</b> (+1 ação por rodada, a partir da próxima rodada).</p><p>Custo: <b>◉ '+cost.gold+'</b> + '+actCost('capital')+' ação</p><button data-a="cap" '+(can&&Ledger.canAfford(cost)?'':'disabled')+'>Evoluir</button>'+leaderOnly()+(Ledger.anyDebt()?'<p class="ldwarn">Com dívida não é possível comprar.</p>':''));
   return[L,R];
 }
 const CARAVAN_COST=ECON.caravan;
@@ -445,7 +461,7 @@ function renderBook(){
   $('ldsub').style.display=inv?'none':'flex';
   $('ldsub').innerHTML=LSUBS.map(t=>'<button class="'+(LB.tab===t[0]?'sel':'')+'" data-tab="'+t[0]+'">'+t[1]+'</button>').join('');
   if(inv){$('ldL').innerHTML=INV_L;$('ldR').innerHTML=INV_R;renderInventory()}
-  else{const [L,R]=bookPages();$('ldL').innerHTML=L;$('ldR').innerHTML=R}
+  else{const [L,R]=bookPages();$('ldL').innerHTML=(isLeader()&&LB.tab!=='resumo'?'<p class="ldsm">Ações do líder: '+actionsHtml()+'</p>':'')+L;$('ldR').innerHTML=R}   // as ações restantes aparecem em todas as abas
   $('ldtabs').innerHTML=G.office?'':[['inv','🎒','Bolsa'],['book','📖','Livro']].map(t=>'<button class="'+((inv?'inv':'book')===t[0]?'sel':'')+'" data-top="'+t[0]+'">'+t[1]+'<br><small>'+t[2]+'</small></button>').join('');
   $('lddone').style.display=(isLeader()||G.office)?'':'none';$('lddone').textContent='✔ Encerrar turno';
 }
@@ -464,7 +480,11 @@ function bookClick(e){
   else if(a==='route'){if(!isLeader())toast('Caravanas só no turno do líder.',2000);else{startCaravanPick();return}}
   else if(a==='cap'){
     const cost=capCost();
-    if(isLeader()&&rd.lvl<CAP_MAX_LVL&&rd.actions>=1&&Ledger.spend(cost)){rd.actions--;rd.lvl++;sfx('win',0);toast('🏛 A capital evoluiu! Nível '+rd.lvl+': mais ações a partir da próxima rodada.',3500)}
+    if(isLeader()&&rd.lvl<CAP_MAX_LVL&&canAct('capital')&&Ledger.spend(cost)){spendAct('capital');rd.lvl++;sfx('win',0);toast('🏛 A capital evoluiu! Nível '+rd.lvl+': mais ações a partir da próxima rodada.',3500)}
+  }
+  else if(a==='cityup'){
+    const cost=cityUpCost(c);
+    if(isLeader()&&c.owner==='player'&&!c.home&&cityLvl(c)<CITY_MAX_LVL&&canAct('city')&&Ledger.spend(cost)){spendAct('city');rd.clv[c.id]=cityLvl(c)+1;sfx('win',0);toast('🏘 '+c.name+' evoluiu para o nível '+cityLvl(c)+': lojas '+Math.round(ECON.cityDisc*(cityLvl(c)-1)*100)+'% mais baratas.',3500)}
   }
   renderBook();
 }
@@ -521,8 +541,9 @@ function buyCaravan(A,B){
   else if(!A||!B||A===B)toast('Escolha duas cidades diferentes.',2000);
   else if(rd.routes.some(r=>(r.a===A.id&&r.b===B.id)||(r.a===B.id&&r.b===A.id)))toast('Já existe uma caravana entre elas.',2500);
   else if(focusOf(A)===focusOf(B))toast('As duas cidades produzem o mesmo recurso: a caravana seria inútil.',3000);
+  else if(!canAct('caravan'))toast('Sem ações do líder nesta rodada.',2500);
   else if(!Ledger.spend({gold:CARAVAN_COST}))toast('Ouro insuficiente (ou você está em dívida).',2500);
-  else{rd.routes.push({a:A.id,b:B.id});rebuildCaravans();computeBuffs();sfx('win',0);toast('🛒 Duas caravanas partiram entre '+A.name+' e '+B.name+'. (−◉'+CARAVAN_COST+')',3500)}
+  else{spendAct('caravan');rd.routes.push({a:A.id,b:B.id});rebuildCaravans();computeBuffs();sfx('win',0);toast('🛒 Duas caravanas partiram entre '+A.name+' e '+B.name+'. (−◉'+CARAVAN_COST+')',3500)}
 }
 document.addEventListener('click',e=>{
   if(!MP.on||G.panel!=='map'||e.target.id!=='bigmap')return;

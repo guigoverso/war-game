@@ -27,26 +27,45 @@ function collectSave(){
 }
 
 // migra um salvamento antigo para a versão atual (cada versão nova acrescenta um passo aqui)
+// Regras para cada fase nova: some 1 ao SAVE_VERSION (state.js), acrescente um passo "if(d.v<N)" abaixo e só ACRESCENTE campos (ausentes = padrão).
+// migrateSave devolve null se o salvamento é inutilizável; saveProblem() diz o motivo, para a janela mostrar algo melhor que "vazio".
+function saveProblem(d){
+  if(!d||typeof d!=='object'||Array.isArray(d))return 'corrompido';
+  if(typeof d.v!=='number'||!(d.v>=1))return 'sem versão';
+  if(d.v>SAVE_VERSION)return 'de uma versão mais nova do jogo';
+  if(d.seed===undefined||!d.player||!d.weapons)return 'incompleto';
+  return null;
+}
 function migrateSave(d){
-  if(!d||typeof d!=='object')return null;
-  if(d.v>SAVE_VERSION)return null;          // salvamento de uma versão mais nova que o jogo
+  if(saveProblem(d))return null;
   if(d.v<2){d.v=2}   // v2 acrescentou inventário e durabilidade dentro de state (ausentes = padrão)
   if(d.v<3){d.v=3}   // v3 acrescentou bônus de comida, vendedores e a vara de pescar (ausentes = padrão)
   if(d.v<4){d.v=4}   // v4: armas viram itens (barra 1–6), atalhos 7–9 guardam pilhas e há cardumes de pesca (ausentes = padrão)
   if(d.v<5){d.v=5}   // v5: portais, armas lendárias, cidades queimadas e controle de raids (ausentes = padrão)
   if(d.v<6){d.v=6}   // v6: rodadas, turno do líder, tipos de cidade, rotas de caravana e capital (ausentes = padrão)
   if(d.v<7){d.v=7}   // v7: armazém por cidade (suprimentos viram itens); o estoque geral antigo de alimentos/minério/madeira é descartado
-  // if(d.v<8){ ...ajustes...; d.v=8 }
+  if(d.v<8){d.v=8}   // v8: nível das cidades do jogador (rd.clv) e ações do líder gastas por tipo; ligações por estrada e litoral vêm da semente (ausentes = padrão)
+  // if(d.v<9){ ...ajustes...; d.v=9 }
   return d;
 }
 
-function readSave(i){
-  try{const raw=localStorage.getItem(saveKey(i));if(!raw)return null;return migrateSave(JSON.parse(raw))}catch(e){return null}
+// lê um espaço: {d} se está tudo certo, {empty:true} se vazio, {bad:'motivo'} se existe mas não pode ser usado
+function readSaveEx(i){
+  let raw;try{raw=localStorage.getItem(saveKey(i))}catch(e){return{empty:true}}
+  if(!raw)return{empty:true};
+  let j;try{j=JSON.parse(raw)}catch(e){return{bad:'corrompido'}}
+  const why=saveProblem(j);if(why)return{bad:why};
+  try{return{d:migrateSave(j)}}catch(e){console.error(e);return{bad:'erro ao atualizar'}}
 }
+function readSave(i){return readSaveEx(i).d||null}
 function writeSave(i){
-  try{localStorage.setItem(saveKey(i),JSON.stringify(collectSave()));return true}catch(e){console.error(e);return false}
+  try{
+    let json=JSON.stringify(collectSave());
+    try{const old=localStorage.getItem(saveKey(i));if(old)localStorage.setItem(saveKey(i)+'_bak',old)}catch(e){}   // cópia do salvamento anterior (um nível de desfazer)
+    localStorage.setItem(saveKey(i),json);return true
+  }catch(e){console.error(e);return false}
 }
-function deleteSave(i){try{localStorage.removeItem(saveKey(i))}catch(e){}}
+function deleteSave(i){try{localStorage.removeItem(saveKey(i));localStorage.removeItem(saveKey(i)+'_bak')}catch(e){}}
 function saveSummary(d){
   if(!d)return null;
   const dt=new Date(d.savedAt),cities=(d.cities||[]).filter(c=>c.owner==='player').length;
@@ -133,14 +152,14 @@ const SaveUI={
     note.textContent=SaveUI.mode==='game'?'Escolha um espaço para salvar ou carregar. Soldados e animais vivos nascem de novo ao carregar.':'Escolha um jogo salvo para continuar.';
     body.appendChild(note);
     for(let i=1;i<=SAVE_SLOTS;i++){
-      const d=readSave(i),row=document.createElement('div');row.className='saverow';
+      const rs=readSaveEx(i),d=rs.d||null,row=document.createElement('div');row.className='saverow';
       const info=document.createElement('div');info.className='saveinfo';
-      info.innerHTML='<b>Espaço '+i+'</b><br><span>'+(d?saveSummary(d):'vazio')+'</span>';
+      info.innerHTML='<b>Espaço '+i+'</b><br><span>'+(d?saveSummary(d):rs.bad?'⚠ salvamento '+rs.bad+' (não pode ser carregado)':'vazio')+'</span>';
       row.appendChild(info);
       if(SaveUI.mode==='game'){
         row.appendChild(UI.button('Salvar','gold',()=>{
           const doSave=()=>{if(writeSave(i)){toast('💾 Jogo salvo no espaço '+i,2000)}else toast('Não foi possível salvar (armazenamento cheio ou bloqueado)',3000);SaveUI.render()};
-          if(d)UI.confirm('Sobrescrever o espaço '+i+'?',doSave,'Sobrescrever');else doSave();
+          if(d||rs.bad)UI.confirm('Sobrescrever o espaço '+i+'?',doSave,'Sobrescrever');else doSave();
         }));
       }
       const lb=UI.button('Carregar','alt',()=>{
