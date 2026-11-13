@@ -45,7 +45,8 @@ function migrateSave(d){
   if(d.v<6){d.v=6}   // v6: rodadas, turno do líder, tipos de cidade, rotas de caravana e capital (ausentes = padrão)
   if(d.v<7){d.v=7}   // v7: armazém por cidade (suprimentos viram itens); o estoque geral antigo de alimentos/minério/madeira é descartado
   if(d.v<8){d.v=8}   // v8: nível das cidades do jogador (rd.clv) e ações do líder gastas por tipo; ligações por estrada e litoral vêm da semente (ausentes = padrão)
-  // if(d.v<9){ ...ajustes...; d.v=9 }
+  if(d.v<9){d.v=9}   // v9: motor de políticas (state.pol: pending, fx, queue, cool, log); ausente = nenhuma política ativa
+  // if(d.v<10){ ...ajustes...; d.v=10 }
   return d;
 }
 
@@ -82,6 +83,7 @@ function applySave(d){
   if(s.inv)STATE.inv=s.inv;if(s.dur)STATE.dur=s.dur;if(s.buffs)STATE.buffs=s.buffs;if(s.vendors)STATE.vendors=s.vendors;if(s.fishGone)STATE.fishGone=s.fishGone;
   STATE.portals=s.portals||[];STATE.portalSeq=s.portalSeq||0;STATE.portalDay=s.portalDay;STATE.legend=s.legend||{};STATE.burnt=s.burnt||{};STATE.raidDay=s.raidDay||0;STATE.raidLast=s.raidLast===undefined?-9:s.raidLast;
   if(!(s.portals&&s.portals.length)&&s.portalDay===undefined)STATE.portalDay=undefined;   // salvamento antigo: os portais nascem na hora
+  if(s.pol)STATE.pol=s.pol;normalizePol();   // políticas: carta pendente, efeitos ativos, fila do turno do Comandante, recargas
   if(s.rd)STATE.rd=s.rd;   // rodadas: tipos de cidade, entregas, rotas, nível da capital (o que faltar é completado por initEconomy)
   normalizeInv();refreshBuffs();   // inventário e durabilidade (salvamentos antigos usam os padrões)
   // cidades conquistadas

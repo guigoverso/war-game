@@ -1,0 +1,241 @@
+'use strict';
+// ---------- Motor de decisões e Políticas locais (Fase 4B) ----------
+// Uma "política" é um cartão sorteado no começo do turno do Líder (30% por rodada): narrativa + 3 opções (A, B, C).
+// Cada opção tem um tipo (buff, debuff, buff+debuff, neutro), pode custar ouro, aplica efeitos na hora e/ou depois que o turno do Comandante começa (onStart).
+// O mesmo motor servirá aos Eventos globais e às Reuniões (Fase 5): só muda quem sorteia os cartões.
+// Textos e números aprovados: docs/politicas-locais.md.
+//
+// Como acrescentar uma política (tudo em dados, sem mexer no motor):
+//   definePolicy({id,name,city:true|false,cityOk(c),cond(),cool:rodadas,weight,text(c),options:[{k:'A',label,type,eff(c),cost:{gold:n},can(ctx),preview(ctx),apply(ctx),onStart(ctx)}]})
+//   cost: o jogador pode pagar mesmo sem ter o ouro; o saldo fica negativo (dívida) e ele sofre os efeitos dela (compras bloqueadas).
+//   apply(ctx) roda na hora; onStart(ctx) roda quando o turno do Comandante começa (teleporte, combate, soldados). ctx.fx({t,c,p,left,txt}) cria um efeito temporário.
+// Efeitos temporários (STATE.pol.fx, duram POL.dur rodadas): t = 'need' (p.mul, p.sel=recurso) • 'noTax' • 'noProd' • 'price' (p.mul, p.sel=tipo de preço) • 'gold' (p.add por rodada, no cofre) • outros nomes servem de bandeira (polFlag).
+const POL={chance:0.30,dur:5,defs:[],byId:{}};
+const POL_TYPE={buff:{n:'Buff',col:'#9fe89f'},debuff:{n:'Debuff',col:'#ff9a9a'},both:{n:'Buff + Debuff',col:'#ffd23a'},neutral:{n:'Neutro',col:'#c8c8c8'}};
+function definePolicy(d){
+  if(!d.options||d.options.length!==3)console.warn('política '+d.id+': precisa de 3 opções');
+  else if(!d.options.some(o=>!o.cost))console.warn('política '+d.id+': ao menos uma opção deve ser gratuita (ou o jogador pode ficar preso)');
+  POL.defs.push(d);POL.byId[d.id]=d;return d;
+}
+Hooks.on('resetState',()=>{STATE.pol={pending:null,fx:[],queue:[],cool:{},log:[]}});
+function normalizePol(){const p=STATE.pol||(STATE.pol={});if(!p.fx)p.fx=[];if(!p.queue)p.queue=[];if(!p.cool)p.cool={};if(!p.log)p.log=[];if(p.pending===undefined)p.pending=null}
+
+// ---------- efeitos temporários ----------
+const polAll=(t,cid)=>(STATE.pol&&STATE.pol.fx||[]).filter(f=>f.t===t&&(f.c===undefined||f.c<0||cid===undefined||f.c===cid));
+const polSel=(f,sel)=>f.p===undefined||f.p.sel===undefined||sel===undefined||f.p.sel===sel;
+const polMul=(t,cid,sel)=>polAll(t,cid).filter(f=>polSel(f,sel)).reduce((m,f)=>m*((f.p&&f.p.mul)||1),1);
+const polFlag=(t,cid)=>polAll(t,cid).length>0;
+function polAddFx(spec){
+  const f={pid:spec.pid||'',t:spec.t,c:spec.c===undefined?-1:spec.c,p:spec.p||{},left:spec.left||POL.dur,txt:spec.txt||spec.t};
+  STATE.pol.fx.push(f);return f;
+}
+// preço: efeitos 'price' (ex.: lojas mais baratas). sel = tipo de preço (weapon, ammo, vest, upgrade, heal, buy, tavern, recruit, soldierup, repair) ou todos
+addPriceMod('pol',(p,ctx)=>p*polMul('price',ctx.city?ctx.city.id:undefined,ctx.kind),80);
+
+// ---------- fim de rodada: rendas por rodada e duração ----------
+Hooks.on('round',()=>{
+  const P=STATE.pol;if(!P||!STATE.rd)return;
+  const rep=STATE.rd.report||(STATE.rd.report=[]);
+  for(const f of P.fx){
+    if(f.t==='gold'&&f.p.add){shOf().vault+=f.p.add;rep.push('📜 '+f.txt+': +◉'+f.p.add+' no cofre.')}
+    f.left--;
+  }
+  for(const f of P.fx.filter(x=>x.left<=0))rep.push('📜 Terminou: '+f.txt+'.');
+  P.fx=P.fx.filter(f=>f.left>0);
+});
+
+// ---------- sorteio ----------
+function polCooling(key){return((STATE.pol.cool[key])||0)>STATE.round}
+function polCandidates(){
+  const out=[];
+  for(const d of POL.defs){
+    if(d.off||(d.cond&&!d.cond()))continue;
+    if(!d.city){if(!polCooling(d.id))out.push({d,city:null});continue}
+    for(const c of playerCities())if((!d.cityOk||d.cityOk(c))&&!polCooling(d.id+':'+c.id))out.push({d,city:c});
+  }
+  return out;
+}
+// sorteio determinístico pela semente e pela rodada (recarregar o jogo não "rerrola" a política)
+// a política NÃO abre sozinha: surge uma notificação no canto superior direito e o jogador abre o cartão quando quiser (livro, na mesa)
+function rollPolicy(force){
+  normalizePol();
+  const P=STATE.pol;if(P.pending){polNoteUpdate();return}
+  if(!force&&STATE.round<1)return;
+  const rng=new RNG((WORLD.seed*131+STATE.round*7919+17)>>>0);
+  if(!force&&!rng.chance(POL.chance))return;
+  let cand=polCandidates();if(!cand.length)return;
+  const last=P.log.length?P.log[P.log.length-1].pid:null,alt=cand.filter(x=>x.d.id!==last);if(alt.length)cand=alt;   // evita repetir a política da rodada anterior
+  const tot=cand.reduce((a,x)=>a+(x.d.weight||1),0);let r=rng.next()*tot,pick=cand[0];
+  for(const x of cand){r-=(x.d.weight||1);if(r<=0){pick=x;break}}
+  P.pending={pid:pick.d.id,city:pick.city?pick.city.id:-1,round:STATE.round};
+  toast('📜 Há uma política a decidir. Abra o livro na mesa (E).',4500);polNoteUpdate();
+}
+// modo criativo: "Disparar evento na próxima rodada" força o sorteio no próximo turno do Líder
+Hooks.on('leaderTurn',()=>{const f=POL.forceNext;POL.forceNext=false;rollPolicy(f)});
+
+// ---------- notificação no canto superior direito ----------
+function polNoteUpdate(){
+  let el=document.getElementById('polnote');
+  if(!el){
+    el=document.createElement('div');el.id='polnote';
+    el.style.cssText='position:fixed;top:14px;right:14px;z-index:45;max-width:290px;background:#4a2a12;border:3px solid #1e1006;color:#ffe9b0;padding:10px 14px;font-size:15px;line-height:1.4;box-shadow:0 4px 0 rgba(0,0,0,.4);cursor:pointer;display:none';
+    el.onclick=()=>{if(STATE.pol&&STATE.pol.pending)showPolicy()};
+    document.body.appendChild(el);
+  }
+  const pd=STATE.pol&&STATE.pol.pending,d=pd&&POL.byId[pd.pid];
+  const show=!!d&&STATE.phase==='leader'&&!G.panel&&!(polWin&&polWin.isOpen());   // com algum painel aberto (livro, pausa...) a notificação some; o livro tem o botão "Abrir"
+  el.style.display=show?'block':'none';
+  if(show)el.innerHTML='📜 <b>Política a decidir</b><br><small>'+d.name+' — abra o livro na mesa (E) para decidir. Você só encerra o turno depois.</small>';
+}
+
+// ---------- janela do cartão ----------
+let polWin=null;
+const polCityOf=pd=>pd&&pd.city>=0?WORLD.cities[pd.city]:null;
+function polCtx(d,op,c){
+  return{def:d,op,city:c,
+    fx:spec=>polAddFx(Object.assign({pid:d.id,c:c?c.id:-1},spec)),
+    gold:n=>Ledger.add('gold',n),vault:n=>{shOf().vault+=n},
+    toast:(m,ms)=>toast(m,ms||3500)};
+}
+function showPolicy(){
+  const pd=STATE.pol&&STATE.pol.pending;if(!pd)return;
+  const d=POL.byId[pd.pid];if(!d){STATE.pol.pending=null;return}
+  const c=polCityOf(pd);
+  if(!polWin)polWin=UI.window({title:'',width:600,z:50});
+  polWin.setTitle('📜 '+d.name+(c?' — '+c.name:''));
+  const b=polWin.body;b.innerHTML='';
+  const nar=document.createElement('p');nar.style.cssText='font-style:italic;line-height:1.5';nar.textContent='“'+d.text(c)+'”';b.appendChild(nar);
+  for(const op of d.options){
+    const ty=POL_TYPE[op.type]||POL_TYPE.neutral,ctx=polCtx(d,op,c);
+    const why=op.can?op.can(ctx):null;   // pagar sem ter o ouro é permitido: gera dívida (ver polChoose)
+    const debt=op.cost&&!Ledger.canAfford(op.cost);
+    const row=document.createElement('div');row.className='card';row.style.cssText='margin:6px 0;padding:8px 10px';
+    row.innerHTML='<b>'+op.k+'. '+op.label+'</b> <span style="color:'+ty.col+';font-size:13px">['+ty.n+']</span><br><span style="font-size:14px;line-height:1.5">'+op.eff(c)+(op.onStart?' <b>⏱</b>':'')+'</span>';
+    const btn=UI.button('Escolher '+op.k,why?'alt':'gold',()=>polChoose(op.k));btn.style.marginTop='6px';
+    if(why){btn.disabled=true;const w=document.createElement('small');w.style.cssText='margin-left:8px;color:#ff9a9a';w.textContent=why;row.append(btn,w)}
+    else{row.appendChild(btn);if(debt){const w=document.createElement('small');w.style.cssText='margin-left:8px;color:#ffb060';w.textContent='💳 você não tem o ouro: o valor vira dívida (compras bloqueadas até pagar)';row.appendChild(w)}}
+    b.appendChild(row);
+  }
+  const hint=document.createElement('p');hint.className='ldsm';hint.textContent='⏱ = tem efeito quando o turno do Comandante começar. Você precisa decidir antes de encerrar o turno do Líder.';b.appendChild(hint);
+  polWin.foot.innerHTML='';polWin.foot.appendChild(UI.button('Decidir depois','alt',()=>polWin.close()));
+  polWin.open();
+}
+function polChoose(k){
+  const pd=STATE.pol.pending;if(!pd)return;
+  const d=POL.byId[pd.pid],op=d&&d.options.find(o=>o.k===k),c=polCityOf(pd);if(!op)return;
+  const ctx=polCtx(d,op,c);
+  const go=()=>{
+    if(op.cost){const dv=!Ledger.canAfford(op.cost);Ledger.borrow(op.cost);if(dv)toast('💳 Sem ouro suficiente: o saldo ficou em dívida.',3500)}   // pagar é sempre possível; sem saldo, vira dívida
+    if(op.apply)op.apply(ctx);
+    if(op.onStart)STATE.pol.queue.push({pid:d.id,k,city:pd.city});
+    const cd=op.cool!==undefined?op.cool:d.cool;   // recarga (rodadas) para a mesma política na mesma cidade; a opção pode ter a sua
+    if(cd)STATE.pol.cool[d.id+(c?':'+c.id:'')]=STATE.round+cd;
+    STATE.pol.log.push({round:STATE.round,pid:d.id,k,city:pd.city});if(STATE.pol.log.length>20)STATE.pol.log.shift();
+    STATE.pol.pending=null;
+    const line='📜 '+d.name+(c?' ('+c.name+')':'')+': '+op.k+'. '+op.label+'.';
+    (STATE.rd.report||(STATE.rd.report=[])).push(line);
+    polWin.close();sfx('win',0);toast(line,3500);polNoteUpdate();
+    if(typeof renderBook==='function'&&G.panel==='ldbook')renderBook();
+    refreshRoundHud();
+  };
+  if(op.preview){   // resumo antes de confirmar (ex.: resultado da batalha calculado no turno do Líder)
+    const w=UI.window({title:'📋 Resumo — '+op.label,width:480,z:60});
+    w.body.innerHTML=op.preview(ctx);
+    w.foot.append(UI.button('Confirmar','gold',()=>{w.close();w.el.remove();go()}),UI.button('Voltar','alt',()=>{w.close();w.el.remove()}));
+    w.open();
+  }else go();
+}
+// no começo do turno do Comandante: executa o que as opções escolhidas deixaram para depois
+function polRunQueue(){
+  const q=STATE.pol&&STATE.pol.queue.splice(0)||[];
+  for(const e of q){
+    const d=POL.byId[e.pid],op=d&&d.options.find(o=>o.k===e.k);if(!op||!op.onStart)continue;
+    try{op.onStart(polCtx(d,op,e.city>=0?WORLD.cities[e.city]:null))}catch(err){console.error('política '+e.pid,err)}
+  }
+}
+// bloco do livro (Resumo): política pendente e efeitos ativos
+function polBookHtml(){
+  normalizePol();const P=STATE.pol;let h='';
+  if(P.pending){const d=POL.byId[P.pending.pid];h+='<p class="ldwarn">📜 Política pendente: <b>'+(d?d.name:'?')+'</b> <button data-a="polopen">Abrir</button></p>'}
+  if(P.fx.length)h+='<h4>Efeitos ativos</h4><ul class="ldul">'+P.fx.map(f=>'<li>'+f.txt+' <small>(mais '+f.left+' rodada'+(f.left>1?'s':'')+')</small></li>').join('')+'</ul>';
+  return h;
+}
+
+// ---------- políticas ----------
+// retira n unidades de suprimentos dos armazéns das suas cidades (começa pelo recurso mais abundante); devolve quanto conseguiu tirar
+function polTakeSupplies(n){
+  let left=n;
+  for(const c of playerCities())for(const r of NEEDS.slice().sort((a,b)=>storedOf(c,b)-storedOf(c,a))){if(left<=0)break;left-=consumeSupply(c,r,left)}
+  return n-left;
+}
+const polStock=()=>playerCities().reduce((a,c)=>a+NEEDS.reduce((s,r)=>s+storedOf(c,r),0),0);
+
+definePolicy({id:'comerciantes',name:'Comerciantes estrangeiros',city:false,
+  text:()=>'Uma caravana de terras distantes monta tendas na praça. Há tecidos, especiarias e ferramentas que ninguém aqui jamais viu. Seus comerciantes aceitam negociar, mas não ficam muito tempo.',
+  options:[
+    {k:'A',label:'Negociar acordos favoráveis',type:'buff',eff:()=>'Todas as lojas ficam 15% mais baratas por '+POL.dur+' rodadas.',
+      apply:x=>x.fx({t:'price',p:{mul:0.85},txt:'Lojas 15% mais baratas (comerciantes estrangeiros)'})},
+    {k:'B',label:'Vender seus excedentes pelo dobro',type:'both',eff:()=>'+◉100. Perde 5 unidades de suprimentos dos armazéns.',
+      can:()=>polStock()<5?'você tem menos de 5 unidades guardadas nos armazéns':null,
+      apply:x=>{const t=polTakeSupplies(5);x.gold(100);x.toast('Vendeu '+t+' unidades por ◉100.')}},
+    {k:'C',label:'Recusar a visita',type:'neutral',eff:()=>'Nada muda.'}
+  ]});
+
+// ---------- Etapa 1 da 4C: colheita, festival, refugiados, epidemia ----------
+const polFoodReserve=c=>{const w=whOf(c);return w.prod&&supplyOf(w.prod.id)&&supplyOf(w.prod.id).res==='food'?w.prod.n:0};
+
+definePolicy({id:'colheita',name:'Colheita farta',city:true,cool:4,
+  text:c=>'O verão foi generoso. Os campos de '+c.name+' amarelaram antes do tempo e os celeiros mal fecham. Há grãos sobrando como não se via há anos, e os mercadores já rondam a cidade com bolsas cheias.',
+  options:[
+    {k:'A',label:'Estocar para os meses difíceis',type:'buff',eff:c=>'+6 de comida na reserva do armazém de '+c.name+'.',
+      apply:x=>{const g=prodAdd(x.city,'food',6);x.toast('+'+g+' de comida na reserva de '+x.city.name+'.')}},
+    {k:'B',label:'Exportar tudo',type:'both',eff:c=>'Vende toda a comida do armazém e da reserva de '+c.name+': +◉150. A necessidade de comida da cidade sobe 50% por '+POL.dur+' rodadas.',
+      apply:x=>{consumeSupply(x.city,'food',99999);if(polFoodReserve(x.city))whOf(x.city).prod=null;x.gold(150);
+        x.fx({t:'need',p:{mul:1.5,sel:'food'},txt:'Necessidade de comida +50% em '+x.city.name+' (exportou a colheita)'})}},
+    {k:'C',label:'Distribuir ao povo',type:'buff',eff:c=>'A felicidade de '+c.name+' sobe 1.',
+      apply:x=>{joyShift(x.city,1);x.toast('😊 '+x.city.name+' ficou mais feliz.')}}
+  ]});
+
+definePolicy({id:'festival',name:'Festival',city:true,cool:4,
+  text:c=>'As ruas de '+c.name+' amanheceram cheias de fitas. A tradição pede um festival no fim da colheita, com música, banquete e competições. O povo espera que o governante conceda a festa, ou ao menos não a proíba.',
+  options:[
+    {k:'A',label:'Financiar um grande festival',type:'both',cost:{gold:200},eff:c=>'−◉200. '+c.name+' fica Próspera por '+POL.dur+' rodadas (imposto ×1,5, +1 de produção, 10% de desconto nas lojas), se tiver os suprimentos.',
+      apply:x=>{const e=ec(x.city);e.mood='rich';x.fx({t:'prosper',txt:x.city.name+' em festa (Próspera)'})}},
+    {k:'B',label:'Permitir um festival modesto',type:'neutral',eff:()=>'Nada muda.'},
+    {k:'C',label:'Cancelar a festa',type:'debuff',eff:c=>'O descontentamento de '+c.name+' sobe 1 (a felicidade cai 1; não afeta a contagem de rebelião).',
+      apply:x=>{joyShift(x.city,-1);x.toast('😠 '+x.city.name+' ficou mais descontente.')}}
+  ]});
+
+definePolicy({id:'refugiados',name:'Refugiados',city:true,cool:4,
+  text:c=>'Famílias cansadas, com trouxas nas costas, se amontoam diante dos portões de '+c.name+'. Fogem de saques e de fome em terras vizinhas. Entre eles há homens fortes dispostos a pegar em armas, mas também muitas bocas para alimentar.',
+  options:[
+    {k:'A',label:'Acolher os refugiados',type:'both',eff:c=>'+2 soldados grátis no quartel de '+c.name+' (se couber no seu exército) quando o turno do Comandante começar. A necessidade de comida da cidade sobe 50% por '+POL.dur+' rodadas.',
+      apply:x=>x.fx({t:'need',p:{mul:1.5,sel:'food'},txt:'Necessidade de comida +50% em '+x.city.name+' (refugiados)'}),
+      onStart:x=>{
+        const c=x.city,bk=c.barracks||{x:c.cx,z:c.cz};let n=0;
+        for(let i=0;i<2&&allyCount()<ARMY.max;i++){spawnAlly(bk.x+(Math.random()-0.5)*1.5,bk.z+(Math.random()-0.5)*1.5,c);n++}
+        x.toast(n?'🪖 '+n+' refugiado(s) se alistaram em '+c.name+'.':'Seu exército já está completo: ninguém se alistou.',4000);
+      }},
+    {k:'B',label:'Recusar a entrada',type:'neutral',eff:()=>'Nada muda.'},
+    {k:'C',label:'Encaminhá-los a outra cidade',type:'debuff',cost:{gold:60},eff:()=>'−◉60.'}
+  ]});
+
+definePolicy({id:'epidemia',name:'Epidemia',city:true,
+  text:c=>'Uma febre desconhecida passa de casa em casa em '+c.name+'. Os mercados estão vazios, os curandeiros não dão conta e os doentes são levados para fora dos muros. O povo olha para a prefeitura esperando uma decisão.',
+  options:[
+    {k:'A',label:'Pagar curandeiros e remédios',type:'debuff',cost:{gold:120},cool:10,eff:c=>'−◉120 e a necessidade de comida de '+c.name+' sobe 50% por '+POL.dur+' rodadas. Sem outra epidemia nela por 10 rodadas.',
+      apply:x=>x.fx({t:'need',p:{mul:1.5,sel:'food'},txt:'Necessidade de comida +50% em '+x.city.name+' (epidemia)'})},
+    {k:'B',label:'Decretar quarentena',type:'debuff',cool:10,eff:c=>c.name+' fica sem produção e sem impostos por '+POL.dur+' rodadas; não é possível recrutar nela; curas e remédios ficam 50% mais caros. Sem outra epidemia por 10 rodadas.',
+      apply:x=>{x.fx({t:'noProd',txt:x.city.name+': sem produção (quarentena)'});x.fx({t:'noTax',txt:x.city.name+': sem imposto (quarentena)'});
+        x.fx({t:'noRecruit',txt:x.city.name+': sem recrutamento (quarentena)'});x.fx({t:'price',p:{mul:1.5,sel:'heal'},txt:x.city.name+': curas e remédios +50% (quarentena)'})}},
+    {k:'C',label:'Esperar que passe',type:'debuff',cool:5,eff:c=>'Por '+POL.dur+' rodadas, só em '+c.name+': caravanas dela destruídas e sem novas; sem curar nem comprar remédios; os soldados que você recrutou morrem e não se recruta mais; humor Descontente (um passo na direção da rebelião); sem produção nem imposto; se for porto, ele para.',
+      apply:x=>{
+        const c=x.city,rd=STATE.rd,e=ec(c);
+        if(rd.routes.some(r=>r.a===c.id||r.b===c.id)){rd.routes=rd.routes.filter(r=>r.a!==c.id&&r.b!==c.id);rebuildCaravans();computeBuffs()}
+        let dead=0;for(const a of ALLIES)if(a.alive){a.alive=false;a.deadT=0;dead++}
+        for(const t of['noRoute','noHeal','noRecruit','noProd','noTax'])x.fx({t,txt:c.name+': '+({noRoute:'sem caravanas',noHeal:'sem cura nem remédios',noRecruit:'sem recrutamento',noProd:'sem produção'+(e.type==='port'?' (porto parado)':''),noTax:'sem imposto'})[t]+' (epidemia)'});
+        e.mood='upset';e.ups=(e.ups||0)+1;
+        if(dead)x.toast('☠ '+dead+' soldado(s) seu(s) morreram na epidemia.',4500);
+        if(e.ups>=ECON.rebelUps&&!c.home){STATE.rd.report.push('🔥 '+c.name+' SE REBELOU por causa da epidemia!');rebelCity(c)}
+      }}
+  ]});

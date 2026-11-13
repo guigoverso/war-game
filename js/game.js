@@ -201,8 +201,9 @@ $('shopgrid').addEventListener('click',e=>{
   renderShop();
 });
 function openClinic(c){G.clinicCity=c;G.clinicMode='menu';openPanel('clinic');renderClinic()}
-const clinicCost=(h,c)=>Math.max(1,Math.round(h*0.5*cityMul(c)*(rbufOn('gold')?0.8:1)*(moodOf(c)==='upset'?2:1)*(moodOf(c)==='rich'?0.9:1)));
+const clinicCost=(h,c)=>Math.max(1,Math.round(h*0.5*cityMul(c)*polMul('price',c.id,'heal')*(rbufOn('gold')?0.8:1)*(moodOf(c)==='upset'?2:1)*(moodOf(c)==='rich'?0.9:1)));
 function renderClinic(){
+  if(polFlag('noHeal',G.clinicCity.id)){$('clinictxt').innerHTML='';$('clinicbtns').innerHTML='<p>— A clínica está fechada: há uma epidemia na cidade e não há como curar nem vender remédios.</p>';return}
   const c=G.clinicCity,miss=Math.ceil(P.maxhp-P.hp),full=clinicCost(miss,c),q=Math.min(miss,25),qc=clinicCost(q,c);
   $('clinictxt').innerHTML='Vida: <b>'+Math.ceil(P.hp)+'/'+P.maxhp+'</b> • Moedas: <b>◉ '+P.coins+'</b><br>'+priceLabel(c)+'. Aqui a vida <b>não</b> volta sozinha: cada ponto custa ◉'+(0.5*cityMul(c)*(rbufOn('gold')?0.8:1)).toFixed(2).replace('.',',')+'.';
   const mode=G.clinicMode||'menu',back='<br><button class="alt" data-mode="menu" style="margin-top:8px">← Voltar</button>';
@@ -228,6 +229,8 @@ function toggleMute(){G.muted=!G.muted;if(master)master.gain.value=G.muted?0:0.3
 function toggleInvis(){G.invis=!G.invis;if(G.invis){for(const e of ENEMIES)e.aggro=false}}
 function refreshCheats(){
   {const ss=$('seedshow');if(ss&&typeof WORLD!=='undefined'&&WORLD.seed!==undefined)ss.textContent=WORLD.seed}
+  $('cPolicyNext').textContent='Disparar evento na próxima rodada: '+(POL.forceNext?'SIM':'não');
+  $('cSupplied').textContent='Cidades sempre supridas: '+(G.alwaysSupplied?'LIGADO':'desligado');
   $('cNoWear').textContent='Desgaste das armas: '+(G.noWear?'desligado':'LIGADO');$('ledgerline').textContent='Rodada '+STATE.round+'  •  '+Ledger.summary()+(Ledger.anyDebt()?'  •  ⚠ EM DÍVIDA: compras bloqueadas':'');$('cInvis').textContent='Invisível: '+(G.invis?'LIGADO':'desligado');$('cMute').textContent='Som: '+(G.muted?'desligado':'LIGADO');$('cGod').textContent='Invencível: '+(G.god?'LIGADO':'desligado');$('cAmmo').textContent='Munição infinita: '+(G.infAmmo?'LIGADA':'desligada');$('cMag').textContent='Pente infinito (sem recarregar): '+(G.noReload?'LIGADO':'desligado')}
 $('cMute').onclick=toggleMute;
 $('seedcopy').onclick=()=>{const s=String(WORLD.seed),done=()=>toast('Semente '+s+' copiada!',1800);
@@ -239,6 +242,9 @@ $('cRes').onclick=()=>{toast('Itens: '+(invGive([['tora',20],['minerio',20],['co
 $('cDebt').onclick=()=>{Ledger.borrow({gold:50});refreshCheats()};
 $('cRound').onclick=()=>{endRound();refreshCheats();closePanel()};
 $('cLeader').onclick=()=>{if(STATE.phase==='leader'||G.office){closePanel();return}STATE.rd.hallCity=WORLD.home.id;beginLeaderTurn();closePanel()};
+$('cPolicyNext').onclick=()=>{POL.forceNext=!POL.forceNext;refreshCheats();toast(POL.forceNext?'Uma política será sorteada no próximo turno do Líder.':'Sorteio normal (30%) de volta.',2500)};
+$('cSupplied').onclick=()=>{G.alwaysSupplied=!G.alwaysSupplied;refreshCheats();toast(G.alwaysSupplied?'Cidades sempre supridas: as rodadas passam sem faltar suprimentos.':'Cidades voltam a precisar de suprimentos.',2500)};
+$('cPolicy').onclick=()=>{if(STATE.phase!=='leader'){toast('Políticas só no turno do líder: vá ao escritório antes.',2500);return}closePanel();rollPolicy(true)};
 $('cActions').onclick=()=>{STATE.rd.lvl=Math.min(CAP_MAX_LVL,STATE.rd.lvl+1);toast('Capital nível '+STATE.rd.lvl,1500)};
 $('cItems').onclick=()=>{toast('Itens de teste: '+(invGive(Object.keys(DATA.items).map(id=>[id,1]))||'(bolsa cheia)'),2500)};
 $('cFill').onclick=()=>{const sl=STATE.inv.slots;for(let i=0;i<sl.length;i++)if(!sl[i])sl[i]={id:'sucata',n:20};invChanged();toast('Bolsa cheia de sucata. Dê um item novo para testar o descarte.',3000)};

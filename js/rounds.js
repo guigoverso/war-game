@@ -16,6 +16,7 @@ const ECON={baseNeed:4,prodBase:7,prodRank:1,goldMul:8,taxBase:25,taxRank:10,car
 const TAX_BASE=ECON.taxBase,TAX_RANK=ECON.taxRank;
 // ações do líder (Fase 4A): quanto cada decisão gasta por rodada. 0 = não gasta (hoje a caravana é só ouro; o porto e, no futuro, paz e guerra são grátis).
 // Para a caravana também gastar ação, troque caravan para 1. cityUp = custo base (× nível atual) de evoluir uma cidade que não é a capital; cityDisc = desconto nas lojas por nível dela.
+ECON.rebelUps=4;   // rodadas seguidas sem suprimentos até a rebelião: Descontente (1), (0), (−1) e então a rebelião
 ECON.act={caravan:0,capital:1,city:1};ECON.cityUp=200;ECON.cityDisc=0.05;
 const CAP_MAX_LVL=4,CITY_MAX_LVL=3;
 const TYPE_NAME={food:'Alimentos',ore:'Minérios',wood:'Madeira',leather:'Couro',gold:'Dinheiro',port:'Porto'};
@@ -94,21 +95,21 @@ function pctOf(c,res){
   }
   return pct;
 }
-const needOf=(c,res)=>Math.round(pctOf(c,res)*ECON.baseNeed/100);   // recursos 1 para 1: 100% = ECON.baseNeed unidades
+const needOf=(c,res)=>Math.round(pctOf(c,res)*ECON.baseNeed/100*polMul('need',c.id,res));   // políticas podem multiplicar a necessidade (policies.js)   // recursos 1 para 1: 100% = ECON.baseNeed unidades
 // recursos do mais abundante (necessidade 0) ao menos abundante (necessidade 200%) nesta rodada
 const abundOf=c=>(focusOf(c)==='gold'?['gold']:[]).concat(NEEDS.slice().sort((a,b)=>pctOf(c,a)-pctOf(c,b)||NEEDS.indexOf(a)-NEEDS.indexOf(b)));
 const abundHtml=c=>abundOf(c).map((r,i)=>'<span title="'+resName(r)+': necessidade '+pctOf(c,r)+'%">'+resIcon(r)+'</span>').join(' › ');
 const gotOf=(c,r)=>ec(c).got[r]||0,carryOf=(c,r)=>ec(c).carry[r]||0;   // got = entregue nesta rodada; carry = o que já estava nos slots no início dela
-const missingOf=(c,r)=>Math.max(0,needOf(c,r)-storedOf(c,r));
+const missingOf=(c,r)=>G.alwaysSupplied?0:Math.max(0,needOf(c,r)-storedOf(c,r));   // G.alwaysSupplied: botão do modo criativo "Cidades sempre supridas"
 const cityMet=c=>NEEDS.every(r=>missingOf(c,r)===0);
 function moodOf(c){const e=STATE.rd&&STATE.rd.cities&&STATE.rd.cities[c.id];return(e&&e.mood)||'ok'}
 const hasRoute=c=>STATE.rd.routes.some(r=>r.a===c.id||r.b===c.id);
-const prodOf=c=>(ECON.prodBase+ECON.prodRank*Math.max(1,c.rank||1)+(moodOf(c)==='rich'?1:0))*(focusOf(c)==='gold'?ECON.goldMul:1);   // cidade próspera: +1 de produção
+const prodOf=c=>polFlag('noProd',c.id)?0:(ECON.prodBase+ECON.prodRank*Math.max(1,c.rank||1)+(moodOf(c)==='rich'?1:0))*(focusOf(c)==='gold'?ECON.goldMul:1);   // cidade próspera: +1 de produção
 const goldTradeOf=c=>{   // ouro extra por rodada de quem negocia com cidades que produzem ouro
   let g=0;for(const r of STATE.rd.routes){if(r.a!==c.id&&r.b!==c.id)continue;const o=WORLD.cities[r.a===c.id?r.b:r.a];if(focusOf(o)==='gold'&&o!==c)g+=Math.round(prodOf(o)*ECON.tradeGold)}
   return moodOf(c)==='upset'||focusOf(c)==='gold'?0:g;
 };
-const taxOf=c=>moodOf(c)==='upset'||(focusOf(c)==='gold'&&hasRoute(c))?0:Math.round((TAX_BASE+TAX_RANK*Math.max(1,c.rank||1))*(moodOf(c)==='rich'?1.5:1));
+const taxOf=c=>moodOf(c)==='upset'||polFlag('noTax',c.id)||(focusOf(c)==='gold'&&hasRoute(c))?0:Math.round((TAX_BASE+TAX_RANK*Math.max(1,c.rank||1))*(moodOf(c)==='rich'?1.5:1));
 const deliverAndRefresh=()=>{computeBuffs();refreshRoundHud()};function computeBuffs(){
   const b={};
   for(const c of playerCities())for(const r of NEEDS)if(gotOf(c,r)>Math.max(0,needOf(c,r)-carryOf(c,r)))b[r]=true;
@@ -129,26 +130,30 @@ function endRound(city){
       const e=ec(c),carry2={};delete e.debt;   // recursos não geram dívida
       let short=false,over=false;
       for(const r of NEEDS){
-        const need=needOf(c,r),cover=storedOf(c,r),sh=Math.max(0,need-cover);
+        const need=needOf(c,r),cover=G.alwaysSupplied?need:storedOf(c,r),sh=Math.max(0,need-cover);   // (modo criativo: sempre supridas)
         if(gotOf(c,r)>Math.max(0,need-carryOf(c,r)))over=true;   // entregou acima da meta: gera bônus (cidade próspera)
         if(sh>0){short=true;debuf[r]=true;rep.push('⚠ '+c.name+': faltaram '+sh+' de '+resName(r).toLowerCase()+' (debuff nesta rodada; a necessidade continua a mesma).')}
         consumeSupply(c,r,Math.min(need,cover));   // o que a cidade precisa é consumido (destruído); a necessidade da rodada seguinte é a mesma        const left=storedOf(c,r);if(left>0)carry2[r]=left;
       }
       e.got={};e.carry=carry2;
       // humor: descontente se faltou algo; próspera se tudo foi atendido e algo ficou acima da meta; senão contente
-      e.mood=short?'upset':over?'rich':'ok';e.ups=short?(e.ups||0)+1:0;
+      // políticas: festa (efeito 'prosper') e felicidade (e.joyAdj, ±1) empurram o humor entre Descontente(1) e Próspera(3), mas NÃO mudam a contagem de rebelião (e.ups)
+      {const ORD=['upset','ok','rich'];e.mood=short?'upset':ORD[clamp((over?2:1)+(e.joyAdj||0)+(polFlag('prosper',c.id)?1:0),polFlag('prosper',c.id)?2:0,2)];e.joyAdj=0}
+      e.ups=short?(e.ups||0)+1:0;
+      // níveis: 1ª falta = Descontente (1); 2ª = (0); 3ª = (−1); 4ª = rebelião (os efeitos de 0 e −1 ainda são os do nível 1)
       if(short){
-        if(e.ups>=2&&!c.home)rebels.push(c);
-        else rep.push('😠 '+c.name+' está descontente: sem imposto e sem produção.'+(c.home?' (A capital não se rebela, mas sofre os mesmos efeitos.)':' Se faltar de novo na próxima rodada, ela se rebela!'));
+        if(e.ups>=ECON.rebelUps&&!c.home)rebels.push(c);
+        else rep.push('😠 '+c.name+' está '+moodLbl(c)+': sem imposto e sem produção.'+(c.home?' (A capital não se rebela, mas sofre os mesmos efeitos.)':' Se continuar faltando, ela se rebela em '+(ECON.rebelUps-e.ups)+' rodada(s)!'));
       }else{
         const gt=goldTradeOf(c);if(gt>0){shOf().vault+=gt;rep.push('🛒 '+c.name+': comércio com cidades de ouro rendeu ◉'+gt+' no cofre.')}
         const tax=taxOf(c);if(tax>0){shOf().vault+=tax;rep.push(MOOD[e.mood].icon+' '+c.name+' está '+MOOD[e.mood].n.toLowerCase()+': imposto de ◉'+tax+' no cofre.')}
         const f=focusOf(c),amt=prodOf(c);
-        if(hasRoute(c))rep.push('🛒 '+c.name+': a produção de '+resName(f).toLowerCase()+' ('+amt+') seguiu por caravana.');
+        if(amt<=0)rep.push('📜 '+c.name+': produção suspensa por uma política.');
+        else if(hasRoute(c))rep.push('🛒 '+c.name+': a produção de '+resName(f).toLowerCase()+' ('+amt+') seguiu por caravana.');
         else{const got=prodAdd(c,f,amt);rep.push('✔ '+c.name+' produziu '+got+' de '+resName(f).toLowerCase()+(f==='gold'?' (no cofre).':' (na reserva do armazém).'))}
       }
     }
-    for(const c of rebels){rep.push('🔥 '+c.name+' SE REBELOU por duas rodadas sem suprimentos! Reconquiste-a.');rebelCity(c)}
+    for(const c of rebels){rep.push('🔥 '+c.name+' SE REBELOU depois de '+ECON.rebelUps+' rodadas sem suprimentos! Reconquiste-a.');rebelCity(c)}
   }
   // cidades que não são suas: o humor é simulado por números (depende do nível e da sorte)
   if(!prep)for(const c of WORLD.cities){
@@ -174,13 +179,16 @@ function rebelCity(c){
 }function beginLeaderTurn(){
   STATE.phase='leader';STATE.rd.actions=maxActions();
   if(OFFICE.ok)enterOffice();else{toast('📖 Turno do líder: abra o livro de decisões na prefeitura.',4000);if(G.running)openBook()}
+  Hooks.emit('leaderTurn');   // políticas: sorteia o cartão da rodada
 }
 function finishLeaderTurn(){
+  if(STATE.pol&&STATE.pol.pending){toast('📜 Decida a política desta rodada antes de encerrar o turno.',3500);showPolicy();return}
   for(const c of WORLD.cities){const e=ec(c);if(e.type==='port'&&e.nf){if(e.pf!==e.nf){const lost=moveProdToStore(c);if(lost&&c.owner==='player')toast('⚓ '+c.name+': a abundância mudou. '+lost+'.',4000)}e.pf=e.nf;e.ps=e.ns;e.pct=portPct(e.pf,e.ps)}delete e.nf;delete e.ns}   // a nova distribuição do porto só vale agora
   computeBuffs();STATE.phase='commander';
   {const tgt=8/24,dlt=((tgt-DN.t)%1+1)%1;DN.days+=dlt;DN.t=tgt}   // o turno do comandante sempre começa às 8 da manhã (nunca volta no tempo)
   const n=Object.keys(STATE.rd.rbuf).length;
   closePanel();leaveOffice();
+  polRunQueue();   // o que as políticas deixaram para o começo do turno do Comandante (teleporte, combate, soldados...)
   toast('✔ Decisões tomadas. Turno do comandante!'+(n?' Bônus de entrega ativos: '+Object.keys(STATE.rd.rbuf).map(resIcon).join(' '):''),4500);
   refreshRoundHud();
 }
@@ -295,6 +303,7 @@ function updateRounds(dt){
   for(const m of CARAVANS)m.group.visible=Math.hypot(m.x-P.x,m.z-P.z)<250;
 }
 function refreshRoundHud(){
+  polNoteUpdate();   // notificação "política a decidir"
   const el=$('rdline');if(!el||!STATE.rd)return;
   const b=STATE.rd.rbuf||{},t={leather:'coletes −20%',food:'soldados −20%',ore:'armas −20%',gold:'recrutar/curar −20%',wood:'obras −10%, missões +10%'};
   const deb=Object.keys(STATE.rd.debuff||{});
@@ -393,7 +402,12 @@ function openBook(top,tab){
 const isLeader=()=>STATE.phase==='leader';
 const actionsHtml=()=>'<span style="color:#8a4a10;letter-spacing:2px">'+'◆'.repeat(STATE.rd.actions)+'◇'.repeat(Math.max(0,maxActions()-STATE.rd.actions))+'</span> ('+STATE.rd.actions+'/'+maxActions()+')';
 function stockHtml(){return '<p>'+resIcon('gold')+' Ouro com você: <b>'+P.coins+'</b></p>'}
-const moodHtml=c=>{const m=MOOD[moodOf(c)];return '<b style="color:'+m.col+'">'+m.icon+' '+m.n+'</b>'};
+// nível do humor: Próspera 3 • Contente 2 • Descontente 1, depois 0 e −1 conforme as rodadas seguidas sem suprimentos (ups)
+function moodLvl(c){const m=moodOf(c);if(m==='rich')return 3;if(m==='ok')return 2;const u=(ec(c)&&ec(c).ups)||0;return Math.max(-1,2-Math.max(1,u))}
+const moodLbl=c=>MOOD[moodOf(c)].n+' ('+moodLvl(c)+')';
+// felicidade (políticas): move o humor um degrau; vale já nesta rodada e no próximo fechamento; não mexe na contagem de rebelião
+function joyShift(c,d){const e=ec(c),ORD=['upset','ok','rich'];e.mood=ORD[clamp(ORD.indexOf(e.mood||'ok')+d,0,2)];e.joyAdj=(e.joyAdj||0)+d}
+const moodHtml=c=>{const m=MOOD[moodOf(c)];return '<b style="color:'+m.col+'">'+m.icon+' '+moodLbl(c)+'</b>'};
 const MOOD_TXT={rich:'imposto ×1,5, +1 de produção e 10% de desconto nas lojas daqui',ok:'imposto normal',upset:'sem imposto e sem produção; curar e itens de cura custam o dobro aqui'};
 function typeLabel(c){const e=ec(c);return e.type==='port'?'⚓ Porto (produz '+resIcon(e.pf)+' '+resName(e.pf).toLowerCase()+')':resIcon(e.type)+' '+TYPE_NAME[e.type]}
 const needsLine=c=>NEEDS.map(r=>resIcon(r)+needOf(c,r)).join(' ');
@@ -404,7 +418,7 @@ function bookPages(){
   if(LB.tab==='resumo'){
     const turn=STATE.round<1?'Preparação (nenhuma decisão necessária)':isLeader()?'Turno do líder':'Turno do comandante';
     const port=playerPort(),hasWorldPort=WORLD.cities.some(c=>ec(c).type==='port');
-    const L='<h3>Rodada '+STATE.round+'</h3><p>'+turn+'</p>'+(isLeader()?'<p>Ações do líder: '+actionsHtml()+'</p>':'')
+    const L='<h3>Rodada '+STATE.round+'</h3><p>'+turn+'</p>'+(isLeader()?'<p>Ações do líder: '+actionsHtml()+'</p>':'')+polBookHtml()
       +'<h4>Seu ouro</h4>'+stockHtml()
       +'<h4>Cidades dominadas</h4>'+pcs.map(c=>'<p style="margin:3px 0"><b>'+(c.home?'🏛 ':'')+c.name+'</b> — '+typeLabel(c)+'<br><small>abundância: '+abundHtml(c)+'<br>precisa: '+needsLine(c)+'<br>humor: '+moodHtml(c)+' • no armazém: '+NEEDS.map(r=>resIcon(r)+storedOf(c,r)).join(' ')+' • '+(cityMet(c)?'<span class="ldok">✔ suprida</span>':'<span class="ldbad">⚠ faltam recursos</span>')+'</small></p>').join('');
     const R='<h3>Caravanas ativas</h3>'+(rd.routes.length?'<ul class="ldul">'+rd.routes.map(r=>'<li>'+routeName(r)+'</li>').join('')+'</ul>':'<p>Nenhuma caravana.</p>')
@@ -420,7 +434,7 @@ function bookPages(){
     if(c&&c.owner==='player'){
       const e=ec(c);
       const w=whOf(c);
-      R='<h3>'+c.name+'</h3><p>'+typeLabel(c)+'<br>Humor: '+moodHtml(c)+'<br><small>'+MOOD_TXT[moodOf(c)]+(e.ups?' • rodadas seguidas em falta: '+e.ups+'/2':'')+'</small></p><table class="ldt">'+NEEDS.map(r=>{
+      R='<h3>'+c.name+'</h3><p>'+typeLabel(c)+'<br>Humor: '+moodHtml(c)+'<br><small>'+MOOD_TXT[moodOf(c)]+(e.ups?' • rodadas seguidas em falta: '+e.ups+'/'+ECON.rebelUps:'')+'</small></p><table class="ldt">'+NEEDS.map(r=>{
         const need=needOf(c,r),st=storedOf(c,r),g=gotOf(c,r),cy=carryOf(c,r),miss=missingOf(c,r);
         const state=need===0&&st===0?'<span class="ldok">não precisa</span>':miss>0?'<span class="ldbad">falta '+miss+'</span>':(g>Math.max(0,need-cy)?'<span class="ldok">★ bônus</span>':'<span class="ldok">✔</span>');
         return '<tr><td>'+resIcon(r)+' <b>'+resName(r)+'</b><br><small>precisa '+need+' • no armazém '+st+(cy?' (+'+cy+' da rodada anterior)':'')+''+'</small></td><td>'+state+'</td></tr>';
@@ -474,7 +488,8 @@ function bookClick(e){
   if(t.id==='ldclose'){closePanel();return}
   if(LB.top==='inv')return;   // botões da bolsa têm seus próprios tratadores
   const c=WORLD.cities[LB.city];
-  if(a==='city'){LB.city=+t.dataset.id}
+  if(a==='polopen'){showPolicy();return}
+  else if(a==='city'){LB.city=+t.dataset.id}
   else if(a==='pf'||a==='ps'){const en=ec(c);if(isLeader()&&en.type==='port'){let cf=en.nf||en.pf,cs=en.ns||en.ps;const r=t.dataset.r;if(a==='pf'){if(r===cs)cs=NEEDS.includes(cf)?cf:NEEDS.find(x=>x!==r);cf=r}else{if(r===cf)cf=cs;cs=r}en.nf=cf;en.ns=cs}}
   else if(a==='unroute'){if(isLeader()){rd.routes.splice(+t.dataset.i,1);rebuildCaravans();computeBuffs()}}
   else if(a==='route'){if(!isLeader())toast('Caravanas só no turno do líder.',2000);else{startCaravanPick();return}}
@@ -541,6 +556,7 @@ function buyCaravan(A,B){
   else if(!A||!B||A===B)toast('Escolha duas cidades diferentes.',2000);
   else if(rd.routes.some(r=>(r.a===A.id&&r.b===B.id)||(r.a===B.id&&r.b===A.id)))toast('Já existe uma caravana entre elas.',2500);
   else if(focusOf(A)===focusOf(B))toast('As duas cidades produzem o mesmo recurso: a caravana seria inútil.',3000);
+  else if(polFlag('noRoute',A.id)||polFlag('noRoute',B.id))toast('Uma epidemia impede novas caravanas para essa cidade.',3000);
   else if(!canAct('caravan'))toast('Sem ações do líder nesta rodada.',2500);
   else if(!Ledger.spend({gold:CARAVAN_COST}))toast('Ouro insuficiente (ou você está em dívida).',2500);
   else{spendAct('caravan');rd.routes.push({a:A.id,b:B.id});rebuildCaravans();computeBuffs();sfx('win',0);toast('🛒 Duas caravanas partiram entre '+A.name+' e '+B.name+'. (−◉'+CARAVAN_COST+')',3500)}

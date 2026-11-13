@@ -69,6 +69,7 @@ function spawnAlly(x,z,city){
   scene.add(a.group);ALLIES.push(a);return a;
 }
 function recruitAlly(c){
+  if(c&&polFlag('noRecruit',c.id)){toast('Não é possível recrutar em '+c.name+' agora (política em vigor).',2500);return false}
   if(c.owner!=='player'||allyCount()>=ARMY.max||P.coins<bp(ARMY.recruitCost,'recruit'))return false;
   P.coins-=bp(ARMY.recruitCost,'recruit');
   const bk=c.barracks||{x:c.cx,z:c.cz};
