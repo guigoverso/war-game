@@ -23,7 +23,7 @@ function updateVendors(){
 }
 // preço que o vendedor paga agora por UMA unidade
 function sellUnitPrice(id,c){
-  const d=itemDef(id),v=getVendor(c),base=d.value*(c.owner==='enemy'?0.5:1);
+  const d=itemDef(id),v=getVendor(c),base=d.value*(c.owner==='enemy'?0.5:1)*(typeof debOn==='function'&&debOn('wood')?0.5:1);   // debuff de madeira: a loja compra por 50% do valor
   return Math.max(1,Math.round(base*Math.max(VENDOR_MIN_MUL,1-VENDOR_SAT*(v.stock[id]||0))));
 }
 // vende até `qty` unidades da bolsa; para quando o vendedor fica sem ouro. Devolve {sold, earned, broke}
@@ -60,7 +60,7 @@ function renderStore(){
     const list=buyCards(kind,c);
     const grid=document.createElement('div');grid.className='grid';
     for(const d of list){
-      const price=pc(d.price,c,'buy');
+      const price=pc(d.price,c,kind==='tavern'?'tavern':'buy');
       const own=d.rod&&invCount(d.id)>0;
       const card=document.createElement('div');card.className='card';
       card.innerHTML='<b>'+d.icon+' '+d.name+'</b><div class="st">'+d.desc+'<br>Preço: <b>◉'+price+'</b>'+(own?'<br>Você já tem esta vara.':'')+'</div>';

@@ -37,5 +37,5 @@ Use `?mute=1` (sem música). O modo criativo (`?auto=1`) tem botões de teste na
 - **Livro (aba Cidades)**: só **mostra** o que a cidade tem (necessidade × no armazém, reserva de produção, cofre). Não entrega mais por ali.
 - **Mudanças ligadas**: recompensa de portal em recursos vira **itens** na bolsa; raid bem-sucedido dos bandidos leva 15% dos suprimentos do armazém; evoluir a capital custa só ouro (◉300 × nível); o botão criativo "Dar madeira, minério e comida" dá itens.
 ### Debuffs (faltou suprimento na rodada anterior)
-- 🌾 alimentos: recrutar e melhorar soldados custa o dobro • ⛏ minérios: armas, munição e conserto custam o dobro • 🪵 madeira: missões pagam 20% a menos • ◉ ouro: curar custa o dobro.
+- 🌾 alimentos: soldados (recrutar/melhorar) e pratos da taverna custam o dobro • ⛏ minérios: armas, munição e conserto custam o dobro • 🪵 madeira: missões pagam 80% menos, a Loja cobra o dobro e compra por 50% do valor • ◉ ouro: curar e itens de cura custam o dobro.
 - Aparecem em vermelho na linha "Rodada N" e a dívida (em itens) aparece no armazém e no livro. Os itens entregues são **destruídos** no fim da rodada; na seguinte é preciso suprir tudo de novo.

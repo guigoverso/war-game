@@ -16,7 +16,7 @@ const rbufOn=r=>!!(STATE.rd&&STATE.rd.rbuf&&STATE.rd.rbuf[r]);
 const debOn=r=>!!(STATE.rd&&STATE.rd.debuff&&STATE.rd.debuff[r]);   // debuff: faltou suprimento na rodada anterior
 // dívida em itens (o que faltou e ainda não foi pago) das cidades do jogador
 function cityItemDebt(){if(!STATE.rd||!STATE.rd.cities||typeof WORLD==='undefined')return false;return WORLD.cities.some(c=>c.owner==='player'&&STATE.rd.cities[c.id]&&STATE.rd.cities[c.id].debt&&Object.keys(STATE.rd.cities[c.id].debt).some(k=>STATE.rd.cities[c.id].debt[k]>0))}
-const DEB_TXT={food:'recrutar e melhorar soldados custa o dobro',ore:'armas, munição e conserto custam o dobro',wood:'missões pagam 20% a menos',gold:'curar custa o dobro'};
+const DEB_TXT={food:'soldados e pratos da taverna custam o dobro',ore:'armas, munição e conserto custam o dobro',wood:'missões pagam 80% menos; a loja cobra o dobro e compra por 50%',gold:'curar e itens de cura custam o dobro'};
 // bônus de entrega: valor fixo, vale até o fim da rodada (ver seção 14 do design)
 addPriceMod('rbuf',(p,ctx)=>{
   const k=ctx.kind;
@@ -26,9 +26,12 @@ addPriceMod('rbuf',(p,ctx)=>{
   // debuffs (faltou suprimento): preços sobem; a quantidade a suprir não muda
   if(debOn('food')&&(k==='recruit'||k==='soldierup'))p*=2;
   if(debOn('ore')&&(k==='weapon'||k==='ammo'||k==='repair'))p*=2;
+  if(debOn('food')&&k==='tavern')p*=2;                 // pratos da taverna
+  if(debOn('wood')&&k==='buy')p*=2;                     // Loja
+  if(debOn('gold')&&k==='heal')p*=2;                    // itens de cura
   return p;
 },60);
-const qPay=q=>Math.round(q.reward*(rbufOn('wood')?1.1:1)*(debOn('wood')?0.8:1));   // madeira entregue: missões pagam 10% a mais
+const qPay=q=>Math.round(q.reward*(rbufOn('wood')?1.1:1)*(debOn('wood')?0.2:1));   // madeira entregue: missões pagam 10% a mais
 
 // ---------- economia das cidades ----------
 const ec=c=>STATE.rd.cities[c.id];
