@@ -10,7 +10,8 @@
 //   cost: o jogador pode pagar mesmo sem ter o ouro; o saldo fica negativo (dívida) e ele sofre os efeitos dela (compras bloqueadas).
 //   apply(ctx) roda na hora; onStart(ctx) roda quando o turno do Comandante começa (teleporte, combate, soldados). ctx.fx({t,c,p,left,txt}) cria um efeito temporário.
 // Efeitos temporários (STATE.pol.fx, duram POL.dur rodadas): t = 'need' (p.mul, p.sel=recurso) • 'noTax' • 'noProd' • 'price' (p.mul, p.sel=tipo de preço) • 'gold' (p.add por rodada, no cofre) • outros nomes servem de bandeira (polFlag).
-const POL={chance:0.30,dur:5,defs:[],byId:{}};
+const POL={chance:0.30,dur:1,defs:[],byId:{}};
+const polDurTxt=()=>POL.dur+(POL.dur>1?' rodadas':' rodada');
 const POL_TYPE={buff:{n:'Buff',col:'#9fe89f'},debuff:{n:'Debuff',col:'#ff9a9a'},both:{n:'Buff + Debuff',col:'#ffd23a'},neutral:{n:'Neutro',col:'#c8c8c8'}};
 function definePolicy(d){
   if(!d.options||d.options.length!==3)console.warn('política '+d.id+': precisa de 3 opções');
@@ -112,10 +113,10 @@ function showPolicy(){
     const why=op.can?op.can(ctx):null;   // pagar sem ter o ouro é permitido: gera dívida (ver polChoose)
     const debt=op.cost&&!Ledger.canAfford(op.cost);
     const row=document.createElement('div');row.className='card';row.style.cssText='margin:6px 0;padding:8px 10px';
-    row.innerHTML='<b>'+op.k+'. '+op.label+'</b> <span style="color:'+ty.col+';font-size:13px">['+ty.n+']</span><br><span style="font-size:14px;line-height:1.5">'+op.eff(c,pd.data)+(op.onStart?' <b>⏱</b>':'')+'</span>';
-    const btn=UI.button('Escolher '+op.k,why?'alt':'gold',()=>polChoose(op.k));btn.style.marginTop='6px';
-    if(why){btn.disabled=true;const w=document.createElement('small');w.style.cssText='margin-left:8px;color:#ff9a9a';w.textContent=why;row.append(btn,w)}
-    else{row.appendChild(btn);if(debt){const w=document.createElement('small');w.style.cssText='margin-left:8px;color:#ffb060';w.textContent='💳 você não tem o ouro: o valor vira dívida (compras bloqueadas até pagar)';row.appendChild(w)}}
+    row.innerHTML='<b>'+op.k+'. '+op.label+'</b> <span style="color:'+ty.col+';font-size:13px">['+ty.n+']</span><div style="font-size:14px;line-height:1.5;margin-top:3px">'+op.eff(c,pd.data)+(op.onStart?' <b>⏱</b>':'')+'</div>';
+    const btn=UI.button('Escolher',why?'alt':'gold',()=>polChoose(op.k));btn.style.cssText='display:block;margin:8px 0 0';
+    if(why){btn.disabled=true;const w=document.createElement('small');w.style.cssText='display:block;color:#ff9a9a';w.textContent=why;row.append(btn,w)}
+    else{row.appendChild(btn);if(debt){const w=document.createElement('small');w.style.cssText='display:block;margin-top:4px;color:#ffb060';w.textContent='💳 você não tem o ouro: o valor vira dívida (compras bloqueadas até pagar)';row.appendChild(w)}}
     b.appendChild(row);
   }
   const hint=document.createElement('p');hint.className='ldsm';hint.textContent='⏱ = tem efeito quando o turno do Comandante começar. Você precisa decidir antes de encerrar o turno do Líder.';b.appendChild(hint);
@@ -156,18 +157,31 @@ function polRunQueue(){
   }
 }
 // bloco do livro (Resumo): política pendente e efeitos ativos
-// invoca uma política específica (modo criativo, só no turno do Líder); devolve uma mensagem de erro ou null
+// invoca uma política específica (modo criativo, só no turno do Líder). Se o jogo não atende às condições, ele é AJUSTADO para atender
+// (def.fixCond e def.fixCity). Devolve uma mensagem de erro ou null.
+function polTakeCity(c){   // transforma uma cidade inimiga em sua (só para o modo criativo)
+  c.owner='player';c.state='conquered';if(c.flagMat)c.flagMat.color.setHex(0x2a6aff);
+  for(const e of c.enemies)if(e.alive){e.alive=false;e.gone=true;scene.remove(e.group)}c.aliveEnemies=0;
+}
 function polSummon(id){
-  normalizePol();const P=STATE.pol;
+  normalizePol();const P=STATE.pol,fixes=[];
   if(STATE.phase!=='leader')return 'Só no turno do líder.';
   if(P.pending)return 'Já há uma política pendente: decida primeiro.';
   const d=POL.byId[id];if(!d)return 'Política desconhecida.';
-  if(d.cond&&!d.cond())return 'Condição não atendida agora (ex.: precisa de rota ativa, soldados ou espaço para a dungeon).';
+  if(d.cond&&!d.cond()){if(d.fixCond)fixes.push(d.fixCond());if(!d.cond())return 'Não foi possível ajustar o jogo para esta política (ex.: o mapa não tem espaço para a dungeon).'}
   let city=null;
-  if(d.city){const cs=playerCities().filter(c=>!d.cityOk||d.cityOk(c));if(!cs.length)return 'Nenhuma cidade sua atende à condição desta política (ex.: Rebelião exige uma cidade descontente).';city=cs[Math.floor(Math.random()*cs.length)]}
+  if(d.city){
+    const cs=playerCities().filter(c=>!d.cityOk||d.cityOk(c));
+    if(cs.length)city=cs[Math.floor(Math.random()*cs.length)];
+    else{   // nenhuma cidade atende: usa uma cidade sua que não seja a capital (ou toma uma cidade inimiga) e ajusta os valores dela
+      city=playerCities().find(c=>!c.home);
+      if(!city){city=WORLD.cities.filter(c=>c.owner!=='player').sort((a,b)=>(a.rank||0)-(b.rank||0))[0];if(!city)return 'Não há cidade para usar.';polTakeCity(city);fixes.push(city.name+' passou a ser sua')}
+      if(d.fixCity)fixes.push(d.fixCity(city));
+    }
+  }
   P.pending={pid:id,city:city?city.id:-1,round:STATE.round};
   if(d.data)P.pending.data=d.data(new RNG((Math.random()*1e9)|0));
-  toast('📜 Há uma política a decidir. Abra o livro na mesa (E).',4500);polNoteUpdate();return null;
+  toast('📜 Há uma política a decidir. Abra o livro na mesa (E).'+(fixes.filter(Boolean).length?' (Ajustes do criativo: '+fixes.filter(Boolean).join('; ')+')':''),6000);polNoteUpdate();return null;
 }
 // informação da política atual: a da rodada (pendente ou já decidida) e os efeitos ativos com a rodada em que terminam
 function polInfoHtml(){
@@ -201,7 +215,7 @@ const polStock=()=>playerCities().reduce((a,c)=>a+NEEDS.reduce((s,r)=>s+storedOf
 definePolicy({id:'comerciantes',name:'Comerciantes estrangeiros',city:false,
   text:()=>'Uma caravana de terras distantes monta tendas na praça. Há tecidos, especiarias e ferramentas que ninguém aqui jamais viu. Seus comerciantes aceitam negociar, mas não ficam muito tempo.',
   options:[
-    {k:'A',label:'Negociar acordos favoráveis',type:'buff',eff:()=>'Todas as lojas ficam 15% mais baratas por '+POL.dur+' rodadas.',
+    {k:'A',label:'Negociar acordos favoráveis',type:'buff',eff:()=>'Todas as lojas ficam 15% mais baratas por '+polDurTxt()+'.',
       apply:x=>x.fx({t:'price',p:{mul:0.85},txt:'Lojas 15% mais baratas (comerciantes estrangeiros)'})},
     {k:'B',label:'Vender seus excedentes pelo dobro',type:'both',eff:()=>'+◉100. Perde 5 unidades de suprimentos dos armazéns.',
       can:()=>polStock()<5?'você tem menos de 5 unidades guardadas nos armazéns':null,
@@ -217,7 +231,7 @@ definePolicy({id:'colheita',name:'Colheita farta',city:true,cool:4,
   options:[
     {k:'A',label:'Estocar para os meses difíceis',type:'buff',eff:c=>'+6 de comida na reserva do armazém de '+c.name+'.',
       apply:x=>{const g=prodAdd(x.city,'food',6);x.toast('+'+g+' de comida na reserva de '+x.city.name+'.')}},
-    {k:'B',label:'Exportar tudo',type:'both',eff:c=>'Vende toda a comida do armazém e da reserva de '+c.name+': +◉150. A necessidade de comida da cidade sobe 50% por '+POL.dur+' rodadas.',
+    {k:'B',label:'Exportar tudo',type:'both',eff:c=>'Vende toda a comida do armazém e da reserva de '+c.name+': +◉150. A necessidade de comida da cidade sobe 50% por '+polDurTxt()+'.',
       apply:x=>{consumeSupply(x.city,'food',99999);if(polFoodReserve(x.city))whOf(x.city).prod=null;x.gold(150);
         x.fx({t:'need',p:{mul:1.5,sel:'food'},txt:'Necessidade de comida +50% em '+x.city.name+' (exportou a colheita)'})}},
     {k:'C',label:'Distribuir ao povo',type:'buff',eff:c=>'A felicidade de '+c.name+' sobe 1.',
@@ -227,7 +241,7 @@ definePolicy({id:'colheita',name:'Colheita farta',city:true,cool:4,
 definePolicy({id:'festival',name:'Festival',city:true,cool:4,
   text:c=>'As ruas de '+c.name+' amanheceram cheias de fitas. A tradição pede um festival no fim da colheita, com música, banquete e competições. O povo espera que o governante conceda a festa, ou ao menos não a proíba.',
   options:[
-    {k:'A',label:'Financiar um grande festival',type:'both',cost:{gold:200},eff:c=>'−◉200. '+c.name+' fica Próspera por '+POL.dur+' rodadas (imposto ×1,5, +1 de produção, 10% de desconto nas lojas), se tiver os suprimentos.',
+    {k:'A',label:'Financiar um grande festival',type:'both',cost:{gold:200},eff:c=>'−◉200. '+c.name+' fica Próspera por '+polDurTxt()+' (imposto ×1,5, +1 de produção, 10% de desconto nas lojas), se tiver os suprimentos.',
       apply:x=>{const e=ec(x.city);e.mood='rich';x.fx({t:'prosper',txt:x.city.name+' em festa (Próspera)'})}},
     {k:'B',label:'Permitir um festival modesto',type:'neutral',eff:()=>'Nada muda.'},
     {k:'C',label:'Cancelar a festa',type:'debuff',eff:c=>'O descontentamento de '+c.name+' sobe 1 (a felicidade cai 1; não afeta a contagem de rebelião).',
@@ -237,7 +251,7 @@ definePolicy({id:'festival',name:'Festival',city:true,cool:4,
 definePolicy({id:'refugiados',name:'Refugiados',city:true,cool:4,
   text:c=>'Famílias cansadas, com trouxas nas costas, se amontoam diante dos portões de '+c.name+'. Fogem de saques e de fome em terras vizinhas. Entre eles há homens fortes dispostos a pegar em armas, mas também muitas bocas para alimentar.',
   options:[
-    {k:'A',label:'Acolher os refugiados',type:'both',eff:c=>'+2 soldados grátis no quartel de '+c.name+' (se couber no seu exército) quando o turno do Comandante começar. A necessidade de comida da cidade sobe 50% por '+POL.dur+' rodadas.',
+    {k:'A',label:'Acolher os refugiados',type:'both',eff:c=>'+2 soldados grátis no quartel de '+c.name+' (se couber no seu exército) quando o turno do Comandante começar. A necessidade de comida da cidade sobe 50% por '+polDurTxt()+'.',
       apply:x=>x.fx({t:'need',p:{mul:1.5,sel:'food'},txt:'Necessidade de comida +50% em '+x.city.name+' (refugiados)'}),
       onStart:x=>{
         const c=x.city,bk=c.barracks||{x:c.cx,z:c.cz};let n=0;
@@ -251,12 +265,12 @@ definePolicy({id:'refugiados',name:'Refugiados',city:true,cool:4,
 definePolicy({id:'epidemia',name:'Epidemia',city:true,
   text:c=>'Uma febre desconhecida passa de casa em casa em '+c.name+'. Os mercados estão vazios, os curandeiros não dão conta e os doentes são levados para fora dos muros. O povo olha para a prefeitura esperando uma decisão.',
   options:[
-    {k:'A',label:'Pagar curandeiros e remédios',type:'debuff',cost:{gold:120},cool:10,eff:c=>'−◉120 e a necessidade de comida de '+c.name+' sobe 50% por '+POL.dur+' rodadas. Sem outra epidemia nela por 10 rodadas.',
+    {k:'A',label:'Pagar curandeiros e remédios',type:'debuff',cost:{gold:120},cool:10,eff:c=>'−◉120 e a necessidade de comida de '+c.name+' sobe 50% por '+polDurTxt()+'. Sem outra epidemia nela por 10 rodadas.',
       apply:x=>x.fx({t:'need',p:{mul:1.5,sel:'food'},txt:'Necessidade de comida +50% em '+x.city.name+' (epidemia)'})},
-    {k:'B',label:'Decretar quarentena',type:'debuff',cool:10,eff:c=>c.name+' fica sem produção e sem impostos por '+POL.dur+' rodadas; não é possível recrutar nela; curas e remédios ficam 50% mais caros. Sem outra epidemia por 10 rodadas.',
+    {k:'B',label:'Decretar quarentena',type:'debuff',cool:10,eff:c=>c.name+' fica sem produção e sem impostos por '+polDurTxt()+'; não é possível recrutar nela; curas e remédios ficam 50% mais caros. Sem outra epidemia por 10 rodadas.',
       apply:x=>{x.fx({t:'noProd',txt:x.city.name+': sem produção (quarentena)'});x.fx({t:'noTax',txt:x.city.name+': sem imposto (quarentena)'});
         x.fx({t:'noRecruit',txt:x.city.name+': sem recrutamento (quarentena)'});x.fx({t:'price',p:{mul:1.5,sel:'heal'},txt:x.city.name+': curas e remédios +50% (quarentena)'})}},
-    {k:'C',label:'Esperar que passe',type:'debuff',cool:5,eff:c=>'Por '+POL.dur+' rodadas, só em '+c.name+': caravanas dela destruídas e sem novas; sem curar nem comprar remédios; os soldados que você recrutou morrem e não se recruta mais; humor Descontente (um passo na direção da rebelião); sem produção nem imposto; se for porto, ele para.',
+    {k:'C',label:'Esperar que passe',type:'debuff',cool:5,eff:c=>'Por '+polDurTxt()+', só em '+c.name+': caravanas dela destruídas e sem novas; sem curar nem comprar remédios; os soldados que você recrutou morrem e não se recruta mais; humor Descontente (um passo na direção da rebelião); sem produção nem imposto; se for porto, ele para.',
       apply:x=>{
         const c=x.city,rd=STATE.rd,e=ec(c);
         if(rd.routes.some(r=>r.a===c.id||r.b===c.id)){rd.routes=rd.routes.filter(r=>r.a!==c.id&&r.b!==c.id);rebuildCaravans();computeBuffs()}
@@ -271,9 +285,10 @@ definePolicy({id:'epidemia',name:'Epidemia',city:true,
 // ---------- Etapa 2 da 4C: rebelião e traição de um oficial ----------
 definePolicy({id:'rebeliao',name:'Rebelião',city:true,cool:2,
   cityOk:c=>!c.home&&((ec(c).ups||0)>=1)&&!ec(c).press,   // cidade sua (menos a capital) que já está descontente por falta de suprimentos
+  fixCity:c=>{const e=ec(c);e.ups=Math.max(1,e.ups||0);e.mood='upset';delete e.press;return c.name+' ficou descontente'},   // criativo: ajusta a cidade para a política poder ocorrer
   text:c=>'Nas ruas de '+c.name+', o descontentamento virou fúria. Panelas batem, portas são trancadas e uma multidão cerca a prefeitura exigindo pão e respostas. Se nada for feito, a revolta vai tomar a cidade inteira.',
   options:[
-    {k:'A',label:'Importar suprimentos e suspender os impostos',type:'debuff',cost:{gold:150},eff:c=>'−◉150. '+c.name+' fica sem imposto por '+POL.dur+' rodadas. O descontentamento zera.',
+    {k:'A',label:'Importar suprimentos e suspender os impostos',type:'debuff',cost:{gold:150},eff:c=>'−◉150. '+c.name+' fica sem imposto por '+polDurTxt()+'. O descontentamento zera.',
       apply:x=>{const e=ec(x.city);e.ups=0;e.mood='ok';e.joyAdj=0;x.fx({t:'noTax',txt:x.city.name+': sem imposto (anistia)'})}},
     {k:'B',label:'Reprimir com os soldados',type:'both',eff:c=>c.name+' não se rebela e não perde os impostos. Em compensação, as necessidades sobem 50% a cada rodada (sem sorteio de necessidades), até 300%. Se dois recursos chegarem a 300%, os oficiais se juntam aos rebeldes e a cidade se rebela. Suprindo tudo numa rodada, a repressão acaba e as necessidades voltam ao valor anterior.',
       apply:x=>{ec(x.city).press={n:0}}},
@@ -282,12 +297,13 @@ definePolicy({id:'rebeliao',name:'Rebelião',city:true,cool:2,
 
 definePolicy({id:'traicao',name:'Traição de um oficial',city:true,cool:4,
   cond:()=>allyCount()>=1,
+  fixCond:()=>{const h=WORLD.home,bk=h.barracks||{x:h.cx,z:h.cz};for(let i=0;i<2;i++)spawnAlly(bk.x+(Math.random()-0.5)*1.5,bk.z+(Math.random()-0.5)*1.5,h);return 'ganhou 2 soldados'},
   text:c=>'Na guarnição de '+c.name+', um oficial foi pego desviando soldos e vendendo informações. A tropa está dividida: uns pedem justiça, outros dizem que ele tem mais amigos do que parece. Todo o seu exército espera para ver como o governante vai agir, e o povo de '+c.name+' acompanha cada passo.',
   options:[
     {k:'A',label:'Punir o oficial',type:'both',eff:c=>'Perde metade dos soldados que recrutou, mas a felicidade de '+c.name+' sobe 1.',
       apply:x=>{const live=ALLIES.filter(a=>a.alive),n=Math.ceil(live.length/2);for(let i=0;i<n;i++){live[i].alive=false;live[i].deadT=0}
         joyShift(x.city,1);x.toast('⚖ '+n+' soldado(s) foram expulsos; '+x.city.name+' ficou mais feliz.')}},
-    {k:'B',label:'Perdoar publicamente',type:'both',eff:c=>'Melhorar soldados custa 20% menos e recrutar custa 20% mais por '+POL.dur+' rodadas. O descontentamento de '+c.name+' sobe 1 (não afeta a contagem de rebelião).',
+    {k:'B',label:'Perdoar publicamente',type:'both',eff:c=>'Melhorar soldados custa 20% menos e recrutar custa 20% mais por '+polDurTxt()+'. O descontentamento de '+c.name+' sobe 1 (não afeta a contagem de rebelião).',
       apply:x=>{x.fx({c:-1,t:'price',p:{mul:0.8,sel:'soldierup'},txt:'Melhorar soldados −20% (perdão ao oficial)'});x.fx({c:-1,t:'price',p:{mul:1.2,sel:'recruit'},txt:'Recrutar soldados +20% (perdão ao oficial)'});joyShift(x.city,-1)}},
     {k:'C',label:'Fingir que nada aconteceu',type:'debuff',eff:c=>'Perde 30% do ouro armazenado (cofre dos armazéns) e o descontentamento de '+c.name+' sobe 1 (não afeta a contagem de rebelião).',
       apply:x=>{const sh=shOf(),l=Math.floor(sh.vault*0.3);sh.vault-=l;joyShift(x.city,-1);x.toast('💸 O oficial levou ◉'+l+' do cofre.')}}
@@ -322,15 +338,21 @@ const polRouteOf=d=>d&&STATE.rd.routes.find(r=>(r.a===d.a&&r.b===d.b)||(r.a===d.
 const polRouteName=d=>WORLD.cities[d.a].name+' e '+WORLD.cities[d.b].name;
 definePolicy({id:'caravanas',name:'Ataque às caravanas',city:false,
   cond:()=>STATE.rd.routes.length>0&&typeof CARAVANS!=='undefined'&&CARAVANS.length>0,
+  fixCond:()=>{   // cria uma rota entre a capital e outra cidade de foco diferente
+    const rd=STATE.rd;rd.routes=[];const A=WORLD.home;
+    let B=WORLD.cities.find(c=>c!==A&&ec(c).type!=='port'&&focusOf(c)!==focusOf(A));
+    if(!B){B=WORLD.cities.find(c=>c!==A&&ec(c).type!=='port');const e=ec(B),nf=NEEDS.find(r=>r!==focusOf(A));e.type=nf;e.pf=nf;rerollNeeds(B)}
+    rd.routes.push({a:A.id,b:B.id});rebuildCaravans();computeBuffs();return 'criou uma rota entre '+A.name+' e '+B.name;
+  },
   data:rng=>{const r=rng.pick(STATE.rd.routes);return{a:r.a,b:r.b}},
   text:(c,d)=>'Os guardas da estrada voltaram feridos, sem carga e sem metade dos homens. Bandidos emboscaram uma de suas caravanas entre '+polRouteName(d)+', e os comerciantes juram que não voltam à estrada sem proteção.',
   options:[
     {k:'A',label:'Pagar o resgate da carga',type:'debuff',cost:{gold:100},eff:()=>'−◉100. A rota continua funcionando.'},
-    {k:'B',label:'Limpar a estrada',type:'both',cost:{gold:120},eff:()=>'−◉120. No início do turno do Comandante você é levado à caravana: os bandidos saem dela em 3 ondas de 3, 6 e 9. Vencendo, a rota rende +2 unidades do produto por rodada por '+POL.dur+' rodadas. Se você morrer, a rota é desfeita.',
+    {k:'B',label:'Limpar a estrada',type:'both',eff:()=>'Sem custo. No início do turno do Comandante você é levado para longe de uma das caravanas da rota (a sua ou a da cidade parceira); os guardas dela foram mortos (voltam se você vencer). Aproxime-se: 3 saqueadores a atacam; as ondas 2 e 3 (6 e 9 saqueadores) vêm de longe. Vencendo, a rota rende +2 unidades do produto por rodada por '+polDurTxt()+'. Se você morrer, a rota é desfeita.',
       onStart:x=>{
         const d=x.data,route=polRouteOf(d);if(!route){x.toast('A rota já não existe.',3000);return}
         const ok=startCaravanBattle(route,{
-          onWin:()=>{x.fx({t:'routeProd',c:-1,p:{a:d.a,b:d.b,add:2},txt:'Rota '+polRouteName(d)+': +2 do produto por rodada (estrada limpa)'});x.toast('🛡 Estrada limpa! A rota vai render mais por '+POL.dur+' rodadas.',5000)},
+          onWin:()=>{x.fx({t:'routeProd',c:-1,p:{a:d.a,b:d.b,add:2},txt:'Rota '+polRouteName(d)+': +2 do produto por rodada (estrada limpa)'});x.toast('🛡 Estrada limpa! A rota vai render mais por '+polDurTxt()+'.',5000)},
           onLose:()=>{const rt=polRouteOf(d);if(rt){STATE.rd.routes.splice(STATE.rd.routes.indexOf(rt),1);rebuildCaravans();computeBuffs()}x.toast('☠ A caravana foi perdida: a rota entre '+polRouteName(d)+' foi desfeita.',5000)}});
         if(!ok)x.toast('Não foi possível iniciar a emboscada agora.',3000);
       }},
@@ -341,13 +363,14 @@ definePolicy({id:'caravanas',name:'Ataque às caravanas',city:false,
 // ---------- Etapa 3 da 4C: dungeon dourada ----------
 definePolicy({id:'dourada',name:'Dungeon dourada',city:true,cool:6,
   cond:()=>DG.ok&&goldenPortals().length===0,
+  fixCond:()=>{for(const p of goldenPortals())removePortal(p);return 'removeu o portal dourado anterior'},
   text:c=>'Um brilho dourado surgiu num portal de pedra perto de '+c.name+'. Dizem que lá dentro o chão sangra ouro. A notícia correu mais rápido que o vento, e tropas de várias cidades e bandos de bandidos já se encaminham para disputar a entrada.',
   options:[
-    {k:'A',label:'Explorar a dungeon',type:'buff',eff:c=>'Um portal dourado aparece no mapa perto de '+c.name+' e fica lá até você pegar o tesouro (+◉'+GOLD_PORTAL_AMT+', sem itens). Vá quando quiser no turno do Comandante. Ao chegar perto, 10 tropas (bandidos e soldados de duas cidades) lutam pelo portal contra você e entre si; isso não é guerra.',
+    {k:'A',label:'Explorar a dungeon',type:'buff',eff:c=>'Um portal dourado aparece no mapa perto de '+c.name+' e fica lá até você minerar o veio de ouro do fundo (+◉'+GOLD_PORTAL_AMT+'); perto do veio há um baú com uma relíquia. O portal aparece no minimapa e no mapa. Vá quando quiser no turno do Comandante. Ao chegar perto, 10 tropas (bandidos e soldados de duas cidades) lutam pelo portal contra você e entre si; isso não é guerra.',
       apply:x=>{const p=spawnGoldenPortal(x.city);
         if(p)x.toast('✨ Um portal dourado surgiu perto de '+x.city.name+'. Siga a coluna de luz dourada!',5000);
         else{x.gold(150);x.toast('Não havia espaço para o portal dourado: os aventureiros pagaram ◉150 pelo mapa.',5000)}}},
-    {k:'B',label:'Contratar mineradores e soldados',type:'both',cost:{gold:150},eff:c=>'−◉150. +◉50 por rodada durante '+POL.dur+' rodadas. A necessidade de comida de '+c.name+' sobe 100% no mesmo período.',
+    {k:'B',label:'Contratar mineradores e soldados',type:'both',cost:{gold:150},eff:c=>'−◉150. +◉50 por rodada durante '+polDurTxt()+'. A necessidade de comida de '+c.name+' sobe 100% no mesmo período.',
       apply:x=>{x.fx({t:'gold',c:-1,p:{add:50},txt:'Mineradores contratados (dungeon dourada)'});x.fx({t:'need',p:{mul:2,sel:'food'},txt:'Necessidade de comida +100% em '+x.city.name+' (mineradores e soldados)'})}},
     {k:'C',label:'Deixar para depois',type:'neutral',eff:()=>'Nada muda.'}
   ]});

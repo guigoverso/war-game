@@ -308,7 +308,38 @@ function updateRounds(dt){
   }
   rdT-=dt;if(rdT<=0){rdT=0.5;refreshRoundHud()}
   for(const m of CARAVANS)m.group.visible=Math.hypot(m.x-P.x,m.z-P.z)<250;
+  updateCaravanGuards(dt);
 }
+// guardas das caravanas: atiram em bandidos e animais selvagens que chegam perto; se morrem (fora dos ataques de política), ressurgem quando saem da vista do jogador
+const GUARD_RANGE=26,GUARD_DMG=13;
+const guardFoe=(e,includeCity)=>e.alive&&!e.gone&&e.city&&e.city.kind&&e.city.kind!=='dungeon';   // bandidos, disputas e animais (nunca soldados de cidade nem a dungeon)
+function nearGuard(e,r){let best=null,bd=r;for(const car of CARAVANS)for(const g of car.guards||[]){if(!g.alive)continue;const d=Math.hypot(g.x-e.x,g.z-e.z);if(d<bd){bd=d;best=g}}return best}
+function damageGuard(g,dmg){if(!g.alive)return;g.hp-=dmg;burst(g.x,g.y+1,g.z,0x2a5ac0,5,4,0.1);if(g.hp<=0){g.alive=false;g.deadT=0}}
+function updateCaravanGuards(dt){
+  for(const car of CARAVANS){
+    if(Math.hypot(car.x-P.x,car.z-P.z)>150)continue;   // só perto do jogador
+    for(const g of car.guards||[]){
+      if(!g.alive){
+        g.deadT+=dt;g.group.rotation.z=Math.min(1,g.deadT*3)*1.5;
+        const seen=Math.hypot(g.x-P.x,g.z-P.z)<85&&losClear(camera.position.x,camera.position.y,camera.position.z,g.x,g.y+0.8,g.z);
+        if(!car.ambush&&g.deadT>6&&!seen){g.alive=true;g.hp=g.maxhp;g.x=g.homeX;g.z=g.homeZ;g.y=tH(g.x,g.z);g.group.rotation.z=0;g.group.rotation.y=g.yaw0;g.group.position.set(g.x,g.y,g.z)}   // ressurge fora da vista
+        continue;
+      }
+      g.cool-=dt;
+      let tg=null,bd=GUARD_RANGE;
+      for(const e of ENEMIES){if(!guardFoe(e))continue;const d=Math.hypot(e.x-g.x,e.z-g.z);if(d<bd&&losClear(g.x,g.y+1.5,g.z,e.x,e.y+(e.def.h||1.6)*0.6,e.z)){bd=d;tg=e}}
+      if(tg){
+        g.group.rotation.y=Math.atan2(tg.x-g.x,tg.z-g.z);
+        if(g.cool<=0){g.cool=0.7+Math.random()*0.5;
+          const ox=g.x+Math.sin(g.group.rotation.y)*0.5,oy=g.y+1.35,oz=g.z+Math.cos(g.group.rotation.y)*0.5;
+          tracer(ox,oy,oz,tg.x,tg.y+(tg.def.h||1.6)*0.6,tg.z,0x88ccff);sfx('rifle',bd);
+          if(Math.random()<0.75)damageEnemy(tg,GUARD_DMG,false,true,g);
+        }
+      }else g.group.rotation.y+=((g.yaw0-g.group.rotation.y+Math.PI*3)%(Math.PI*2)-Math.PI)*Math.min(1,dt*3);
+    }
+  }
+}
+
 function refreshRoundHud(){
   polNoteUpdate();   // notificação "política a decidir"
   const el=$('rdline');if(!el||!STATE.rd)return;
@@ -375,15 +406,17 @@ function roadSpot(ax,az,bx,bz,t){
   g.position.set(x,gy,z);g.rotation.y=yaw;
   const root=new THREE.Group();root.add(g);
   // 3 guardas da cidade/facção em volta da caravana: ficam parados, de guarda, olhando para fora
+  const guards=[];
   for(const [ox,oz] of[[-3.1,1.2],[3.1,1.2],[0,-3.6]]){
     const gx=x+ox*Math.cos(yaw)+oz*Math.sin(yaw),gz=z-ox*Math.sin(yaw)+oz*Math.cos(yaw);
     const m=buildHuman({skin:SKINS[(c.id*3+Math.floor(ox+4))%SKINS.length],shirt:c.flagMat?c.flagMat.color.getHex():0x2a6aff,pants:0x2a2a3a,hairStyle:'helmet',hat:0x8a9ab0,gun:{len:0.75},scarf:CITY_COLS[c.id%CITY_COLS.length]});
     m.arms[1].rotation.x=-1.2;m.arms[0].rotation.x=-1.0;
     if(Math.abs(tH(gx,gz)-tH(x,z))>1.4||tH(gx,gz)<SEA+0.5||Col.near(gx-0.5,gz-0.5,gx+0.5,gz+0.5).length)continue;   // não põe guarda dentro de pedra/árvore
     m.group.position.set(gx,tH(gx,gz),gz);m.group.rotation.y=Math.atan2(gx-x,gz-z);root.add(m.group);
+    guards.push({kind:'guard',alive:true,x:gx,z:gz,y:tH(gx,gz),eye:1.6,crouch:false,speed:1,hp:70,maxhp:70,model:m,group:m.group,homeX:gx,homeZ:gz,yaw0:m.group.rotation.y,cool:Math.random()*1.5,deadT:0,city:{kind:'guard',rank:1}});
   }
   scene.add(root);
-  const m={group:root,x,z};CARAVANS.push(m);return m;
+  const m={group:root,x,z,guards,city:c};CARAVANS.push(m);return m;
 }
 function rebuildCaravans(){
   clearCaravans();
@@ -468,7 +501,7 @@ function bookPages(){
       return '<div class="ldroute"><b>'+routeName(r)+'</b><br><small>'+A.name+' recebe '+resIcon(focusOf(B))+' • '+B.name+' recebe '+resIcon(focusOf(A))+'</small><br><button data-a="unroute" data-i="'+i+'" '+(isLeader()?'':'disabled')+'>Desfazer</button></div>'}).join(''):'<p>Nenhuma caravana ainda.</p>')
       +'<p class="ldsm">Quem recebe o produto da outra cidade: a necessidade dele <b>100% some</b>, <b>150% cai para 100%</b> e <b>200% cai para 150%</b> (mostrado numa tabela antes de fechar o acordo). Negociar com uma cidade de <b>ouro</b> rende ouro por rodada (e uma cidade de ouro com acordo não rende imposto). A produção levada pela caravana não vai para o armazém.</p>';
     const R='<h3>Nova caravana</h3><p>Escolha no <b>mapa</b> a cidade de <b>origem</b> (uma das suas) e a de <b>destino</b> (sua, aliada ou neutra). A sua cidade passa a receber o produto do destino por caravana (reduz a necessidade dele ou rende ouro).</p>'
-      +'<p>Preço: <b>◉ '+CARAVAN_COST+'</b></p><button data-a="route" class="gold" '+(canAct('caravan')&&Ledger.canAfford({gold:CARAVAN_COST})?'':'disabled')+'>🗺 Escolher no mapa</button>'+leaderOnly()+(Ledger.anyDebt()?'<p class="ldwarn">Com dívida não é possível comprar.</p>':'');    return[L,R];
+      +'<p>Preço: <b>◉ '+CARAVAN_COST+'</b></p><button data-a="route" class="gold" '+(canAct('caravan')&&Ledger.canAfford({gold:CARAVAN_COST})&&freeCityForRoute()?'':'disabled')+'>🗺 Escolher no mapa</button>'+(freeCityForRoute()?'':'<p class="ldwarn">Todas as suas cidades já têm uma caravana ativa (cada cidade só pode ter uma por vez). Desfaça uma para criar outra.</p>')+leaderOnly()+(Ledger.anyDebt()?'<p class="ldwarn">Com dívida não é possível comprar.</p>':'');    return[L,R];
   }
   const lvl=rd.lvl,cost=capCost(),can=isLeader()&&lvl<CAP_MAX_LVL&&canAct('capital');
   const L='<h3>'+WORLD.home.name+' — a capital</h3><p>Nível do líder: <b>'+lvl+'</b> / '+CAP_MAX_LVL+'</p><p>Ações por rodada: <b>'+maxActions()+'</b></p><p class="ldsm">A capital evolui até virar uma cidade fortificada. Cada nível aumenta o número de ações do líder por rodada.</p>';
@@ -532,6 +565,7 @@ function placeAtHall(){
 
 // ---------- caravana: origem e destino escolhidos no mapa ----------
 const MP={on:false,step:0,a:null};
+const freeCityForRoute=()=>playerCities().some(c=>!hasRoute(c));   // para criar uma caravana, ao menos uma cidade sua precisa estar sem caravana
 function startCaravanPick(){
   MP.on=true;MP.step=1;MP.a=null;
   openPanel('map');drawBigMap();updatePickBanner();
@@ -545,7 +579,7 @@ function updatePickBanner(){
 function drawPickOverlay(g,s){
   if(!MP.on)return;
   for(const c of WORLD.cities){
-    const ok=MP.step===1?c.owner==='player':c.id!==MP.a;
+    const ok=MP.step===1?(c.owner==='player'&&!hasRoute(c)):(c.id!==MP.a&&!hasRoute(c));
     g.strokeStyle=c.id===MP.a?'#5aff7a':ok?'#ffd23a':'#555';g.lineWidth=c.id===MP.a?5:3;
     g.beginPath();g.arc(c.cx*s,c.cz*s,16,0,6.283);g.stroke();
   }
@@ -563,6 +597,7 @@ function buyCaravan(A,B){
   else if(!A||!B||A===B)toast('Escolha duas cidades diferentes.',2000);
   else if(rd.routes.some(r=>(r.a===A.id&&r.b===B.id)||(r.a===B.id&&r.b===A.id)))toast('Já existe uma caravana entre elas.',2500);
   else if(focusOf(A)===focusOf(B))toast('As duas cidades produzem o mesmo recurso: a caravana seria inútil.',3000);
+  else if(hasRoute(A)||hasRoute(B))toast('Cada cidade só pode ter uma caravana ativa por vez: '+(hasRoute(A)?A.name:B.name)+' já tem uma.',3500);
   else if(polFlag('noRoute',A.id)||polFlag('noRoute',B.id))toast('Uma epidemia impede novas caravanas para essa cidade.',3000);
   else if(!canAct('caravan'))toast('Sem ações do líder nesta rodada.',2500);
   else if(!Ledger.spend({gold:CARAVAN_COST}))toast('Ouro insuficiente (ou você está em dívida).',2500);
@@ -573,10 +608,12 @@ document.addEventListener('click',e=>{
   const c=pickCityAt(e);if(!c)return;
   if(MP.step===1){
     if(c.owner!=='player'){toast('A origem precisa ser uma cidade sua.',2000);return}
+    if(hasRoute(c)){toast(c.name+' já tem uma caravana ativa (uma por cidade).',2500);return}
     MP.a=c.id;MP.step=2;drawBigMap();updatePickBanner();return;
   }
   if(c.id===MP.a){MP.a=null;MP.step=1;drawBigMap();updatePickBanner();return}
   const A=WORLD.cities[MP.a];
+  if(hasRoute(c)){toast(c.name+' já tem uma caravana ativa (uma por cidade).',2500);return}
   dealSummary(A,c,()=>{MP.on=false;updatePickBanner();buyCaravan(A,c);openBook('book','caravanas')});
 });
 document.addEventListener('mousemove',e=>{
@@ -586,7 +623,7 @@ document.addEventListener('mousemove',e=>{
 // resumo da negociação: o que cada cidade dá e recebe, antes de fechar o acordo
 function dealSummary(A,B,onYes){
   const fa=focusOf(A),fb=focusOf(B),ic=r=>resIcon(r)+' '+resName(r).toLowerCase();
-  const line=(X,give,get,mine)=>'<tr><td><b>'+X.name+'</b>'+(mine?' <small>(sua)</small>':' <small>(neutra)</small>')+'</td><td>dá: <b>'+ic(give)+'</b></td><td>recebe: <b>'+ic(get)+'</b></td></tr>';
+  const line=(X,give,get,mine)=>'<tr><td><b>'+X.name+'</b> <small>(sua)</small></td><td>recebe: <b>'+ic(get)+'</b></td></tr>';   // só as cidades suas: o que a outra cidade ganha não interessa
   // efeito de cada lado: recurso físico → regra do percentual (150% some, 200% cai para 100%, 100% não muda); ouro → bônus por rodada
   const effects=[];
   const side=(X,get,from,mineX)=>{
@@ -601,11 +638,11 @@ function dealSummary(A,B,onYes){
     }
   };
   side(A,fb,B,true);
-  side(B,fa,A,B.owner==='player');
+  if(B.owner==='player')side(B,fa,A,true);
   if(focusOf(A)==='gold')effects.push('⚠ '+A.name+' produz ouro: com acordo, ela <b>deixa de render imposto</b> e a produção segue pela caravana.');
   else effects.push('ℹ A produção de '+ic(fa)+' de '+A.name+' segue pela caravana (não vai ao armazém).');
-  if(B.owner!=='player')effects.push('ℹ '+B.name+' não é sua: ela só recebe '+ic(fa)+', sem efeito no seu jogo.');  const w=UI.window({title:'🛒 Resumo da negociação',width:Math.min(520,innerWidth-30),z:60});
-  w.body.innerHTML='<table class="ldt" style="width:100%;color:#ddd">'+line(A,fa,fb,true)+line(B,fb,fa,B.owner==='player')+'</table><p style="font-size:13px;line-height:1.6">'+effects.join('<br>')+'</p><p>Preço do acordo: <b style="color:#ffd23a">◉ '+CARAVAN_COST+'</b> • Duas caravanas (uma de cada cidade) vão para a estrada, com guardas.</p>';
+  const w=UI.window({title:'🛒 Resumo da negociação',width:Math.min(520,innerWidth-30),z:60});
+  w.body.innerHTML='<table class="ldt" style="width:100%;color:#ddd">'+line(A,fa,fb,true)+(B.owner==='player'?line(B,fb,fa,true):'')+'</table><p style="font-size:13px;line-height:1.6">'+effects.join('<br>')+'</p><p>Preço do acordo: <b style="color:#ffd23a">◉ '+CARAVAN_COST+'</b> • Duas caravanas (uma de cada cidade) vão para a estrada, com guardas.</p>';
   w.foot.append(UI.button('Fechar acordo (◉'+CARAVAN_COST+')','gold',()=>{w.close();w.el.remove();onYes()}),UI.button('Voltar ao mapa','alt',()=>{w.close();w.el.remove()}));
   w.open();return w;
 }

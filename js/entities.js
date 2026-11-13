@@ -435,7 +435,7 @@ function updateEnemy(e,dt){  const def=e.def,m=e.model;
   if(e.watchT<=0){e.watchT=0.4+Math.random()*0.2;e.watched=!P.dead&&Math.hypot(e.x-P.x,e.z-P.z)<85&&losClear(camera.position.x,camera.position.y,camera.position.z,e.x,e.y+0.8,e.z)}
   if(!e.tg||(e.tg!==P&&!e.tg.alive)||e.tgT<=0||(e.fightW&&!e.watched&&!e.tg.watched&&!(e.revengeT>0))){e.tgT=0.5;e.tg=pickTarget(e)}
   e.revengeT=(e.revengeT||0)-dt;
-  e.fightW=e.tg.kind==='enemy'||e.tg.kind==='npc';
+  e.fightW=e.tg.kind==='enemy'||e.tg.kind==='npc'||e.tg.kind==='guard';
   const tg=e.tg,dx=tg.x-e.x,dz=tg.z-e.z,d=Math.hypot(dx,dz);
   e.cool-=dt;e.losT-=dt;e.flash-=dt;
   let active=c.state==='attacking'&&!P.dead&&d<140;
@@ -562,7 +562,7 @@ function damageEnemy(e,amount,head,byAlly,src){   // src: outro bicho/soldado qu
 }
 function checkConquest(c){
   if(c.aliveEnemies>0)return;
-  if(c.kind==='raid'){onRaidCleared();return}                   // raid repelido
+  if(c.kind==='raid'){if(c===RAID.area&&(!RAID.waves||RAID.waves.i>=RAID_WAVES.length))onRaidCleared();return}   // raid repelido (só depois da última onda; as ondas seguintes são tratadas em updateRaids)
   if(c.kind==='dungeon'){c.state='cleared';toast('✔ A dungeon foi limpa! Abra o baú do fundo.',4000);return}
   if(c.kind==='camp'&&!c.ambush&&!c.gone&&c.state!=='cleared'){clearCamp(c);return}   // acampamento esvaziado (até por animais): baú e refém liberados
   if(c.state!=='attacking')return;

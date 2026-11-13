@@ -372,7 +372,7 @@ window.addEventListener('blur',()=>{G.keys={};G.fireHeld=false;G.aiming=false});
 
 function doInteract(){
   const t=G.target;if(!t)return;
-  if(t.type==='hall')openQuests(t.c);else if(t.type==='barracks')openBarracks(t.c);else if(t.type==='shop')openShop(t.c);else if(t.type==='clinic')openClinic(t.c);else if(t.type==='portal'){if(RAID.active&&!RAID.engaged)toast('Há um ataque em andamento! Defenda a cidade antes.',2500);else enterDungeon(t.p)}else if(t.type==='dgexit')leaveDungeon();else if(t.type==='store')openStore(t.c,'store');else if(t.type==='tavern')openStore(t.c,'tavern');else if(t.type==='stove')openCooking('tavern');else if(t.type==='fire')openCooking('fire');else if(t.type==='npc')npcTalk(t.n);else if(t.type==='chest')openChest(t.ch);else if(t.type==='cage')openCage(t.c);else if(t.type==='book')openBook();else if(t.type==='leader')hallRoundAction(t.c);else if(t.type==='warehouse')openWarehouse(t.c);
+  if(t.type==='hall')openQuests(t.c);else if(t.type==='barracks')openBarracks(t.c);else if(t.type==='shop')openShop(t.c);else if(t.type==='clinic')openClinic(t.c);else if(t.type==='portal'){if(RAID.active&&!RAID.engaged)toast('Há um ataque em andamento! Defenda a cidade antes.',2500);else enterDungeon(t.p)}else if(t.type==='dgexit')leaveDungeon();else if(t.type==='store')openStore(t.c,'store');else if(t.type==='tavern')openStore(t.c,'tavern');else if(t.type==='stove')openCooking('tavern');else if(t.type==='fire')openCooking('fire');else if(t.type==='npc')npcTalk(t.n);else if(t.type==='chest')openChest(t.ch);else if(t.type==='vein')mineVein();else if(t.type==='cage')openCage(t.c);else if(t.type==='book')openBook();else if(t.type==='leader')hallRoundAction(t.c);else if(t.type==='warehouse')openWarehouse(t.c);
 }
 function updateInteract(){
   G.target=null;G.attackCity=null;G.curCity=null;const lines=[];
@@ -398,6 +398,7 @@ function updateInteract(){
   if(nearBook()){G.target={type:'book'};lines.push('[E] Abrir o livro de decisões')}
   {const pp=portalNear();if(pp){G.target={type:'portal',p:pp};lines.push('[E] Entrar no portal — dungeon nível '+pp.tier+' • recompensa: '+rewardText(pp))}}
   if(G.dg&&G.dgPad&&Math.hypot(P.x-G.dgPad.x,P.z-G.dgPad.z)<2.6){G.target={type:'dgexit'};lines.push('[E] Sair da dungeon (volta ao portal)')}
+  if(G.dg&&G.dg.vein&&!G.dg.vein.mined&&Math.hypot(G.dg.vein.x-P.x,G.dg.vein.z-P.z)<3.4&&Math.abs(G.dg.vein.y-P.y)<2.5){G.target={type:'vein'};lines.push(G.dg.area.state==='cleared'?'[E] Minerar o veio de ouro':'🔒 Veio de ouro — elimine os inimigos')}
   for(const ch of WORLD.chests){if(ch.opened)continue;const d=Math.hypot(ch.x-P.x,ch.z-P.z);if(d<2.8&&Math.abs(ch.y-P.y)<2){G.target={type:'chest',ch};lines.push(ch.lockedBy&&ch.lockedBy.state!=='cleared'?'🔒 Baú trancado — elimine os bandidos':'[E] Abrir baú')}}
   if(!G.target){
     camera.getWorldDirection(_d);let bd=3.4;
@@ -492,6 +493,8 @@ function drawMinimap(){
     mmc.strokeStyle='#fff';mmc.lineWidth=2;mmc.beginPath();mmc.rect(x-6,y-6,12,12);mmc.fill();mmc.stroke();
   }
   {const qt=G.dg?null:questTarget();if(qt){let x=(qt.x-P.x)*s,y=(qt.z-P.z)*s;const L=Math.hypot(x,y),maxL=62;if(L>maxL){x*=maxL/L;y*=maxL/L}drawStar(mmc,x,y,7)}}
+  {const ct=G.dg?null:cvbTarget();if(ct){let x=(ct.x-P.x)*s,y=(ct.z-P.z)*s;const L=Math.hypot(x,y),maxL=62;if(L>maxL){x*=maxL/L;y*=maxL/L}drawStar(mmc,x,y,7)}}   // caravana sendo saqueada
+  if(!G.dg)drawGoldPortals(mmc,s,P.x,P.z,62,false);   // portal dourado (política): losango dourado
   if(!G.dg)for(const a of ALLIES)if(a.alive){mmc.fillStyle='#4aa0ff';mmc.fillRect((a.x-P.x)*s-2,(a.z-P.z)*s-2,4,4)}
   if(!G.dg)for(const e of ENEMIES)if(e.alive&&e.city.state==='attacking'){mmc.fillStyle='#ff2a2a';mmc.fillRect((e.x-P.x)*s-1.5,(e.z-P.z)*s-1.5,3,3)}
   mmc.restore();drawCompassRim(mmc,88,88,77,P.yaw);
@@ -548,6 +551,8 @@ function drawBigMap(){
     g.beginPath();g.rect(x-7,y-7,14,14);g.fill();g.stroke();
     g.fillStyle='#fff';g.strokeStyle='#000';g.lineWidth=3;const lbl=c.name+(MP.on?'  '+resIcon(focusOf(c)):'');g.strokeText(lbl,x,y-12);g.fillText(lbl,x,y-12);   // na escolha de caravana, o ícone do que a cidade troca
   }
+  drawGoldPortals(g,s,0,0,0,true);   // portais dourados no mapa grande
+  {const ct=cvbTarget();if(ct){drawStar(g,ct.x*s,ct.z*s,10);g.fillStyle='#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText('Caravana',ct.x*s,ct.z*s-16);g.fillText('Caravana',ct.x*s,ct.z*s-16)}}
   drawRose(g,cv.width-64,64,30);
   drawPickOverlay(g,s);   // modo de escolha de caravana (rounds.js)
   {const qt=questTarget();if(qt){drawStar(g,qt.x*s,qt.z*s,10);g.fillStyle='#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText('Missão',qt.x*s,qt.z*s-16);g.fillText('Missão',qt.x*s,qt.z*s-16)}}
@@ -685,4 +690,15 @@ function refreshPolicyCheats(){
   const lead=STATE.phase==='leader';
   $('polbox').classList.toggle('hidden',!lead);$('polhint').style.display=lead?'none':'block';
   $('polstatus').innerHTML=typeof polInfoHtml==='function'?polInfoHtml():'';
+}
+
+// marcador do portal dourado (política Dungeon dourada): losango dourado no minimapa e no mapa grande (com o nome)
+function drawGoldPortals(ctx,s,px,pz,maxL,big){
+  for(const p of goldenPortals()){
+    let x,y;
+    if(big){x=p.x*s;y=p.z*s}else{x=(p.x-px)*s;y=(p.z-pz)*s;const L=Math.hypot(x,y);if(L>maxL){x*=maxL/L;y*=maxL/L}}
+    const r=big?10:6;
+    ctx.fillStyle='#ffd23a';ctx.strokeStyle='#000';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,y-r);ctx.lineTo(x+r,y);ctx.lineTo(x,y+r);ctx.lineTo(x-r,y);ctx.closePath();ctx.fill();ctx.stroke();
+    if(big){ctx.font='bold 14px monospace';ctx.textAlign='center';ctx.fillStyle='#ffe680';ctx.lineWidth=3;ctx.strokeText('Portal dourado',x,y-r-5);ctx.fillText('Portal dourado',x,y-r-5)}
+  }
 }

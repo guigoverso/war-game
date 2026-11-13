@@ -276,6 +276,7 @@ function drawDungeonMinimap(){
   const dot=(x,z,col)=>{mmc.fillStyle=col;mmc.strokeStyle='#000';mmc.lineWidth=1.5;mmc.beginPath();mmc.rect((x-P.x)*s-4,(z-P.z)*s-4,8,8);mmc.fill();mmc.stroke()};
   dot(w.entrance.x,w.entrance.z,'#c080ff');                               // saída
   if(d.chest&&!d.chest.opened)dot(d.chest.x,d.chest.z,'#ffd23a');        // baú
+  if(d.vein&&!d.vein.mined)dot(d.vein.x,d.vein.z,'#ff9a1a');            // veio de ouro (dungeon dourada)
   if(G.creative){mmc.fillStyle='#ff2a2a';for(const e of d.area.enemies)if(e.alive)mmc.fillRect((e.x-P.x)*s-2.5,(e.z-P.z)*s-2.5,5,5)}   // só no modo criativo: inimigos restantes
 }
 
@@ -298,6 +299,24 @@ function updateDungeonMood(){
   if(DN.torch)DN.torch.intensity=1.7;
 }
 
+// ---------- veio de ouro (dungeon dourada) ----------
+function addGoldVein(x,y,z,lockedBy){
+  const g=new THREE.Group();g.position.set(x,y,z);
+  const box=(col,sx,sy,sz,px,py,pz,basic)=>{const m=new THREE.Mesh(GEO_BOX,basic?new THREE.MeshBasicMaterial({color:col}):mat(col));m.scale.set(sx,sy,sz);m.position.set(px,py,pz);g.add(m);return m};
+  box(0x4a4a54,2.4,1.1,1.8,0,0.55,0);box(0x5a5a66,1.8,1.5,1.3,0.1,0.95,-0.1);box(0x3a3a44,1.2,1.9,0.9,-0.2,1.3,0);   // rocha
+  for(const [px,py,pz,s] of[[0.9,0.9,0.95,0.5],[-0.8,1.2,0.7,0.45],[0.2,1.7,0.5,0.55],[-0.3,0.7,0.95,0.4],[0.7,1.5,-0.5,0.4],[1.0,0.5,0.6,0.35],[-0.7,0.6,-0.8,0.4]])box(0xffc828,s,s,s,px,py,pz,true);   // pepitas de ouro brilhantes
+  const glow=new THREE.Mesh(GEO_BOX,new THREE.MeshBasicMaterial({color:0xffc030,transparent:true,opacity:0.18,depthWrite:false,blending:THREE.AdditiveBlending}));glow.scale.set(3.4,2.6,2.8);glow.position.set(0,1.1,0);g.add(glow);
+  scene.add(g);return{x,y,z,g,lockedBy,mined:false};
+}
+// minerar o veio: só depois de eliminar os inimigos; entrega a recompensa de ouro do portal
+function mineVein(){
+  const d=G.dg;if(!d||!d.vein||d.vein.mined)return;
+  if(d.area.state!=='cleared'){toast('🔒 Elimine todos os inimigos antes de minerar.',2000);return}
+  d.vein.mined=true;d.vein.g.scale.set(0.001,0.001,0.001);d.vein.g.visible=false;
+  const p=d.p;if(!p.claimed){p.claimed=true;const got=giveResource(p.reward.res,p.reward.amt);toast('⛏ Você minerou o veio: '+got+'!',5000)}
+  sfx('win',0);
+}
+
 // ---------- entrar, lutar e sair ----------
 function enterDungeon(p){
   if(G.dg||!DG.ok)return;
@@ -311,7 +330,14 @@ function enterDungeon(p){
   let cx=w.boss.x,cz=w.boss.z;
   for(let r=0;r<=4;r+=1){let ok=false;for(let k=0;k<(r?8:1)&&!ok;k++){const a=k*0.785,x=w.boss.x+Math.cos(a)*r,z=w.boss.z+Math.sin(a)*r;if(!Col.near(x-1,z-1,x+1,z+1).some(b=>b.y1>DG.Y+0.3&&b.y0<DG.Y+2)){cx=x;cz=z;ok=true}}if(ok)break}   // livre de pilares e caixas (o teto não conta)
   const ang=Math.atan2(w.entrance.x-cx,w.entrance.z-cz);
-  const ch=addArcaneChest(cx,DG.Y,cz,ang,p.golden?0:40+30*p.tier,area,!!p.golden);ch.dg=p;if(p.golden)ch.golden=true;else ch.lootKey='chest_dungeon';G.dg.chest=ch;   // dourada: tesouro só de ouro (a recompensa do portal)
+  if(p.golden){   // dungeon dourada: um VEIO DE OURO para minerar (a recompensa em ouro) e, perto dele, um baú comum com uma única relíquia
+    G.dg.vein=addGoldVein(cx,DG.Y,cz,area);
+    if(!p.relicTaken){
+      let rx=cx+3,rz=cz;
+      for(const [dx,dz] of[[3,0],[-3,0],[0,3],[0,-3],[3,3],[-3,-3],[3,-3],[-3,3]])if(!Col.near(cx+dx-1,cz+dz-1,cx+dx+1,cz+dz+1).some(b=>b.y1>DG.Y+0.3&&b.y0<DG.Y+2)){rx=cx+dx;rz=cz+dz;break}
+      const rc=addChest(rx,DG.Y,rz,ang,0,area);rc.fixedLoot=[['reliquia',1]];rc.onOpen=()=>{p.relicTaken=true};G.dg.chest=rc;
+    }
+  }else{const ch=addArcaneChest(cx,DG.Y,cz,ang,40+30*p.tier,area);ch.dg=p;ch.lootKey='chest_dungeon';G.dg.chest=ch}
   P.x=w.entrance.x;P.z=w.entrance.z;P.y=DG.Y+0.2;P.vy=0;P.vx=P.vz=0;P.camY=P.y;P.yaw=Math.atan2(-(w.boss.x-w.entrance.x),-(w.boss.z-w.entrance.z));
   G.dgPad=w.entrance;
   {   // pedra de saída: disco de pedra com brilho roxo
@@ -321,7 +347,7 @@ function enterDungeon(p){
     const bm=new THREE.Mesh(GEO_BOX,new THREE.MeshBasicMaterial({color:0xa060ff,transparent:true,opacity:0.18,depthWrite:false}));bm.scale.set(0.5,3.5,0.5);bm.position.y=1.8;g.add(bm);
     scene.add(g);G.dgPadMesh=g;
   }
-  toast('🌀 Dungeon nível '+p.tier+' — elimine os inimigos e abra o baú do fundo. Recompensa: '+rewardText(p),6000);
+  toast('🌀 Dungeon '+(p.golden?'dourada ':'')+'nível '+p.tier+' — elimine os inimigos e '+(p.golden?'minere o veio de ouro do fundo (e abra o baú da relíquia)':'abra o baú do fundo')+'. Recompensa: '+rewardText(p),6000);
 }
 function populateWing(p,w,area){
   const plan={1:['spider','spider','hound','hound','bot'],2:['spider','spider','scorpion','scorpion','hound','hound','bot','bot'],3:['spider','spider','spider','scorpion','scorpion','scorpion','bot','bot','bot','brute']}[p.tier];
@@ -339,6 +365,7 @@ function leaveDungeon(noTeleport){
   d.area.enemies=[];d.area.aliveEnemies=0;
   const ai=WORLD.areas.indexOf(d.area);if(ai>=0)WORLD.areas.splice(ai,1);
   if(d.chest){const k=WORLD.chests.indexOf(d.chest);if(k>=0)WORLD.chests.splice(k,1);scene.remove(d.chest.g)}
+  if(d.vein)scene.remove(d.vein.g);
   const p=d.p;G.dg=null;G.dgPad=null;if(G.dgPadMesh){scene.remove(G.dgPadMesh);G.dgPadMesh=null}
   if(!noTeleport){P.x=d.ret.x;P.z=d.ret.z;P.y=d.ret.y+0.3;P.vy=0;P.camY=P.y;P.yaw=d.ret.yaw}
   if(p.claimed){removePortal(p);toast('O portal se desfez depois de entregar sua recompensa.',3500)}

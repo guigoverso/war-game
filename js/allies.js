@@ -25,6 +25,7 @@ function hurtTarget(tg,dmg,fx,fz,src){
       if(!sp&&tp)dmg*=(WILD_TIER[tg.type]||{in:1}).in;else if(sp&&!tp)dmg*=(WILD_TIER[src.type]||{out:1}).out}
     damageEnemy(tg,dmg,false,true,src);
   }else if(tg.kind==='npc')damageNpc(tg,dmg,src);
+  else if(tg.kind==='guard')damageGuard(tg,dmg);
   else damageAlly(tg,dmg);
 }
 // alvo de briga: animal x soldado/bandido, só quando o jogador está vendo o animal
@@ -44,6 +45,7 @@ function wildCiv(e){   // animais preferem perseguir civis (vistos pelo jogador)
 }
 function pickTarget(e){
   if(e.revengeT>0&&e.revenge&&(e.revenge===P?!P.dead:e.revenge.alive))return e.revenge;
+  if(e.city.kind&&e.city.kind!=='dungeon'){const gd=nearGuard(e,20);if(gd&&!(e.aggro&&Math.hypot(P.x-e.x,P.z-e.z)<14))return gd}   // bandidos e animais atacam os guardas de caravana que estiverem perto
   if(CONTEST.active&&CONTEST.areas.includes(e.city)){   // disputa do portal dourado: cada tropa luta com a mais próxima de outro grupo; sem ninguém por perto, ataca você
     let best=null,bd=32;for(const o of ENEMIES){if(o===e||!o.alive||o.city===e.city||!CONTEST.areas.includes(o.city))continue;const d=Math.hypot(o.x-e.x,o.z-e.z);if(d<bd){bd=d;best=o}}
     if(best)return best;

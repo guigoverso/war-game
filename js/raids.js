@@ -89,52 +89,76 @@ function raidFailed(){
   endRaid();
 }
 // ---------- emboscada a uma caravana (política "Ataque às caravanas", opção B) ----------
-// Os bandidos surgem da caravana em 3 ondas de 3, 6 e 9, com CVB_GAP s entre elas. Vencer: onWin(); morrer: onLose().
-const CVB={active:false},CVB_WAVES=[3,6,9],CVB_GAP=15;
+// A caravana escolhida (a que você envia ou a que a cidade parceira envia) está sendo saqueada: os guardas dela foram mortos (voltam se você vencer).
+// Você começa longe e precisa se aproximar. Onda 1 (3 saqueadores) está junto da caravana; as ondas 2 e 3 (6 e 9) chegam de longe, vindo atacá-la.
+const CVB={active:false},CVB_WAVES=[3,6,9],CVB_GAP=15,CVB_START=70,CVB_NEAR=42;
+function cvbGuards(m,alive){
+  for(const g of m.guards||[]){
+    if(alive){g.alive=true;g.hp=g.maxhp;g.x=g.homeX;g.z=g.homeZ;g.y=tH(g.x,g.z);g.deadT=0;g.group.rotation.z=0;g.group.rotation.y=g.yaw0;g.group.position.set(g.x,g.y,g.z)}
+    else{g.alive=false;g.deadT=1;g.group.rotation.z=1.5}   // caídos ao lado da caravana
+  }
+}
 function startCaravanBattle(route,cb){
   if(RAID.active||CVB.active||G.dg||G.office||P.dead)return false;
-  const m=CARAVANS.find(k=>k.r===route);if(!m)return false;
+  const ms=CARAVANS.filter(k=>k.r===route);if(!ms.length)return false;
+  const m=ms[Math.floor(Math.random()*ms.length)];   // a caravana da sua cidade ou a da cidade parceira
   const A=WORLD.cities[route.a],B=WORLD.cities[route.b];
-  const area={kind:'raid',id:700+(STATE.raidSeq=(STATE.raidSeq||0)+1),name:'Emboscada na estrada',cx:m.x,cz:m.z,y:tH(m.x,m.z),half:25,biome:A.biome,rank:Math.max(A.rank||1,B.rank||1),hpMul:1,state:'attacking',owner:'enemy',home:false,
+  const area={kind:'raid',id:700+(STATE.raidSeq=(STATE.raidSeq||0)+1),name:'Emboscada na estrada',cx:m.x,cz:m.z,y:tH(m.x,m.z),half:25,biome:A.biome,rank:Math.max(A.rank||1,B.rank||1),hpMul:1,state:'idle',owner:'enemy',home:false,
     enemies:[],npcs:[],walk:[],flags:[],aliveEnemies:0,totalEnemies:0,leash:999,city:A};
   WORLD.areas.push(area);
-  Object.assign(CVB,{active:true,area,route,m,i:0,gapT:null,cb:cb||{},alliesCalled:false,seeT:0});
-  const f=freeSpot(m.x+7,m.z+7,0.5,1.8,0.45);P.x=f[0];P.z=f[1];P.y=tH(P.x,P.z)+0.1;P.vx=P.vz=P.vy=0;P.camY=P.y;P.yaw=Math.atan2(-(m.x-P.x),-(m.z-P.z));P.pitch=0;   // você chega ao lado da caravana
+  Object.assign(CVB,{active:true,area,route,m,i:0,gapT:null,cb:cb||{},alliesCalled:false,seeT:0,engaged:false});
+  m.ambush=true;cvbGuards(m,false);
+  // você começa longe: no caminho da caravana de volta à cidade dela
+  const home=m.city||A,dx=home.cx-m.x,dz=home.cz-m.z,L=Math.hypot(dx,dz)||1;
+  const f=freeSpot(m.x+dx/L*CVB_START,m.z+dz/L*CVB_START,0.5,1.8,0.45);P.x=f[0];P.z=f[1];P.y=tH(P.x,P.z)+0.1;P.vx=P.vz=P.vy=0;P.camY=P.y;P.yaw=Math.atan2(-(m.x-P.x),-(m.z-P.z));P.pitch=0;
   spawnCvbWave();
+  toast('🛡 Uma caravana está sendo saqueada! Aproxime-se (siga a estrela no minimapa).',5000);
   return true;
 }
 function spawnCvbWave(){
-  const n=CVB_WAVES[CVB.i],m=CVB.m;
+  const n=CVB_WAVES[CVB.i],m=CVB.m,first=CVB.i===0;
   for(let k=0;k<n;k++){
-    const a=Math.random()*6.283,r=4+Math.random()*3,x=m.x+Math.cos(a)*r,z=m.z+Math.sin(a)*r;
-    const e=spawnEnemy(CVB.area,(k===n-1&&CVB.area.rank>=2&&CVB.i>=1)?'hound':'soldier',x,z);e.aggro=true;e.unseenT=99;e.reactT=0.5;
+    let x,z;
+    if(first){const a=Math.random()*6.283,r=4+Math.random()*3;x=m.x+Math.cos(a)*r;z=m.z+Math.sin(a)*r}
+    else{   // de longe, indo atacar a caravana: um ponto em terra a 75–95 blocos
+      for(let t=0;t<14;t++){const a=Math.random()*6.283,r=75+Math.random()*20;x=m.x+Math.cos(a)*r;z=m.z+Math.sin(a)*r;if(x>6&&z>6&&x<W-6&&z<W-6&&tH(x,z)>SEA+1)break}
+    }
+    const e=spawnEnemy(CVB.area,(k===n-1&&CVB.area.rank>=2&&!first)?'hound':'soldier',x,z);
+    if(first){e.homeX=m.x;e.homeZ=m.z}else{e.aggro=true;e.unseenT=99;e.reactT=0.3}
   }
-  CVB.i++;CVB.gapT=null;sfx('alarm',0);toast('⚔ Emboscada! Onda '+CVB.i+'/'+CVB_WAVES.length+': '+n+' bandidos saem da caravana!',4000);
+  CVB.i++;CVB.gapT=null;
+  if(!first){CVB.area.state='attacking';sfx('alarm',0);toast('⚔ Onda '+CVB.i+'/'+CVB_WAVES.length+': '+n+' saqueadores vêm de longe atacar a caravana!',4500)}
 }
 function cvbEnd(win){
   if(!CVB.active)return;
-  const a=CVB.area,cb=CVB.cb;
+  const a=CVB.area,cb=CVB.cb,m=CVB.m;
   for(const al of ALLIES)if(al.assaultCity===a){al.state='patrol';al.patrolCity=WORLD.home;al.assaultCity=null}
   if(a){for(const e of a.enemies){e.alive=false;e.gone=true;scene.remove(e.group)}a.enemies=[];a.aliveEnemies=0;const i=WORLD.areas.indexOf(a);if(i>=0)WORLD.areas.splice(i,1)}
   CVB.active=false;CVB.area=null;
+  if(m){m.ambush=false;if(win)cvbGuards(m,true)}   // vencendo, os guardas voltam
   const el=document.getElementById('raidhud');if(el)el.style.display='none';
   if(win){sfx('win',0);if(cb.onWin)cb.onWin()}else if(cb.onLose)cb.onLose();
 }
+const cvbTarget=()=>CVB.active&&CVB.m&&!CVB.engaged?{x:CVB.m.x,z:CVB.m.z}:null;   // estrela no minimapa enquanto você ainda não chegou
 function updateCvb(dt){
   if(!CVB.active)return;
-  const hud=document.getElementById('raidhud'),alive=CVB.area.enemies.filter(e=>e.alive).length;
-  if(!CVB.alliesCalled&&!P.dead&&!G.invis){
+  const hud=document.getElementById('raidhud'),alive=CVB.area.enemies.filter(e=>e.alive).length,m=CVB.m,dm=Math.hypot(m.x-P.x,m.z-P.z);
+  if(!CVB.engaged&&dm<CVB_NEAR){   // chegou perto: os saqueadores da 1ª onda partem para cima de você
+    CVB.engaged=true;CVB.area.state='attacking';for(const e of CVB.area.enemies)if(e.alive){e.aggro=true;e.unseenT=99;e.reactT=0.4}
+    sfx('alarm',0);toast('⚔ Os saqueadores te viram! Onda 1/'+CVB_WAVES.length+'.',3500);
+  }
+  if(CVB.engaged&&!CVB.alliesCalled&&!P.dead&&!G.invis){
     CVB.seeT-=dt;
     if(CVB.seeT<=0){CVB.seeT=0.3;
       if(CVB.area.enemies.some(e=>e.alive&&Math.hypot(e.x-P.x,e.z-P.z)<46&&playerVisibleFrom(e.x,e.y+e.def.eye,e.z,P))){CVB.alliesCalled=true;armyAssault(CVB.area,'★ Seus soldados chegaram para defender a caravana!')}
     }
   }
-  if(alive===0){
+  if(CVB.engaged&&alive===0){
     if(CVB.i>=CVB_WAVES.length){cvbEnd(true);return}
-    if(CVB.gapT===null){CVB.gapT=CVB_GAP;toast('✔ Onda '+CVB.i+' vencida! A próxima vem em '+CVB_GAP+' s.',4000)}
+    if(CVB.gapT===null){CVB.gapT=CVB_GAP;toast('✔ Onda '+CVB.i+' vencida! A próxima chega em '+CVB_GAP+' s.',4000)}
     CVB.gapT-=dt;if(CVB.gapT<=0)spawnCvbWave();
   }
-  if(hud){hud.style.display='block';hud.innerHTML=alive===0&&CVB.gapT!==null?'⏳ Caravana: próxima onda em <b>'+Math.max(0,Math.ceil(CVB.gapT))+' s</b>':'🛡 Defenda a caravana: onda '+CVB.i+'/'+CVB_WAVES.length+' • '+alive+' bandidos'}
+  if(hud){hud.style.display='block';hud.innerHTML=!CVB.engaged?'🛡 Aproxime-se da caravana: <b>'+Math.round(dm)+' m</b>':alive===0&&CVB.gapT!==null?'⏳ Caravana: próxima onda em <b>'+Math.max(0,Math.ceil(CVB.gapT))+' s</b>':'🛡 Defenda a caravana: onda '+CVB.i+'/'+CVB_WAVES.length+' • '+alive+' saqueadores'}
 }
 function updateRaids(dt){
   updateCvb(dt);

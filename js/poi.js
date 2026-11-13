@@ -77,8 +77,9 @@ function openChest(ch){
   if(ch.opened)return;
   if(ch.lockedBy&&ch.lockedBy.state!=='cleared'){toast('🔒 Trancado: elimine os inimigos primeiro.',1800);return}
   ch.opened=true;if(ch.lockedBy)ch.lockedBy.completed=true;addCoins(ch.gold);sfx('coin',0);
-  if(ch.golden)toast('💰 O tesouro dourado se abriu!',3500);   // só ouro (a recompensa do portal), sem itens
+  if(ch.fixedLoot){const t=invGive(ch.fixedLoot);toast('📦 Baú aberto! '+(t||''),3500)}   // baú da dungeon dourada: só a relíquia
   else{const lt=lootChest(ch.lootKey);toast('📦 Baú aberto! +'+ch.gold+' moedas'+(lt?'  •  '+lt:''),3500)}
+  if(ch.onOpen)ch.onOpen();
   if(ch.dg)dungeonChestOpened(ch);
 }
 function updateChests(dt){
