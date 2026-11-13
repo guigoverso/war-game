@@ -170,6 +170,8 @@ function npcLook(rng,biome,role,owner){
   if(role==='civ'&&rng.chance(0.15))L.pack=rng.pick([0x6b4a2a,0x4a5a3a]);
   if(role==='civ'&&rng.chance(0.15)){L.hairStyle='hat';L.hat=0xc8a85a;L.pants=0x5a4a3a}
   if(role==='shop'){L.apron=0xf2f2f2;L.shirt=0x8a3a2a;L.hairStyle='cap';L.hat=0x6b4a2a;L.beard=L.hair;L.scale=1.05}
+  if(role==='merchant'){L.apron=0x6b4a2a;L.shirt=0x3a6a4a;L.hairStyle='hat';L.hat=0xc8a85a;L.scale=1.02}
+  if(role==='cook'){L.apron=0xf2f2f2;L.shirt=0xe8e0d0;L.hairStyle='cap';L.hat=0xf4f4f4;L.beard=L.hair;L.scale=1.04}
   if(role==='nurse'){L.shirt=0xf4f4f4;L.pants=0xf4f4f4;L.hairStyle='cap';L.hat=0xf4f4f4;L.scarf=0xd02a2a;L.shoes=0xdddddd}
   if(role==='hostage'){L.shirt=0x8a8a80;L.pants=0x4a4036;L.hairStyle='none';L.scale=1;L.miku=true} // prisioneira temporária: Hatsune Miku
   if(role==='clerk'){L.shirt=0x3a5a8a;L.hairStyle='short';L.scarf=0xe0d8b0}
@@ -187,6 +189,8 @@ const SAY={
   guard:['Em guarda!','Tudo calmo por aqui.','Boa sorte lá fora.','Os portões estão seguros.'],
   clerk:['O quadro de missões está logo ali.','Há sempre trabalho para quem sabe lutar.'],
   hostage:['Obrigado... pensei que ninguém viria!','Me tire daqui, por favor!'],
+  merchant:['Bem-vindo à loja! Aperte E para vender o que você encontrou.','Peles, presas, joias... eu compro quase tudo.'],
+  cook:['Hoje tem prato quente! Aperte E para cozinhar.','Traga peixe e carne fresca que eu faço o resto.'],
   shop:['Bem-vindo! Aperte E para ver as armas.'],nurse:['Está ferido? Aperte E para se tratar.']
 };
 function makeBubble(text){
@@ -301,7 +305,7 @@ function damageNpc(n,amount,src){   // src: bicho que atacou (não envolve o jog
 }
 function npcTalk(n){
   const c=n.city;let pool;
-  if(n.role==='guard')pool=SAY.guard;else if(n.role==='shop')pool=SAY.shop;else if(n.role==='nurse')pool=SAY.nurse;else if(n.role==='hostage')pool=SAY.hostage;else if(n.role==='clerk')pool=SAY.clerk;
+  if(n.role==='guard')pool=SAY.guard;else if(n.role==='shop')pool=SAY.shop;else if(n.role==='nurse')pool=SAY.nurse;else if(n.role==='merchant')pool=SAY.merchant;else if(n.role==='cook')pool=SAY.cook;else if(n.role==='hostage')pool=SAY.hostage;else if(n.role==='clerk')pool=SAY.clerk;
   else if(n.role==='child')pool=SAY.child;else if(n.role==='elder'&&Math.random()<0.6)pool=SAY.elder;
   else pool=c.home?SAY.civ_f:(c.owner==='player'?SAY.civ_c:SAY.civ_e);
   npcSay(n,pool[Math.floor(Math.random()*pool.length)]);

@@ -10,7 +10,10 @@ const REPAIR_BASE=[120,150,350,250,600,900]; // base de preço para o conserto (
 const itemDef=id=>DATA.items[id]||null;
 
 function newInv(){return{size:INV_BASE,slots:new Array(INV_BASE).fill(null),bar:new Array(BAR_SIZE).fill(null),upgraded:false,pending:[]}}
-Hooks.on('resetState',()=>{STATE.inv=newInv();STATE.dur=WEAPONS.map(()=>100)});
+Hooks.on('resetState',()=>{
+  STATE.inv=newInv();STATE.dur=WEAPONS.map(()=>100);STATE.buffs=[];STATE.vendors={};
+  STATE.inv.slots[0]={id:'vara',n:1};   // todo jogador começa com a vara de pescar
+});
 // garante que um estado carregado tenha todos os campos (salvamentos antigos)
 function normalizeInv(){
   if(!STATE.inv)STATE.inv=newInv();
@@ -19,7 +22,12 @@ function normalizeInv(){
   if(!inv.bar)inv.bar=new Array(BAR_SIZE).fill(null);
   if(!inv.pending)inv.pending=[];
   if(!STATE.dur)STATE.dur=WEAPONS.map(()=>100);
+  if(!STATE.buffs)STATE.buffs=[];
+  if(!STATE.vendors)STATE.vendors={};
+  if(invCount('vara')<=0&&!inv.pending.some(p=>p.id==='vara'))invAdd('vara',1);   // salvamentos antigos ganham a vara
 }
+// classe de cor do espaço: relíquia dourada, itens de cura em vermelho claro
+function itemSlotCls(id){const d=itemDef(id);return !d?'':d.type==='relic'?'rel':(d.type==='consumable'&&d.use&&d.use.heal)?'heal':''}
 
 // ---------- operações da bolsa ----------
 function invCount(id){let n=0;for(const s of STATE.inv.slots)if(s&&s.id===id)n+=s.n;return n}
@@ -73,14 +81,46 @@ function rollLoot(key){
   for(const d of t.drops){if(Math.random()<d.p){const n=d.min?d.min+Math.floor(Math.random()*(d.max-d.min+1)):1;out.push([d.id,n])}}
   return out;
 }
+// sorteia UM item da tabela, ponderado pelas chances (usado quando o loot é garantido)
+function rollOne(key){
+  const t=DATA.loot[key];if(!t)return[];let tot=0;for(const d of t.drops)tot+=d.p;
+  let r=Math.random()*tot;
+  for(const d of t.drops){r-=d.p;if(r<=0)return[[d.id,d.min?d.min+Math.floor(Math.random()*(d.max-d.min+1)):1]]}
+  const d=t.drops[0];return[[d.id,d.min||1]];
+}
+const LOOT_CHANCE=0.3;   // chance de um inimigo morto pelo jogador deixar itens; os baús sempre dão
 // inimigo morto pelo jogador
 function dropLoot(e){
-  const list=rollLoot(e.type);if(!list.length)return;
+  if(Math.random()>=LOOT_CHANCE)return;
+  let list=rollLoot(e.type);if(!list.length)list=rollOne(e.type);if(!list.length)return;
   const txt=invGive(list);if(txt)toast('🎁 '+txt,2200);
 }
-// baú aberto: devolve o texto do que veio
+// baú aberto: loot garantido (pelo menos um item). Devolve o texto do que veio
 function lootChest(){
-  const list=rollLoot('chest');return list.length?invGive(list):'';
+  let list=rollLoot('chest');if(!list.length)list=rollOne('chest');
+  return list.length?invGive(list):'';
+}
+
+// ---------- bônus temporários (comida) ----------
+function applyBuff(id){
+  const d=DATA.buffs[id];if(!d)return;
+  const b=STATE.buffs.find(x=>x.id===id);
+  if(b)b.left=d.secs;else STATE.buffs.push({id,left:d.secs});
+  refreshBuffs();
+}
+function buffMul(key){   // multiplicador acumulado de um efeito: 'dmg', 'resist', 'speed'
+  let m=1;for(const b of STATE.buffs||[]){const d=DATA.buffs[b.id];if(d&&d[key])m*=d[key]}return m;
+}
+function buffSum(key){let s=0;for(const b of STATE.buffs||[]){const d=DATA.buffs[b.id];if(d&&d[key])s+=d[key]}return s}
+function updateBuffs(dt){
+  const bs=STATE.buffs;if(!bs||!bs.length)return;
+  const regen=buffSum('regen');if(regen>0&&!P.dead)P.hp=Math.min(P.maxhp,P.hp+regen*dt);
+  let ch=false;for(let i=bs.length-1;i>=0;i--){bs[i].left-=dt;if(bs[i].left<=0){bs.splice(i,1);ch=true}}
+  G.buffT=(G.buffT||0)-dt;if(ch||G.buffT<=0){G.buffT=1;refreshBuffs()}
+}
+function refreshBuffs(){
+  const el=document.getElementById('buffs');if(!el)return;
+  el.innerHTML=(STATE.buffs||[]).map(b=>{const d=DATA.buffs[b.id];return '<div class="buff" title="'+d.desc+'">'+d.icon+' '+d.name+' <small>'+Math.ceil(b.left)+'s</small></div>'}).join('');
 }
 
 // ---------- usar itens, atalhos e regeneração ----------
@@ -89,9 +129,10 @@ function invUse(id){
   if(G.useCd>0)return false;
   if(invCount(id)<=0){toast('Você não tem '+d.name+'.',1500);return false}
   if(d.use.heal){
-    if(P.hp>=P.maxhp){toast('Sua vida já está cheia.',1500);return false}
+    if(P.hp>=P.maxhp&&!d.use.buff){toast('Sua vida já está cheia.',1500);return false}
     P.hp=Math.min(P.maxhp,P.hp+d.use.heal);
   }
+  if(d.use.buff){for(const b of[].concat(d.use.buff))applyBuff(b)}
   if(d.use.regen){
     if(P.hp>=P.maxhp){toast('Sua vida já está cheia.',1500);return false}
     P.regen={left:d.use.regen.secs,rate:d.use.regen.total/d.use.regen.secs};
@@ -100,7 +141,7 @@ function invUse(id){
 }
 function useBar(i){const id=STATE.inv.bar[i];if(!id){toast('Atalho '+(i+7)+' vazio. Abra a bolsa (B) para escolher um item.',2200);return}invUse(id)}
 function updateInventory(dt){
-  G.useCd=Math.max(0,(G.useCd||0)-dt);
+  G.useCd=Math.max(0,(G.useCd||0)-dt);updateBuffs(dt);
   if(P.regen&&!P.dead){P.hp=Math.min(P.maxhp,P.hp+P.regen.rate*dt);P.regen.left-=dt;if(P.regen.left<=0||P.hp>=P.maxhp)P.regen=null}
 }
 // HUD dos atalhos
@@ -109,7 +150,7 @@ function refreshHotbar(){
   const inv=STATE.inv;let h='';
   inv.bar.forEach((id,i)=>{
     const d=id&&itemDef(id),n=id?invCount(id):0;
-    h+='<div class="hb'+(id&&n<=0?' empty':'')+'"><i>'+(i+7)+'</i>'+(d?d.icon:'')+(d&&n>0?'<b>'+n+'</b>':'')+'</div>';
+    h+='<div class="hb'+(id&&n<=0?' empty':'')+(id?' '+itemSlotCls(id):'')+'"><i>'+(i+7)+'</i>'+(d?d.icon:'')+(d&&n>0?'<b>'+n+'</b>':'')+'</div>';
   });
   if(inv.pending.length)h+='<div class="invalert">🎒 Bolsa cheia — B</div>';
   el.innerHTML=h;
@@ -120,7 +161,7 @@ const durOf=i=>(STATE.dur&&STATE.dur[i]!==undefined)?STATE.dur[i]:100;
 function weaponBroken(i){return durOf(i===undefined?WS.cur:i)<=0}
 function durMul(){const d=durOf(WS.cur);return d<25?0.75:d<50?0.9:1}
 function wearWeapon(){
-  if(G.noWear||G.infDur)return;
+  if(G.noWear)return;
   const i=WS.cur,before=STATE.dur[i];STATE.dur[i]=Math.max(0,before-WEAR[i]);const now=STATE.dur[i];
   if(before>=25&&now<25)toast('⚠ '+WEAPONS[i].name+' desgastada (25%). Conserte no armeiro.',3000);
   else if(before>=10&&now<10)toast('⚠ '+WEAPONS[i].name+' quase quebrando (10%)!',3000);
@@ -147,7 +188,7 @@ function renderInventory(){
   UI.slotGrid($('invgrid'),{cols:5,slots:inv.slots.slice(0,inv.size),
     render:(s,i)=>{
       const d=s&&itemDef(s.id);
-      return{label:d?d.icon:'',count:s?s.n:0,title:d?d.name+(s.n>1?' ×'+s.n:''):'Vazio',cls:(G.invSel===i?'sel':'')+(G.pendSel!==null&&G.pendSel!==undefined&&s?' target':'')};
+      return{label:d?d.icon:'',count:s?s.n:0,title:d?d.name+(s.n>1?' ×'+s.n:''):'Vazio',cls:(G.invSel===i?'sel':'')+(G.pendSel!==null&&G.pendSel!==undefined&&s?' target':'')+(s?' '+itemSlotCls(s.id):'')};
     },
     onClick:(s,i)=>{
       if(G.pendSel!==null&&G.pendSel!==undefined&&inv.pending[G.pendSel]){
@@ -169,7 +210,7 @@ function renderInventory(){
       det.appendChild(UI.button('Usar','gold',()=>{invUse(s.id);renderInventory()}));
       for(let b=0;b<BAR_SIZE;b++)det.appendChild(UI.button('Atalho '+(b+7)+(inv.bar[b]===s.id?' ✔':''),'alt',()=>{inv.bar[b]=s.id;refreshHotbar();renderInventory()}));
     }
-    det.appendChild(UI.button('Descartar','red',()=>UI.confirm('Descartar '+d.name+' ×'+s.n+'? Esta ação não pode ser desfeita.',()=>{inv.slots[G.invSel]=null;G.invSel=null;invChanged()},'Descartar')));
+    if(!d.key)det.appendChild(UI.button('Descartar','red',()=>UI.confirm('Descartar '+d.name+' ×'+s.n+'? Esta ação não pode ser desfeita.',()=>{inv.slots[G.invSel]=null;G.invSel=null;invChanged()},'Descartar')));
   }else det.innerHTML='<p class="st">Clique em um item para ver os detalhes.</p>';
   // itens pendentes (bolsa cheia)
   const pe=$('invpending');pe.innerHTML='';

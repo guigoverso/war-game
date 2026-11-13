@@ -30,7 +30,8 @@ function migrateSave(d){
   if(!d||typeof d!=='object')return null;
   if(d.v>SAVE_VERSION)return null;          // salvamento de uma versão mais nova que o jogo
   if(d.v<2){d.v=2}   // v2 acrescentou inventário e durabilidade dentro de state (ausentes = padrão)
-  // if(d.v<3){ ...ajustes...; d.v=3 }
+  if(d.v<3){d.v=3}   // v3 acrescentou bônus de comida, vendedores e a vara de pescar (ausentes = padrão)
+  // if(d.v<4){ ...ajustes...; d.v=4 }
   return d;
 }
 
@@ -54,7 +55,7 @@ function applySave(d){
   // estado geral (recursos, rodada...)
   resetState();
   const s=d.state||{};STATE.round=s.round||1;STATE.phase=s.phase||'commander';STATE.res=Object.assign({food:0,ore:0,wood:0},s.res||{});
-  if(s.inv)STATE.inv=s.inv;if(s.dur)STATE.dur=s.dur;normalizeInv();   // inventário e durabilidade (salvamentos antigos usam os padrões)
+  if(s.inv)STATE.inv=s.inv;if(s.dur)STATE.dur=s.dur;if(s.buffs)STATE.buffs=s.buffs;if(s.vendors)STATE.vendors=s.vendors;normalizeInv();refreshBuffs();   // inventário e durabilidade (salvamentos antigos usam os padrões)
   // cidades conquistadas
   for(const sc of d.cities||[]){
     const c=WORLD.cities[sc.id];if(!c||sc.owner!=='player'||c.owner==='player')continue;
