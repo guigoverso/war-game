@@ -129,14 +129,14 @@ function spawnPortals(){
   const rng=new RNG((Math.random()*1e9)|0),used=new Set(keep.map(p=>p.wing));
   for(let k=0;k<DG.wings.length&&STATE.portals.length<PORTAL_MAX;k++){
     if(used.has(k))continue;
-    for(let t=0;t<200;t++){
-      const x=rng.int(30,W-30),z=rng.int(30,W-30);
+    for(let t=0;t<1500;t++){
+      const x=rng.int(12,W-12),z=rng.int(12,W-12),lax=t>600?1:0;   // depois de muitas tentativas, afrouxa as exigências
       if(x>DG.rx-12&&x<DG.rx+DG.S+12&&z>DG.rz-12&&z<DG.rz+DG.S+12)continue;
-      if(H[z*W+x]<SEA+2||T[z*W+x]!==T_NAT)continue;
-      if(Math.abs(H[z*W+x+2]-H[z*W+x])>1||Math.abs(H[(z+2)*W+x]-H[z*W+x])>1)continue;
-      if(WORLD.cities.some(c=>Math.max(Math.abs(c.cx-x),Math.abs(c.cz-z))<c.half+30))continue;
-      if(WORLD.camps.some(c=>Math.hypot(c.cx-x,c.cz-z)<30))continue;
-      if(STATE.portals.some(p=>Math.hypot(p.x-x,p.z-z)<60))continue;
+      if(H[z*W+x]<SEA+2||(!lax&&T[z*W+x]!==T_NAT)||(lax&&T[z*W+x]!==T_NAT&&T[z*W+x]!==T_WILD))continue;
+      if(Math.abs(H[z*W+x+2]-H[z*W+x])>(lax?2:1)||Math.abs(H[(z+2)*W+x]-H[z*W+x])>(lax?2:1))continue;
+      if(WORLD.cities.some(c=>Math.max(Math.abs(c.cx-x),Math.abs(c.cz-z))<c.half+(lax?12:30)))continue;
+      if(WORLD.camps.some(c=>Math.hypot(c.cx-x,c.cz-z)<(lax?14:30)))continue;
+      if(STATE.portals.some(p=>Math.hypot(p.x-x,p.z-z)<(lax?25:60)))continue;
       const d=distHome(x,z),tier=d<150?1:d<270?2:3,r=rng.next();
       let reward;
       if(r<0.45){const res=rng.pick(['food','ore','wood','gold']);reward={type:'resource',res,amt:(res==='gold'?3:1)*rng.int(60,100)*tier}}

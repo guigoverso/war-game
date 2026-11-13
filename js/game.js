@@ -239,7 +239,7 @@ $('cFix').onclick=()=>{STATE.dur=WEAPONS.map(()=>100);toast('Todas as armas cons
 $('cNoWear').onclick=()=>{G.noWear=!G.noWear;refreshCheats()};
 $('storeclose').onclick=closePanel;$('cookclose').onclick=closePanel;
 $('cookbody').addEventListener('click',e=>{const b=e.target.closest('button');if(b&&b.dataset.r){cook(b.dataset.r);renderCooking()}});
-$('cPortals').onclick=()=>{const n=spawnPortals();toast('Portais criados: '+n+' (veja o mapa)',2500)};
+$('cPortals').onclick=()=>{const n=spawnPortals();toast(DG.ok?'Portais criados: '+n+' (siga a coluna de luz roxa)':'Sem espaço para a região das dungeons neste mapa (todos os cantos têm cidade). Gere outro mundo.',3500)};
 $('cGoPortal').onclick=()=>{
   let best=null,bd=1e9;for(const pt of STATE.portals){const d=Math.hypot(pt.x-P.x,pt.z-P.z);if(d<bd){bd=d;best=pt}}
   if(!best){toast('Nenhum portal ativo.',1500);return}
