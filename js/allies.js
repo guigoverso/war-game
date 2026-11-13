@@ -50,7 +50,7 @@ function pickTarget(e){
     let best=null,bd=32;for(const o of ENEMIES){if(o===e||!o.alive||o.city===e.city||!CONTEST.areas.includes(o.city))continue;const d=Math.hypot(o.x-e.x,o.z-e.z);if(d<bd){bd=d;best=o}}
     if(best)return best;
   }
-  if(e.city.kind==='pack'||e.city.kind==='raid'){const dp=Math.hypot(P.x-e.x,P.z-e.z);if(!(e.aggro&&dp<14)){const cv=wildCiv(e);if(cv)return cv}}
+  if(e.city.kind==='pack'){const dp=Math.hypot(P.x-e.x,P.z-e.z);if(!(e.aggro&&dp<14)){const cv=wildCiv(e);if(cv)return cv}}
   const wf=wildFoe(e);
   if(wf){
     const dp=Math.hypot(P.x-e.x,P.z-e.z),df=Math.hypot(wf.x-e.x,wf.z-e.z);
