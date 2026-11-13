@@ -119,7 +119,7 @@ function buildWingBoxes(w,rng){
 function distHome(x,z){const h=WORLD.home;return Math.hypot(x-h.cx,z-h.cz)}
 function spawnPortals(){
   if(!DG.ok)return 0;
-  const keep=(STATE.portals||[]).filter(p=>G.dg&&G.dg.p===p);
+  const keep=(STATE.portals||[]).filter(p=>(G.dg&&G.dg.p===p)||p.golden);   // a dungeon dourada (política) não é trocada a cada rodada
   clearPortalMeshes();STATE.portals=keep;
   const rng=new RNG((Math.random()*1e9)|0),used=new Set(keep.map(p=>p.wing));
   for(let k=0;k<DG.wings.length&&STATE.portals.length<PORTAL_MAX;k++){
@@ -153,14 +153,14 @@ function rewardText(p){
 }
 function makePortalMesh(p){
   const g=new THREE.Group(),y=tH(p.x,p.z);g.position.set(p.x,y,p.z);g.rotation.y=(p.id*1.7)%6.28;
-  const stone=mat(0x6a6a74),dark=mat(0x3a3a44),glow=new THREE.MeshBasicMaterial({color:0xb070ff,transparent:true,opacity:0.75,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending});
+  const stone=mat(0x6a6a74),dark=mat(0x3a3a44),glow=new THREE.MeshBasicMaterial({color:p.golden?0xffc830:0xb070ff,transparent:true,opacity:0.75,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending});
   const box=(m,sx,sy,sz,px,py,pz)=>{const o=new THREE.Mesh(GEO_BOX,m);o.scale.set(sx,sy,sz);o.position.set(px,py,pz);g.add(o);return o};
   box(dark,3.6,0.3,1.2,0,0.15,0);                                       // base
   box(stone,0.55,3.4,0.55,-1.45,1.85,0);box(stone,0.55,3.4,0.55,1.45,1.85,0);   // pilares
   box(stone,3.6,0.55,0.7,0,3.75,0);box(dark,0.9,0.4,0.8,0,4.15,0);      // arco com pedra-chave
   const swirl=new THREE.Mesh(new THREE.PlaneGeometry(2.4,3.2),glow);swirl.position.set(0,1.95,0);g.add(swirl);
-  const orbs=[];for(let i=0;i<6;i++){const o=new THREE.Mesh(GEO_BOX,new THREE.MeshBasicMaterial({color:0xe0b0ff}));o.scale.set(0.16,0.16,0.16);const a=i*1.047;o.position.set(Math.cos(a)*1.2,1.95+Math.sin(a)*1.5,0.05);g.add(o);orbs.push(o)}
-  const beam=new THREE.Mesh(GEO_BOX,new THREE.MeshBasicMaterial({color:0xa060ff,transparent:true,opacity:0.2,depthWrite:false}));beam.scale.set(0.7,60,0.7);beam.position.set(0,30,0);g.add(beam);   // coluna de luz visível de longe
+  const orbs=[];for(let i=0;i<6;i++){const o=new THREE.Mesh(GEO_BOX,new THREE.MeshBasicMaterial({color:p.golden?0xfff0b0:0xe0b0ff}));o.scale.set(0.16,0.16,0.16);const a=i*1.047;o.position.set(Math.cos(a)*1.2,1.95+Math.sin(a)*1.5,0.05);g.add(o);orbs.push(o)}
+  const beam=new THREE.Mesh(GEO_BOX,new THREE.MeshBasicMaterial({color:p.golden?0xffb020:0xa060ff,transparent:true,opacity:0.2,depthWrite:false}));beam.scale.set(0.7,60,0.7);beam.position.set(0,30,0);g.add(beam);   // coluna de luz visível de longe
   scene.add(g);
   const m={id:p.id,group:g,swirl,orbs,beam,p};PORTALS.push(m);return m;
 }
@@ -184,6 +184,7 @@ function updatePortals(dt){
   if(dh){if(G.dg&&G.creative){const n=G.dg.area.enemies.filter(e=>e.alive).length;dh.style.display='block';dh.textContent='👁 Inimigos restantes: '+n}else dh.style.display='none'}
   updateBarrier();
   updateDungeonMood();
+  updateContest();
 }
 // barreira entre o mundo de cima e o de baixo: quem se aproxima dela (ou a cruza) é devolvido (jogador) ou some (bichos), antes de atravessar
 function updateBarrier(){
@@ -201,6 +202,64 @@ function updateBarrier(){
   for(const a of ALLIES){if(a.alive&&!a.gone&&a.y<BAR_UP){a.alive=false;a.gone=true;scene.remove(a.group)}}
 }
 Hooks.on('round',()=>{if(DG.ok&&!G.dg)spawnPortals()});
+
+// ---------- dungeon dourada (política) e a disputa pelo portal ----------
+// Um portal dourado fica no mapa até alguém levar o tesouro (a recompensa é ouro, sem itens). Ao chegar perto, 10 tropas (bandidos e soldados de duas cidades)
+// surgem e lutam pelo portal contra você e entre si (isso não é guerra).
+const CONTEST={active:false,areas:[]},GOLD_PORTAL_AMT=200;
+const goldenPortals=()=>(STATE.portals||[]).filter(p=>p.golden&&!p.claimed);
+function spawnGoldenPortal(c){
+  if(!DG.ok)return null;
+  if(!STATE.portals)STATE.portals=[];
+  const inUse=p=>G.dg&&G.dg.p===p,usedW=new Set(STATE.portals.filter(p=>p.golden||inUse(p)).map(p=>p.wing));
+  let wing=-1;for(let k=0;k<DG.wings.length;k++)if(!usedW.has(k)){wing=k;break}
+  if(wing<0)return null;
+  const rng=new RNG((Math.random()*1e9)|0);
+  for(let t=0;t<3000;t++){
+    const lax=t>1200?1:0,a=rng.range(0,6.283),r=rng.range(c.half+30,c.half+(lax?160:110)),x=Math.round(c.cx+Math.cos(a)*r),z=Math.round(c.cz+Math.sin(a)*r);
+    if(x<12||z<12||x>W-12||z>W-12)continue;
+    if(x>DG.rx-12&&x<DG.rx+DG.S+12&&z>DG.rz-12&&z<DG.rz+DG.S+12)continue;
+    if(H[z*W+x]<SEA+2||(!lax&&T[z*W+x]!==T_NAT)||(lax&&T[z*W+x]!==T_NAT&&T[z*W+x]!==T_WILD))continue;
+    if(Math.abs(H[z*W+x+2]-H[z*W+x])>(lax?2:1)||Math.abs(H[(z+2)*W+x]-H[z*W+x])>(lax?2:1))continue;
+    if(WORLD.cities.some(cc=>Math.max(Math.abs(cc.cx-x),Math.abs(cc.cz-z))<cc.half+(lax?12:30)))continue;
+    if(WORLD.camps.some(cc=>Math.hypot(cc.cx-x,cc.cz-z)<(lax?14:30)))continue;
+    if(STATE.portals.some(p=>Math.hypot(p.x-x,p.z-z)<(lax?25:60)))continue;
+    const clash=STATE.portals.find(p=>p.wing===wing&&!p.golden&&!inUse(p));if(clash)removePortal(clash);   // a ala fica para a dourada
+    const d=distHome(x,z),tier=d<150?1:d<270?2:3;
+    const p={id:(STATE.portalSeq=(STATE.portalSeq||0)+1),x:x+0.5,z:z+0.5,wing,tier,reward:{type:'resource',res:'gold',amt:GOLD_PORTAL_AMT},claimed:false,golden:true,contested:false,near:c.id};
+    STATE.portals.push(p);makePortalMesh(p);return p;
+  }
+  return null;
+}
+function startContest(p){
+  if(CONTEST.active)return;
+  p.contested=true;
+  const rng=new RNG((Math.random()*1e9)|0),cs=rng.shuffle(WORLD.cities.filter(c=>!c.home).slice()).slice(0,2);
+  const mk=(name,kind,rank,city)=>({kind,id:800+(STATE.raidSeq=(STATE.raidSeq||0)+1),name,cx:p.x,cz:p.z,y:tH(p.x,p.z),half:30,biome:(city||WORLD.home).biome,rank,hpMul:1,state:'attacking',owner:'enemy',home:false,
+    enemies:[],npcs:[],walk:[],flags:[],aliveEnemies:0,totalEnemies:0,leash:999,city:city||WORLD.home});
+  const teams=[[mk('Bandidos','raid',1),4],[mk('Tropas de '+cs[0].name,'contest',cs[0].rank,cs[0]),3],[mk('Tropas de '+(cs[1]||cs[0]).name,'contest',(cs[1]||cs[0]).rank,cs[1]||cs[0]),3]];
+  const base=rng.range(0,6.283);
+  teams.forEach(([a,n],k)=>{
+    WORLD.areas.push(a);CONTEST.areas.push(a);
+    for(let i=0;i<n;i++){
+      const ang=base+k*2.094+rng.range(-0.5,0.5),r=rng.range(10,16),e=spawnEnemy(a,'soldier',p.x+Math.cos(ang)*r,p.z+Math.sin(ang)*r);
+      e.aggro=true;e.unseenT=99;e.reactT=0.5;
+    }
+  });
+  CONTEST.active=true;sfx('alarm',0);
+  toast('⚔ Bandidos e tropas de '+cs[0].name+(cs[1]?' e '+cs[1].name:'')+' disputam o portal dourado! (Não é guerra.)',6000);
+}
+function updateContest(){
+  if(!CONTEST.active){
+    if(G.dg||P.dead)return;
+    for(const m of PORTALS)if(m.p.golden&&!m.p.contested&&Math.hypot(m.p.x-P.x,m.p.z-P.z)<45){startContest(m.p);break}
+    return;
+  }
+  if(CONTEST.areas.every(a=>a.enemies.every(e=>!e.alive))){
+    for(const a of CONTEST.areas){for(const e of a.enemies){e.gone=true;scene.remove(e.group)}a.enemies=[];a.aliveEnemies=0;const i=WORLD.areas.indexOf(a);if(i>=0)WORLD.areas.splice(i,1)}
+    CONTEST.areas=[];CONTEST.active=false;toast('✔ A disputa pelo portal dourado terminou. O caminho está livre!',4500);
+  }
+}
 
 // ---------- minimapa da dungeon: planta da ala (chão claro, rocha escura); marca só a saída e o baú, nunca os inimigos ----------
 function wingCanvas(w){
@@ -252,7 +311,7 @@ function enterDungeon(p){
   let cx=w.boss.x,cz=w.boss.z;
   for(let r=0;r<=4;r+=1){let ok=false;for(let k=0;k<(r?8:1)&&!ok;k++){const a=k*0.785,x=w.boss.x+Math.cos(a)*r,z=w.boss.z+Math.sin(a)*r;if(!Col.near(x-1,z-1,x+1,z+1).some(b=>b.y1>DG.Y+0.3&&b.y0<DG.Y+2)){cx=x;cz=z;ok=true}}if(ok)break}   // livre de pilares e caixas (o teto não conta)
   const ang=Math.atan2(w.entrance.x-cx,w.entrance.z-cz);
-  const ch=addArcaneChest(cx,DG.Y,cz,ang,40+30*p.tier,area);ch.dg=p;ch.lootKey='chest_dungeon';G.dg.chest=ch;
+  const ch=addArcaneChest(cx,DG.Y,cz,ang,p.golden?0:40+30*p.tier,area,!!p.golden);ch.dg=p;if(p.golden)ch.golden=true;else ch.lootKey='chest_dungeon';G.dg.chest=ch;   // dourada: tesouro só de ouro (a recompensa do portal)
   P.x=w.entrance.x;P.z=w.entrance.z;P.y=DG.Y+0.2;P.vy=0;P.vx=P.vz=0;P.camY=P.y;P.yaw=Math.atan2(-(w.boss.x-w.entrance.x),-(w.boss.z-w.entrance.z));
   G.dgPad=w.entrance;
   {   // pedra de saída: disco de pedra com brilho roxo

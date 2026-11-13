@@ -313,3 +313,17 @@ definePolicy({id:'caravanas',name:'Ataque às caravanas',city:false,
     {k:'C',label:'Desfazer a rota',type:'debuff',eff:(c,d)=>'A rota entre '+polRouteName(d)+' é desfeita, sem reembolso. Nada mais é cobrado.',
       apply:x=>{const rt=polRouteOf(x.data);if(rt){STATE.rd.routes.splice(STATE.rd.routes.indexOf(rt),1);rebuildCaravans();computeBuffs()}}}
   ]});
+
+// ---------- Etapa 3 da 4C: dungeon dourada ----------
+definePolicy({id:'dourada',name:'Dungeon dourada',city:true,cool:6,
+  cond:()=>DG.ok&&goldenPortals().length===0,
+  text:c=>'Um brilho dourado surgiu num portal de pedra perto de '+c.name+'. Dizem que lá dentro o chão sangra ouro. A notícia correu mais rápido que o vento, e tropas de várias cidades e bandos de bandidos já se encaminham para disputar a entrada.',
+  options:[
+    {k:'A',label:'Explorar a dungeon',type:'buff',eff:c=>'Um portal dourado aparece no mapa perto de '+c.name+' e fica lá até você pegar o tesouro (+◉'+GOLD_PORTAL_AMT+', sem itens). Vá quando quiser no turno do Comandante. Ao chegar perto, 10 tropas (bandidos e soldados de duas cidades) lutam pelo portal contra você e entre si; isso não é guerra.',
+      apply:x=>{const p=spawnGoldenPortal(x.city);
+        if(p)x.toast('✨ Um portal dourado surgiu perto de '+x.city.name+'. Siga a coluna de luz dourada!',5000);
+        else{x.gold(150);x.toast('Não havia espaço para o portal dourado: os aventureiros pagaram ◉150 pelo mapa.',5000)}}},
+    {k:'B',label:'Contratar mineradores e soldados',type:'both',cost:{gold:150},eff:c=>'−◉150. +◉50 por rodada durante '+POL.dur+' rodadas. A necessidade de comida de '+c.name+' sobe 100% no mesmo período.',
+      apply:x=>{x.fx({t:'gold',c:-1,p:{add:50},txt:'Mineradores contratados (dungeon dourada)'});x.fx({t:'need',p:{mul:2,sel:'food'},txt:'Necessidade de comida +100% em '+x.city.name+' (mineradores e soldados)'})}},
+    {k:'C',label:'Deixar para depois',type:'neutral',eff:()=>'Nada muda.'}
+  ]});

@@ -38,9 +38,9 @@ function newArea(kind,id,name,s,rng,extra){
 
 // ---------- baús ----------
 // baú das dungeons: maior, roxo, brilhante e todo quadrado (a tampa é um bloco que abre para trás)
-function addArcaneChest(x,y,z,yaw,gold,lockedBy){
+function addArcaneChest(x,y,z,yaw,gold,lockedBy,golden){   // golden: tesouro da dungeon dourada (mesmo baú, todo dourado)
   const g=new THREE.Group();g.position.set(x,y,z);g.rotation.y=yaw;
-  const P1=0x6a2aa8,P2=0x4a1a7a,P3=0x8a4ad0,GOLD=0xe0b030;
+  const P1=golden?0xd0a020:0x6a2aa8,P2=golden?0x8a6410:0x4a1a7a,P3=golden?0xf0c840:0x8a4ad0,GOLD=golden?0xfff0a0:0xe0b030;
   const box=(parent,col,sx,sy,sz,px,py,pz,basic)=>{const m=new THREE.Mesh(GEO_BOX,basic?new THREE.MeshBasicMaterial({color:col}):mat(col));m.scale.set(sx,sy,sz);m.position.set(px,py,pz);parent.add(m);return m};
   box(g,P2,1.5,0.14,1.1,0,0.07,0);                                                    // base
   box(g,P1,1.4,0.7,1.0,0,0.49,0);                                                     // corpo
@@ -50,8 +50,8 @@ function addArcaneChest(x,y,z,yaw,gold,lockedBy){
   const lid=new THREE.Group();lid.position.set(0,0.84,-0.5);g.add(lid);               // dobradiça atrás
   box(lid,P3,1.5,0.26,1.1,0,0.13,0.5);box(lid,P2,1.54,0.08,1.14,0,0.04,0.5);
   for(const sx of[-0.62,0.62])box(lid,P2,0.16,0.3,1.14,sx,0.15,0.5);
-  box(lid,0xd8a0ff,0.5,0.06,0.5,0,0.29,0.5,true);                                     // gema brilhante no topo
-  const glow=new THREE.Mesh(GEO_BOX,new THREE.MeshBasicMaterial({color:0xb060ff,transparent:true,opacity:0.22,depthWrite:false,blending:THREE.AdditiveBlending}));
+  box(lid,golden?0xffffff:0xd8a0ff,0.5,0.06,0.5,0,0.29,0.5,true);                                     // gema brilhante no topo
+  const glow=new THREE.Mesh(GEO_BOX,new THREE.MeshBasicMaterial({color:golden?0xffc030:0xb060ff,transparent:true,opacity:0.22,depthWrite:false,blending:THREE.AdditiveBlending}));
   glow.scale.set(1.95,1.5,1.5);glow.position.set(0,0.7,0);g.add(glow);               // brilho em volta
   scene.add(g);
   const ch={x,y,z,gold,lockedBy:lockedBy||null,opened:false,g,lid,open:0,sparkT:Math.random()*2,glow};
@@ -76,7 +76,10 @@ function addChest(x,y,z,yaw,gold,lockedBy){
 function openChest(ch){
   if(ch.opened)return;
   if(ch.lockedBy&&ch.lockedBy.state!=='cleared'){toast('🔒 Trancado: elimine os inimigos primeiro.',1800);return}
-  ch.opened=true;if(ch.lockedBy)ch.lockedBy.completed=true;addCoins(ch.gold);sfx('coin',0);const lt=lootChest(ch.lootKey);toast('📦 Baú aberto! +'+ch.gold+' moedas'+(lt?'  •  '+lt:''),3500);if(ch.dg)dungeonChestOpened(ch);
+  ch.opened=true;if(ch.lockedBy)ch.lockedBy.completed=true;addCoins(ch.gold);sfx('coin',0);
+  if(ch.golden)toast('💰 O tesouro dourado se abriu!',3500);   // só ouro (a recompensa do portal), sem itens
+  else{const lt=lootChest(ch.lootKey);toast('📦 Baú aberto! +'+ch.gold+' moedas'+(lt?'  •  '+lt:''),3500)}
+  if(ch.dg)dungeonChestOpened(ch);
 }
 function updateChests(dt){
   for(const ch of WORLD.chests){

@@ -44,6 +44,10 @@ function wildCiv(e){   // animais preferem perseguir civis (vistos pelo jogador)
 }
 function pickTarget(e){
   if(e.revengeT>0&&e.revenge&&(e.revenge===P?!P.dead:e.revenge.alive))return e.revenge;
+  if(CONTEST.active&&CONTEST.areas.includes(e.city)){   // disputa do portal dourado: cada tropa luta com a mais próxima de outro grupo; sem ninguém por perto, ataca você
+    let best=null,bd=32;for(const o of ENEMIES){if(o===e||!o.alive||o.city===e.city||!CONTEST.areas.includes(o.city))continue;const d=Math.hypot(o.x-e.x,o.z-e.z);if(d<bd){bd=d;best=o}}
+    if(best)return best;
+  }
   if(e.city.kind==='pack'||e.city.kind==='raid'){const dp=Math.hypot(P.x-e.x,P.z-e.z);if(!(e.aggro&&dp<14)){const cv=wildCiv(e);if(cv)return cv}}
   const wf=wildFoe(e);
   if(wf){
@@ -98,7 +102,7 @@ function armyConquered(c){for(const a of ALLIES)if(a.alive){a.state='patrol';a.p
 function allyFindTarget(a,w){
   const ey=a.y+1.6;let best=null,bd=1e9,seek=null,sd=1e9;
   for(const e of ENEMIES){
-    if(!e.alive||e.city.state!=='attacking'||(e.city.kind&&e.city.kind!=='raid'))continue;   // aliados também combatem os bandidos de raid
+    if(!e.alive||e.city.state!=='attacking'||(e.city.kind&&e.city.kind!=='raid'&&e.city.kind!=='contest'))continue;   // aliados também combatem os bandidos de raid
     const d=Math.hypot(e.x-a.x,e.z-a.z);
     if(d<sd){sd=d;seek=e}
     if(d<Math.min(w.range,60)&&d<bd&&losClear(a.x,ey,a.z,e.x,e.y+e.lift+e.def.h*0.6,e.z)){bd=d;best=e}
