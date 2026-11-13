@@ -383,14 +383,14 @@ function renderBook(){
   if(inv){$('ldL').innerHTML=INV_L;$('ldR').innerHTML=INV_R;renderInventory()}
   else{const [L,R]=bookPages();$('ldL').innerHTML=L;$('ldR').innerHTML=R}
   $('ldtabs').innerHTML=G.office?'':[['inv','🎒','Bolsa'],['book','📖','Livro']].map(t=>'<button class="'+((inv?'inv':'book')===t[0]?'sel':'')+'" data-top="'+t[0]+'">'+t[1]+'<br><small>'+t[2]+'</small></button>').join('');
-  $('lddone').style.display=isLeader()?'':'none';
+  $('lddone').style.display=(isLeader()||G.office)?'':'none';$('lddone').textContent=isLeader()?'✔ Concluir decisões':'🚪 Sair do escritório';
 }
 function bookClick(e){
   const t=e.target.closest('button');if(!t||!$('ldbook').contains(t))return;
   const rd=STATE.rd,a=t.dataset.a;
   if(t.dataset.top){LB.top=t.dataset.top;G.invSel=null;G.pendSel=null;renderBook();return}
   if(t.dataset.tab){LB.tab=t.dataset.tab;LB.top='book';renderBook();return}
-  if(t.id==='lddone'){finishLeaderTurn();return}
+  if(t.id==='lddone'){if(isLeader())finishLeaderTurn();else{closePanel();leaveOffice()}return}
   if(t.id==='ldclose'){closePanel();return}
   if(LB.top==='inv')return;   // botões da bolsa têm seus próprios tratadores
   const c=WORLD.cities[LB.city];

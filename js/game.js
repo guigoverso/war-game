@@ -222,7 +222,7 @@ $('clinicbtns').addEventListener('click',e=>{
   const h=+b.dataset.h,cost=clinicCost(h,G.clinicCity);
   if(P.coins>=cost){P.coins-=cost;P.hp=Math.min(P.maxhp,P.hp+h);sfx('coin',0)}renderClinic();
 });$('bkclose').onclick=closePanel;$('qclose').onclick=closePanel;$('shopclose').onclick=closePanel;$('clinicclose').onclick=closePanel;$('mapclose').onclick=closePanel;$('vclose').onclick=closePanel;
-$('resume').onclick=()=>{document.querySelector('#pause h2').textContent='⏸ PAUSA';if(AC&&AC.state==='suspended')AC.resume();closePanel();if(G.introBook){G.introBook=false;openBook('book','resumo')}};$('respawn').onclick=respawn;
+$('resume').onclick=()=>{document.querySelector('#pause h2').textContent='⏸ PAUSA';if(AC&&AC.state==='suspended')AC.resume();if(G.introBook){G.introBook=false;openBook('book','resumo')}else closePanel()};$('respawn').onclick=respawn;
 function toggleMute(){G.muted=!G.muted;if(master)master.gain.value=G.muted?0:0.35;refreshCheats();toast(G.muted?'Som desligado':'Som ligado',1000)}
 function toggleInvis(){G.invis=!G.invis;if(G.invis){for(const e of ENEMIES)e.aggro=false}}
 function refreshCheats(){$('cNoWear').textContent='Desgaste das armas: '+(G.noWear?'desligado':'LIGADO');$('ledgerline').textContent='Rodada '+STATE.round+'  •  '+Ledger.summary()+(Ledger.anyDebt()?'  •  ⚠ EM DÍVIDA: compras bloqueadas':'');$('cInvis').textContent='Invisível: '+(G.invis?'LIGADO':'desligado');$('cMute').textContent='Som: '+(G.muted?'desligado':'LIGADO');$('cGod').textContent='Invencível: '+(G.god?'LIGADO':'desligado');$('cAmmo').textContent='Munição infinita: '+(G.infAmmo?'LIGADA':'desligada');$('cMag').textContent='Pente infinito (sem recarregar): '+(G.noReload?'LIGADO':'desligado')}
@@ -619,9 +619,9 @@ async function startGame(creative,loadData){
     msg('Calculando rotas...');await tick();buildNav();initWeapons();buildViewmodels(camera);initFx();initSky();initDayNight();populateCities();populateWild();placePlayerHome();
     syncOwned();ensureEquipped();genFishSpots();
     if(loadData){applySave(loadData);applyFishGone();rebuildPortals();rebuildSmoke()}
-    else{spawnPortals();RAID.active=false;RAID.area=null;placeAtHall();G.introBook=true}   // partida nova: começa dentro da prefeitura (rodada 0) com o livro aberto no resumo
+    else{spawnPortals();RAID.active=false;RAID.area=null;STATE.rd.hallCity=WORLD.home.id;G.introBook=true}   // partida nova: começa dentro da prefeitura (rodada 0) com o livro aberto no resumo
     refreshHotbar();refreshBuffs();fishClean();
-    G.running=true;$('hud').classList.remove('hidden');initEconomy();rebuildCaravans();refreshRoundHud();if(STATE.phase==='leader')enterOffice();
+    G.running=true;$('hud').classList.remove('hidden');initEconomy();rebuildCaravans();refreshRoundHud();if(STATE.phase==='leader'||G.introBook){if(OFFICE.ok)enterOffice();else if(G.introBook)placeAtHall()}
     refreshCheats();
     $('seed').value=String(seed);
     document.querySelector('#pause h2').textContent=(loadData?'✔ JOGO CARREGADO — semente ':'✔ MUNDO PRONTO — semente ')+seed;

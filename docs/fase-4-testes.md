@@ -3,7 +3,7 @@
 Use `?mute=1` (sem música). O modo criativo (`?auto=1`) tem botões de teste na pausa (Tab/O/Esc).
 
 ## Como o sistema funciona (versão revisada)
-- **Rodada 0 (preparação)**: a partida **começa dentro da prefeitura** da capital, com o **livro aberto no Resumo** (de que suprimentos cada cidade precisa). Não há decisões, nada é cobrado nem produzido. A contagem começa na rodada 1.
+- **Rodada 0 (preparação)**: a partida **começa na sala do prefeito (o escritório)**, com o **livro aberto no Resumo**; o botão **🚪 Sair do escritório** leva você para fora da prefeitura (de que suprimentos cada cidade precisa). Não há decisões, nada é cobrado nem produzido. A contagem começa na rodada 1.
 - **Turno do comandante** (o jogo normal): você sai atrás de suprimentos para suprir as cidades — **comprando na loja** (carne, tronco de madeira, minério bruto) ou **achando na natureza** (caça, pesca, baús e dungeons). Depois **deposita** na aba Bolsa do livro e **distribui** às cidades (aba Livro → Cidades). A rodada só termina quando você a encerra na prefeitura.
 - **Livro (tecla B)** = bolsa + livro do prefeito, no formato de livro:
   - Marcador **🎒 Bolsa**: o inventário de antes (armas 1–6, curas 7–9, bolsa, arrastar e soltar) e o botão **📦 Depositar tudo**, que transforma comida, sucata/minério e madeira da bolsa em **estoque geral**.
