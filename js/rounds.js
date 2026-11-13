@@ -12,7 +12,7 @@ const MOOD={rich:{n:'Próspera',icon:'😄',col:'#ffd23a'},ok:{n:'Contente',icon
 // ---------- números da economia (todos juntos para ajustar com facilidade) ----------
 // baseNeed: unidades de um recurso para 100% de necessidade (150% = ×1,5; 200% = ×2) • prodBase/prodRank: produção em abundância por rodada (+1 se próspera)
 // goldMul: ouro por unidade na cidade de foco dinheiro • taxBase/taxRank: imposto por rodada (×1,5 se próspera, 0 se descontente) • caravan/capital: custos em ouro
-const ECON={baseNeed:6,prodBase:7,prodRank:1,goldMul:8,taxBase:25,taxRank:10,caravan:300,capital:300,shopMul:2};   // shopMul: o estoque da Loja da cidade = (produção da cidade) × shopMul para o recurso dela (25% dos outros)
+const ECON={baseNeed:6,prodBase:7,prodRank:1,goldMul:8,taxBase:25,taxRank:10,caravan:300,capital:300,shopMul:2,tradeGold:0.5};   // tradeGold: fração da produção de ouro da cidade parceira que vira ouro por rodada para quem negocia com ela   // shopMul: o estoque da Loja da cidade = (produção da cidade) × shopMul para o recurso dela (25% dos outros)
 const TAX_BASE=ECON.taxBase,TAX_RANK=ECON.taxRank;
 const CAP_MAX_LVL=4;
 const TYPE_NAME={food:'Alimentos',ore:'Minérios',wood:'Madeira',gold:'Dinheiro',port:'Porto'};
@@ -71,11 +71,12 @@ function portPct(pf,ps){   // porto: o jogador escolhe o que produz (0%) e o que
   if(!rd.routes)rd.routes=[];if(!rd.rbuf)rd.rbuf={};if(!rd.report)rd.report=[];if(!rd.lvl)rd.lvl=1;if(rd.actions===undefined)rd.actions=maxActions();
 }
 // necessidade (em unidades) de um recurso numa cidade; uma caravana que traz o foco do parceiro zera a necessidade dele
+const tradePct=p=>p===150?0:p===200?100:p;
 function pctOf(c,res){
   const e=ec(c);let pct=e.pct[res]||0;
   for(const r of STATE.rd.routes){
     if(r.a!==c.id&&r.b!==c.id)continue;
-    const o=WORLD.cities[r.a===c.id?r.b:r.a];if(focusOf(o)===res)pct=0;
+    const o=WORLD.cities[r.a===c.id?r.b:r.a];if(focusOf(o)===res)pct=tradePct(pct);   // caravana: 150% some, 200% cai para 100%, 100% não muda
   }
   return pct;
 }
@@ -89,7 +90,11 @@ const cityMet=c=>NEEDS.every(r=>missingOf(c,r)===0);
 function moodOf(c){const e=STATE.rd&&STATE.rd.cities&&STATE.rd.cities[c.id];return(e&&e.mood)||'ok'}
 const hasRoute=c=>STATE.rd.routes.some(r=>r.a===c.id||r.b===c.id);
 const prodOf=c=>(ECON.prodBase+ECON.prodRank*Math.max(1,c.rank||1)+(moodOf(c)==='rich'?1:0))*(focusOf(c)==='gold'?ECON.goldMul:1);   // cidade próspera: +1 de produção
-const taxOf=c=>moodOf(c)==='upset'?0:Math.round((TAX_BASE+TAX_RANK*Math.max(1,c.rank||1))*(moodOf(c)==='rich'?1.5:1));
+const goldTradeOf=c=>{   // ouro extra por rodada de quem negocia com cidades que produzem ouro
+  let g=0;for(const r of STATE.rd.routes){if(r.a!==c.id&&r.b!==c.id)continue;const o=WORLD.cities[r.a===c.id?r.b:r.a];if(focusOf(o)==='gold'&&o!==c)g+=Math.round(prodOf(o)*ECON.tradeGold)}
+  return moodOf(c)==='upset'||focusOf(c)==='gold'?0:g;
+};
+const taxOf=c=>moodOf(c)==='upset'||(focusOf(c)==='gold'&&hasRoute(c))?0:Math.round((TAX_BASE+TAX_RANK*Math.max(1,c.rank||1))*(moodOf(c)==='rich'?1.5:1));
 const deliverAndRefresh=()=>{computeBuffs();refreshRoundHud()};function computeBuffs(){
   const b={};
   for(const c of playerCities())for(const r of NEEDS)if(gotOf(c,r)>Math.max(0,needOf(c,r)-carryOf(c,r)))b[r]=true;
@@ -122,6 +127,7 @@ function endRound(city){
         if(e.ups>=2&&!c.home)rebels.push(c);
         else rep.push('😠 '+c.name+' está descontente: sem imposto e sem produção.'+(c.home?' (A capital não se rebela, mas sofre os mesmos efeitos.)':' Se faltar de novo na próxima rodada, ela se rebela!'));
       }else{
+        const gt=goldTradeOf(c);if(gt>0){shOf().vault+=gt;rep.push('🛒 '+c.name+': comércio com cidades de ouro rendeu ◉'+gt+' no cofre.')}
         const tax=taxOf(c);if(tax>0){shOf().vault+=tax;rep.push(MOOD[e.mood].icon+' '+c.name+' está '+MOOD[e.mood].n.toLowerCase()+': imposto de ◉'+tax+' no cofre.')}
         const f=focusOf(c),amt=prodOf(c);
         if(hasRoute(c))rep.push('🛒 '+c.name+': a produção de '+resName(f).toLowerCase()+' ('+amt+') seguiu por caravana.');
@@ -420,8 +426,8 @@ function bookPages(){
   if(LB.tab==='caravanas'){
     const L='<h3>Caravanas ativas</h3>'+(rd.routes.length?rd.routes.map((r,i)=>{const A=WORLD.cities[r.a],B=WORLD.cities[r.b];
       return '<div class="ldroute"><b>'+routeName(r)+'</b><br><small>'+A.name+' recebe '+resIcon(focusOf(B))+' • '+B.name+' recebe '+resIcon(focusOf(A))+'</small><br><button data-a="unroute" data-i="'+i+'" '+(isLeader()?'':'disabled')+'>Desfazer</button></div>'}).join(''):'<p>Nenhuma caravana ainda.</p>')
-      +'<p class="ldsm">A cidade que recebe o produto da outra passa a ter necessidade 0 dele. A produção levada pela caravana não vai para o armazém.</p>';
-    const R='<h3>Nova caravana</h3><p>Escolha no <b>mapa</b> a cidade de <b>origem</b> (uma das suas) e a de <b>destino</b> (sua, aliada ou neutra). A sua cidade passa a receber o produto do destino por caravana (necessidade 0 dele).</p>'
+      +'<p class="ldsm">Quem recebe o produto da outra cidade: se a necessidade dele for <b>150%</b>, some; se for <b>200%</b>, cai para <b>100%</b>; 100% não muda. Negociar com uma cidade de <b>ouro</b> rende ouro por rodada (e uma cidade de ouro com acordo não rende imposto). A produção levada pela caravana não vai para o armazém.</p>';
+    const R='<h3>Nova caravana</h3><p>Escolha no <b>mapa</b> a cidade de <b>origem</b> (uma das suas) e a de <b>destino</b> (sua, aliada ou neutra). A sua cidade passa a receber o produto do destino por caravana (reduz a necessidade dele ou rende ouro).</p>'
       +'<p>Preço: <b>◉ '+CARAVAN_COST+'</b></p><button data-a="route" class="gold" '+(isLeader()&&Ledger.canAfford({gold:CARAVAN_COST})?'':'disabled')+'>🗺 Escolher no mapa</button>'+leaderOnly()+(Ledger.anyDebt()?'<p class="ldwarn">Com dívida não é possível comprar.</p>':'');    return[L,R];
   }
   const lvl=rd.lvl,cost=capCost(),can=isLeader()&&lvl<CAP_MAX_LVL&&rd.actions>=1;
@@ -511,7 +517,7 @@ function buyCaravan(A,B){
   if(!isLeader())toast('Caravanas só no turno do líder.',2000);
   else if(!A||!B||A===B)toast('Escolha duas cidades diferentes.',2000);
   else if(rd.routes.some(r=>(r.a===A.id&&r.b===B.id)||(r.a===B.id&&r.b===A.id)))toast('Já existe uma caravana entre elas.',2500);
-  else if(focusOf(A)===focusOf(B)||!(NEEDS.includes(focusOf(B))||(B.owner==='player'&&NEEDS.includes(focusOf(A)))))toast('A caravana seria inútil: ela só leva madeira, minério ou comida (o ouro não é necessidade).',3000);
+  else if(focusOf(A)===focusOf(B))toast('As duas cidades produzem o mesmo recurso: a caravana seria inútil.',3000);
   else if(!Ledger.spend({gold:CARAVAN_COST}))toast('Ouro insuficiente (ou você está em dívida).',2500);
   else{rd.routes.push({a:A.id,b:B.id});rebuildCaravans();computeBuffs();sfx('win',0);toast('🛒 Duas caravanas partiram entre '+A.name+' e '+B.name+'. (−◉'+CARAVAN_COST+')',3500)}
 }
@@ -534,12 +540,23 @@ document.addEventListener('mousemove',e=>{
 function dealSummary(A,B,onYes){
   const fa=focusOf(A),fb=focusOf(B),ic=r=>resIcon(r)+' '+resName(r).toLowerCase();
   const line=(X,give,get,mine)=>'<tr><td><b>'+X.name+'</b>'+(mine?' <small>(sua)</small>':' <small>(neutra)</small>')+'</td><td>dá: <b>'+ic(give)+'</b></td><td>recebe: <b>'+ic(get)+'</b></td></tr>';
+  // efeito de cada lado: recurso físico → regra do percentual (150% some, 200% cai para 100%, 100% não muda); ouro → bônus por rodada
   const effects=[];
-  if(NEEDS.includes(fb))effects.push('✔ '+A.name+' passa a ter <b>necessidade 0</b> de '+ic(fb)+' e a sua produção de '+ic(fa)+' segue pela caravana (não vai ao armazém).');
-  else effects.push('⚠ '+B.name+' produz '+ic(fb)+', que não é necessidade: '+A.name+' não ganha nada nessa direção.');
-  if(B.owner==='player'&&NEEDS.includes(fa))effects.push('✔ '+B.name+' passa a ter <b>necessidade 0</b> de '+ic(fa)+'.');
-  else if(B.owner!=='player')effects.push('ℹ '+B.name+' não é sua: ela só recebe '+ic(fa)+', sem efeito no seu jogo.');
-  const w=UI.window({title:'🛒 Resumo da negociação',width:Math.min(520,innerWidth-30),z:60});
+  const side=(X,get,from,mineX)=>{
+    if(NEEDS.includes(get)){
+      const p=ec(X).pct[get]||0,np=tradePct(p);
+      effects.push((mineX?'✔ ':'ℹ ')+X.name+' recebe '+ic(get)+': necessidade hoje '+p+'% → '+np+'%'+(p===150?' (some)':p===200?' (cai pela metade)':p===100?' (sem efeito: já é 100%)':'')+'. <small>(as necessidades mudam a cada rodada)</small>');
+    }else if(get==='gold'){
+      const g=Math.round(prodOf(from)*ECON.tradeGold);
+      if(mineX&&focusOf(X)!=='gold')effects.push('💰 '+X.name+' recebe <b>ouro</b>: +◉'+g+' por rodada no cofre (metade da produção de ouro de '+from.name+').');
+      else if(mineX)effects.push('ℹ '+X.name+' também produz ouro: sem bônus nessa direção.');
+    }
+  };
+  side(A,fb,B,true);
+  side(B,fa,A,B.owner==='player');
+  if(focusOf(A)==='gold')effects.push('⚠ '+A.name+' produz ouro: com acordo, ela <b>deixa de render imposto</b> e a produção segue pela caravana.');
+  else effects.push('ℹ A produção de '+ic(fa)+' de '+A.name+' segue pela caravana (não vai ao armazém).');
+  if(B.owner!=='player')effects.push('ℹ '+B.name+' não é sua: ela só recebe '+ic(fa)+', sem efeito no seu jogo.');  const w=UI.window({title:'🛒 Resumo da negociação',width:Math.min(520,innerWidth-30),z:60});
   w.body.innerHTML='<table class="ldt" style="width:100%;color:#ddd">'+line(A,fa,fb,true)+line(B,fb,fa,B.owner==='player')+'</table><p style="font-size:13px;line-height:1.6">'+effects.join('<br>')+'</p><p>Preço do acordo: <b style="color:#ffd23a">◉ '+CARAVAN_COST+'</b> • Duas caravanas (uma de cada cidade) vão para a estrada, com guardas.</p>';
   w.foot.append(UI.button('Fechar acordo (◉'+CARAVAN_COST+')','gold',()=>{w.close();w.el.remove();onYes()}),UI.button('Voltar ao mapa','alt',()=>{w.close();w.el.remove()}));
   w.open();return w;
