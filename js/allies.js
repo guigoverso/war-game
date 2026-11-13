@@ -163,7 +163,7 @@ function renderBarracks(){
   const dl=ARMY.dmg,hl=ARMY.hp;
   h+='<div class="card"><b>Dano dos soldados</b><div class="st">Nível '+dl+'/'+ARMY.maxLvl+' • +25% de dano por nível (atual ×'+allyDmgMul().toFixed(2)+')</div><button data-a="dmg" '+(dl>=ARMY.maxLvl||P.coins<bp(upCost(dl),'soldierup')?'disabled':'')+'>'+(dl>=ARMY.maxLvl?'Máximo':'Evoluir ◉'+bp(upCost(dl),'soldierup'))+'</button></div>';
   h+='<div class="card"><b>Vida dos soldados</b><div class="st">Nível '+hl+'/'+ARMY.maxLvl+' • +12 de vida por nível (atual '+allyMaxHp()+')</div><button data-a="hp" '+(hl>=ARMY.maxLvl||P.coins<bp(upCost(hl),'soldierup')?'disabled':'')+'>'+(hl>=ARMY.maxLvl?'Máximo':'Evoluir ◉'+bp(upCost(hl),'soldierup'))+'</button></div>';
-  h+='<div class="card"><b>🛡 Colete dos soldados</b><div class="st">Soldados com colete (e capacete de aço) absorvem 60% do dano até esgotar '+VEST_HP+' pontos.</div>'+(ARMY.vest?'<button data-a="refill" '+(P.coins<bp(60)?'disabled':'')+'>Repor coletes ◉'+bp(60)+'</button>':'<button class="gold" data-a="vest" '+(P.coins<bp(220)?'disabled':'')+'>Comprar ◉'+bp(220)+'</button>')+'</div>';
+  h+='<div class="card"><b>🛡 Colete dos soldados</b><div class="st">Soldados com colete (e capacete de aço) absorvem 60% do dano até esgotar '+VEST_HP+' pontos.</div>'+(ARMY.vest?'<button data-a="refill" '+(P.coins<bp(60,'vest')?'disabled':'')+'>Repor coletes ◉'+bp(60,'vest')+'</button>':'<button class="gold" data-a="vest" '+(P.coins<bp(220,'vest')?'disabled':'')+'>Comprar ◉'+bp(220,'vest')+'</button>')+'</div>';
   WEAPONS.forEach((w,i)=>{
     const own=ARMY.owned[i],cur=ARMY.weapon===i;
     h+='<div class="card'+(cur?'':own?'':' locked')+'"><b>'+w.name+(cur?' ✔ (em uso)':'')+'</b><div class="st">Dano '+w.dmg+(w.pellets>1?' ×'+w.pellets:'')+' • '+w.rpm+' dpm</div>'+
@@ -179,8 +179,8 @@ document.addEventListener('click',e=>{
   else if(a==='hp'&&P.coins>=bp(upCost(ARMY.hp),'soldierup')&&ARMY.hp<ARMY.maxLvl){P.coins-=bp(upCost(ARMY.hp),'soldierup');ARMY.hp++;applyArmyStats();sfx('coin',0)}
   else if(a==='buy'&&P.coins>=bp(WEAPONS[i].price,'weapon')){P.coins-=bp(WEAPONS[i].price,'weapon');ARMY.owned[i]=true;ARMY.weapon=i;sfx('coin',0)}
   else if(a==='eq'){ARMY.weapon=i}
-  else if(a==='vest'&&!ARMY.vest&&P.coins>=bp(220)){P.coins-=bp(220);ARMY.vest=true;for(const x of ALLIES)if(x.alive)giveAllyVest(x);sfx('coin',0)}
-  else if(a==='refill'&&P.coins>=bp(60)){P.coins-=bp(60);for(const x of ALLIES)if(x.alive)x.armor=VEST_HP;sfx('coin',0)}
+  else if(a==='vest'&&!ARMY.vest&&P.coins>=bp(220,'vest')){P.coins-=bp(220,'vest');ARMY.vest=true;for(const x of ALLIES)if(x.alive)giveAllyVest(x);sfx('coin',0)}
+  else if(a==='refill'&&P.coins>=bp(60,'vest')){P.coins-=bp(60,'vest');for(const x of ALLIES)if(x.alive)x.armor=VEST_HP;sfx('coin',0)}
   renderBarracks();
 });
 

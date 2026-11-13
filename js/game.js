@@ -182,7 +182,7 @@ function renderShop(){
       (own?'<div class="st">Munição reserva: '+WS.reserve[i]+'<br>Durabilidade: '+(weaponBroken(i)?'<b style="color:#ff6a6a">QUEBRADA</b>':Math.round(durOf(i))+'%')+'</div><button data-a="ammo" data-i="'+i+'" '+(P.coins<pk?'disabled':'')+'>+'+w.pack+' munição ◉'+pk+'</button>'+(durOf(i)<100?'<button data-a="repair" data-i="'+i+'">🔧 Consertar ◉'+repairCost(i,c)+(P.coins<repairCost(i,c)?' (gera dívida)':'')+'</button>':'')
           :'<button class="gold" data-a="buy" data-i="'+i+'" '+(P.coins<pr?'disabled':'')+'>Comprar ◉'+pr+'</button>')+'</div>';
   }).join('');
-  const utilsHtml='<div class="card"><b>🛡 Colete à prova de bala</b><div class="st">Absorve 60% do dano recebido até acabar (100 de proteção).<br>Proteção atual: '+Math.ceil(P.armor)+'/100</div><button class="gold" data-a="vest" '+(P.coins<pc(180,c)||P.armor>=100?'disabled':'')+'>Comprar ◉'+pc(180,c)+'</button></div>'
+  const utilsHtml='<div class="card"><b>🛡 Colete à prova de bala</b><div class="st">Absorve 60% do dano recebido até acabar (100 de proteção).<br>Proteção atual: '+Math.ceil(P.armor)+'/100</div><button class="gold" data-a="vest" '+(P.coins<pc(180,c,'vest')||P.armor>=100?'disabled':'')+'>Comprar ◉'+pc(180,c,'vest')+'</button></div>'
     +'<div class="card"><b>🎒 Ampliar a bolsa</b><div class="st">+'+(INV_UPGRADED-INV_BASE)+' espaços ('+INV_BASE+' → '+INV_UPGRADED+'). Só pode ser feito uma vez.</div>'
     +(STATE.inv.upgraded?'<button disabled>Bolsa já ampliada ✔</button>':'<button class="gold" data-a="bag" '+(P.coins<pc(INV_UP_COST,c,'upgrade')||Ledger.anyDebt()?'disabled':'')+'>Ampliar ◉'+pc(INV_UP_COST,c,'upgrade')+'</button>')+'</div>';
   const tab=G.shopTab||'weapons';
@@ -194,7 +194,7 @@ $('shopgrid').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;const c=G.shopCity;
   if(b.dataset.a==='repair'){repairWeapon(+b.dataset.i,c);renderShop();return}
   if(b.dataset.a==='bag'){invUpgrade(pc(INV_UP_COST,c,'upgrade'));renderShop();return}
-  if(b.dataset.a==='vest'){const pr=pc(180,c);if(P.coins>=pr&&P.armor<100){P.coins-=pr;P.armor=100;sfx('coin',0);toast('Colete equipado!',1500)}renderShop();return}
+  if(b.dataset.a==='vest'){const pr=pc(180,c,'vest');if(P.coins>=pr&&P.armor<100){P.coins-=pr;P.armor=100;sfx('coin',0);toast('Colete equipado!',1500)}renderShop();return}
   const i=+b.dataset.i,w=WEAPONS[i],pr=pc(w.price,c,'weapon'),pk=pc(w.packCost,c,'ammo');
   if(b.dataset.a==='buy'&&P.coins>=pr){if(giveWeapon(i,true)){P.coins-=pr;sfx('coin',0);toast(w.name+' adquirida!'+(slotOfWeapon(i)>=0?' (barra '+(slotOfWeapon(i)+1)+')':' Está na bolsa: coloque-a na barra 1–6.'),2500)}}
   else if(b.dataset.a==='ammo'&&P.coins>=pk){P.coins-=pk;WS.reserve[i]=Math.min(WS.reserve[i]+w.pack,w.pack*8);sfx('coin',0)}
@@ -230,7 +230,7 @@ function refreshCheats(){$('cNoWear').textContent='Desgaste das armas: '+(G.noWe
 $('cMute').onclick=toggleMute;
 $('cSave').onclick=()=>SaveUI.open('game');
 $('loadbtn').onclick=()=>SaveUI.open('load');
-$('cRes').onclick=()=>{toast('Itens: '+(invGive([['tora',20],['minerio',20],['carne',20],['tilapia',10]])||'(bolsa cheia)'),2500);refreshCheats()};
+$('cRes').onclick=()=>{toast('Itens: '+(invGive([['tora',20],['minerio',20],['couro',20],['carne',20],['tilapia',10]])||'(bolsa cheia)'),2500);refreshCheats()};
 $('cDebt').onclick=()=>{Ledger.borrow({gold:50});refreshCheats()};
 $('cRound').onclick=()=>{endRound();refreshCheats();closePanel()};
 $('cLeader').onclick=()=>{if(STATE.phase==='leader'||G.office){closePanel();return}STATE.rd.hallCity=WORLD.home.id;beginLeaderTurn();closePanel()};

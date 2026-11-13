@@ -5,17 +5,17 @@
 // em que ele busca suprimentos e os distribui às cidades pelo livro, que também guarda a bolsa — tecla B).
 // O jogador encerra a rodada na prefeitura; o mundo avança (produção, cobrança das necessidades) e ele é levado ao escritório.
 // Ao concluir as decisões, é teleportado para fora da prefeitura. Eventos ficam para depois.
-const RES4=['food','ore','wood','gold'];
-const NEEDS=['food','ore','wood'];   // o que as cidades precisam suprir (o ouro é só economia: imposto e produção)
+const RES4=['food','ore','wood','leather','gold'];   // tudo o que uma cidade pode produzir (foco)
+const NEEDS=['food','ore','wood','leather'];   // o que as cidades precisam suprir (o ouro é só economia: imposto e produção)
 // humor da cidade (resultado da última rodada): próspera = alguma meta acima (gera bônus); contente = todas atendidas; descontente = faltou algo
 const MOOD={rich:{n:'Próspera',icon:'😄',col:'#ffd23a'},ok:{n:'Contente',icon:'🙂',col:'#9fe89f'},upset:{n:'Descontente',icon:'😠',col:'#ff8a8a'}};
 // ---------- números da economia (todos juntos para ajustar com facilidade) ----------
 // baseNeed: unidades de um recurso para 100% de necessidade (150% = ×1,5; 200% = ×2) • prodBase/prodRank: produção em abundância por rodada (+1 se próspera)
 // goldMul: ouro por unidade na cidade de foco dinheiro • taxBase/taxRank: imposto por rodada (×1,5 se próspera, 0 se descontente) • caravan/capital: custos em ouro
-const ECON={baseNeed:6,prodBase:7,prodRank:1,goldMul:8,taxBase:25,taxRank:10,caravan:300,capital:300,shopMul:2,tradeGold:0.5};   // tradeGold: fração da produção de ouro da cidade parceira que vira ouro por rodada para quem negocia com ela   // shopMul: o estoque da Loja da cidade = (produção da cidade) × shopMul para o recurso dela (25% dos outros)
+const ECON={baseNeed:4,prodBase:7,prodRank:1,goldMul:8,taxBase:25,taxRank:10,caravan:300,capital:300,shopMul:2,tradeGold:0.5};   // tradeGold: fração da produção de ouro da cidade parceira que vira ouro por rodada para quem negocia com ela   // shopMul: o estoque da Loja da cidade = (produção da cidade) × shopMul para o recurso dela (25% dos outros)
 const TAX_BASE=ECON.taxBase,TAX_RANK=ECON.taxRank;
 const CAP_MAX_LVL=4;
-const TYPE_NAME={food:'Alimentos',ore:'Minérios',wood:'Madeira',gold:'Dinheiro',port:'Porto'};
+const TYPE_NAME={food:'Alimentos',ore:'Minérios',wood:'Madeira',leather:'Couro',gold:'Dinheiro',port:'Porto'};
 const CITY_COLS=[0xe0402a,0x2aa04a,0xe8b820,0x8a3ac8,0x20b0c8,0xe87820,0xd0409a,0x8a8a8a];   // cor de identidade de cada cidade (faixa da bandeira)
 const resIcon=k=>DATA.resources[k].icon,resName=k=>DATA.resources[k].name;
 
@@ -25,15 +25,17 @@ const debOn=r=>!!(STATE.rd&&STATE.rd.debuff&&STATE.rd.debuff[r]);   // debuff: f
 // dívida em itens (o que faltou e ainda não foi pago) das cidades do jogador
 function cityItemDebt(){return false;   // (recursos não geram dívida)
   /*if(!STATE.rd||!STATE.rd.cities||typeof WORLD==='undefined')return false;return WORLD.cities.some(c=>c.owner==='player'&&STATE.rd.cities[c.id]&&STATE.rd.cities[c.id].debt&&Object.keys(STATE.rd.cities[c.id].debt).some(k=>STATE.rd.cities[c.id].debt[k]>0))*/}
-const DEB_TXT={food:'soldados e pratos da taverna custam o dobro',ore:'armas, munição e conserto custam o dobro',wood:'missões pagam 80% menos; a loja cobra o dobro e compra por 50%'};
+const DEB_TXT={leather:'coletes (seu e dos soldados) custam o dobro',food:'soldados e pratos da taverna custam o dobro',ore:'armas, munição e conserto custam o dobro',wood:'missões pagam 80% menos; a loja cobra o dobro e compra por 50%'};
 // bônus de entrega: valor fixo, vale até o fim da rodada (ver seção 14 do design)
 addPriceMod('rbuf',(p,ctx)=>{
   const k=ctx.kind;
   if(rbufOn('ore')&&(k==='weapon'||k==='ammo'||k==='repair'))return p*0.8;
   if(rbufOn('food')&&k==='soldierup')return p*0.8;
+  if(rbufOn('leather')&&k==='vest')return p*0.8;
   // debuffs (faltou suprimento): preços sobem; a quantidade a suprir não muda
   if(debOn('food')&&(k==='recruit'||k==='soldierup'))p*=2;
   if(debOn('ore')&&(k==='weapon'||k==='ammo'||k==='repair'))p*=2;
+  if(debOn('leather')&&k==='vest')p*=2;                   // coletes (seu e dos soldados)
   if(debOn('food')&&k==='tavern')p*=2;                 // pratos da taverna
   if(debOn('wood')&&k==='buy')p*=2;                     // Loja
   if(k==='heal'&&ctx.city&&moodOf(ctx.city)==='upset')p*=2;   // cidade descontente: itens de cura custam o dobro
@@ -47,7 +49,7 @@ const ec=c=>STATE.rd.cities[c.id];
 const focusOf=c=>{const e=ec(c);return e.type==='port'?e.pf:e.type};
 const maxActions=()=>STATE.rd.lvl;
 function portPct(pf,ps){   // porto: o jogador escolhe o que produz (0%) e o que falta (200%); o resto fica em 150% / 100% (só recursos físicos são necessidades)
-  const p={},rest=NEEDS.filter(r=>r!==pf&&r!==ps);if(NEEDS.includes(pf))p[pf]=0;p[ps]=200;rest.forEach((r,i)=>p[r]=[150,100][i]);return p;
+  const p={},rest=NEEDS.filter(r=>r!==pf&&r!==ps);if(NEEDS.includes(pf))p[pf]=0;p[ps]=200;rest.forEach((r,i)=>p[r]=[150,100,100][i]);return p;
 }function initEconomy(){
   const rd=STATE.rd;if(!rd.cities)rd.cities={};
   const hasPort=Object.values(rd.cities).some(e=>e.type==='port');
@@ -57,21 +59,22 @@ function portPct(pf,ps){   // porto: o jogador escolhe o que produz (0%) e o que
     if(rd.cities[c.id])continue;
     const rng=new RNG((WORLD.seed*31+c.id*977+5)>>>0);
     const isPort=!hasPort&&cand&&cand.id===c.id;
-    const type=isPort?'port':rng.pick(['food','ore','wood','gold']);
+    const type=isPort?'port':rng.pick(['food','ore','wood','leather','gold']);
     const e={type,pct:{},pf:type==='port'?rng.pick(RES4):type,ps:'',got:{},carry:{}};
     if(type==='port'){do{e.ps=rng.pick(NEEDS)}while(e.ps===e.pf);e.pct=portPct(e.pf,e.ps)}
     else{   // foco = 0%; as outras três necessidades sorteiam 200/150/100
-      const others=NEEDS.filter(r=>r!==type),lv=[200,150,100];
+      const others=NEEDS.filter(r=>r!==type),lv=[200,150,100,100].slice(0,others.length);
       for(let i=lv.length-1;i>0;i--){const j=rng.int(0,i);const t=lv[i];lv[i]=lv[j];lv[j]=t}
       e.pct[type]=0;others.forEach((r,i)=>e.pct[r]=lv[i]);
     }
     rd.cities[c.id]=e;
   }
+  for(const c of WORLD.cities){const e=rd.cities[c.id];if(e&&e.type!=='port'&&NEEDS.some(r=>r!==e.type&&e.pct[r]===undefined))rerollNeeds(c)}   // salvamentos antigos: sorteia as necessidades que faltam (couro)
   for(const c of WORLD.cities)whOf(c);   // cada cidade tem o seu armazém (salvamentos antigos ganham um vazio)
   if(!rd.routes)rd.routes=[];if(!rd.rbuf)rd.rbuf={};if(!rd.report)rd.report=[];if(!rd.lvl)rd.lvl=1;if(rd.actions===undefined)rd.actions=maxActions();
 }
 // necessidade (em unidades) de um recurso numa cidade; uma caravana que traz o foco do parceiro zera a necessidade dele
-const tradePct=p=>p===150?0:p===200?100:p;
+const tradePct=p=>p===100?0:p===150?100:p===200?150:p;   // caravana: 100% some, 150% cai para 100%, 200% cai para 150%
 function pctOf(c,res){
   const e=ec(c);let pct=e.pct[res]||0;
   for(const r of STATE.rd.routes){
@@ -282,7 +285,7 @@ function updateRounds(dt){
 }
 function refreshRoundHud(){
   const el=$('rdline');if(!el||!STATE.rd)return;
-  const b=STATE.rd.rbuf||{},t={food:'soldados −20%',ore:'armas −20%',gold:'recrutar/curar −20%',wood:'obras −10%, missões +10%'};
+  const b=STATE.rd.rbuf||{},t={leather:'coletes −20%',food:'soldados −20%',ore:'armas −20%',gold:'recrutar/curar −20%',wood:'obras −10%, missões +10%'};
   const deb=Object.keys(STATE.rd.debuff||{});
   el.innerHTML='📖 Rodada '+STATE.round+(STATE.round<1?' • preparação':STATE.phase==='leader'?' • turno do líder':' • turno do comandante')+Object.keys(b).map(r=>'<br><small>'+resIcon(r)+' '+t[r]+'</small>').join('')+deb.map(r=>'<br><small style="color:#ff9a9a">⚠ '+resIcon(r)+' '+DEB_TXT[r]+'</small>').join('');
 }
@@ -426,7 +429,7 @@ function bookPages(){
   if(LB.tab==='caravanas'){
     const L='<h3>Caravanas ativas</h3>'+(rd.routes.length?rd.routes.map((r,i)=>{const A=WORLD.cities[r.a],B=WORLD.cities[r.b];
       return '<div class="ldroute"><b>'+routeName(r)+'</b><br><small>'+A.name+' recebe '+resIcon(focusOf(B))+' • '+B.name+' recebe '+resIcon(focusOf(A))+'</small><br><button data-a="unroute" data-i="'+i+'" '+(isLeader()?'':'disabled')+'>Desfazer</button></div>'}).join(''):'<p>Nenhuma caravana ainda.</p>')
-      +'<p class="ldsm">Quem recebe o produto da outra cidade: se a necessidade dele for <b>150%</b>, some; se for <b>200%</b>, cai para <b>100%</b>; 100% não muda. Negociar com uma cidade de <b>ouro</b> rende ouro por rodada (e uma cidade de ouro com acordo não rende imposto). A produção levada pela caravana não vai para o armazém.</p>';
+      +'<p class="ldsm">Quem recebe o produto da outra cidade: a necessidade dele <b>100% some</b>, <b>150% cai para 100%</b> e <b>200% cai para 150%</b> (mostrado numa tabela antes de fechar o acordo). Negociar com uma cidade de <b>ouro</b> rende ouro por rodada (e uma cidade de ouro com acordo não rende imposto). A produção levada pela caravana não vai para o armazém.</p>';
     const R='<h3>Nova caravana</h3><p>Escolha no <b>mapa</b> a cidade de <b>origem</b> (uma das suas) e a de <b>destino</b> (sua, aliada ou neutra). A sua cidade passa a receber o produto do destino por caravana (reduz a necessidade dele ou rende ouro).</p>'
       +'<p>Preço: <b>◉ '+CARAVAN_COST+'</b></p><button data-a="route" class="gold" '+(isLeader()&&Ledger.canAfford({gold:CARAVAN_COST})?'':'disabled')+'>🗺 Escolher no mapa</button>'+leaderOnly()+(Ledger.anyDebt()?'<p class="ldwarn">Com dívida não é possível comprar.</p>':'');    return[L,R];
   }
@@ -544,9 +547,10 @@ function dealSummary(A,B,onYes){
   const effects=[];
   const side=(X,get,from,mineX)=>{
     if(NEEDS.includes(get)){
-      const p=ec(X).pct[get]||0,np=tradePct(p);
-      effects.push((mineX?'✔ ':'ℹ ')+X.name+' recebe '+ic(get)+': necessidade hoje '+p+'% → '+np+'%'+(p===150?' (some)':p===200?' (cai pela metade)':p===100?' (sem efeito: já é 100%)':'')+'. <small>(as necessidades mudam a cada rodada)</small>');
-    }else if(get==='gold'){
+      const cur=ec(X).pct[get]||0,u=p=>Math.round(p*ECON.baseNeed/100);
+      effects.push((mineX?'✔ ':'ℹ ')+'<b>'+X.name+'</b> recebe '+ic(get)+(cur?' (necessidade de hoje: <b>'+cur+'%</b> → <b>'+(tradePct(cur)?tradePct(cur)+'%':'some')+'</b>)':' (hoje ela já não precisa)')+':'
+        +'<table class="ldt" style="width:100%;color:#ddd;margin:4px 0"><tr><td><b>Necessidade</b></td><td><b>com a caravana</b></td><td><b>unidades por rodada</b></td></tr>'
+        +[100,150,200].map(p=>{const np=tradePct(p);return '<tr'+(p===cur?' style="background:rgba(255,210,58,.2)"':'')+'><td>'+p+'%'+(p===cur?' ◀ hoje':'')+'</td><td>'+(np?np+'%':'<b>some</b>')+'</td><td>'+u(p)+' → '+u(np)+'</td></tr>'}).join('')+'</table>');    }else if(get==='gold'){
       const g=Math.round(prodOf(from)*ECON.tradeGold);
       if(mineX&&focusOf(X)!=='gold')effects.push('💰 '+X.name+' recebe <b>ouro</b>: +◉'+g+' por rodada no cofre (metade da produção de ouro de '+from.name+').');
       else if(mineX)effects.push('ℹ '+X.name+' também produz ouro: sem bônus nessa direção.');
@@ -565,12 +569,12 @@ function dealSummary(A,B,onYes){
 // ---------- as necessidades mudam a cada rodada: "joga-se o dado" para ver qual recurso pesa mais ----------
 function rerollNeeds(c){
   const e=ec(c);if(!e||e.type==='port')return;   // o porto é distribuído pelo jogador
-  const foc=e.type,others=NEEDS.filter(r=>r!==foc),lv=[200,150,100];
+  const foc=e.type,others=NEEDS.filter(r=>r!==foc),lv=[200,150,100,100].slice(0,others.length);
   for(let i=lv.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));const x=lv[i];lv[i]=lv[j];lv[j]=x}
   e.pct={};if(NEEDS.includes(foc))e.pct[foc]=0;others.forEach((r,i)=>e.pct[r]=lv[i]);
 }
 // ---------- lojas: o estoque à venda depende da produção da cidade ----------
-const SHOP_ITEM={food:'carne',wood:'tora',ore:'minerio'};
+const SHOP_ITEM={food:'carne',wood:'tora',ore:'minerio',leather:'couro'};
 function refreshShops(){
   for(const c of WORLD.cities){
     const e=ec(c);if(!e)continue;

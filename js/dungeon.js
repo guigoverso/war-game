@@ -134,7 +134,7 @@ function spawnPortals(){
       if(STATE.portals.some(p=>Math.hypot(p.x-x,p.z-z)<(lax?25:60)))continue;
       const d=distHome(x,z),tier=d<150?1:d<270?2:3,r=rng.next();
       let reward;
-      if(r<0.45){const res=rng.pick(['food','ore','wood','gold']);reward={type:'resource',res,amt:res==='gold'?3*rng.int(60,100)*tier:rng.int(6,10)*tier}}   // recursos viram itens (1 item = 1 unidade)
+      if(r<0.45){const res=rng.pick(['food','ore','wood','leather','gold']);reward={type:'resource',res,amt:res==='gold'?3*rng.int(60,100)*tier:rng.int(6,10)*tier}}   // recursos viram itens (1 item = 1 unidade)
       else if(r<0.72)reward={type:'weapon'};
       else reward={type:'relic'};
       STATE.portals.push({id:(STATE.portalSeq=(STATE.portalSeq||0)+1),x:x+0.5,z:z+0.5,wing:k,tier,reward,claimed:false});

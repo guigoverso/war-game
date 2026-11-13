@@ -8,6 +8,7 @@ const DATA={
     food:{name:'Alimentos',icon:'🌾'},
     ore:{name:'Minérios',icon:'⛏'},
     wood:{name:'Madeira',icon:'🪵'},
+    leather:{name:'Couro',icon:'🟤'},
     gold:{name:'Ouro',icon:'◉'}
   },
   items:{},        // Fase 1: itens do inventário (matéria-prima, consumíveis, troféus, relíquias) — definidos abaixo
@@ -29,12 +30,12 @@ const DATA={
 function defItems(list){for(const [id,name,icon,type,stack,value,desc,extra] of list)dataDefine('items',id,Object.assign({name,icon,type,stack,value,desc},extra||{}))}
 defItems([
   ['sucata','Sucata de metal','🔩','material',20,6,'Peças de metal retorcidas. Conta como 1 de minério no estoque das cidades.',{supply:{res:'ore'}}],
-  ['couro','Couro','🟤','material',20,5,'Couro curtido, útil para qualquer artesão.'],
+  ['couro','Couro','🟤','material',20,5,'Couro curtido. Conta como 1 de couro no estoque das cidades (coletes e equipamentos).',{supply:{res:'leather'},price:7,shop:'store'}],
   ['carne','Carne crua','🥩','material',20,4,'Carne fresca. Pode ser cozida ou contar como 1 de alimento no estoque.',{supply:{res:'food'},price:6,shop:'store'}],
   ['ervas','Ervas medicinais','🌿','material',20,3,'Folhas de cheiro forte, usadas em remédios. Também conta como 1 de alimento no estoque.',{supply:{res:'food'}}],
   ['tora','Tronco de madeira','🪵','material',20,6,'Madeira para as cidades: conta como 1 de madeira no estoque.',{supply:{res:'wood'},price:8,shop:'store'}],
   ['minerio','Minério bruto','⛏','material',20,8,'Minério para as cidades: conta como 1 de minério no estoque.',{supply:{res:'ore'},price:10,shop:'store'}],
-  ['pele_lobo','Pele de lobo','🐺','trophy',10,12,'Pele grossa e cinzenta de lobo.'],
+  ['pele_lobo','Pele de lobo','🐺','trophy',10,12,'Pele grossa e cinzenta de lobo. Também conta como 1 de couro para as cidades.',{supply:{res:'leather'}}],
   ['presa','Presa de javali','🦷','trophy',10,14,'Presa curva e amarelada.'],
   ['seda','Seda de aranha','🕸','trophy',10,12,'Fios resistentes de aranha gigante.'],
   ['ferrao','Ferrão de escorpião','🦂','trophy',10,16,'O ferrão ainda guarda veneno.'],

@@ -61,7 +61,7 @@ Todos os números ficam juntos em `ECON` (início de `js/rounds.js`) para ajusta
 
 | Parâmetro | Antes | Agora |
 |---|---|---|
-| Necessidade (100%) | 10 unidades | **6** (150% = 9, 200% = 12) |
+| Necessidade (100%) | 10 unidades | **4** (150% = 6, 200% = 8), com o couro |
 | Produção em abundância | 5 + nível | **7 + nível** (+1 se próspera) |
 | Ouro por unidade na cidade de foco dinheiro | ×10 | **×8** |
 | Imposto por rodada | 20 + 10/nível | **25 + 10/nível** (×1,5 próspera, 0 descontente) |
@@ -81,3 +81,8 @@ Por quê (semente de teste, 7 cidades): antes a necessidade total era 225 unidad
 - **Necessidades**: a caravana que traz o recurso mexe na necessidade dele conforme o valor da rodada: **150% some**, **200% cai para 100%**, 100% não muda (as necessidades são sorteadas a cada rodada, então o efeito varia). O resumo da negociação mostra o valor de hoje.
 - **Ouro**: negociar com uma cidade que **produz ouro** rende **ouro por rodada** no cofre (metade da produção de ouro dela, `ECON.tradeGold`). A **cidade de ouro** do jogador com acordo **não rende imposto** (e não ganha esse bônus).
 - Corrigido: acordo com cidade de ouro era recusado em silêncio e as mensagens (toasts) **não apareciam no escritório nem sobre o livro e o mapa**; agora aparecem sempre.
+## 4º recurso: Couro (e a nova regra da caravana)
+- **Necessidades**: 🌾 comida, ⛏ minério, 🪵 madeira e 🟤 **couro**. Uma cidade de foco físico tem 3 necessidades sorteadas em 200% / 150% / 100% a cada rodada; a de foco dinheiro tem 4 (200/150/100/100). `ECON.baseNeed` caiu para **4** (100% = 4, 150% = 6, 200% = 8) para manter a carga total parecida (≈130 unidades com 7 cidades).
+- **Itens**: couro e pele de lobo contam 1 de couro (um slot de couro no armazém, como madeira e minério). A Loja vende couro (◉7, estoque limitado pela produção da cidade). Cidades de foco couro produzem couro.
+- **Bônus e debuff**: entregar acima da meta → 🟤 **coletes 20% mais baratos** (o seu e os dos soldados); faltar → coletes custam o **dobro**.
+- **Caravana**: o efeito no recurso trazido agora é **100% some • 150% cai para 100% • 200% cai para 150%**. Antes de fechar o acordo aparece **uma tabela** por cidade com a necessidade, o valor com a caravana e as unidades por rodada (a linha de hoje destacada).
