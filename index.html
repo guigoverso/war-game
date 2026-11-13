@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
@@ -72,6 +72,34 @@ button:hover{filter:brightness(1.15)}button:disabled{filter:grayscale(1) brightn
 .slotgrid{display:grid;gap:4px}.slot{position:relative;width:48px;height:48px;background:#23232b;border:2px solid #111;box-shadow:inset 0 0 0 2px #3a3a46;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer}.slot b{position:absolute;right:2px;bottom:0;font-size:12px;color:#ffd23a;text-shadow:1px 1px 0 #000}.slot:hover{filter:brightness(1.25)}.slot i{position:absolute;left:3px;top:0;font-size:11px;font-style:normal;color:#ccc;text-shadow:1px 1px 0 #000}
 .uitip{position:fixed;z-index:200;display:none;background:#111;color:#eee;border:2px solid #5a5a66;padding:5px 8px;font-size:13px;max-width:260px;pointer-events:none}
 #ledgerline{font-size:13px;color:#ddd;margin:4px 0}
+#rdline{font-size:14px;color:#ffe9a0;margin-top:2px}#rdline small{color:#9fe8a0;font-size:12px}
+#officehint{position:fixed;left:50%;bottom:9%;transform:translateX(-50%);z-index:5;display:none;padding:10px 22px;font-size:22px;background:rgba(40,24,10,.82);border:3px solid #1e1006;color:#ffe9b0;text-shadow:1px 1px 0 #000;pointer-events:none}
+#ldbook{background:rgba(8,5,2,.86);z-index:12}
+.ldwrap{position:relative;width:min(960px,86vw)}
+.ldcover{background:linear-gradient(#6e4220,#4a2a12);border:3px solid #1e1006;border-radius:10px;padding:14px 16px 12px;box-shadow:0 16px 44px rgba(0,0,0,.75),inset 0 0 0 3px #8a5a2a}
+.ldbook{display:flex;height:min(470px,66vh);border:2px solid #2a1608;box-shadow:0 0 0 3px #3a2210}
+.ldpage{flex:1;padding:18px 24px;color:#3a2812;font-family:Georgia,'Times New Roman',serif;font-size:15px;line-height:1.45;overflow:auto;text-shadow:none;min-width:0}
+.ldpage.l{background:linear-gradient(90deg,#e4d3a6 0%,#f0e4c0 90%,#cdb98a 100%)}
+.ldpage.r{background:linear-gradient(90deg,#cdb98a 0%,#f0e4c0 10%,#e4d3a6 100%)}
+.ldspine{flex:0 0 14px;background:linear-gradient(90deg,#8a7340,#2e2010 50%,#8a7340)}
+.ldpage h3{margin:0 0 8px;font-size:23px;color:#5a2a10;border-bottom:2px solid #9a7a44;padding-bottom:3px}
+.ldpage h4{margin:12px 0 4px;font-size:16px;color:#6a3a14}
+.ldpage p,.ldpage li{font-size:15px;color:#3a2812;margin:6px 0}
+.ldsm{font-size:13px!important;color:#6a5434!important}
+.ldwarn{color:#8a2010!important;font-weight:bold}.ldok{color:#2a6a2a}.ldbad{color:#a01818;font-weight:bold}
+.ldul{padding-left:18px;margin:6px 0;columns:1}
+.ldt{width:100%;border-collapse:collapse}.ldt td{padding:4px 5px;border-bottom:1px dotted #a88a58;font-size:14px;vertical-align:middle}.ldb{white-space:nowrap}.ldt small{white-space:nowrap;font-size:12px;color:#6a5434}
+.ldpage button{background:#7a4a1e;color:#f6e8c4;border:2px solid #2a1608;box-shadow:inset 0 -3px 0 rgba(0,0,0,.25);font-family:inherit;font-size:14px;padding:4px 9px;margin:2px 3px 2px 0;text-shadow:none}
+.ldpage button:disabled{filter:grayscale(1) brightness(.75);opacity:.6}
+.ldpage button.ldmini{padding:3px 9px;font-size:17px}.ldpage button.sel,.ldpage button.ldmini.sel{background:#b07a20;border-color:#ffd878}
+.ldcity{display:block;width:100%;text-align:left;margin:5px 0!important;padding:7px 10px!important}.ldcity span{font-size:16px;font-weight:bold;display:block}.ldcity small{display:block;color:#f0d9a0}.ldcity em{font-style:normal;font-size:12px;color:#ffe9a0}
+.ldroute{border:2px solid #a88a58;background:rgba(255,255,255,.25);padding:6px 10px;margin:6px 0}
+.ldpage select{font-family:inherit;font-size:14px;background:#f6ecd0;color:#3a2812;border:2px solid #7a5a2a;padding:4px;max-width:100%}
+.ldtabs{position:absolute;right:-76px;top:34px;display:flex;flex-direction:column;gap:6px}
+.ldtabs button{width:78px;margin:0;padding:8px 4px;background:#8a5a2a;color:#f6e8c4;border:2px solid #1e1006;border-left:0;border-radius:0 8px 8px 0;font-family:Georgia,serif;font-size:20px;text-shadow:none;line-height:1.1;box-shadow:none}
+.ldtabs button small{font-size:11px}.ldtabs button.sel{background:#d8bd78;color:#3a2210;width:86px}
+.ldfoot{display:flex;justify-content:space-between;margin-top:10px}
+.ldfoot button{font-family:Georgia,serif;background:#b08a1a;color:#fff;border:3px solid #1e1006;padding:8px 20px;font-size:16px}#ldclose{background:#5a3a1c}
 .mixrow{display:flex;align-items:center;gap:10px;margin:5px 0;font-size:14px;color:#ddd}.mixrow span:first-child{flex:0 0 250px}.mixrow input{flex:1;accent-color:#ffd23a;cursor:pointer}.mixrow b{flex:0 0 46px;text-align:right;color:#ffd23a}
 button.alt{background:#5a5a72}button.red{background:#a83a3a}button.gold{background:#b08a1a}
 input[type=text]{background:#111;color:#fff;border:3px solid #555;padding:7px 10px;width:170px}
@@ -95,7 +123,7 @@ label{font-size:14px}
   <div id="flash"></div>
   <div id="eT" class="edge"></div><div id="eB" class="edge"></div><div id="eL" class="edge"></div><div id="eR" class="edge"></div>
   <div id="crosshair"></div>
-  <div id="tags"><div id="clock"></div><div id="god" class="hidden">🛡 MODO INVENCÍVEL</div><div id="invis" class="hidden">👻 MODO INVISÍVEL</div><div id="cover" class="hidden">▣ EM COBERTURA</div><div id="crouchtag" class="hidden">▼ AGACHADO (segure o botão para espiar)</div></div>
+  <div id="tags"><div id="clock"></div><div id="rdline"></div><div id="god" class="hidden">🛡 MODO INVENCÍVEL</div><div id="invis" class="hidden">👻 MODO INVISÍVEL</div><div id="cover" class="hidden">▣ EM COBERTURA</div><div id="crouchtag" class="hidden">▼ AGACHADO (segure o botão para espiar)</div></div>
   <div id="cityinfo"></div>
   <div id="toasts"></div>
   <div id="prompt"></div><div id="subtitle"></div>
@@ -133,7 +161,9 @@ label{font-size:14px}
 <div id="shop" class="screen hidden"><div class="panel"><h2>⚔ ARMEIRO</h2><div class="big" id="shopcoins"></div><div id="shoptabs" style="margin-bottom:6px"></div><div class="grid" id="shopgrid"></div><button class="alt" id="shopclose">Fechar (E)</button></div></div>
 <div id="clinic" class="screen hidden"><div class="panel" style="min-width:380px"><h2>✚ CLÍNICA</h2><p id="clinictxt"></p><div id="clinicbtns"></div><button class="alt" id="clinicclose">Fechar (E)</button></div></div>
 <div id="barracks" class="screen hidden"><div class="panel"><h2>★ QUARTEL</h2><div class="big" id="bkinfo"></div><div id="bkbody"></div><button class="alt" id="bkclose">Fechar (E)</button></div></div>
-<div id="quests" class="screen hidden"><div class="panel"><h2>📜 QUADRO DE MISSÕES</h2><div class="big" id="qinfo"></div><div id="qbody"></div><button class="alt" id="qclose">Fechar (E)</button></div></div>
+<div id="quests" class="screen hidden"><div class="panel"><h2>📜 QUADRO DE MISSÕES</h2><div class="big" id="qinfo"></div><div id="qbody"></div><button class="gold" id="qround">📖 Encerrar a rodada</button><button class="alt" id="qclose">Fechar (E)</button></div></div>
+<div id="ldbook" class="screen hidden"><div class="ldwrap"><div class="ldcover"><div class="ldbook"><div class="ldpage l" id="ldL"></div><div class="ldspine"></div><div class="ldpage r" id="ldR"></div></div><div class="ldfoot"><button id="ldclose">Fechar o livro (E)</button><button id="lddone">✔ Concluir decisões</button></div></div><div class="ldtabs" id="ldtabs"></div></div></div>
+<div id="officehint"></div>
 <div id="inv" class="screen hidden"><div class="panel" style="min-width:640px"><h2>🎒 BOLSA</h2><div class="big" id="invinfo"></div>
   <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:8px">
     <div><b class="st">Armas e vara — teclas 1–6</b><div id="invwbar"></div><b class="st" style="display:block;margin-top:8px">Curas — teclas 7–9</b><div id="invcbar"></div><b class="st" style="display:block;margin-top:8px">Bolsa</b><div id="invgrid"></div></div>
@@ -150,7 +180,7 @@ label{font-size:14px}
   <div id="creativeBox" class="hidden">
   <p><b>Modo criativo — truques de teste</b></p>
   <div id="ledgerline"></div>
-  <button id="cRes" class="alt">+100 alimentos, minério e madeira</button><button id="cDebt" class="alt">Dívida de teste (−50 ouro)</button><button id="cRound" class="alt">Rodada +1</button><br>
+  <button id="cRes" class="alt">+100 alimentos, minério e madeira</button><button id="cDebt" class="alt">Dívida de teste (−50 ouro)</button><button id="cRound" class="alt">Encerrar rodada (vai ao escritório)</button><button id="cLeader" class="alt">Ir ao escritório do líder</button><button id="cActions" class="alt">+1 nível da capital</button><br>
   <button id="cItems" class="alt">Dar 1 de cada item</button><button id="cFill" class="alt">Encher a bolsa (teste de bolsa cheia)</button><button id="cWear" class="alt">Desgastar arma atual −40%</button><button id="cFix" class="alt">Consertar todas as armas (grátis)</button><button id="cNoWear" class="alt">Desgaste: ?</button><br>
   <button id="cPortals" class="alt">Criar portais agora</button><button id="cGoPortal" class="alt">Ir ao portal mais próximo</button><button id="cRaid" class="alt">Iniciar raid agora</button><button id="cLegend" class="alt">Dar uma arma lendária</button><br>
   <button id="cKit" class="alt">Kit de cozinha (peixes, carne, ervas)</button><button id="cVend" class="alt">Zerar ouro do vendedor da cidade atual</button><button id="cBuffs" class="alt">Dar todos os bônus (comida)</button><br>
@@ -190,6 +220,7 @@ label{font-size:14px}
 <script src="js/fishing.js"></script>
 <script src="js/dungeon.js"></script>
 <script src="js/raids.js"></script>
+<script src="js/rounds.js"></script>
 <script src="js/save.js"></script>
 <script src="js/game.js"></script>
 </body>

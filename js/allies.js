@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 // ---------- Exército: soldados recrutados no Quartel ----------
 const ALLIES=[];
 const VEST_HP=40;
@@ -7,7 +7,7 @@ const allyMaxHp=()=>45+12*ARMY.hp;
 const allyDmgMul=()=>1+0.25*ARMY.dmg;
 const allyCount=()=>ALLIES.filter(a=>a.alive).length;
 const upCost=l=>120+80*l;
-const bp=b=>pc(b,ARMY.city);   // preço ajustado pela cidade do quartel
+const bp=(b,k)=>pc(b,ARMY.city,k);   // preço ajustado pela cidade do quartel
 
 function giveAllyVest(a){
   a.armor=VEST_HP;if(a.vested)return;a.vested=true;
@@ -69,8 +69,8 @@ function spawnAlly(x,z,city){
   scene.add(a.group);ALLIES.push(a);return a;
 }
 function recruitAlly(c){
-  if(c.owner!=='player'||allyCount()>=ARMY.max||P.coins<bp(ARMY.recruitCost))return false;
-  P.coins-=bp(ARMY.recruitCost);
+  if(c.owner!=='player'||allyCount()>=ARMY.max||P.coins<bp(ARMY.recruitCost,'recruit'))return false;
+  P.coins-=bp(ARMY.recruitCost,'recruit');
   const bk=c.barracks||{x:c.cx,z:c.cz};
   spawnAlly(bk.x+(Math.random()-0.5)*1.5,bk.z+(Math.random()-0.5)*1.5,c);
   sfx('coin',0);return true;
@@ -159,15 +159,15 @@ function renderBarracks(){
   const n=allyCount();
   $('bkinfo').textContent='◉ '+P.coins+' moedas  •  Soldados vivos: '+n+'/'+ARMY.max+'  •  '+priceLabel(ARMY.city);
   let h='<div class="grid">';
-  if(ARMY.city&&ARMY.city.owner==='player')h+='<div class="card"><b>Recrutar soldado</b><div class="st">Máx. '+ARMY.max+' vivos. Munição infinita. Teleportam até você quando a invasão começa.</div><button class="gold" data-a="rec" '+(n>=ARMY.max||P.coins<bp(ARMY.recruitCost)?'disabled':'')+'>Recrutar ◉'+bp(ARMY.recruitCost)+'</button></div>';
+  if(ARMY.city&&ARMY.city.owner==='player')h+='<div class="card"><b>Recrutar soldado</b><div class="st">Máx. '+ARMY.max+' vivos. Munição infinita. Teleportam até você quando a invasão começa.</div><button class="gold" data-a="rec" '+(n>=ARMY.max||P.coins<bp(ARMY.recruitCost,'recruit')?'disabled':'')+'>Recrutar ◉'+bp(ARMY.recruitCost,'recruit')+'</button></div>';
   const dl=ARMY.dmg,hl=ARMY.hp;
-  h+='<div class="card"><b>Dano dos soldados</b><div class="st">Nível '+dl+'/'+ARMY.maxLvl+' • +25% de dano por nível (atual ×'+allyDmgMul().toFixed(2)+')</div><button data-a="dmg" '+(dl>=ARMY.maxLvl||P.coins<bp(upCost(dl))?'disabled':'')+'>'+(dl>=ARMY.maxLvl?'Máximo':'Evoluir ◉'+bp(upCost(dl)))+'</button></div>';
-  h+='<div class="card"><b>Vida dos soldados</b><div class="st">Nível '+hl+'/'+ARMY.maxLvl+' • +12 de vida por nível (atual '+allyMaxHp()+')</div><button data-a="hp" '+(hl>=ARMY.maxLvl||P.coins<bp(upCost(hl))?'disabled':'')+'>'+(hl>=ARMY.maxLvl?'Máximo':'Evoluir ◉'+bp(upCost(hl)))+'</button></div>';
+  h+='<div class="card"><b>Dano dos soldados</b><div class="st">Nível '+dl+'/'+ARMY.maxLvl+' • +25% de dano por nível (atual ×'+allyDmgMul().toFixed(2)+')</div><button data-a="dmg" '+(dl>=ARMY.maxLvl||P.coins<bp(upCost(dl),'soldierup')?'disabled':'')+'>'+(dl>=ARMY.maxLvl?'Máximo':'Evoluir ◉'+bp(upCost(dl),'soldierup'))+'</button></div>';
+  h+='<div class="card"><b>Vida dos soldados</b><div class="st">Nível '+hl+'/'+ARMY.maxLvl+' • +12 de vida por nível (atual '+allyMaxHp()+')</div><button data-a="hp" '+(hl>=ARMY.maxLvl||P.coins<bp(upCost(hl),'soldierup')?'disabled':'')+'>'+(hl>=ARMY.maxLvl?'Máximo':'Evoluir ◉'+bp(upCost(hl),'soldierup'))+'</button></div>';
   h+='<div class="card"><b>🛡 Colete dos soldados</b><div class="st">Soldados com colete (e capacete de aço) absorvem 60% do dano até esgotar '+VEST_HP+' pontos.</div>'+(ARMY.vest?'<button data-a="refill" '+(P.coins<bp(60)?'disabled':'')+'>Repor coletes ◉'+bp(60)+'</button>':'<button class="gold" data-a="vest" '+(P.coins<bp(220)?'disabled':'')+'>Comprar ◉'+bp(220)+'</button>')+'</div>';
   WEAPONS.forEach((w,i)=>{
     const own=ARMY.owned[i],cur=ARMY.weapon===i;
     h+='<div class="card'+(cur?'':own?'':' locked')+'"><b>'+w.name+(cur?' ✔ (em uso)':'')+'</b><div class="st">Dano '+w.dmg+(w.pellets>1?' ×'+w.pellets:'')+' • '+w.rpm+' dpm</div>'+
-      (cur?'':own?'<button data-a="eq" data-i="'+i+'">Equipar</button>':'<button class="gold" data-a="buy" data-i="'+i+'" '+(P.coins<bp(w.price)?'disabled':'')+'>Comprar ◉'+w.price+'</button>')+'</div>';
+      (cur?'':own?'<button data-a="eq" data-i="'+i+'">Equipar</button>':'<button class="gold" data-a="buy" data-i="'+i+'" '+(P.coins<bp(w.price,'weapon')?'disabled':'')+'>Comprar ◉'+w.price+'</button>')+'</div>';
   });
   $('bkbody').innerHTML=h+'</div>';
 }
@@ -175,9 +175,9 @@ document.addEventListener('click',e=>{
   const b=e.target.closest('#bkbody button');if(!b)return;
   const a=b.dataset.a,i=+b.dataset.i;
   if(a==='rec')recruitAlly(ARMY.city);
-  else if(a==='dmg'&&P.coins>=bp(upCost(ARMY.dmg))&&ARMY.dmg<ARMY.maxLvl){P.coins-=bp(upCost(ARMY.dmg));ARMY.dmg++;sfx('coin',0)}
-  else if(a==='hp'&&P.coins>=bp(upCost(ARMY.hp))&&ARMY.hp<ARMY.maxLvl){P.coins-=bp(upCost(ARMY.hp));ARMY.hp++;applyArmyStats();sfx('coin',0)}
-  else if(a==='buy'&&P.coins>=bp(WEAPONS[i].price)){P.coins-=bp(WEAPONS[i].price);ARMY.owned[i]=true;ARMY.weapon=i;sfx('coin',0)}
+  else if(a==='dmg'&&P.coins>=bp(upCost(ARMY.dmg),'soldierup')&&ARMY.dmg<ARMY.maxLvl){P.coins-=bp(upCost(ARMY.dmg),'soldierup');ARMY.dmg++;sfx('coin',0)}
+  else if(a==='hp'&&P.coins>=bp(upCost(ARMY.hp),'soldierup')&&ARMY.hp<ARMY.maxLvl){P.coins-=bp(upCost(ARMY.hp),'soldierup');ARMY.hp++;applyArmyStats();sfx('coin',0)}
+  else if(a==='buy'&&P.coins>=bp(WEAPONS[i].price,'weapon')){P.coins-=bp(WEAPONS[i].price,'weapon');ARMY.owned[i]=true;ARMY.weapon=i;sfx('coin',0)}
   else if(a==='eq'){ARMY.weapon=i}
   else if(a==='vest'&&!ARMY.vest&&P.coins>=bp(220)){P.coins-=bp(220);ARMY.vest=true;for(const x of ALLIES)if(x.alive)giveAllyVest(x);sfx('coin',0)}
   else if(a==='refill'&&P.coins>=bp(60)){P.coins-=bp(60);for(const x of ALLIES)if(x.alive)x.armor=VEST_HP;sfx('coin',0)}

@@ -196,6 +196,7 @@ function fireWeapon(){
   if(hitAny)hitMarker(killed,headshot);
 }
 function updateWeapons(dt){
+  if(G.office){WS.vm.forEach(v=>v.visible=false);return}   // no escritório do líder não há armas
   const w=WEAPONS[WS.cur];
   WS.cool-=dt;
   if(WS.reload>0){WS.reload-=dt;if(WS.reload<=0){

@@ -90,10 +90,10 @@ function abandonQuest(){
 }
 function completeQuest(){
   const q=QUEST.active;if(!q)return;
-  addCoins(q.reward);QUEST.done++;
+  addCoins(qPay(q));QUEST.done++;
   if(q.camp)q.camp.questTarget=false;
   QUEST.counter[q.cityId]=(QUEST.counter[q.cityId]||0)+1;QUEST.boards[q.cityId]=null;
-  QUEST.active=null;sfx('win',0);toast('✅ Missão cumprida! +'+q.reward+' moedas',5000);
+  QUEST.active=null;sfx('win',0);toast('✅ Missão cumprida! +'+qPay(q)+' moedas',5000);
 }
 function failQuest(msg){
   const q=QUEST.active;if(!q)return;if(q.camp)q.camp.questTarget=false;
@@ -166,8 +166,8 @@ function renderQuests(){
   const c=G.questCity,list=QUEST.boards[c.id]||genBoard(c),a=QUEST.active;
   $('qinfo').textContent='Quadro de missões de '+c.name+'  •  missões cumpridas: '+QUEST.done;
   let h='';
-  if(a)h+='<div class="card" style="border-color:#ffd23a;margin-bottom:10px"><b>📜 Missão ativa: '+qTitle(a)+'</b><div class="st">Recompensa ◉'+a.reward+'</div><button class="red" data-q="abandon">Abandonar</button></div>';
-  h+='<div class="grid">'+list.map(q=>'<div class="card"><b>'+qTitle(q)+'</b><div class="st">'+qText(q,c)+'<br>Recompensa: <b style="color:#ffd23a">◉'+q.reward+'</b></div><button class="gold" data-q="'+q.id+'" '+(a?'disabled':'')+'>Aceitar</button></div>').join('')+'</div>';
+  if(a)h+='<div class="card" style="border-color:#ffd23a;margin-bottom:10px"><b>📜 Missão ativa: '+qTitle(a)+'</b><div class="st">Recompensa ◉'+qPay(a)+'</div><button class="red" data-q="abandon">Abandonar</button></div>';
+  h+='<div class="grid">'+list.map(q=>'<div class="card"><b>'+qTitle(q)+'</b><div class="st">'+qText(q,c)+'<br>Recompensa: <b style="color:#ffd23a">◉'+qPay(q)+'</b></div><button class="gold" data-q="'+q.id+'" '+(a?'disabled':'')+'>Aceitar</button></div>').join('')+'</div>';
   $('qbody').innerHTML=h;
 }
 document.addEventListener('click',e=>{

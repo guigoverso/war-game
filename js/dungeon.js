@@ -33,6 +33,7 @@ function genDungeons(rng,cities,taken){
     else{const e=Math.max(-dx,dx-S+1,-dz,dz-S+1);H[i]=Math.round(lerp(DG.Y,H[i],clamp(e/(F+1),0,1)));B[i]=BIO_ROCK}
   }
   for(let k=0;k<WING_OFF.length;k++)DG.wings.push(buildWing(new RNG((WORLD.seed*57+k*911+13)>>>0),k));
+  genOffice();   // o 4º quadrante da região guarda o escritório do líder (rounds.js)
 }
 
 function buildWing(rng,k){
@@ -216,6 +217,12 @@ function updateDungeonMood(){
   if(DN.group)DN.group.visible=!inside;
   for(const cl of clouds)cl.visible=!inside;
   if(!inside)return;
+  if(inOfficeRoom()){   // escritório: sala fechada, clara e quente
+    scene.background.setHex(0x1a130c);scene.fog.color.setHex(0x1a130c);scene.fog.near=30;scene.fog.far=120;
+    hemi.intensity=1.05;hemi.color.setHex(0xfff0d8);sun.intensity=0;
+    if(DN.torch)DN.torch.intensity=0.5;
+    return;
+  }
   scene.background.setHex(0x050507);scene.fog.color.setHex(0x050507);scene.fog.near=3;scene.fog.far=40;
   hemi.intensity=0.3;hemi.color.setHex(0x6a6a8a);sun.intensity=0;
   if(DN.torch)DN.torch.intensity=1.7;

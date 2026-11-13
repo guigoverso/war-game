@@ -220,6 +220,7 @@ function buildHall(c,f,D,doorU,rng){
   for(let k=0;k<6;k++){const u=mid-1.5+(k%3)*1.1,y=1.15+Math.floor(k/3)*0.75;FB(c,f,u,f.V-1.27,u+0.7,f.V-1.2,y,y+0.55,rng.pick([0xf2ecd0,0xe8dcc0,0xf4f0e0]),false,{j:0})}
   FB(c,f,mid-1.5,f.V-3.6,mid+1.5,f.V-2.6,0,1.0,0x5a3d22,true);
   const p=wx(mid,f.V-4.6);c.hall={x:p[0],z:p[1]};
+  {const ho=wx(doorU+1,-2.4);c.hallOut={x:ho[0],z:ho[1]}}   // ponto do lado de fora da porta (o líder reaparece aqui ao sair do escritório)
   const k=wx(mid,f.V-1.9);c.keepers=c.keepers||[];
   c.keepers.push({role:'clerk',x:k[0],z:k[1],yaw:(()=>{const o={N:[0,-1],S:[0,1],E:[1,0],W:[-1,0]}[D];return Math.atan2(o[0],o[1])})()});
   const sp=wx(doorU+1,-0.22);makeSign('PREFEITURA',3.8,0.85,0x2a3a5a,0xf0e0a0,sp[0],c.y+3.5,sp[1],D);

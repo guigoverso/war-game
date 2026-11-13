@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 // ---------- Jogo: jogador, entrada, HUD, loop ----------
 const $=id=>document.getElementById(id);
 const canvas=$('c');
@@ -138,7 +138,7 @@ function conquerCity(c){
 }
 
 // ---------- Painéis ----------
-const SCREENS=['start','shop','clinic','barracks','quests','pause','map','dead','victory','inv','store','cook','raid'];
+const SCREENS=['start','shop','clinic','barracks','quests','pause','map','dead','victory','inv','store','cook','raid','ldbook'];
 function openPanel(name){
   if(G.frozen)setFrozen(false);
   SCREENS.forEach(s=>$(s).classList.add('hidden'));$(name).classList.remove('hidden');
@@ -176,7 +176,7 @@ function renderShop(){
   const c=G.shopCity;
   $('shopcoins').textContent='◉ '+P.coins+' moedas  •  '+priceLabel(c);
   const weaponsHtml=WEAPONS.map((w,i)=>{
-    const own=WS.owned[i],pr=pc(w.price,c),pk=pc(w.packCost,c);
+    const own=WS.owned[i],pr=pc(w.price,c,'weapon'),pk=pc(w.packCost,c,'ammo');
     return '<div class="card'+(own?'':' locked')+'"><b>'+(i+1)+'. '+w.name+'</b><div class="st">'+w.desc+'<br>Dano '+w.dmg+(w.pellets>1?' ×'+w.pellets:'')+' • '+w.rpm+' dpm • Pente '+w.mag+'</div>'+
       (own?'<div class="st">Munição reserva: '+WS.reserve[i]+'<br>Durabilidade: '+(weaponBroken(i)?'<b style="color:#ff6a6a">QUEBRADA</b>':Math.round(durOf(i))+'%')+'</div><button data-a="ammo" data-i="'+i+'" '+(P.coins<pk?'disabled':'')+'>+'+w.pack+' munição ◉'+pk+'</button>'+(durOf(i)<100?'<button data-a="repair" data-i="'+i+'">🔧 Consertar ◉'+repairCost(i,c)+(P.coins<repairCost(i,c)?' (gera dívida)':'')+'</button>':'')
           :'<button class="gold" data-a="buy" data-i="'+i+'" '+(P.coins<pr?'disabled':'')+'>Comprar ◉'+pr+'</button>')+'</div>';
@@ -194,27 +194,27 @@ $('shopgrid').addEventListener('click',e=>{
   if(b.dataset.a==='repair'){repairWeapon(+b.dataset.i,c);renderShop();return}
   if(b.dataset.a==='bag'){invUpgrade(pc(INV_UP_COST,c,'upgrade'));renderShop();return}
   if(b.dataset.a==='vest'){const pr=pc(180,c);if(P.coins>=pr&&P.armor<100){P.coins-=pr;P.armor=100;sfx('coin',0);toast('Colete equipado!',1500)}renderShop();return}
-  const i=+b.dataset.i,w=WEAPONS[i],pr=pc(w.price,c),pk=pc(w.packCost,c);
+  const i=+b.dataset.i,w=WEAPONS[i],pr=pc(w.price,c,'weapon'),pk=pc(w.packCost,c,'ammo');
   if(b.dataset.a==='buy'&&P.coins>=pr){if(giveWeapon(i,true)){P.coins-=pr;sfx('coin',0);toast(w.name+' adquirida!'+(slotOfWeapon(i)>=0?' (barra '+(slotOfWeapon(i)+1)+')':' Está na bolsa: coloque-a na barra 1–6.'),2500)}}
   else if(b.dataset.a==='ammo'&&P.coins>=pk){P.coins-=pk;WS.reserve[i]=Math.min(WS.reserve[i]+w.pack,w.pack*8);sfx('coin',0)}
   renderShop();
 });
 function openClinic(c){G.clinicCity=c;G.clinicMode='menu';openPanel('clinic');renderClinic()}
-const clinicCost=(h,c)=>Math.max(1,Math.round(h*0.5*cityMul(c)));
+const clinicCost=(h,c)=>Math.max(1,Math.round(h*0.5*cityMul(c)*(rbufOn('gold')?0.8:1)));
 function renderClinic(){
   const c=G.clinicCity,miss=Math.ceil(P.maxhp-P.hp),full=clinicCost(miss,c),q=Math.min(miss,25),qc=clinicCost(q,c);
-  $('clinictxt').innerHTML='Vida: <b>'+Math.ceil(P.hp)+'/'+P.maxhp+'</b> • Moedas: <b>◉ '+P.coins+'</b><br>'+priceLabel(c)+'. Aqui a vida <b>não</b> volta sozinha: cada ponto custa ◉'+(0.5*cityMul(c)).toFixed(2).replace('.',',')+'.';
+  $('clinictxt').innerHTML='Vida: <b>'+Math.ceil(P.hp)+'/'+P.maxhp+'</b> • Moedas: <b>◉ '+P.coins+'</b><br>'+priceLabel(c)+'. Aqui a vida <b>não</b> volta sozinha: cada ponto custa ◉'+(0.5*cityMul(c)*(rbufOn('gold')?0.8:1)).toFixed(2).replace('.',',')+'.';
   const mode=G.clinicMode||'menu',back='<br><button class="alt" data-mode="menu" style="margin-top:8px">← Voltar</button>';
   if(mode==='menu')$('clinicbtns').innerHTML='<p>— Em que posso ajudar?</p><button class="gold" data-mode="heal">❤ Curar</button><button class="gold" data-mode="buy">🛍 Comprar</button>';
   else if(mode==='heal')$('clinicbtns').innerHTML=(miss<=0?'<p>Você está saudável!</p>':'<button class="gold" data-h="'+miss+'" '+(P.coins<full?'disabled':'')+'>Curar tudo (+'+miss+') ◉'+full+'</button><button data-h="'+q+'" '+(P.coins<qc?'disabled':'')+'>+'+q+' vida ◉'+qc+'</button>')+back;
   else $('clinicbtns').innerHTML='<p class="st">Itens de cura (ficam na bolsa; atalhos 7, 8, 9):</p>'
-    +Object.values(DATA.items).filter(d=>d.shop==='clinic').map(d=>{const p=pc(d.price,c);return '<button data-buy="'+d.id+'" '+(P.coins<p||Ledger.anyDebt()?'disabled':'')+'>'+d.icon+' '+d.name+' ◉'+p+'</button>'}).join('')+back;
+    +Object.values(DATA.items).filter(d=>d.shop==='clinic').map(d=>{const p=pc(d.price,c,'heal');return '<button data-buy="'+d.id+'" '+(P.coins<p||Ledger.anyDebt()?'disabled':'')+'>'+d.icon+' '+d.name+' ◉'+p+'</button>'}).join('')+back;
 }
 $('clinicbtns').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;
   if(b.dataset.mode){G.clinicMode=b.dataset.mode;renderClinic();return}
   if(b.dataset.buy){
-    const id=b.dataset.buy,d=itemDef(id),p=pc(d.price,G.clinicCity);
+    const id=b.dataset.buy,d=itemDef(id),p=pc(d.price,G.clinicCity,'heal');
     if(invRoomFor(id)<1)toast('Bolsa cheia! Descarte algo antes de comprar.',2000);
     else if(Ledger.spend({gold:p})){invGive([[id,1]]);sfx('coin',0);toast(d.icon+' '+d.name+' comprada',1500)}
     renderClinic();return;
@@ -231,7 +231,9 @@ $('cSave').onclick=()=>SaveUI.open('game');
 $('loadbtn').onclick=()=>SaveUI.open('load');
 $('cRes').onclick=()=>{for(const k of['food','ore','wood'])Ledger.add(k,100);refreshCheats()};
 $('cDebt').onclick=()=>{Ledger.borrow({gold:50});refreshCheats()};
-$('cRound').onclick=()=>{Rounds.advance();refreshCheats()};
+$('cRound').onclick=()=>{endRound();refreshCheats();closePanel()};
+$('cLeader').onclick=()=>{if(STATE.phase==='leader'||G.office){closePanel();return}STATE.rd.hallCity=WORLD.home.id;beginLeaderTurn();closePanel()};
+$('cActions').onclick=()=>{STATE.rd.lvl=Math.min(CAP_MAX_LVL,STATE.rd.lvl+1);toast('Capital nível '+STATE.rd.lvl,1500)};
 $('cItems').onclick=()=>{toast('Itens de teste: '+(invGive(Object.keys(DATA.items).map(id=>[id,1]))||'(bolsa cheia)'),2500)};
 $('cFill').onclick=()=>{const sl=STATE.inv.slots;for(let i=0;i<sl.length;i++)if(!sl[i])sl[i]={id:'sucata',n:20};invChanged();toast('Bolsa cheia de sucata. Dê um item novo para testar o descarte.',3000)};
 $('cWear').onclick=()=>{STATE.dur[WS.cur]=Math.max(0,STATE.dur[WS.cur]-40);toast('Durabilidade de '+WEAPONS[WS.cur].name+': '+Math.round(STATE.dur[WS.cur])+'%',1800)};
@@ -295,7 +297,7 @@ document.addEventListener('pointerlockchange',()=>{
 canvas.addEventListener('mousedown',e=>{
   if(!G.running)return;
   if(!G.locked&&!G.panel){try{canvas.requestPointerLock()}catch(_){}return}
-  if(G.panel||G.frozen)return;
+  if(G.panel||G.frozen||G.office)return;
   if(e.button===0){if(WS.rod)fishLeft(true);else{G.fireHeld=true;G.firePressed=true}}   // com a vara, o botão esquerdo é o minigame
   else if(e.button===2){if(WS.rod)fishRight(true);else G.aiming=true}                  // e o botão direito lança/recolhe a linha
 });
@@ -307,7 +309,7 @@ document.addEventListener('mousemove',e=>{
   P.yaw-=e.movementX*sens;P.pitch=clamp(P.pitch-e.movementY*sens,-1.5,1.5);
 });
 window.addEventListener('wheel',e=>{
-  if(!G.running||G.panel||G.frozen)return;
+  if(!G.running||G.panel||G.frozen||G.office)return;
   const dir=e.deltaY>0?1:-1,bar=STATE.inv.wbar;let i=equippedSlot();if(i<0)i=0;
   for(let k=0;k<WBAR;k++){i=(i+dir+WBAR)%WBAR;if(bar[i]){selectSlot(i);break}}
 });
@@ -327,9 +329,10 @@ window.addEventListener('keydown',e=>{
     return;
   }
   if(e.code==='KeyM'){if(G.panel==='map')closePanel();else if(!G.panel){drawBigMap();openPanel('map')}return}
-  if(G.panel==='shop'||G.panel==='clinic'||G.panel==='barracks'||G.panel==='quests'||G.panel==='store'||G.panel==='cook'||G.panel==='raid'){if(e.code==='KeyE'||e.code==='Escape')closePanel();return}
+  if(G.panel==='shop'||G.panel==='clinic'||G.panel==='barracks'||G.panel==='quests'||G.panel==='store'||G.panel==='cook'||G.panel==='raid'||G.panel==='ldbook'){if(e.code==='KeyE'||e.code==='Escape')closePanel();return}
   if(G.panel==='inv'){if(e.code==='KeyB'||e.code==='Escape'){if(!UI.closeTop())closePanel()}return}
   if(G.panel)return;
+  if(G.office){if(e.code==='KeyE'&&!e.repeat)doInteract();return}   // no escritório só se anda e se abre o livro
   if(e.repeat)return;
   if(e.code==='KeyC')P.crouch=!P.crouch;
   else if(e.code==='KeyR')startReload();
@@ -349,7 +352,7 @@ window.addEventListener('blur',()=>{G.keys={};G.fireHeld=false;G.aiming=false});
 
 function doInteract(){
   const t=G.target;if(!t)return;
-  if(t.type==='hall')openQuests(t.c);else if(t.type==='barracks')openBarracks(t.c);else if(t.type==='shop')openShop(t.c);else if(t.type==='clinic')openClinic(t.c);else if(t.type==='portal'){if(RAID.active&&!RAID.engaged)toast('Há um ataque em andamento! Defenda a cidade antes.',2500);else enterDungeon(t.p)}else if(t.type==='dgexit')leaveDungeon();else if(t.type==='store')openStore(t.c,'store');else if(t.type==='tavern')openStore(t.c,'tavern');else if(t.type==='stove')openCooking('tavern');else if(t.type==='fire')openCooking('fire');else if(t.type==='npc')npcTalk(t.n);else if(t.type==='chest')openChest(t.ch);else if(t.type==='cage')openCage(t.c);
+  if(t.type==='hall')openQuests(t.c);else if(t.type==='barracks')openBarracks(t.c);else if(t.type==='shop')openShop(t.c);else if(t.type==='clinic')openClinic(t.c);else if(t.type==='portal'){if(RAID.active&&!RAID.engaged)toast('Há um ataque em andamento! Defenda a cidade antes.',2500);else enterDungeon(t.p)}else if(t.type==='dgexit')leaveDungeon();else if(t.type==='store')openStore(t.c,'store');else if(t.type==='tavern')openStore(t.c,'tavern');else if(t.type==='stove')openCooking('tavern');else if(t.type==='fire')openCooking('fire');else if(t.type==='npc')npcTalk(t.n);else if(t.type==='chest')openChest(t.ch);else if(t.type==='cage')openCage(t.c);else if(t.type==='book')openBook();
 }
 function updateInteract(){
   G.target=null;G.attackCity=null;G.curCity=null;const lines=[];
@@ -370,6 +373,7 @@ function updateInteract(){
   for(const c of WORLD.camps){if(c.gone)continue;const d=Math.max(Math.abs(P.x-c.cx),Math.abs(P.z-c.cz));if(d<c.half+8&&d<bestD){bestD=d;G.curCity=c}
     if(c.firePos&&Math.hypot(P.x-c.firePos.x,P.z-c.firePos.z)<3.4){G.target={type:'fire',c};lines.push('[E] Fogueira: cozinhar')}
     if(c.cage&&!c.cage.opened&&Math.hypot(P.x-c.cage.dp.x,P.z-c.cage.dp.z)<2.8){G.target={type:'cage',c};lines.push(c.state==='cleared'?'[E] Abrir a grade e libertar o refém':'🔒 Grade trancada — elimine os bandidos')}}
+  if(G.office&&OFFICE.desk&&Math.hypot(P.x-OFFICE.desk.x,P.z-OFFICE.desk.z)<2.8){G.target={type:'book'};lines.push('[E] Abrir o livro de decisões')}
   {const pp=portalNear();if(pp){G.target={type:'portal',p:pp};lines.push('[E] Entrar no portal — dungeon nível '+pp.tier+' • recompensa: '+rewardText(pp))}}
   if(G.dg&&G.dgPad&&Math.hypot(P.x-G.dgPad.x,P.z-G.dgPad.z)<2.6){G.target={type:'dgexit'};lines.push('[E] Sair da dungeon (volta ao portal)')}
   for(const ch of WORLD.chests){if(ch.opened)continue;const d=Math.hypot(ch.x-P.x,ch.z-P.z);if(d<2.8&&Math.abs(ch.y-P.y)<2){G.target={type:'chest',ch};lines.push(ch.lockedBy&&ch.lockedBy.state!=='cleared'?'🔒 Baú trancado — elimine os bandidos':'[E] Abrir baú')}}
@@ -578,7 +582,7 @@ function update(dt){
   if(!P.dead)updatePlayer(dt);
   updateWeapons(dt);
   updateActors(dt);updateAllies(dt);updateCritters(dt);updateWild(dt);updateChests(dt);updateDayNight(dt);updateQuests(dt);
-  updateFx(dt);checkStuck(dt);updateInventory(dt);updateFishing(dt);updateVendors();updatePortals(dt);updateRaids(dt);
+  updateFx(dt);checkStuck(dt);updateInventory(dt);updateFishing(dt);updateVendors();updatePortals(dt);updateRaids(dt);updateRounds(dt);
   updateInteract();
   // recuo: cidade em ataque se o jogador se afastou demais
   for(const c of WORLD.cities)if(c.state==='attacking'&&Math.hypot(c.cx-P.x,c.cz-P.z)>170){c.state='idle';toast('Você recuou. Os inimigos voltam aos postos.',2500);for(const e of c.enemies)if(e.alive){e.hp=e.maxhp}}
@@ -616,7 +620,7 @@ async function startGame(creative,loadData){
     if(loadData){applySave(loadData);applyFishGone();rebuildPortals();rebuildSmoke()}
     else{spawnPortals();RAID.active=false;RAID.area=null}
     refreshHotbar();refreshBuffs();fishClean();
-    G.running=true;$('hud').classList.remove('hidden');
+    G.running=true;$('hud').classList.remove('hidden');initEconomy();rebuildCaravans();refreshRoundHud();if(STATE.phase==='leader')enterOffice();
     refreshCheats();
     $('seed').value=String(seed);
     document.querySelector('#pause h2').textContent=(loadData?'✔ JOGO CARREGADO — semente ':'✔ MUNDO PRONTO — semente ')+seed;

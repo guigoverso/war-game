@@ -11,7 +11,7 @@ const playerCities=()=>WORLD.cities.filter(c=>c.owner==='player');
 const inCityZone=(c,pad)=>Math.max(Math.abs(P.x-c.cx),Math.abs(P.z-c.cz))<c.half+(pad||6);
 
 function startRaid(c){
-  if(RAID.active||G.dg||P.dead)return false;
+  if(RAID.active||G.dg||G.office||P.dead)return false;
   const list=playerCities();if(!list.length)return false;
   c=c||list[Math.floor(Math.random()*list.length)];
   const rank=Math.max(1,c.rank||1),n=5+rank;
@@ -75,7 +75,7 @@ function updateRaids(dt){
   const day=Math.floor(DN.days);
   if(!RAID.active&&day>(STATE.raidDay||0)){
     STATE.raidDay=day;
-    if(day>=2&&DN.days-(STATE.raidLast||-9)>=1.5&&!G.dg&&Math.random()<RAID_CHANCE)startRaid();
+    if(day>=2&&DN.days-(STATE.raidLast||-9)>=1.5&&!G.dg&&!G.office&&Math.random()<RAID_CHANCE)startRaid();
   }
   // fim da fumaça
   for(const id in STATE.burnt)if(DN.days-STATE.burnt[id]>SMOKE_DAYS){delete STATE.burnt[id];clearSmoke(WORLD.cities[id])}
