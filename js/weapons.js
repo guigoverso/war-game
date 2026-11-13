@@ -8,12 +8,12 @@ const WEAPONS=[
   {id:'sniper',name:'Rifle Sniper',desc:'Um tiro, uma morte. Zoom 4x (botão direito).',dmg:140,rpm:50,auto:false,mag:5,spread:0.02,pellets:1,range:260,price:600,pack:10,packCost:42,reload:2.8,zoom:4,rec:0.14,sfx:'sniper'},
   {id:'launcher',name:'Lança-foguetes',desc:'Explosão em área. Cuidado com o recuo!',dmg:150,rpm:48,auto:false,mag:1,spread:0.0,pellets:1,range:200,price:900,pack:4,packCost:70,reload:2.6,zoom:1.25,rec:0.2,sfx:'launcher',rocket:true}
 ];
-const WS={owned:[true,false,false,false,false,false],mag:[],reserve:[],cur:0,cool:0,reload:0,recoil:0,flash:0,vm:[],muzzle:[]};
+const WS={owned:[true,false,false,false,false,false],mag:[],reserve:[],cur:0,cool:0,reload:0,recoil:0,flash:0,vm:[],muzzle:[],rod:false,none:false};
 const ROCKETS=[];
 let game_kills=0;
 function initWeapons(){
   WEAPONS.forEach((w,i)=>{WS.mag[i]=w.mag;WS.reserve[i]=i===0?48:0;WS.owned[i]=i===0});
-  WS.cur=0;WS.cool=0;WS.reload=0;
+  WS.cur=0;WS.cool=0;WS.reload=0;WS.rod=false;WS.none=false;
 }
 // Armas em primeira pessoa: voxels de 2 cm numa única malha (arma + mãos + antebraços) por arma.
 // Em cada receita: x = direita, y = cima, z = para trás (a frente é z negativo).
@@ -95,13 +95,50 @@ function buildViewmodels(camera){
     for(let i=0;i<6;i++)b.box(-2,-6-i,2+(i>>1),2,-5-i,6+(i>>1),GR);
     hand(b,0,-9,5,1);hand(b,-1,-9,-14,-1.5);
   },0,-46);
+  // 6 vara de pescar (índice WEAPONS.length): cabo de cortiça, carretilha com manivela, haste que sobe, passadores e ponta vermelha
+  const RODTIP=[17,-88];
+  mk(b=>{
+    const BR=0x6b4a2a,BR2=0x4a321a,RD=0xb03a3a,CORK=0xc8a060,CORK2=0xa88040,GY=0x6a7078,GD=0x2a2a2e,YL=0xe0c030;
+    b.box(-2,-5,-6,2,0,10,CORK);b.box(-2,-5,-6,2,-4,10,CORK2);          // cabo
+    b.box(-2,-6,10,2,-1,14,BR2);                                         // fundo do cabo
+    b.box(-3,-8,0,3,-5,6,GY);b.box(-2,-10,1,2,-8,5,GD);                 // carretilha
+    b.box(3,-7,2,6,-6,3,YL);b.box(6,-7,2,7,-4,3,YL);                    // manivela
+    b.box(-1,-5,-12,1,-1,-6,BR2);                                        // virola
+    for(let i=0;i<16;i++){                                               // haste em gomos que sobe e afina
+      const z=-12-i*5,y=-3+Math.round(i*1.2);
+      b.box(-1,y,z-5,1,y+2,z,i%5===4?RD:BR);
+      if(i>0&&i%3===0)b.box(-1,y+2,z-2,1,y+3,z-1,GY),b.box(0,y+3,z-2,1,y+4,z-1,GY);   // passadores de linha
+    }
+    b.box(0,RODTIP[0]-1,RODTIP[1]-1,1,RODTIP[0]+2,RODTIP[1]+3,RD);       // ponteira vermelha
+    hand(b,0,-5,3,1);hand(b,-1,-3,-20,-1.6);
+  },RODTIP[0],RODTIP[1]);
+  {
+    // linha pendurada na ponta, com boia e anzol (some quando a linha é lançada)
+    const rv=WS.vm[WS.vm.length-1],dg=new THREE.Group();dg.position.set(0,RODTIP[0]*0.02,RODTIP[1]*0.02);
+    const ln=new THREE.Mesh(GEO_BOX,new THREE.MeshBasicMaterial({color:0xf0f0f0}));ln.scale.set(0.006,0.34,0.006);ln.position.set(0,-0.17,0);dg.add(ln);
+    const bo=new THREE.Mesh(GEO_BOX,new THREE.MeshLambertMaterial({color:0xe03a3a}));bo.scale.set(0.05,0.045,0.05);bo.position.set(0,-0.13,0);dg.add(bo);
+    const bw=new THREE.Mesh(GEO_BOX,new THREE.MeshLambertMaterial({color:0xffffff}));bw.scale.set(0.05,0.03,0.05);bw.position.set(0,-0.105,0);dg.add(bw);
+    const hk=new THREE.Mesh(GEO_BOX,new THREE.MeshLambertMaterial({color:0x9aa0a8}));hk.scale.set(0.012,0.04,0.012);hk.position.set(0,-0.36,0);dg.add(hk);
+    const hk2=new THREE.Mesh(GEO_BOX,new THREE.MeshLambertMaterial({color:0x9aa0a8}));hk2.scale.set(0.03,0.01,0.01);hk2.position.set(0.012,-0.38,0);dg.add(hk2);
+    rv.add(dg);WS.rodDangle=dg;WS.rodTip=new THREE.Vector3(0,RODTIP[0]*0.02,RODTIP[1]*0.02);
+  }
 }
+// equipa uma arma (ela precisa estar na barra 1–6)
 function selectWeapon(i){
-  if(!WS.owned[i]||i===WS.cur)return;
-  WS.cur=i;WS.reload=0;WS.cool=0.25;WS.vm.forEach((v,k)=>v.visible=(k===i));
+  if(!WS.owned[i]||!STATE.inv.wbar.includes(wItemId(i)))return;
+  if(i===WS.cur&&!WS.rod&&!WS.none)return;
+  if(typeof FISH!=='undefined'&&FISH.state!=='idle')fishClean();
+  WS.cur=i;WS.rod=false;WS.none=false;WS.reload=0;WS.cool=0.25;WS.vm.forEach((v,k)=>v.visible=(k===i));
+  sfx('reload',0);
+}
+// equipa a vara de pescar (índice WEAPONS.length no vetor de modelos)
+function equipRod(){
+  if(WS.rod)return;
+  WS.rod=true;WS.none=false;WS.reload=0;G.aiming=false;WS.vm.forEach((v,k)=>v.visible=(k===WEAPONS.length));
   sfx('reload',0);
 }
 function startReload(){
+  if(WS.rod||WS.none)return;
   const w=WEAPONS[WS.cur];
   if(G.noReload||WS.reload>0||WS.mag[WS.cur]>=w.mag||WS.reserve[WS.cur]<=0&&!G.infAmmo)return;
   WS.reload=w.reload;sfx('reload',0);
@@ -120,7 +157,7 @@ function actorHit(a,ox,oy,oz,dx,dy,dz,maxT){
 function fireWeapon(){
   const w=WEAPONS[WS.cur];
   if(WS.cool>0||WS.reload>0||P.dead)return;
-  if(FISH.state!=='idle')return;   // pescando: o botão esquerdo puxa a linha, não atira
+  if(WS.rod||WS.none)return;   // com a vara (ou sem arma) não dá para atacar
   if(weaponBroken()){sfx('empty',0);WS.cool=0.4;if(!G.brokenToast||G.t-G.brokenToast>3){toast('💥 '+w.name+' quebrada! Troque de arma ou conserte no armeiro.',2500);G.brokenToast=G.t}return}
   if(WS.mag[WS.cur]<=0&&!G.noReload){if(WS.reserve[WS.cur]>0||G.infAmmo)startReload();else{sfx('empty',0);WS.cool=0.3}return}
   if(!G.noReload)WS.mag[WS.cur]--;WS.cool=60/w.rpm;WS.recoil=1;WS.flash=0.05;
@@ -167,7 +204,12 @@ function updateWeapons(dt){
   if(G.fireHeld&&!P.dead&&(w.auto||G.firePressed)){fireWeapon()}
   G.firePressed=false;
   WS.recoil=Math.max(0,WS.recoil-dt*9);WS.flash-=dt;
-  const vm=WS.vm[WS.cur];
+  if(WS.rod){   // vara na mão: balança de leve e a linha pendurada some enquanto a linha está lançada
+    const rv=WS.vm[WEAPONS.length];
+    if(rv){rv.position.x+=(0.24-rv.position.x)*Math.min(1,dt*14);rv.position.y+=(-0.22-rv.position.y)*Math.min(1,dt*14);rv.position.z=-0.62+Math.sin(G.bob*2)*0.004*(P.speed>1?1:0);rv.rotation.x=Math.sin(G.t*1.6)*0.01;rv.rotation.z=Math.sin(G.bob)*0.01*(P.speed>1?1:0);rv.visible=true}
+    if(WS.rodDangle)WS.rodDangle.visible=(typeof FISH==='undefined'||FISH.state==='idle');
+  }
+  const vm=(WS.rod||WS.none)?null:WS.vm[WS.cur];
   if(vm){
     const aimK=G.aiming?1:0;
     const tx=lerp(0.24,0.0,aimK),ty=lerp(-0.22,-0.15,aimK);

@@ -67,7 +67,7 @@ button,input[type=text]{font-family:inherit;font-size:16px}
 button{pointer-events:auto;cursor:pointer;background:#4a8a3a;color:#fff;border:3px solid #111;box-shadow:inset 0 -4px 0 rgba(0,0,0,.3),inset 0 3px 0 rgba(255,255,255,.2);padding:8px 14px;margin:4px 6px 4px 0;text-shadow:1px 1px 0 #000}
 button:hover{filter:brightness(1.15)}button:disabled{filter:grayscale(1) brightness(.6);cursor:not-allowed}
 .saverow{display:flex;align-items:center;gap:8px;margin:8px 0;padding:8px;background:#23232b;border:2px solid #111}.saveinfo{flex:1;font-size:14px;color:#ddd}.saveinfo span{font-size:12px;color:#aaa}
-.slotgrid{display:grid;gap:4px}.slot{position:relative;width:48px;height:48px;background:#23232b;border:2px solid #111;box-shadow:inset 0 0 0 2px #3a3a46;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer}.slot b{position:absolute;right:2px;bottom:0;font-size:12px;color:#ffd23a;text-shadow:1px 1px 0 #000}.slot:hover{filter:brightness(1.25)}
+.slotgrid{display:grid;gap:4px}.slot{position:relative;width:48px;height:48px;background:#23232b;border:2px solid #111;box-shadow:inset 0 0 0 2px #3a3a46;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer}.slot b{position:absolute;right:2px;bottom:0;font-size:12px;color:#ffd23a;text-shadow:1px 1px 0 #000}.slot:hover{filter:brightness(1.25)}.slot i{position:absolute;left:3px;top:0;font-size:11px;font-style:normal;color:#ccc;text-shadow:1px 1px 0 #000}
 .uitip{position:fixed;z-index:200;display:none;background:#111;color:#eee;border:2px solid #5a5a66;padding:5px 8px;font-size:13px;max-width:260px;pointer-events:none}
 #ledgerline{font-size:13px;color:#ddd;margin:4px 0}
 .mixrow{display:flex;align-items:center;gap:10px;margin:5px 0;font-size:14px;color:#ddd}.mixrow span:first-child{flex:0 0 250px}.mixrow input{flex:1;accent-color:#ffd23a;cursor:pointer}.mixrow b{flex:0 0 46px;text-align:right;color:#ffd23a}
@@ -132,11 +132,11 @@ label{font-size:14px}
 <div id="quests" class="screen hidden"><div class="panel"><h2>📜 QUADRO DE MISSÕES</h2><div class="big" id="qinfo"></div><div id="qbody"></div><button class="alt" id="qclose">Fechar (E)</button></div></div>
 <div id="inv" class="screen hidden"><div class="panel" style="min-width:640px"><h2>🎒 BOLSA</h2><div class="big" id="invinfo"></div>
   <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:8px">
-    <div><div id="invgrid"></div><div id="invweapons" style="margin-top:10px"></div></div>
+    <div><b class="st">Armas e vara — teclas 1–6</b><div id="invwbar"></div><b class="st" style="display:block;margin-top:8px">Curas — teclas 7–9</b><div id="invcbar"></div><b class="st" style="display:block;margin-top:8px">Bolsa</b><div id="invgrid"></div></div>
     <div style="min-width:250px;max-width:300px"><div id="invdetail"></div><div id="invpending"></div></div>
   </div>
   <button id="invup" class="gold">Ampliar bolsa</button><button id="invclose" class="alt">Fechar (B)</button></div></div>
-<div id="store" class="screen hidden"><div class="panel" style="min-width:640px"><h2>🛒 LOJA</h2><div class="big" id="storeinfo"></div><div id="storebody"></div><button id="storeclose" class="alt" style="margin-top:10px">Sair (E)</button></div></div>
+<div id="store" class="screen hidden"><div class="panel" style="min-width:640px"><h2 id="storetitle">🛒 LOJA</h2><div class="big" id="storeinfo"></div><div id="storebody"></div><button id="storeclose" class="alt" style="margin-top:10px">Sair (E)</button></div></div>
 <div id="cook" class="screen hidden"><div class="panel" style="min-width:560px"><h2>🍳 COZINHA</h2><div class="big" id="cookinfo"></div><div class="grid" id="cookbody"></div><button id="cookclose" class="alt">Fechar (E)</button></div></div>
 <div id="pause" class="screen hidden"><div class="panel" style="min-width:420px"><h2>⏸ PAUSA</h2>
   <button id="resume" class="gold">▶ Continuar</button><br>

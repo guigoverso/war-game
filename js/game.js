@@ -147,7 +147,7 @@ function openPanel(name){
 // Congelar (tecla P): para o mundo, esconde HUD e arma; o mouse ainda gira a câmera para enquadrar prints
 function setFrozen(v){
   G.frozen=v;hud.classList.toggle('hidden',v);
-  const vm=WS.vm[WS.cur];if(vm)vm.visible=!v;
+  if(v)WS.vm.forEach(x=>x.visible=false);else ensureEquipped();
   if(v){G.fireHeld=false;G.aiming=false}
 }
 // modo invencível liga/desliga a munição infinita junto
@@ -186,7 +186,7 @@ $('shopgrid').addEventListener('click',e=>{
   if(b.dataset.a==='repair'){repairWeapon(+b.dataset.i,c);renderShop();return}
   if(b.dataset.a==='vest'){const pr=pc(180,c);if(P.coins>=pr&&P.armor<100){P.coins-=pr;P.armor=100;sfx('coin',0);toast('Colete equipado!',1500)}renderShop();return}
   const i=+b.dataset.i,w=WEAPONS[i],pr=pc(w.price,c),pk=pc(w.packCost,c);
-  if(b.dataset.a==='buy'&&P.coins>=pr){P.coins-=pr;WS.owned[i]=true;WS.mag[i]=w.mag;WS.reserve[i]=w.pack;STATE.dur[i]=100;sfx('coin',0);selectWeapon(i);toast(w.name+' adquirida!',1500)}
+  if(b.dataset.a==='buy'&&P.coins>=pr){if(giveWeapon(i,true)){P.coins-=pr;sfx('coin',0);toast(w.name+' adquirida!'+(slotOfWeapon(i)>=0?' (barra '+(slotOfWeapon(i)+1)+')':' Está na bolsa: coloque-a na barra 1–6.'),2500)}}
   else if(b.dataset.a==='ammo'&&P.coins>=pk){P.coins-=pk;WS.reserve[i]=Math.min(WS.reserve[i]+w.pack,w.pack*8);sfx('coin',0)}
   renderShop();
 });
@@ -197,7 +197,7 @@ function renderClinic(){
   $('clinictxt').innerHTML='Vida: <b>'+Math.ceil(P.hp)+'/'+P.maxhp+'</b> • Moedas: <b>◉ '+P.coins+'</b><br>'+priceLabel(c)+'. Aqui a vida <b>não</b> volta sozinha: cada ponto custa ◉'+(0.5*cityMul(c)).toFixed(2).replace('.',',')+'.';
   $('clinicbtns').innerHTML=(miss<=0?'<p>Você está saudável!</p>':'<button class="gold" data-h="'+miss+'" '+(P.coins<full?'disabled':'')+'>Curar tudo (+'+miss+') ◉'+full+'</button><button data-h="'+q+'" '+(P.coins<qc?'disabled':'')+'>+'+q+' vida ◉'+qc+'</button>')
     +'<p class="st" style="margin-top:10px">Itens de cura (ficam na bolsa; atalhos 7, 8, 9):</p>'
-    +Object.values(DATA.items).filter(d=>d.price).map(d=>{const p=pc(d.price,c);return '<button data-buy="'+d.id+'" '+(P.coins<p||Ledger.anyDebt()?'disabled':'')+'>'+d.icon+' '+d.name+' ◉'+p+'</button>'}).join('');
+    +Object.values(DATA.items).filter(d=>d.shop==='clinic').map(d=>{const p=pc(d.price,c);return '<button data-buy="'+d.id+'" '+(P.coins<p||Ledger.anyDebt()?'disabled':'')+'>'+d.icon+' '+d.name+' ◉'+p+'</button>'}).join('');
 }
 $('clinicbtns').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;
@@ -252,7 +252,7 @@ $('cGod').onclick=()=>{setGod(!G.god);refreshCheats()};
 $('cMag').onclick=()=>{G.noReload=!G.noReload;refreshCheats()};
 $('cAmmo').onclick=()=>{G.infAmmo=!G.infAmmo;refreshCheats()};
 $('cCoins').onclick=()=>{P.coins+=1000;toast('+1000 moedas',1000)};
-$('cWeap').onclick=()=>{WEAPONS.forEach((w,i)=>{WS.owned[i]=true;WS.reserve[i]=Math.max(WS.reserve[i],w.pack*3)});toast('Todas as armas liberadas',1200)};
+$('cWeap').onclick=()=>{WEAPONS.forEach((w,i)=>{giveWeapon(i,true);WS.reserve[i]=Math.max(WS.reserve[i]||0,w.pack*3)});toast('Todas as armas liberadas',1200)};
 $('cTp').onclick=()=>{
   let best=null,bd=1e9;for(const c of WORLD.cities)if(c.owner==='enemy'){const d=Math.hypot(c.cx-P.x,c.cz-P.z);if(d<bd){bd=d;best=c}}
   if(!best){toast('Todas as cidades já são suas!',1500);return}
@@ -276,9 +276,10 @@ canvas.addEventListener('mousedown',e=>{
   if(!G.running)return;
   if(!G.locked&&!G.panel){try{canvas.requestPointerLock()}catch(_){}return}
   if(G.panel||G.frozen)return;
-  if(e.button===0){G.fireHeld=true;G.firePressed=true}else if(e.button===2)G.aiming=true;
+  if(e.button===0){G.fireHeld=true;G.firePressed=true}
+  else if(e.button===2){if(WS.rod)fishRight(true);else G.aiming=true}   // com a vara, o botão direito pesca
 });
-window.addEventListener('mouseup',e=>{if(e.button===0)G.fireHeld=false;else if(e.button===2)G.aiming=false});
+window.addEventListener('mouseup',e=>{if(e.button===0)G.fireHeld=false;else if(e.button===2){G.aiming=false;fishRight(false)}});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 document.addEventListener('mousemove',e=>{
   if(!G.locked||G.panel)return;
@@ -287,8 +288,8 @@ document.addEventListener('mousemove',e=>{
 });
 window.addEventListener('wheel',e=>{
   if(!G.running||G.panel||G.frozen)return;
-  const dir=e.deltaY>0?1:-1;let i=WS.cur;
-  for(let k=0;k<6;k++){i=(i+dir+6)%6;if(WS.owned[i]){selectWeapon(i);break}}
+  const dir=e.deltaY>0?1:-1,bar=STATE.inv.wbar;let i=equippedSlot();if(i<0)i=0;
+  for(let k=0;k<WBAR;k++){i=(i+dir+WBAR)%WBAR;if(bar[i]){selectSlot(i);break}}
 });
 window.addEventListener('keydown',e=>{
   if(e.target&&e.target.tagName==='INPUT')return;
@@ -320,16 +321,15 @@ window.addEventListener('keydown',e=>{
   else if(e.code==='KeyE')doInteract();
   else if(e.code==='KeyF'){if(G.attackCity)startAttack(G.attackCity)}
   else if(e.code==='KeyB')openInventory();
-  else if(e.code==='KeyT')fishKey();
   else if(e.code==='Digit7'||e.code==='Digit8'||e.code==='Digit9')useBar(+e.code.slice(5)-7);
-  else if(e.code.startsWith('Digit')){const i=+e.code.slice(5)-1;if(i>=0&&i<6)selectWeapon(i)}
+  else if(e.code.startsWith('Digit')){const i=+e.code.slice(5)-1;if(i>=0&&i<WBAR)selectSlot(i)}
 });
 window.addEventListener('keyup',e=>{G.keys[e.code]=false});
 window.addEventListener('blur',()=>{G.keys={};G.fireHeld=false;G.aiming=false});
 
 function doInteract(){
   const t=G.target;if(!t)return;
-  if(t.type==='hall')openQuests(t.c);else if(t.type==='barracks')openBarracks(t.c);else if(t.type==='shop')openShop(t.c);else if(t.type==='clinic')openClinic(t.c);else if(t.type==='store')openStore(t.c);else if(t.type==='tavern')openCooking('tavern');else if(t.type==='fire')openCooking('fire');else if(t.type==='npc')npcTalk(t.n);else if(t.type==='chest')openChest(t.ch);else if(t.type==='cage')openCage(t.c);
+  if(t.type==='hall')openQuests(t.c);else if(t.type==='barracks')openBarracks(t.c);else if(t.type==='shop')openShop(t.c);else if(t.type==='clinic')openClinic(t.c);else if(t.type==='store')openStore(t.c,'store');else if(t.type==='tavern')openStore(t.c,'tavern');else if(t.type==='stove')openCooking('tavern');else if(t.type==='fire')openCooking('fire');else if(t.type==='npc')npcTalk(t.n);else if(t.type==='chest')openChest(t.ch);else if(t.type==='cage')openCage(t.c);
 }
 function updateInteract(){
   G.target=null;G.attackCity=null;G.curCity=null;const lines=[];
@@ -341,8 +341,9 @@ function updateInteract(){
     if(c.shop){const ds=Math.hypot(P.x-c.shop.x,P.z-c.shop.z);if(ds<4.5){G.target={type:'shop',c};lines.push('[E] Comprar armas e munição'+mulTag(c))}}
     if(c.barracks){const ds=Math.hypot(P.x-c.barracks.x,P.z-c.barracks.z);if(ds<4.5){G.target={type:'barracks',c};lines.push('[E] Quartel: recrutar e equipar soldados'+mulTag(c))}}
     if(c.clinic){const ds=Math.hypot(P.x-c.clinic.x,P.z-c.clinic.z);if(ds<4.5){G.target={type:'clinic',c};lines.push('[E] Clínica: curar ferimentos'+mulTag(c))}}
-    if(c.store){const ds=Math.hypot(P.x-c.store.x,P.z-c.store.z);if(ds<4.5){G.target={type:'store',c};lines.push('[E] Loja: vender itens')}}
-    if(c.tavern){const ds=Math.hypot(P.x-c.tavern.x,P.z-c.tavern.z);if(ds<4.5){G.target={type:'tavern',c};lines.push('[E] Taverna: cozinhar')}}
+    if(c.store){const ds=Math.hypot(P.x-c.store.x,P.z-c.store.z);if(ds<4.5){G.target={type:'store',c};lines.push('[E] Loja: vender e comprar itens')}}
+    if(c.tavern){const ds=Math.hypot(P.x-c.tavern.x,P.z-c.tavern.z);if(ds<3.2){G.target={type:'tavern',c};lines.push('[E] Taverneiro: comprar comida pronta')}}
+    if(c.stove){const ds=Math.hypot(P.x-c.stove.x,P.z-c.stove.z);if(ds<3.0){G.target={type:'stove',c};lines.push('[E] Fogão: cozinhar')}}
     if(c.hall){const ds=Math.hypot(P.x-c.hall.x,P.z-c.hall.z);if(ds<4.5){if(c.owner==='player'){G.target={type:'hall',c};lines.push('[E] Prefeitura: quadro de missões')}else lines.push('🔒 Prefeitura fechada — conquiste a cidade')}}
     if(c.owner==='enemy'&&c.state==='idle'&&d<c.half+10){G.attackCity=c;lines.push('[F] ATACAR '+c.name.toUpperCase())}
   }
@@ -356,7 +357,7 @@ function updateInteract(){
       if(d<bd&&(dx*_d.x+dz*_d.z)/(d||1)>0.75*Math.hypot(_d.x,_d.z)){bd=d;G.target={type:'npc',n}}}
     if(G.target)lines.unshift('[E] Falar');
   }
-  if(!lines.length&&FISH.state==='idle'&&invCount('vara')>0&&!P.dead&&findWaterSpot())lines.push('[T] Pescar');
+  if(!lines.length&&FISH.state==='idle'&&WS.rod&&!P.dead){const sp=findFishSpot();lines.push(sp?'[Botão direito] Pescar neste cardume':'🎣 Procure um cardume (peixes nadando em círculo) e mire nele')}
   $('prompt').innerHTML=lines.join('<br>');
 }
 
@@ -388,8 +389,8 @@ function updatePlayer(dt){
   camera.fov+=(tf-camera.fov)*Math.min(1,dt*12);camera.updateProjectionMatrix();
   const uw=camera.position.y<SEA-0.15&&tH(P.x,P.z)<SEA;
   $('under').classList.toggle('hidden',!uw);
-  $('scope').classList.toggle('hidden',!(G.aiming&&WS.cur===4));
-  $('crosshair').style.display=(G.aiming&&WS.cur===4)?'none':'block';
+  $('scope').classList.toggle('hidden',!(G.aiming&&WS.cur===4&&!WS.rod&&!WS.none));
+  $('crosshair').style.display=(G.aiming&&WS.cur===4&&!WS.rod&&!WS.none)?'none':'block';
   G.peek=peek;
 }
 
@@ -399,10 +400,15 @@ function updateHUD(dt){
   $('hpfill').style.width=(P.hp/P.maxhp*100)+'%';$('hptext').textContent='VIDA '+Math.ceil(P.hp)+' / '+P.maxhp;$('arfill').style.width=P.armor+'%';$('arbox').style.display=P.armor>0?'block':'none';
   $('coins').textContent='◉ '+P.coins+(P.coins<0?'  (dívida)':'');$('coins').classList.toggle('debt',P.coins<0);
   const w=WEAPONS[WS.cur];
-  $('wname').textContent=w.name+(weaponBroken()?'  💥 QUEBRADA':'  •  '+Math.round(durOf(WS.cur))+'%')+(WS.reload>0?'  (recarregando...)':'');
-  $('ammo').innerHTML=(G.noReload?'∞':WS.mag[WS.cur])+' <small>/ '+(G.infAmmo?'∞':WS.reserve[WS.cur])+'</small>';
-  if(!wlistBuilt){$('wlist').innerHTML=WEAPONS.map((x,i)=>'<div class="ws" id="ws'+i+'">'+(i+1)+'</div>').join('');wlistBuilt=true}
-  WEAPONS.forEach((x,i)=>{$('ws'+i).className='ws'+(WS.owned[i]?' own':'')+(i===WS.cur?' cur':'')});
+  if(WS.rod){$('wname').textContent='🎣 Vara de pescar';$('ammo').innerHTML='<small>botão direito: pescar</small>'}
+  else if(WS.none){$('wname').textContent='Sem arma';$('ammo').innerHTML='<small>coloque uma arma na barra 1–6 (B)</small>'}
+  else{
+    $('wname').textContent=w.name+(weaponBroken()?'  💥 QUEBRADA':'  •  '+Math.round(durOf(WS.cur))+'%')+(WS.reload>0?'  (recarregando...)':'');
+    $('ammo').innerHTML=(G.noReload?'∞':WS.mag[WS.cur])+' <small>/ '+(G.infAmmo?'∞':WS.reserve[WS.cur])+'</small>';
+  }
+  if(!wlistBuilt){$('wlist').innerHTML=[0,1,2,3,4,5].map(i=>'<div class="ws" id="ws'+i+'">'+(i+1)+'</div>').join('');wlistBuilt=true}
+  const eq=equippedSlot();
+  STATE.inv.wbar.forEach((id,i)=>{const d=id&&itemDef(id);$('ws'+i).className='ws'+(id?' own':'')+(i===eq?' cur':'');$('ws'+i).textContent=d?d.icon:(i+1)});
   $('god').classList.toggle('hidden',!G.god);$('invis').classList.toggle('hidden',!G.invis);
   $('crouchtag').classList.toggle('hidden',!P.crouch);
   let inCover=false;
@@ -583,8 +589,8 @@ async function startGame(creative,loadData){
     await genWorld(seed,msg,$('biosel').value);
     msg('Populando cidades...');await tick();
     msg('Calculando rotas...');await tick();buildNav();initWeapons();buildViewmodels(camera);initFx();initSky();initDayNight();populateCities();populateWild();placePlayerHome();
-    WS.vm[0].visible=true;
-    if(loadData)applySave(loadData);
+    syncOwned();ensureEquipped();genFishSpots();
+    if(loadData){applySave(loadData);applyFishGone()}
     refreshHotbar();refreshBuffs();fishClean();
     G.running=true;$('hud').classList.remove('hidden');
     refreshCheats();

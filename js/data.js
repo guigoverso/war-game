@@ -40,13 +40,13 @@ defItems([
   ['moeda_antiga','Moeda antiga','🪙','trophy',10,40,'Cunhagem de um reino esquecido.'],
   ['joia','Joia lapidada','💎','trophy',5,90,'Brilha mesmo no escuro.'],
   ['reliquia','Relíquia','🏺','relic',5,150,'Objeto antigo e raro. Guardada para oferecer a facções (em breve).',{noSell:true}],
-  ['bandagem','Bandagem','🩹','consumable',10,20,'Estanca os ferimentos. Cura 25 de vida.',{use:{heal:25},price:25}],
-  ['kit_medico','Kit médico','🧰','consumable',5,50,'Material completo de primeiros socorros. Cura 60 de vida.',{use:{heal:60},price:65}],
+  ['bandagem','Bandagem','🩹','consumable',10,20,'Estanca os ferimentos. Cura 25 de vida.',{use:{heal:25},price:25,shop:'clinic'}],
+  ['kit_medico','Kit médico','🧰','consumable',5,50,'Material completo de primeiros socorros. Cura 60 de vida.',{use:{heal:60},price:65,shop:'clinic'}],
   ['erva_curativa','Erva curativa','🌱','consumable',10,15,'Cura 40 de vida aos poucos, em 8 segundos.',{use:{regen:{total:40,secs:8}}}]
 ]);
 // ---------- Fase 2: pesca, cozinha e bônus temporários ----------
 defItems([
-  ['vara','Vara de pescar','🎣','tool',1,0,'Fique de frente para a água e aperte T para pescar. Não pode ser vendida nem descartada.',{key:true,noSell:true}],
+  ['vara','Vara de pescar','🎣','weapon',1,30,'Coloque na barra 1–6 e equipe. Com ela na mão, aperte o botão direito mirando um cardume para pescar. Não serve para atacar.',{rod:true,price:60,shop:'store'}],
   ['lambari','Lambari','🐟','material',10,5,'Peixe pequeno de rio. Bom para a frigideira.',{tags:['fish']}],
   ['tilapia','Tilápia','🐟','material',10,8,'Peixe de água doce, muito comum.',{tags:['fish']}],
   ['bagre','Bagre','🐟','material',10,12,'Peixe de fundo, mais ativo à noite.',{tags:['fish']}],
@@ -57,12 +57,17 @@ defItems([
   ['caranguejo','Caranguejo','🦀','material',10,10,'Marisco das praias e do mar.'],
   ['peixe_dourado','Peixe dourado','✨','trophy',5,60,'Raríssimo. Brilha como ouro.',{tags:['fish']}],
   ['bota','Bota velha','🥾','material',10,1,'Alguém perdeu isto no fundo da água.'],
-  ['peixe_assado','Peixe assado','🍢','consumable',5,18,'Peixe na brasa. Cura 35 de vida.',{use:{heal:35}}],
-  ['espeto_carne','Espeto de carne','🍖','consumable',5,20,'Carne grelhada. Cura 30 e dá Força por 3 minutos.',{use:{heal:30,buff:'forca'}}],
-  ['sopa_peixe','Sopa de peixe','🍜','consumable',5,28,'Sopa quente. Cura 25 e dá Regeneração por 4 minutos.',{use:{heal:25,buff:'regen'}}],
-  ['ensopado','Ensopado rústico','🍲','consumable',5,40,'Cura 55 e dá Resistência por 4 minutos.',{use:{heal:55,buff:'resistencia'}}],
+  ['peixe_assado','Peixe assado','🍢','consumable',5,18,'Peixe na brasa. Cura 35 de vida.',{use:{heal:35},price:22,shop:'tavern'}],
+  ['espeto_carne','Espeto de carne','🍖','consumable',5,20,'Carne grelhada. Cura 30 e dá Força por 3 minutos.',{use:{heal:30,buff:'forca'},price:24,shop:'tavern'}],
+  ['sopa_peixe','Sopa de peixe','🍜','consumable',5,28,'Sopa quente. Cura 25 e dá Regeneração por 4 minutos.',{use:{heal:25,buff:'regen'},price:34,shop:'tavern'}],
+  ['ensopado','Ensopado rústico','🍲','consumable',5,40,'Cura 55 e dá Resistência por 4 minutos.',{use:{heal:55,buff:'resistencia'},price:48,shop:'tavern'}],
   ['banquete','Banquete do caçador','🍽','consumable',3,120,'Cura 100 e dá Força, Agilidade e Resistência.',{use:{heal:100,buff:['forca','agil','resistencia']}}]
 ]);
+// armas como itens: type 'weapon', ficam na barra 1–6 (ou na bolsa). value = metade do preço de compra
+(function(){
+  const icons=['🔫','🔫','🔫','🔫','🎯','🚀'];
+  WEAPONS.forEach((w,i)=>dataDefine('items','w_'+w.id,{name:w.name,icon:icons[i],type:'weapon',stack:1,value:Math.max(30,Math.round(w.price*0.5)),desc:w.desc,weapon:i}));
+})();
 // bônus temporários (duração em segundos de jogo)
 DATA.buffs={};
 for(const [id,name,icon,secs,desc,fx] of[
@@ -104,7 +109,10 @@ defLoot('bear','Urso',[{id:'garra',p:.75},{id:'couro',p:1,min:1,max:3},{id:'carn
 defLoot('spider','Aranha',[{id:'seda',p:.7,min:1,max:2}]);
 defLoot('scorpion','Escorpião',[{id:'ferrao',p:.7}]);
 defLoot('boar','Javali',[{id:'presa',p:.7},{id:'carne',p:.6,min:1,max:2}]);
-defLoot('chest','Baú',[{id:'sucata',p:.8,min:1,max:3},{id:'ervas',p:.6,min:1,max:3},{id:'bandagem',p:.5,min:1,max:2},{id:'moeda_antiga',p:.35},{id:'kit_medico',p:.2},{id:'joia',p:.15},{id:'reliquia',p:.12}]);
+// baú comum: itens valiosos (moeda antiga, joia) têm 10% cada; relíquia NUNCA (só em baús de dungeon)
+defLoot('chest','Baú',[{id:'sucata',p:.8,min:1,max:3},{id:'ervas',p:.6,min:1,max:3},{id:'bandagem',p:.5,min:1,max:2},{id:'kit_medico',p:.2},{id:'moeda_antiga',p:.10},{id:'joia',p:.10}]);
+// baú de dungeon (usado na Fase 3): as relíquias aparecem aqui
+defLoot('chest_dungeon','Baú de dungeon',[{id:'sucata',p:.7,min:2,max:4},{id:'kit_medico',p:.4},{id:'moeda_antiga',p:.3},{id:'joia',p:.25},{id:'reliquia',p:.35}]);
 
 // valida uma tabela: toda entrada precisa de `name`; devolve a lista de problemas (vazia = ok)
 function validateData(){

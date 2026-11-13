@@ -189,8 +189,9 @@ const SAY={
   guard:['Em guarda!','Tudo calmo por aqui.','Boa sorte lá fora.','Os portões estão seguros.'],
   clerk:['O quadro de missões está logo ali.','Há sempre trabalho para quem sabe lutar.'],
   hostage:['Obrigado... pensei que ninguém viria!','Me tire daqui, por favor!'],
+  patron:['Saúde!','Esta cerveja está ótima.','Sente-se, forasteiro.','Dizem que o peixe-dourado existe de verdade...','O taverneiro faz o melhor ensopado da região.'],
   merchant:['Bem-vindo à loja! Aperte E para vender o que você encontrou.','Peles, presas, joias... eu compro quase tudo.'],
-  cook:['Hoje tem prato quente! Aperte E para cozinhar.','Traga peixe e carne fresca que eu faço o resto.'],
+  cook:['Hoje tem prato quente! Aperte E para ver o cardápio.','O fogão no fundo é todo seu, se trouxer os ingredientes.'],
   shop:['Bem-vindo! Aperte E para ver as armas.'],nurse:['Está ferido? Aperte E para se tratar.']
 };
 function makeBubble(text){
@@ -232,6 +233,7 @@ function spawnNpc(c,o){
   const n={kind:'npc',role:L.roleOut,city:c,model:m,group:m.group,x:o.x,z:o.z,y:tH(o.x,o.z),vy:0,ground:true,yaw:o.yaw||rng.range(0,6.28),state:'idle',timer:rng.range(0,4),
     hp:25,alive:true,eye:1.6*m.s,speed:rng.range(1.2,1.8)*(L.scale<0.8?1.1:1),fear:0,phase:rng.range(0,6),stationary:!!o.stationary||role==='guard',boxStep:0.45,r:0.3*m.s,hitR:0.3*m.s,hitH:2*m.s,lift:0,stuck:0,detour:0,detourT:0,sayT:0,bubble:null,def:{r:0.3*m.s,h:2*m.s,lift:0}};
   if(role==='guard'){m.arms[1].rotation.x=-1.2;m.arms[0].rotation.x=-1.0}
+  if(o.sit){n.sit=true;n.stationary=true;m.legs.forEach(l=>l.rotation.x=-1.5);m.arms.forEach(a=>a.rotation.x=-0.7)}   // cliente sentado
   scene.add(n.group);NPCS.push(n);c.npcs.push(n);return n;
 }
 function steer(e,tx,tz,speed,dt,r,hgt,stepH){
@@ -293,8 +295,8 @@ function updateNpc(n,dt){
   moveY(n,dt,n.r,1.8,1.05);
   rescueStuck(n,dt,n.r,1.8);
   if(!n.stationary||n.fear>0){separate(n,c.npcs,dt);for(const o of c.enemies)if(o.alive&&!o.gone&&Math.abs(o.x-n.x)<2&&Math.abs(o.z-n.z)<2)separate(n,[o],dt)}
-  n.group.position.set(n.x,n.y,n.z);n.group.rotation.y=n.yaw;
-  if(moving)animWalk(n.model,n.phase,0.7);else{n.model.legs.forEach(l=>l.rotation.x*=0.8)}
+  n.group.position.set(n.x,n.y-(n.sit?0.42:0),n.z);n.group.rotation.y=n.yaw;
+  if(moving)animWalk(n.model,n.phase,0.7);else if(!n.sit){n.model.legs.forEach(l=>l.rotation.x*=0.8)}
   if(n.model.sway)n.model.sway(n.phase,moving,G.t)
 }
 function damageNpc(n,amount,src){   // src: bicho que atacou (não envolve o jogador)
@@ -305,7 +307,7 @@ function damageNpc(n,amount,src){   // src: bicho que atacou (não envolve o jog
 }
 function npcTalk(n){
   const c=n.city;let pool;
-  if(n.role==='guard')pool=SAY.guard;else if(n.role==='shop')pool=SAY.shop;else if(n.role==='nurse')pool=SAY.nurse;else if(n.role==='merchant')pool=SAY.merchant;else if(n.role==='cook')pool=SAY.cook;else if(n.role==='hostage')pool=SAY.hostage;else if(n.role==='clerk')pool=SAY.clerk;
+  if(n.role==='guard')pool=SAY.guard;else if(n.role==='shop')pool=SAY.shop;else if(n.role==='nurse')pool=SAY.nurse;else if(n.role==='merchant')pool=SAY.merchant;else if(n.role==='cook')pool=SAY.cook;else if(n.role==='patron')pool=SAY.patron;else if(n.role==='hostage')pool=SAY.hostage;else if(n.role==='clerk')pool=SAY.clerk;
   else if(n.role==='child')pool=SAY.child;else if(n.role==='elder'&&Math.random()<0.6)pool=SAY.elder;
   else pool=c.home?SAY.civ_f:(c.owner==='player'?SAY.civ_c:SAY.civ_e);
   npcSay(n,pool[Math.floor(Math.random()*pool.length)]);
@@ -560,7 +562,7 @@ function checkConquest(c){
 function populateCities(){
   for(const c of WORLD.cities){
     const rng=new RNG(WORLD.seed*13+c.id*101+9);
-    for(const k of c.keepers||[])spawnNpc(c,{role:k.role,x:k.x,z:k.z,yaw:k.yaw,stationary:true});
+    for(const k of c.keepers||[])spawnNpc(c,{role:k.role,x:k.x,z:k.z,yaw:k.yaw,stationary:true,sit:k.sit});
     const nCiv=c.home?rng.int(26,34):rng.int(14,20);
     const pts=rng.shuffle(c.walk.slice());
     const chosen=(c.keepers||[]).map(k=>({x:k.x,z:k.z}));let placed=0;

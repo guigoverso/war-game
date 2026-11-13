@@ -1,7 +1,8 @@
 'use strict';
-// ---------- Loja: compra de itens com vendedores de estoque e ouro limitados (Fase 2) ----------
+// ---------- Loja e taverna: venda para vendedores de ouro limitado e compra de itens (Fase 2) ----------
 // Cada cidade tem um vendedor com ouro limitado. Cada item vendido vai para o estoque do vendedor e derruba o preço dele
-// (saturação). Com o tempo (dias de jogo) o vendedor recupera ouro e revende parte do estoque. "Comprar" entra mais tarde.
+// (saturação). Com o tempo (dias de jogo) o vendedor recupera ouro e revende parte do estoque.
+// A Loja vende a vara de pescar; o taverneiro vende comida pronta.
 const VENDOR_BASE_GOLD=250,VENDOR_GOLD_PER_RANK=100,VENDOR_SAT=0.05,VENDOR_MIN_MUL=0.35;
 const vendorMax=c=>VENDOR_BASE_GOLD+VENDOR_GOLD_PER_RANK*((c&&c.rank)||0);
 function getVendor(c){
@@ -25,27 +26,56 @@ function sellUnitPrice(id,c){
   const d=itemDef(id),v=getVendor(c),base=d.value*(c.owner==='enemy'?0.5:1);
   return Math.max(1,Math.round(base*Math.max(VENDOR_MIN_MUL,1-VENDOR_SAT*(v.stock[id]||0))));
 }
-// vende até `qty` unidades; para quando o vendedor fica sem ouro. Devolve {sold, earned, brokeVendor}
+// vende até `qty` unidades da bolsa; para quando o vendedor fica sem ouro. Devolve {sold, earned, broke}
 function sellItem(c,id,qty){
   const d=itemDef(id),v=getVendor(c);let sold=0,earned=0,broke=false;
   if(!d||d.noSell)return{sold:0,earned:0,broke:false};
-  for(let i=0;i<qty&&invCount(id)>0;i++){
+  for(let i=0;i<qty;i++){
+    if(d.weapon!==undefined&&weaponsOwnedCount()<=1){toast('Você precisa ficar com pelo menos uma arma.',2200);break}
     const p=sellUnitPrice(id,c);
     if(v.gold<p){broke=true;break}
-    invRemove(id,1);v.gold-=p;v.stock[id]=(v.stock[id]||0)+1;Ledger.add('gold',p);sold++;earned+=p;
+    if(invRemove(id,1)<1)break;
+    v.gold-=p;v.stock[id]=(v.stock[id]||0)+1;Ledger.add('gold',p);sold++;earned+=p;
   }
   return{sold,earned,broke};
 }
 
-// ---------- tela da loja ----------
-function openStore(c){G.storeCity=c;G.storeMode='menu';G.storeSel=null;openPanel('store');renderStore()}
+// ---------- tela da loja / taverna ----------
+// kind: 'store' (vende e compra itens) ou 'tavern' (só compra comida pronta)
+function openStore(c,kind){G.storeCity=c;G.storeKind=kind||'store';G.storeMode='menu';G.storeSel=null;openPanel('store');renderStore()}
+function buyCards(kind,c){
+  return Object.values(DATA.items).filter(d=>d.shop===kind);
+}
 function renderStore(){
-  const c=G.storeCity,v=getVendor(c),body=$('storebody');body.innerHTML='';
-  $('storeinfo').textContent='◉ '+P.coins+'  •  Ouro do vendedor: ◉'+Math.floor(v.gold)+' / '+vendorMax(c)+(c.owner==='enemy'?'  •  cidade inimiga paga metade':'');
+  const c=G.storeCity,kind=G.storeKind,v=getVendor(c),body=$('storebody');body.innerHTML='';
+  $('storetitle').textContent=kind==='tavern'?'🍺 TAVERNA':'🛒 LOJA';
+  $('storeinfo').textContent='◉ '+P.coins+(kind==='store'?'  •  Ouro do vendedor: ◉'+Math.floor(v.gold)+' / '+vendorMax(c)+(c.owner==='enemy'?'  •  cidade inimiga paga metade':''):'')+(Ledger.anyDebt()?'  •  ⚠ em dívida: compras bloqueadas':'');
   if(G.storeMode==='menu'){
-    const p=document.createElement('p');p.textContent='— Bem-vindo à loja! O que deseja?';body.appendChild(p);
-    body.appendChild(UI.button('🎒 Vender itens','gold',()=>{G.storeMode='sell';G.storeSel=null;renderStore()}));
-    const b=UI.button('🛍 Comprar (em breve)','alt');b.disabled=true;body.appendChild(b);
+    const p=document.createElement('p');p.textContent=kind==='tavern'?'— Sente-se! Tenho comida quente. O fogão lá no fundo é seu, se quiser cozinhar.':'— Bem-vindo à loja! O que deseja?';body.appendChild(p);
+    if(kind==='store')body.appendChild(UI.button('🎒 Vender itens','gold',()=>{G.storeMode='sell';G.storeSel=null;renderStore()}));
+    body.appendChild(UI.button(kind==='tavern'?'🍲 Comprar comidas':'🛍 Comprar','gold',()=>{G.storeMode='buy';renderStore()}));
+    return;
+  }
+  if(G.storeMode==='buy'){
+    const list=buyCards(kind,c);
+    const grid=document.createElement('div');grid.className='grid';
+    for(const d of list){
+      const price=pc(d.price,c,'buy');
+      const own=d.rod&&invCount(d.id)>0;
+      const card=document.createElement('div');card.className='card';
+      card.innerHTML='<b>'+d.icon+' '+d.name+'</b><div class="st">'+d.desc+'<br>Preço: <b>◉'+price+'</b>'+(own?'<br>Você já tem esta vara.':'')+'</div>';
+      const btn=UI.button('Comprar ◉'+price,'gold',()=>{
+        if(Ledger.anyDebt()){toast('Você está em dívida: compras bloqueadas.',2000);return}
+        const need=d.type==='weapon'?(STATE.inv.wbar.includes(null)||invRoomFor(d.id)>=1):invRoomFor(d.id)>=1;
+        if(!need){toast('Bolsa cheia! Descarte algo antes de comprar.',2200);return}
+        if(!Ledger.spend({gold:price})){toast('Ouro insuficiente.',1800);return}
+        invGive([[d.id,1]]);sfx('coin',0);toast(d.icon+' '+d.name+' comprado'+(d.type==='weapon'?' — coloque na barra 1–6 e equipe':''),2500);renderStore();
+      });
+      btn.disabled=own||Ledger.anyDebt()||P.coins<price;
+      card.appendChild(btn);grid.appendChild(card);
+    }
+    body.appendChild(grid);
+    const back=UI.button('← Voltar','alt',()=>{G.storeMode='menu';renderStore()});back.style.marginTop='10px';body.appendChild(back);
     return;
   }
   // modo vender: a mochila aparece; clique em um item para ver o preço e vender
@@ -58,13 +88,13 @@ function renderStore(){
     onClick:(s,i)=>{G.storeSel=i;renderStore()}});
   const s=G.storeSel!==null&&G.storeSel!==undefined?inv.slots[G.storeSel]:null;
   if(s){
-    const d=itemDef(s.id),n=invCount(s.id),p=sellUnitPrice(s.id,c),st=v.stock[s.id]||0;
+    const d=itemDef(s.id),n=s.n,p=sellUnitPrice(s.id,c),st=v.stock[s.id]||0;
     right.innerHTML='<div style="font-size:30px">'+d.icon+'</div><b>'+d.name+'</b> ×'+n+'<p class="st">'+d.desc+'<br>'+(d.noSell?'Este item não pode ser vendido.':'Preço agora: <b>◉'+p+'</b> cada (valor base ◉'+d.value+')'+(st?'<br>O vendedor já tem '+st+' no estoque: o preço cai com o excesso.':''))+'</p>';
     if(!d.noSell){
       const sell=(q)=>{const r=sellItem(c,s.id,q);if(r.sold>0){sfx('coin',0);toast('Vendido: '+r.sold+'× '+d.name+'  +◉'+r.earned+(r.broke?'  •  o vendedor ficou sem ouro':''),2200)}else if(r.broke)toast('O vendedor está sem ouro para este item.',2200);renderStore()};
       right.appendChild(UI.button('Vender 1','gold',()=>sell(1)));
       if(n>1)right.appendChild(UI.button('Vender tudo ('+n+')','alt',()=>sell(n)));
     }
-  }else right.innerHTML='<p class="st">Clique em um item da mochila.</p>';
+  }else right.innerHTML='<p class="st">Clique em um item da mochila. (Armas e curas das barras não aparecem aqui: guarde-as na bolsa para vendê-las.)</p>';
   const back=UI.button('← Voltar','alt',()=>{G.storeMode='menu';renderStore()});back.style.marginTop='10px';body.appendChild(back);
 }

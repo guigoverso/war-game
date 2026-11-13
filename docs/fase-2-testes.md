@@ -51,3 +51,33 @@ Bônus, vendedores e a vara entram no save (versão 3; salvamentos antigos carre
 
 ## Verificado por mim (por script, sem ouvir áudio)
 Loja e taverna em todas as cidades das sementes 7 e 11; ruas conectadas; mercador e cozinheiro nas posições; taxa de loot e baú garantido; classes de cor; venda com saturação, vendedor sem ouro e recuperação diária; receitas, ingredientes por categoria, pratos e bônus (dano, resistência, velocidade, regeneração, expiração); pesca completa (lançar, mordida, puxar, pegar), HUD; salvar/carregar de bônus e vendedores; console sem erros.
+
+---
+
+# Fase 2 — parte 2: armas como itens, vara equipável, cardumes, taverna grande
+
+## Ajustes pedidos
+- **Armas e curas como itens.** No inventário (B) há três áreas: **barra de armas 1–6**, **atalhos de cura 7–9** e a **bolsa**. O que está nas barras **não ocupa espaço na bolsa**. Armas novas (compradas no armeiro) vão direto para a primeira vaga livre da barra 1–6; sem vaga, ficam na bolsa até você colocá-las na barra. As teclas **1–6 e a roda do mouse** agora seguem a **barra** (posição), não o número da arma. A durabilidade, a munição e o conserto continuam por arma.
+- **Curas:** clique num item de cura e escolha **Atalho 7, 8 ou 9**; a pilha inteira vai para o atalho. Quando a pilha acaba, o atalho se reabastece sozinho com o que houver na bolsa, e novas curas do mesmo tipo entram direto no atalho.
+- **Vara de pescar = arma.** Item da barra 1–6, **comprada na Loja** (◉60, aba "Comprar"). Para pescar é preciso equipá-la (tecla da barra ou roda do mouse). Com ela na mão **não dá para atacar** (botão esquerdo não faz nada) e o **botão direito** pesca (não dá zoom). O modelo na mão é completo: cabo de cortiça, carretilha com manivela, haste em gomos com passadores e ponta vermelha, e a **linha pendurada com boia e anzol**; ao lançar, a linha sai da ponta da vara até a boia na água.
+- **Cardumes (pontos de pesca).** Só se pesca em **cardumes**: um anel branco na água com peixes nadando em círculo, perto das margens (~40 por mundo, rio/lago e mar). Mire em um cardume (3 a 15 m à frente) e aperte o botão direito. **Depois de pescar com sucesso, o cardume some** (volta depois de 2 dias de jogo). Se o peixe escapar ou a linha arrebentar, o cardume continua.
+- **Taverna maior.** Salão de pelo menos 8×8: **balcão** com prateleira de garrafas, canecas no balcão e o taverneiro atrás; **mesas** com bancos, **canecas de cerveja e pratos de comida** em cima e **2 a 4 clientes sentados**; **barris**; e um **fogão** no fundo (com panelas e chaminé). No fogão (E) o jogador cozinha todas as receitas; no balcão (E) o **taverneiro vende comida pronta** (peixe assado, espeto, sopa, ensopado). Todas as 7 cidades de teste tiveram a taverna grande.
+- **Placas cortadas:** as placas (LOJA, CLÍNICA, ARMEIRO, TAVERNA, PREFEITURA, QUARTEL) ficavam coladas na parede e eram parcialmente cobertas por molduras que saem da fachada. Agora ficam 22 cm à frente da parede e o texto aparece inteiro.
+- **Relíquias:** não saem mais de baús comuns (só da tabela `chest_dungeon`, para as dungeons da Fase 3). **Moeda antiga e joia** têm **10% de chance cada** em baús comuns.
+- O armeiro continua vendendo armas, munição, colete e conserto (sem venda de itens).
+
+## Como testar
+1. **Barras:** no criativo, na pausa clique **Dar 1 de cada item**/**Liberar todas as armas**. Aperte **B**: clique numa arma e use **Barra 1…6**, **Equipar**, **Para a bolsa**. Use as teclas 1–6 e a roda do mouse. Confira que o que está nas barras não conta em "Bolsa: x/20".
+2. **Curas:** clique numa bandagem e em **Atalho 7**; use a tecla 7 até acabar: o atalho reabastece sozinho da bolsa.
+3. **Vara:** na Loja (E no balcão) → **Comprar** → vara (◉60). Ela vai para a barra; aperte a tecla da barra. Tente atirar: nada acontece.
+4. **Pesca:** vá à beira da água e procure o **anel com peixes**. Olhe para ele (a dica "[Botão direito] Pescar neste cardume" aparece), aperte o botão direito para lançar, de novo quando mordar ("❗") e **segure** para puxar. Ao pegar o peixe, o cardume desaparece.
+5. **Taverna:** entre numa taverna (letra **T** no mapa). Fale com o taverneiro (balcão) para comprar comida e use o fogão (fundo, à direita) para cozinhar.
+6. **Placas:** passe por LOJA/CLÍNICA/ARMEIRO/etc. e confira o texto completo.
+7. **Baús:** abra vários baús comuns: nunca saem relíquias; moeda antiga e joia aparecem em ~10% das aberturas cada.
+8. **Salvar/carregar:** o salvamento (versão 4) guarda as barras, as pilhas dos atalhos e os cardumes já pescados; salvamentos antigos carregam e as armas viram itens.
+
+## Decisões minhas
+- A barra de armas tem 6 vagas e a vara ocupa uma. Com as 6 armas, a vara precisa dividir espaço (você escolhe qual deixa na bolsa).
+- Vender armas: só as que estão **na bolsa**, e nunca a última arma. Itens das barras não aparecem na tela de venda.
+- A vara custa ◉60 e vende por ◉30. O taverneiro não compra itens (só vende).
+- Cardumes reaparecem após 2 dias de jogo (depois passa a seguir as rodadas).

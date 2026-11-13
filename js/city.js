@@ -222,7 +222,7 @@ function buildHall(c,f,D,doorU,rng){
   const p=wx(mid,f.V-4.6);c.hall={x:p[0],z:p[1]};
   const k=wx(mid,f.V-1.9);c.keepers=c.keepers||[];
   c.keepers.push({role:'clerk',x:k[0],z:k[1],yaw:(()=>{const o={N:[0,-1],S:[0,1],E:[1,0],W:[-1,0]}[D];return Math.atan2(o[0],o[1])})()});
-  const sp=wx(doorU+1,-0.07);makeSign('PREFEITURA',3.8,0.85,0x2a3a5a,0xf0e0a0,sp[0],c.y+3.5,sp[1],D);
+  const sp=wx(doorU+1,-0.22);makeSign('PREFEITURA',3.8,0.85,0x2a3a5a,0xf0e0a0,sp[0],c.y+3.5,sp[1],D);
 }
 
 // loja: balcão, prateleiras com mercadorias, caixotes e o mercador atrás do balcão
@@ -237,20 +237,58 @@ function buildStore(c,f,D,doorU,rng){
   const p=wx(mid,f.V-4.4);c.store={x:p[0],z:p[1]};
   const k=wx(mid,f.V-1.9);c.keepers=c.keepers||[];
   c.keepers.push({role:'merchant',x:k[0],z:k[1],yaw:(()=>{const o={N:[0,-1],S:[0,1],E:[1,0],W:[-1,0]}[D];return Math.atan2(o[0],o[1])})()});
-  const sp=wx(doorU+1,-0.07);makeSign('LOJA',2.6,0.85,0x2a5a3a,0xf2f0d0,sp[0],c.y+3.3,sp[1],D);
+  const sp=wx(doorU+1,-0.22);makeSign('LOJA',2.6,0.85,0x2a5a3a,0xf2f0d0,sp[0],c.y+3.3,sp[1],D);
 }
-// taverna: balcão, mesas com bancos, lareira acesa e barris; o cozinheiro prepara pratos
+// taverna grande: balcão com prateleiras e barris, mesas com bancos, canecas de cerveja e comida nas mesas, clientes sentados
+// e um fogão no fundo (o jogador cozinha nele; o taverneiro vende comida pronta no balcão)
 function buildTavern(c,f,D,doorU,rng){
-  const wx=(u,v)=>{const m=f.map(u,v);return[c.cx+m[0],c.cz+m[1]]},mid=f.U/2;
-  FB(c,f,mid-3,f.V-3.4,mid+3,f.V-2.4,0,1.1,0x4a2f1a,true);
-  for(let k=0;k<4;k++){const u=1.2+k*(f.U-3)/4;FB(c,f,u,f.V-1.4,u+0.9,f.V-1.05,0,1.0,0x6b4a2a,true);FB(c,f,u+0.05,f.V-1.4,u+0.85,f.V-1.05,1.0,1.1,0x3a2a18,false,{j:0})}
-  for(const [tu,tv] of[[1.2,2.2],[f.U-3,2.2]]){if(Math.abs(tu-doorU)<2.5&&tv<3)continue;FB(c,f,tu,tv,tu+1.6,tv+1.2,0,0.85,0x6b4a2a,true);FB(c,f,tu-0.5,tv+0.2,tu-0.1,tv+0.6,0,0.5,0x5a3d22,false);FB(c,f,tu+1.7,tv+0.2,tu+2.1,tv+0.6,0,0.5,0x5a3d22,false)}
-  // lareira com fogo
-  {const lu=doorU<f.U/2?f.U-3.2:1.2;FB(c,f,lu,f.V-1.5,lu+2,f.V-1.05,0,1.6,0x7a7a74,true);FB(c,f,lu+0.4,f.V-1.5,lu+1.6,f.V-1.1,0.1,0.8,0x1a1a1a,false,{j:0});FB(c,f,lu+0.6,f.V-1.45,lu+1.4,f.V-1.2,0.1,0.7,0xff8a1a,false,{j:0.1})}
-  const p=wx(mid,f.V-4.4);c.tavern={x:p[0],z:p[1]};
-  const k=wx(mid,f.V-1.9);c.keepers=c.keepers||[];
+  const wx=(u,v)=>{const m=f.map(u,v);return[c.cx+m[0],c.cz+m[1]]},U=f.U,V=f.V;
+  const WOOD=0x6b4a2a,WOOD2=0x4a2f1a,TOP=0x7a5632,AMB=0xd89a2a,FOAM=0xf8f4e8;
+  const facing=(ox,oz,tx,tz)=>Math.atan2(tx-ox,tz-oz);
+  const mug=(u,v)=>{FB(c,f,u,v,u+0.22,v+0.22,0.9,1.14,AMB,false,{j:0.05});FB(c,f,u,v,u+0.22,v+0.22,1.14,1.2,FOAM,false,{j:0});FB(c,f,u+0.22,v+0.06,u+0.3,v+0.16,0.95,1.08,0xe8e0c0,false,{j:0})};
+  c.keepers=c.keepers||[];
+  // ---- balcão (canto de trás, à esquerda) ----
+  const stoveW=2.4,su0=U-1.4-stoveW,su1=U-1.4,cu0=1.4,cu1=Math.max(cu0+1.8,su0-1.2);
+  FB(c,f,cu0,V-3.2,cu1,V-2.2,0,1.1,WOOD2,true);FB(c,f,cu0-0.1,V-3.3,cu1+0.1,V-2.1,1.1,1.18,TOP,false,{j:0.03});
+  for(let u=cu0+0.3;u<cu1-0.3;u+=0.8){FB(c,f,u,V-3.0,u+0.22,V-2.78,1.18,1.4,AMB,false,{j:0.05});FB(c,f,u,V-3.0,u+0.22,V-2.78,1.4,1.46,FOAM,false,{j:0})}   // canecas no balcão
+  // prateleira com garrafas e barris atrás
+  FB(c,f,cu0,V-1.4,cu1,V-1.05,1.3,1.38,WOOD,false,{j:0});
+  for(let u=cu0+0.2;u<cu1-0.2;u+=0.45)FB(c,f,u,V-1.35,u+0.22,V-1.1,1.38,1.78,rng.pick([0x3a7a4a,0x7a3a2a,0x3a5a8a,0xc8a85a]),false,{j:0.05});
+  // ---- fogão ao fundo (à direita) ----
+  FB(c,f,su0,V-2.6,su1,V-1.1,0,1.0,0x3a3a40,true);FB(c,f,su0-0.05,V-2.65,su1+0.05,V-1.05,1.0,1.1,0x5a5a62,false,{j:0.03});
+  FB(c,f,su0+0.5,V-2.66,su1-0.5,V-2.58,0.2,0.8,0x141414,false,{j:0});FB(c,f,su0+0.7,V-2.7,su1-0.7,V-2.6,0.25,0.65,0xff8a1a,false,{j:0.15});   // boca do fogão com brasas
+  FB(c,f,su0+0.3,V-2.3,su0+1.0,V-1.6,1.1,1.45,0x6a6a72,false,{j:0.03});FB(c,f,su0+0.25,V-2.35,su0+1.05,V-1.55,1.45,1.52,0x4a4a50,false,{j:0});   // panela com tampa
+  FB(c,f,su1-1.0,V-2.3,su1-0.3,V-1.6,1.1,1.3,0x8a5a3a,false,{j:0.03});                                                                             // caçarola
+  FB(c,f,su0+0.8,V-1.9,su1-0.8,V-1.15,1.1,3.6,0x55555e,false,{j:0.03});                                                                             // chaminé
+  // ---- barris no canto da frente ----
+  for(const [bu,bv] of[[U-2.3,V*0.45],[U-2.3,V*0.45+1.1]]){if(Math.abs(bu-doorU)<3.5)continue;FB(c,f,bu,bv,bu+0.9,bv+0.9,0,0.95,0x7a5a30,true);FB(c,f,bu,bv,bu+0.9,bv+0.9,0.55,0.62,0x3a3a3e,false,{j:0})}
+  // ---- mesas com bancos, canecas, comida e clientes ----
+  const seats=[];
+  const rows=[2.6,2.6+3.0];
+  for(const tv of rows){
+    if(tv+1.2>V-4.4)continue;
+    for(let tu=1.8;tu+1.6<=U-1.6;tu+=3.4){
+      if(tv<3.6&&tu+1.6>doorU-1&&tu<doorU+3)continue;   // mantém o corredor da porta livre
+      FB(c,f,tu+0.1,tv+0.1,tu+1.5,tv+1.0,0,0.82,WOOD2,true);FB(c,f,tu,tv,tu+1.6,tv+1.1,0.82,0.9,TOP,false,{j:0.03});
+      mug(tu+0.25,tv+0.3);if(rng.chance(0.7))mug(tu+1.0,tv+0.55);
+      FB(c,f,tu+0.6,tv+0.3,tu+1.0,tv+0.7,0.9,0.93,0xeeeeee,false,{j:0});FB(c,f,tu+0.7,tv+0.4,tu+0.9,tv+0.6,0.93,1.06,rng.pick([0xc86a3a,0xe0c050,0x8a5a2a,0xb04a4a]),false,{j:0.06});
+      const stools=[[tu-0.55,tv+0.3],[tu+1.75,tv+0.3],[tu+0.6,tv-0.55],[tu+0.6,tv+1.2]];
+      for(const [su,sv] of stools){FB(c,f,su,sv,su+0.4,sv+0.4,0,0.5,0x5a3d22,false,{j:0.04});seats.push({u:su+0.2,v:sv+0.2,tu:tu+0.8,tv:tv+0.55})}
+    }
+  }
+  // clientes sentados (2 a 4), virados para a mesa
+  rng.shuffle(seats);
+  const nPat=Math.min(seats.length,rng.int(2,4));
+  for(let k=0;k<nPat;k++){
+    const s=seats[k],p=wx(s.u,s.v),t=wx(s.tu,s.tv);
+    c.keepers.push({role:'patron',x:p[0],z:p[1],yaw:facing(p[0],p[1],t[0],t[1]),sit:true});
+  }
+  // pontos de interação: balcão (comprar comida) e fogão (cozinhar)
+  const cm=(cu0+cu1)/2,pc2=wx(cm,V-4.0);c.tavern={x:pc2[0],z:pc2[1]};
+  const ps=wx((su0+su1)/2,V-3.6);c.stove={x:ps[0],z:ps[1]};
+  const k=wx(cm,V-1.7);
   c.keepers.push({role:'cook',x:k[0],z:k[1],yaw:(()=>{const o={N:[0,-1],S:[0,1],E:[1,0],W:[-1,0]}[D];return Math.atan2(o[0],o[1])})()});
-  const sp=wx(doorU+1,-0.07);makeSign('TAVERNA',3.2,0.85,0x4a2f1a,0xf0d890,sp[0],c.y+3.3,sp[1],D);
+  const sp=wx(doorU+1,-0.22);makeSign('TAVERNA',3.2,0.85,0x4a2f1a,0xf0d890,sp[0],c.y+3.3,sp[1],D);
 }
 
 function buildCity(c,rng){  const Hc=c.half;
@@ -434,13 +472,13 @@ function buildCity(c,rng){  const Hc=c.half;
       {const fu=doorU<f.U/2?f.U-2.2:1.2;FB(c,f,fu,1.4,fu+1,2.4,0,1.2,0x4a4a2a,true);FB(c,f,fu,2.6,fu+1,3.4,0,1,0x7a5a30,true)}
       const p=wx(mid,f.V-4.4);c.shop={x:p[0],z:p[1]};
       const k=wx(mid,f.V-1.9);c.keepers=c.keepers||[];c.keepers.push({role:'shop',x:k[0],z:k[1],yaw:(()=>{const o={N:[0,-1],S:[0,1],E:[1,0],W:[-1,0]}[D];return Math.atan2(o[0],o[1])})()});
-      const sp=wx(doorU+1,-0.07);makeSign('ARMEIRO',3,0.85,0x6b1f1f,0xffe9a0,sp[0],c.y+3.25,sp[1],D);
+      const sp=wx(doorU+1,-0.22);makeSign('ARMEIRO',3,0.85,0x6b1f1f,0xffe9a0,sp[0],c.y+3.25,sp[1],D);
     }else if(kind==='clinic'){
       for(let k=0;k<3;k++){const u=1.2+k*2.3;FB(c,f,u,f.V-2.4,u+1,f.V-1.1,0,0.5,0xf4f4f4,true);FB(c,f,u,f.V-2.4,u+1,f.V-1.8,0.5,0.7,0xd03a3a,false);FB(c,f,u,f.V-1.5,u+1,f.V-1.1,0.5,0.9,0xe8e8e8,false)}
       {const cu=doorU<f.U/2?f.U-3:1.2;FB(c,f,cu,2.2,cu+1.8,3.2,0,1,0xdadada,true)}
       const mid=f.U/2,p=wx(mid,3.2);c.clinic={x:p[0],z:p[1]};
       const k=wx(mid,2.0);c.keepers=c.keepers||[];c.keepers.push({role:'nurse',x:k[0],z:k[1],yaw:0});
-      const sp=wx(doorU+1,-0.07);makeSign('CLÍNICA',3,0.85,0xeeeeee,0xc02020,sp[0],c.y+3.25,sp[1],D);
+      const sp=wx(doorU+1,-0.22);makeSign('CLÍNICA',3,0.85,0xeeeeee,0xc02020,sp[0],c.y+3.25,sp[1],D);
       // cruz vermelha no telhado
       const cm=f.map(f.U/2,f.V/2);
       Bc(c,cm[0]-0.5,4.4,cm[1]-1.6,cm[0]+0.5,5.2,cm[1]+1.6,0xd02020,false,{j:0});Bc(c,cm[0]-1.6,4.4,cm[1]-0.5,cm[0]+1.6,5.2,cm[1]+0.5,0xd02020,false,{j:0});
@@ -451,7 +489,7 @@ function buildCity(c,rng){  const Hc=c.half;
       const mid=f.U/2,tu=doorU<f.U/2?f.U-3.4:1.4;FB(c,f,tu,f.V-3.2,tu+2,f.V-2.2,0,0.9,0x6b4a2a,true);FB(c,f,tu+0.2,f.V-3,tu+1.8,f.V-2.4,0.9,0.95,0xd8d0a8,false,{j:0});
       const p=wx(mid,3.2);c.barracks={x:p[0],z:p[1]};
       const k=wx(mid,2.0);c.keepers=c.keepers||[];c.keepers.push({role:'guard',x:k[0],z:k[1],yaw:(()=>{const o={N:[0,-1],S:[0,1],E:[1,0],W:[-1,0]}[D];return Math.atan2(o[0],o[1])})()});
-      const sp=wx(doorU+1,-0.07);makeSign('QUARTEL',3,0.85,0x2a3a5a,0xe8e8e8,sp[0],c.y+3.25,sp[1],D);
+      const sp=wx(doorU+1,-0.22);makeSign('QUARTEL',3,0.85,0x2a3a5a,0xe8e8e8,sp[0],c.y+3.25,sp[1],D);
       const cm=f.map(f.U/2,f.V/2);addFlag(c,cm[0],4.4,cm[1],3.2);
     }else{
       // capela: pews, altar, torre
@@ -530,10 +568,15 @@ function buildCity(c,rng){  const Hc=c.half;
   for(let i=0;i<hallCands.length&&!c.hall;i++){const q=hallCands[i];tryHouse({x0:q[0],x1:q[0]+q[2]-1,z0:q[1],z1:q[1]+q[3]-1},'hall')}
   // a loja (compra e venda de itens) e a taverna (cozinha) também são procuradas antes das casas comuns
   for(const sp of['store','tavern']){
-    const cands=[];
-    for(const [hw,hd] of[[8,6],[6,8],[7,6],[6,7]])for(let hx=-Hc+3;hx<=Hc-3-hw;hx++)for(let hz=-Hc+3;hz<=Hc-3-hd;hz++)cands.push([hx,hz,hw,hd]);
-    rng.shuffle(cands);
-    for(let i=0;i<cands.length&&!c[sp];i++){const q=cands[i];tryHouse({x0:q[0],x1:q[0]+q[2]-1,z0:q[1],z1:q[1]+q[3]-1},sp)}
+    // a taverna é maior (mesas, balcão e fogão): tenta os tamanhos maiores primeiro
+    const sizes=sp==='tavern'?[[12,9],[9,12],[11,8],[8,11],[10,8],[8,10]]:[[8,6],[6,8],[7,6],[6,7]];
+    for(const [hw,hd] of sizes){
+      if(c[sp])break;
+      const cands=[];
+      for(let hx=-Hc+3;hx<=Hc-3-hw;hx++)for(let hz=-Hc+3;hz<=Hc-3-hd;hz++)cands.push([hx,hz,hw,hd]);
+      rng.shuffle(cands);
+      for(let i=0;i<Math.min(cands.length,700)&&!c[sp];i++){const q=cands[i];tryHouse({x0:q[0],x1:q[0]+q[2]-1,z0:q[1],z1:q[1]+q[3]-1},sp)}
+    }
   }
   if(ord){
     // fileiras regulares: mesma profundidade, largura e recuo em todas as ruas

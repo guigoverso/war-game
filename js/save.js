@@ -31,7 +31,8 @@ function migrateSave(d){
   if(d.v>SAVE_VERSION)return null;          // salvamento de uma versão mais nova que o jogo
   if(d.v<2){d.v=2}   // v2 acrescentou inventário e durabilidade dentro de state (ausentes = padrão)
   if(d.v<3){d.v=3}   // v3 acrescentou bônus de comida, vendedores e a vara de pescar (ausentes = padrão)
-  // if(d.v<4){ ...ajustes...; d.v=4 }
+  if(d.v<4){d.v=4}   // v4: armas viram itens (barra 1–6), atalhos 7–9 guardam pilhas e há cardumes de pesca (ausentes = padrão)
+  // if(d.v<5){ ...ajustes...; d.v=5 }
   return d;
 }
 
@@ -55,7 +56,7 @@ function applySave(d){
   // estado geral (recursos, rodada...)
   resetState();
   const s=d.state||{};STATE.round=s.round||1;STATE.phase=s.phase||'commander';STATE.res=Object.assign({food:0,ore:0,wood:0},s.res||{});
-  if(s.inv)STATE.inv=s.inv;if(s.dur)STATE.dur=s.dur;if(s.buffs)STATE.buffs=s.buffs;if(s.vendors)STATE.vendors=s.vendors;normalizeInv();refreshBuffs();   // inventário e durabilidade (salvamentos antigos usam os padrões)
+  if(s.inv)STATE.inv=s.inv;if(s.dur)STATE.dur=s.dur;if(s.buffs)STATE.buffs=s.buffs;if(s.vendors)STATE.vendors=s.vendors;if(s.fishGone)STATE.fishGone=s.fishGone;normalizeInv();refreshBuffs();   // inventário e durabilidade (salvamentos antigos usam os padrões)
   // cidades conquistadas
   for(const sc of d.cities||[]){
     const c=WORLD.cities[sc.id];if(!c||sc.owner!=='player'||c.owner==='player')continue;
@@ -99,7 +100,9 @@ function applySave(d){
   P.vx=P.vz=P.vy=0;P.camY=P.y;P.dead=false;P.crouch=false;
   // armas
   const w=d.weapons;
-  WS.owned=w.owned.slice();WS.mag=w.mag.slice();WS.reserve=w.reserve.slice();selectWeapon(w.cur);
+  WS.owned=w.owned.slice();WS.mag=w.mag.slice();WS.reserve=w.reserve.slice();WS.cur=w.cur;WS.rod=false;WS.none=false;
+  reconcileWeapons();   // as armas viram itens (barra 1–6 ou bolsa) se o salvamento for antigo; depois equipa uma válida
+  if(STATE.inv.wbar.includes(wItemId(w.cur)))selectWeapon(w.cur);
   // exército
   Object.assign(ARMY,d.army||{});ARMY.city=null;
   const hm=WORLD.home,bk=hm.barracks||{x:hm.cx,z:hm.cz};

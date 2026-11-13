@@ -39,6 +39,7 @@ const UI={
       const d=document.createElement('div'),r=opts.render(slot,i)||{};
       d.className='slot'+(r.cls?' '+r.cls:'');
       if(r.label){const s=document.createElement('span');s.textContent=r.label;d.appendChild(s)}
+      if(r.key!==undefined&&r.key!==''){const k=document.createElement('i');k.textContent=r.key;d.appendChild(k)}
       if(r.count>1){const c=document.createElement('b');c.textContent=r.count;d.appendChild(c)}
       if(r.title)UI.tip(d,()=>r.title);
       if(opts.onClick)d.onclick=()=>opts.onClick(slot,i);
