@@ -266,3 +266,26 @@ definePolicy({id:'traicao',name:'Traição de um oficial',city:true,cool:4,
     {k:'C',label:'Fingir que nada aconteceu',type:'debuff',eff:c=>'Perde 30% do ouro armazenado (cofre dos armazéns) e o descontentamento de '+c.name+' sobe 1 (não afeta a contagem de rebelião).',
       apply:x=>{const sh=shOf(),l=Math.floor(sh.vault*0.3);sh.vault-=l;joyShift(x.city,-1);x.toast('💸 O oficial levou ◉'+l+' do cofre.')}}
   ]});
+
+// ---------- Etapa 3 da 4C: raid de bandidos em ondas ----------
+// poder dos seus soldados (3 por soldado, × melhorias de dano e vida, × colete) contra o das 3 ondas somadas (5+10+15 = 30 bandidos, +10% por nível da cidade acima de 1)
+function polRaidCalc(c){
+  const n=allyCount(),dm=1+0.25*ARMY.dmg,hm=1+0.15*ARMY.hp,vm=ARMY.vest?1.15:1;
+  const sp=Math.round(n*3*dm*hm*vm*10)/10,bp=Math.round(30*(1+0.1*(Math.max(1,c.rank||1)-1))*10)/10;
+  return{n,dm,hm,vm,sp,bp,win:sp>=bp};
+}
+definePolicy({id:'raid',name:'Raid de bandidos',city:true,cool:3,
+  text:c=>'Vigias acenderam os fogos de alarme: uma horda de bandidos avança sobre '+c.name+'. Eles chegam por vários portões, em ondas, querendo os celeiros, o cofre e o que mais conseguirem carregar.',
+  options:[
+    {k:'A',label:'Liderar a defesa',type:'both',eff:c=>'No início do turno do Comandante você é levado a '+c.name+' e enfrenta 3 ondas (5, 10 e 15 bandidos, por 1, 2 e 3 entradas) com 30 s de intervalo. Vencendo: ◉'+(40+30*Math.max(1,c.rank||1))+'. Perdendo (morrer): −◉120 e −15% dos suprimentos do armazém, e a cidade pega fogo.',
+      onStart:x=>{if(!startRaid(x.city,{teleport:true}))x.toast('Não foi possível iniciar a defesa agora.',3000)}},
+    {k:'B',label:'Pagar tributo aos bandidos',type:'debuff',cost:{gold:100},eff:()=>'−◉100. O ataque não acontece.'},
+    {k:'C',label:'Confiar nos soldados',type:'neutral',eff:c=>'Mostra o resumo da batalha antes de confirmar. Se os soldados vencerem, nada muda; se perderem: −15% dos suprimentos do armazém e fumaça por '+SMOKE_DAYS+' dias.',
+      preview:x=>{const r=polRaidCalc(x.city);
+        return '<p>Seus soldados: <b>'+r.n+'</b> (poder <b>'+r.sp+'</b>) — dano ×'+r.dm.toFixed(2)+', vida ×'+r.hm.toFixed(2)+(r.vm>1?', colete ×1,15':'')+'<br>Bandidos: <b>30</b> em 3 ondas (poder <b>'+r.bp+'</b>)</p>'
+          +'<p style="font-size:18px;color:'+(r.win?'#9fe89f':'#ff8a8a')+'"><b>'+(r.win?'✔ Seus soldados vencem a batalha. Nada muda.':'✖ Seus soldados perdem: a cidade será saqueada (−15% dos suprimentos e fumaça).')+'</b></p>'
+          +'<p class="ldsm">Cálculo feito agora: recrutar ou melhorar soldados antes de confirmar muda o resultado.</p>'},
+      apply:x=>{const r=polRaidCalc(x.city);
+        if(r.win)x.toast('🛡 Seus soldados repeliram o ataque a '+x.city.name+'.',4500);
+        else{const lost=raidLoss(x.city);igniteCity(x.city);x.toast('🔥 Os soldados perderam: '+x.city.name+' foi saqueada'+(lost.length?' ('+lost.join(', ')+')':'')+' e pegou fogo.',6000)}}}
+  ]});

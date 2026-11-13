@@ -3,29 +3,48 @@
 // De vez em quando bandidos atacam uma cidade sua. O jogador recebe um aviso e escolhe: (1) abandonar a missão atual e ser levado
 // à cidade, ou (2) "Entendido": tem 60 s para chegar. Os bandidos atacam os moradores e quem estiver por perto. Se todos morrerem,
 // você é recompensado; se o tempo acabar sem você chegar, a cidade perde recursos e fica soltando fumaça por alguns dias.
-const RAID_TIME=60,RAID_LOSS_GOLD=120,RAID_LOSS_RES=0.15,RAID_CHANCE=0.35,SMOKE_DAYS=4;
+const RAID_AUTO=false,RAID_TIME=60,RAID_LOSS_GOLD=120,RAID_LOSS_RES=0.15,RAID_CHANCE=0.35,SMOKE_DAYS=4;
 const RAID={active:false,area:null,city:null,t:0,engaged:false};
 const SMOKE=[];
 
 const playerCities=()=>WORLD.cities.filter(c=>c.owner==='player');
 const inCityZone=(c,pad)=>Math.max(Math.abs(P.x-c.cx),Math.abs(P.z-c.cz))<c.half+(pad||6);
 
-function startRaid(c){
+// Raid em ONDAS (sem reposição, no máximo 15 bandidos ao mesmo tempo): 5 por um lado, 10 (5 de cada de 2 lados) e 15 (5 de cada de 3 lados),
+// com RAID_GAP segundos entre as ondas para o jogador se curar e recrutar. Os lados são as entradas (portões) da cidade.
+const RAID_GAP=30,RAID_WAVES=[{sides:1,per:5},{sides:2,per:5},{sides:3,per:5}];
+function raidSides(c,n){
+  const dirs=[...new Set((c.gates||[]).map(g=>g.dir))];for(const d of['N','E','S','W'])if(!dirs.includes(d))dirs.push(d);
+  return dirs.slice(0,n);
+}
+function raidSidePos(c,d){const off=c.half+3;return d==='E'?[c.cx+off,c.cz]:d==='W'?[c.cx-off,c.cz]:d==='S'?[c.cx,c.cz+off]:[c.cx,c.cz-off]}
+function spawnRaidWave(){
+  const W=RAID.waves,c=RAID.city,a=RAID.area,spec=RAID_WAVES[W.i],rank=a.rank;
+  for(const d of raidSides(c,spec.sides)){
+    const [bx,bz]=raidSidePos(c,d);
+    for(let i=0;i<spec.per;i++){
+      const e=spawnEnemy(a,(i===spec.per-1&&rank>=2&&W.i>=1)?'hound':'soldier',bx+(Math.random()-0.5)*6,bz+(Math.random()-0.5)*6);
+      e.aggro=true;e.unseenT=99;e.reactT=0.5;
+    }
+  }
+  W.i++;W.gapT=null;
+  sfx('alarm',0);toast('⚔ Onda '+W.i+'/'+RAID_WAVES.length+': '+(spec.sides*spec.per)+' bandidos por '+spec.sides+' entrada'+(spec.sides>1?'s':'')+'!',4000);
+}
+// opts.teleport: o jogador é levado à praça da cidade e a luta começa na hora (política "Raid de bandidos", opção A)
+function startRaid(c,opts){
+  opts=opts||{};
   if(RAID.active||G.dg||G.office||P.dead)return false;
   const list=playerCities();if(!list.length)return false;
   c=c||list[Math.floor(Math.random()*list.length)];
-  const rank=Math.max(1,c.rank||1),n=5+rank;
+  const rank=Math.max(1,c.rank||1);
   const area={kind:'raid',id:600+(STATE.raidSeq=(STATE.raidSeq||0)+1),name:'Ataque a '+c.name,cx:c.cx,cz:c.cz,y:c.y,half:c.half,biome:c.biome,rank,hpMul:1,state:'attacking',owner:'enemy',home:false,
     enemies:[],npcs:[],walk:[],flags:[],aliveEnemies:0,totalEnemies:0,leash:999,city:c};
-  const off=c.half+3,side=Math.floor(Math.random()*4),bx=[c.cx+off,c.cx-off,c.cx,c.cx][side],bz=[c.cz,c.cz,c.cz+off,c.cz-off][side];
-  for(let i=0;i<n;i++){
-    const e=spawnEnemy(area,(i===n-1&&rank>=2)?'hound':'soldier',bx+(Math.random()-0.5)*6,bz+(Math.random()-0.5)*6);
-    e.aggro=true;e.unseenT=99;e.reactT=0.5;
-  }
   WORLD.areas.push(area);
   RAID.active=true;RAID.area=area;RAID.city=c;RAID.t=RAID_TIME;RAID.engaged=inCityZone(c);STATE.raidLast=DN.days;
-  sfx('alarm',0);
   RAID.alliesCalled=false;RAID.seeT=0;   // os soldados só são chamados quando um bandido enxerga o jogador
+  RAID.waves={i:0,gapT:null};
+  if(opts.teleport){RAID.city=c;raidTeleport();RAID.engaged=true}
+  spawnRaidWave();
   if(!RAID.engaged)openRaidPanel();else toast('⚠ Bandidos atacam '+c.name+'! Defenda a cidade!',4000);
   return true;
 }
@@ -75,7 +94,7 @@ function updateRaids(dt){
   const day=Math.floor(DN.days);
   if(!RAID.active&&day>(STATE.raidDay||0)){
     STATE.raidDay=day;
-    if(day>=2&&DN.days-(STATE.raidLast||-9)>=1.5&&!G.dg&&!G.office&&Math.random()<RAID_CHANCE)startRaid();
+    if(RAID_AUTO&&day>=2&&DN.days-(STATE.raidLast||-9)>=1.5&&!G.dg&&!G.office&&Math.random()<RAID_CHANCE)startRaid();   // desligado: as raids agora vêm da política "Raid de bandidos"
   }
   // fim da fumaça
   for(const id in STATE.burnt)if(DN.days-STATE.burnt[id]>SMOKE_DAYS){delete STATE.burnt[id];clearSmoke(WORLD.cities[id])}
@@ -92,12 +111,19 @@ function updateRaids(dt){
       if(seen){RAID.alliesCalled=true;armyAssault(RAID.area,'★ Os bandidos te viram! Seus soldados chegaram atrás de você!')}
     }
   }
-  if(alive===0){onRaidCleared();return}
+  const W=RAID.waves;
+  if(alive===0){
+    if(!W||W.i>=RAID_WAVES.length){onRaidCleared();return}
+    if(RAID.engaged){   // onda vencida: intervalo para curar e recrutar, depois vem a próxima
+      if(W.gapT===null){W.gapT=RAID_GAP;toast('✔ Onda '+W.i+' vencida! A próxima chega em '+RAID_GAP+' s: cure-se e recrute.',4500)}
+      W.gapT-=dt;if(W.gapT<=0)spawnRaidWave();
+    }
+  }
   if(!RAID.engaged){RAID.t-=dt;if(RAID.t<=0){raidFailed();return}}
   if(hud){
     hud.style.display='block';
     const d=Math.round(Math.hypot(c.cx-P.x,c.cz-P.z));
-    hud.innerHTML=RAID.engaged?'🛡 Defenda <b>'+c.name+'</b>: '+alive+' bandidos':'⚠ <b>'+c.name+'</b> sob ataque! Chegue em <b>'+Math.ceil(RAID.t)+' s</b> ('+d+' m)';
+    hud.innerHTML=RAID.engaged?(alive===0&&W&&W.gapT!==null?'⏳ <b>'+c.name+'</b>: próxima onda em <b>'+Math.max(0,Math.ceil(W.gapT))+' s</b> ('+W.i+'/'+RAID_WAVES.length+' vencidas)':'🛡 Defenda <b>'+c.name+'</b>: onda '+(W?W.i:1)+'/'+RAID_WAVES.length+' • '+alive+' bandidos'):'⚠ <b>'+c.name+'</b> sob ataque! Chegue em <b>'+Math.ceil(RAID.t)+' s</b> ('+d+' m)';
   }
 }
 

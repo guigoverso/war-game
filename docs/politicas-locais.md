@@ -23,7 +23,7 @@ O motor de decisões (cartão com 3 opções, custo, efeitos de 5 rodadas, execu
 - **Recrutamento de soldados:** o autor vai mudar algumas regras (hoje o exército é um número único, não pertence a uma cidade). Os eventos abaixo que mexem em "soldados recrutados" devem ser revistos junto.
 
 ## Eventos
-> Implementados até agora: 1 (Rebelião), 4 (Colheita), 6 (Comerciantes), 7 (Festival), 8 (Epidemia), 9 (Refugiados), 10 (Traição). Faltam: 2 (Caravanas), 3 (Raid em ondas), 5 (Dungeon dourada).
+> Implementados até agora: 1 (Rebelião), 3 (Raid em ondas), 4 (Colheita), 6 (Comerciantes), 7 (Festival), 8 (Epidemia), 9 (Refugiados), 10 (Traição). Faltam: 2 (Caravanas) e 5 (Dungeon dourada).
 
 ### 1. Rebelião
 *"Nas ruas de [Cidade], o descontentamento virou fúria. Panelas batem, portas são trancadas e uma multidão cerca a prefeitura exigindo pão e respostas. Se nada for feito, a revolta vai tomar a cidade inteira."*
