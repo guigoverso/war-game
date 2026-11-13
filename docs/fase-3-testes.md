@@ -59,3 +59,19 @@ Geração da dungeon (3 alas, todas as salas alcançáveis); portais (nível, re
 2. **Taverna:** fale com o taverneiro: a lista de comidas abre direto.
 3. **Dungeon:** crie portais, entre e veja o minimapa com a planta; abra o baú roxo.
 4. **Bolsa:** aperte B e arraste itens entre as três áreas. Compre a ampliação da bolsa no armeiro.
+
+---
+
+# Fase 3 — ajustes (rodada 3)
+
+- **Soldados no raid só quando os bandidos te veem:** em vez de aparecerem no começo do raid, os soldados são chamados (e surgem atrás de você) no instante em que um bandido, a até 46 m, enxerga você. Assim não precisam atravessar o mapa devagar.
+- **Dungeon, "ainda falta um inimigo":** a causa provável eram as **aranhas**, que escalavam as paredes de rocha e ficavam por cima do teto. Na dungeon elas agora andam no chão como os outros. Além disso, **só no modo criativo**, os inimigos restantes aparecem em **vermelho no minimapa da dungeon** e há uma **contagem na tela** ("👁 Inimigos restantes: N"). No modo normal nada disso aparece.
+- **Dungeon persistente:** os inimigos que você elimina **continuam mortos** se você sair e voltar (e o baú continua destravado se você já limpou a ala). Não dá para farmar. Os sobreviventes voltam aos postos com vida cheia. Isso entra no salvamento.
+- **Armeiro com abas:** **🔫 Armas** (compra, munição e conserto) e **🛠 Úteis** (colete e ampliação da bolsa).
+- **Sem ouro por matar inimigos:** o ouro por abate foi removido (ficam o loot de itens e a munição). Missões, baús e raids continuam pagando.
+
+## Como testar
+1. **Raid:** recrute soldados, fique longe da cidade e use **Iniciar raid agora**: nada acontece com os soldados. Aproxime-se dos bandidos até eles te verem: os soldados aparecem atrás de você.
+2. **Dungeon:** no criativo, entre numa dungeon, mate parte dos inimigos, saia e volte: só os vivos reaparecem. Veja a contagem e os pontos vermelhos no minimapa. Em jogo normal eles não aparecem.
+3. **Armeiro:** troque entre as abas Armas e Úteis.
+4. **Abates:** mate inimigos e confira que o ouro não muda.

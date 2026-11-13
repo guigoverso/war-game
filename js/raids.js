@@ -25,7 +25,7 @@ function startRaid(c){
   WORLD.areas.push(area);
   RAID.active=true;RAID.area=area;RAID.city=c;RAID.t=RAID_TIME;RAID.engaged=inCityZone(c);STATE.raidLast=DN.days;
   sfx('alarm',0);
-  armyAssault(area,'★ Seus soldados foram chamados e estão atrás de você!');   // os soldados aparecem atrás do jogador, onde ele estiver
+  RAID.alliesCalled=false;RAID.seeT=0;   // os soldados só são chamados quando um bandido enxerga o jogador
   if(!RAID.engaged)openRaidPanel();else toast('⚠ Bandidos atacam '+c.name+'! Defenda a cidade!',4000);
   return true;
 }
@@ -33,7 +33,7 @@ function openRaidPanel(){
   const c=RAID.city,d=Math.round(Math.hypot(c.cx-P.x,c.cz-P.z));
   $('raidtxt').innerHTML='Bandidos estão atacando <b>'+c.name+'</b>, a <b>'+d+' m</b> de você.<br>Se você não chegar em '+RAID_TIME+' segundos, a cidade perde recursos e pega fogo.';
   const box=$('raidbtns');box.innerHTML='';
-  if(QUEST.active)box.appendChild(UI.button('🌀 Abandonar a missão e ir até lá','red',()=>{failQuest('Você abandonou a missão para defender '+c.name+'.');raidTeleport();armyAssault(RAID.area,'★ Seus soldados chegaram com você!');closePanel()}));
+  if(QUEST.active)box.appendChild(UI.button('🌀 Abandonar a missão e ir até lá','red',()=>{failQuest('Você abandonou a missão para defender '+c.name+'.');raidTeleport();closePanel()}));
   box.appendChild(UI.button('Entendido ('+RAID_TIME+' s)','gold',()=>closePanel()));
   openPanel('raid');
 }
@@ -83,6 +83,15 @@ function updateRaids(dt){
   if(!RAID.active){if(hud)hud.style.display='none';return}
   const c=RAID.city,alive=RAID.area.enemies.filter(e=>e.alive).length;
   if(!RAID.engaged&&inCityZone(c))RAID.engaged=true;
+  // seus soldados aparecem atrás de você no instante em que um bandido te enxerga (assim não precisam atravessar o mapa devagar)
+  if(!RAID.alliesCalled&&!P.dead&&!G.invis){
+    RAID.seeT-=dt;
+    if(RAID.seeT<=0){
+      RAID.seeT=0.3;
+      const seen=RAID.area.enemies.some(e=>e.alive&&Math.hypot(e.x-P.x,e.z-P.z)<46&&playerVisibleFrom(e.x,e.y+e.def.eye,e.z,P));
+      if(seen){RAID.alliesCalled=true;armyAssault(RAID.area,'★ Os bandidos te viram! Seus soldados chegaram atrás de você!')}
+    }
+  }
   if(alive===0){onRaidCleared();return}
   if(!RAID.engaged){RAID.t-=dt;if(RAID.t<=0){raidFailed();return}}
   if(hud){

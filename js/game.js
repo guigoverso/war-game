@@ -171,19 +171,24 @@ addPriceMod('city',(p,ctx)=>p*cityMul(ctx.city),10);
 const pc=(base,c,kind)=>priceOf(base,{city:c,kind});
 function priceLabel(c){const m=cityMul(c);return m>1?'Cidade inimiga: preços ×2':m<1?'Desconto de '+Math.round((1-m)*100)+'% nesta cidade':'Preço normal'}
 function mulTag(c){const m=cityMul(c);return m>1?' (preço ×2)':m<1?' (−'+Math.round((1-m)*100)+'%)':''}
-function openShop(c){G.shopCity=c;openPanel('shop');renderShop()}
+function openShop(c){G.shopCity=c;G.shopTab='weapons';openPanel('shop');renderShop()}
 function renderShop(){
   const c=G.shopCity;
   $('shopcoins').textContent='◉ '+P.coins+' moedas  •  '+priceLabel(c);
-  $('shopgrid').innerHTML=WEAPONS.map((w,i)=>{
+  const weaponsHtml=WEAPONS.map((w,i)=>{
     const own=WS.owned[i],pr=pc(w.price,c),pk=pc(w.packCost,c);
     return '<div class="card'+(own?'':' locked')+'"><b>'+(i+1)+'. '+w.name+'</b><div class="st">'+w.desc+'<br>Dano '+w.dmg+(w.pellets>1?' ×'+w.pellets:'')+' • '+w.rpm+' dpm • Pente '+w.mag+'</div>'+
       (own?'<div class="st">Munição reserva: '+WS.reserve[i]+'<br>Durabilidade: '+(weaponBroken(i)?'<b style="color:#ff6a6a">QUEBRADA</b>':Math.round(durOf(i))+'%')+'</div><button data-a="ammo" data-i="'+i+'" '+(P.coins<pk?'disabled':'')+'>+'+w.pack+' munição ◉'+pk+'</button>'+(durOf(i)<100?'<button data-a="repair" data-i="'+i+'">🔧 Consertar ◉'+repairCost(i,c)+(P.coins<repairCost(i,c)?' (gera dívida)':'')+'</button>':'')
           :'<button class="gold" data-a="buy" data-i="'+i+'" '+(P.coins<pr?'disabled':'')+'>Comprar ◉'+pr+'</button>')+'</div>';
-  }).join('')+'<div class="card"><b>🛡 Colete à prova de bala</b><div class="st">Absorve 60% do dano recebido até acabar (100 de proteção).<br>Proteção atual: '+Math.ceil(P.armor)+'/100</div><button class="gold" data-a="vest" '+(P.coins<pc(180,c)||P.armor>=100?'disabled':'')+'>Comprar ◉'+pc(180,c)+'</button></div>'
+  }).join('');
+  const utilsHtml='<div class="card"><b>🛡 Colete à prova de bala</b><div class="st">Absorve 60% do dano recebido até acabar (100 de proteção).<br>Proteção atual: '+Math.ceil(P.armor)+'/100</div><button class="gold" data-a="vest" '+(P.coins<pc(180,c)||P.armor>=100?'disabled':'')+'>Comprar ◉'+pc(180,c)+'</button></div>'
     +'<div class="card"><b>🎒 Ampliar a bolsa</b><div class="st">+'+(INV_UPGRADED-INV_BASE)+' espaços ('+INV_BASE+' → '+INV_UPGRADED+'). Só pode ser feito uma vez.</div>'
     +(STATE.inv.upgraded?'<button disabled>Bolsa já ampliada ✔</button>':'<button class="gold" data-a="bag" '+(P.coins<pc(INV_UP_COST,c,'upgrade')||Ledger.anyDebt()?'disabled':'')+'>Ampliar ◉'+pc(INV_UP_COST,c,'upgrade')+'</button>')+'</div>';
+  const tab=G.shopTab||'weapons';
+  $('shoptabs').innerHTML=[['weapons','🔫 Armas'],['utils','🛠 Úteis']].map(t=>'<button class="'+(tab===t[0]?'gold':'alt')+'" data-tab="'+t[0]+'">'+t[1]+'</button>').join('');
+  $('shopgrid').innerHTML=tab==='utils'?utilsHtml:weaponsHtml;
 }
+$('shoptabs').addEventListener('click',e=>{const b=e.target.closest('button');if(b&&b.dataset.tab){G.shopTab=b.dataset.tab;renderShop()}});
 $('shopgrid').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;const c=G.shopCity;
   if(b.dataset.a==='repair'){repairWeapon(+b.dataset.i,c);renderShop();return}

@@ -185,6 +185,8 @@ function updatePortals(dt){
   if(!STATE.portals)STATE.portals=[];
   if(!G.dg&&(!STATE.portals.length&&STATE.portalDay===undefined||DN.days-(STATE.portalDay||0)>=PORTAL_DAYS)){spawnPortals()}
   for(const m of PORTALS)m.group.visible=Math.hypot(m.p.x-P.x,m.p.z-P.z)<260;   // o brilho do portal é estático
+  const dh=document.getElementById('dghud');   // contagem de inimigos restantes (só no modo criativo)
+  if(dh){if(G.dg&&G.creative){const n=G.dg.area.enemies.filter(e=>e.alive).length;dh.style.display='block';dh.textContent='👁 Inimigos restantes: '+n}else dh.style.display='none'}
   updateDungeonMood();
 }
 Hooks.on('round',()=>{if(DG.ok&&!G.dg)spawnPortals()});
@@ -204,6 +206,7 @@ function drawDungeonMinimap(){
   const dot=(x,z,col)=>{mmc.fillStyle=col;mmc.strokeStyle='#000';mmc.lineWidth=1.5;mmc.beginPath();mmc.rect((x-P.x)*s-4,(z-P.z)*s-4,8,8);mmc.fill();mmc.stroke()};
   dot(w.entrance.x,w.entrance.z,'#c080ff');                               // saída
   if(d.chest&&!d.chest.opened)dot(d.chest.x,d.chest.z,'#ffd23a');        // baú
+  if(G.creative){mmc.fillStyle='#ff2a2a';for(const e of d.area.enemies)if(e.alive)mmc.fillRect((e.x-P.x)*s-2.5,(e.z-P.z)*s-2.5,5,5)}   // só no modo criativo: inimigos restantes
 }
 
 // ---------- ambiente escuro dentro da dungeon ----------
@@ -245,12 +248,16 @@ function enterDungeon(p){
 }
 function populateWing(p,w,area){
   const plan={1:['spider','spider','hound','hound','bot'],2:['spider','spider','scorpion','scorpion','hound','hound','bot','bot'],3:['spider','spider','spider','scorpion','scorpion','scorpion','bot','bot','bot','brute']}[p.tier];
-  const pts=w.spawns.slice().sort(()=>Math.random()-0.5);
-  plan.forEach((t,i)=>{const s=pts[i%pts.length];spawnEnemy(area,t,s.x,s.z)});
-  spawnEnemy(area,p.tier===1?'scorpion':p.tier===2?'brute':'golem',w.boss.x-3,w.boss.z-3);   // chefe
+  const pts=w.spawns.slice().sort(()=>Math.random()-0.5),dead=p.dead||[];
+  // quem já foi eliminado em visitas anteriores continua morto (a dungeon fica como estava)
+  plan.forEach((t,i)=>{if(dead.includes(i))return;const s=pts[i%pts.length],e=spawnEnemy(area,t,s.x,s.z);e.dgIdx=i});
+  if(!dead.includes(plan.length)){const e=spawnEnemy(area,p.tier===1?'scorpion':p.tier===2?'brute':'golem',w.boss.x-3,w.boss.z-3);e.dgIdx=plan.length}   // chefe
+  if(area.aliveEnemies<=0)area.state='cleared';
 }
 function leaveDungeon(noTeleport){
   const d=G.dg;if(!d)return;
+  // guarda quem foi eliminado (as mortes persistem; não dá para farmar a dungeon)
+  d.p.dead=[...new Set([...(d.p.dead||[]),...d.area.enemies.filter(e=>!e.alive&&e.dgIdx!==undefined).map(e=>e.dgIdx)])];
   for(const e of d.area.enemies){if(e.alive){e.alive=false}e.gone=true;scene.remove(e.group)}
   d.area.enemies=[];d.area.aliveEnemies=0;
   const ai=WORLD.areas.indexOf(d.area);if(ai>=0)WORLD.areas.splice(ai,1);

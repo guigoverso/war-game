@@ -27,6 +27,7 @@ canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block}
 .invalert{background:#a83a3a;border:3px solid #111;padding:4px 8px;font-size:13px;animation:blink 1s infinite}@keyframes blink{50%{opacity:.55}}
 .slot.rel,.hb.rel{background:#b8941f;border-color:#f0c93a}.slot.heal,.hb.heal{background:#b04848;border-color:#e88080}
 #raidhud{position:absolute;left:50%;top:78px;transform:translateX(-50%);background:rgba(120,20,20,.8);border:3px solid #111;padding:6px 14px;font-size:16px;text-shadow:1px 1px 0 #000;animation:blink 1.2s infinite}
+#dghud{position:absolute;left:50%;top:44px;transform:translateX(-50%);background:rgba(40,20,70,.85);border:3px solid #111;padding:4px 12px;font-size:15px;text-shadow:1px 1px 0 #000}
 #buffs{position:absolute;left:18px;top:110px;font-size:13px;line-height:1.5}.buff{background:rgba(20,20,28,.7);border:2px solid #111;padding:2px 8px;margin-bottom:3px;display:inline-block;clear:both}.buff small{opacity:.8}#buffs{display:flex;flex-direction:column;align-items:flex-start}
 #fishhud{position:absolute;left:50%;top:62%;transform:translateX(-50%);text-align:center;font-size:18px;text-shadow:2px 2px 0 #000;background:rgba(20,20,28,.6);padding:8px 14px;border:3px solid #111}
 .fbar{width:280px;height:16px;border:3px solid #111;background:#222;margin:6px auto}.fbar div{height:100%;width:0;background:#4ac0e0}.fbar.t div{background:#4ac05a}#fishbars small{font-size:11px;opacity:.8}
@@ -105,6 +106,7 @@ label{font-size:14px}
   <div id="hotbar"></div>
   <div id="buffs"></div>
   <div id="raidhud" style="display:none"></div>
+  <div id="dghud" style="display:none"></div>
   <div id="fishhud" style="display:none"><div></div><div id="fishbars" style="display:none"><div class="fbar"><div id="fishprog"></div></div><div class="fbar t"><div id="fishten"></div></div><small>Progresso (azul) e tensão (cuidado com o vermelho)</small></div></div>
 </div>
 
@@ -128,7 +130,7 @@ label{font-size:14px}
   </div>
 </div>
 
-<div id="shop" class="screen hidden"><div class="panel"><h2>⚔ ARMEIRO</h2><div class="big" id="shopcoins"></div><div class="grid" id="shopgrid"></div><button class="alt" id="shopclose">Fechar (E)</button></div></div>
+<div id="shop" class="screen hidden"><div class="panel"><h2>⚔ ARMEIRO</h2><div class="big" id="shopcoins"></div><div id="shoptabs" style="margin-bottom:6px"></div><div class="grid" id="shopgrid"></div><button class="alt" id="shopclose">Fechar (E)</button></div></div>
 <div id="clinic" class="screen hidden"><div class="panel" style="min-width:380px"><h2>✚ CLÍNICA</h2><p id="clinictxt"></p><div id="clinicbtns"></div><button class="alt" id="clinicclose">Fechar (E)</button></div></div>
 <div id="barracks" class="screen hidden"><div class="panel"><h2>★ QUARTEL</h2><div class="big" id="bkinfo"></div><div id="bkbody"></div><button class="alt" id="bkclose">Fechar (E)</button></div></div>
 <div id="quests" class="screen hidden"><div class="panel"><h2>📜 QUADRO DE MISSÕES</h2><div class="big" id="qinfo"></div><div id="qbody"></div><button class="alt" id="qclose">Fechar (E)</button></div></div>

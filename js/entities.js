@@ -341,7 +341,7 @@ function buildEnemyModel(type,rng,rank,c,vest){
 }function spawnEnemy(c,type,x,z,y,sentry){
   if(!sentry){const f=freeSpot(x,z,EDEF[type].r,1.8);x=f[0];z=f[1]}
   let def=EDEF[type];
-  if(c.kind){def=Object.assign({},def);if(def.range)def.range*=0.5;if(def.pref)def.pref*=0.5;def.sight=def.ranged?18:14;if(c.kind==='pack')def.sight=22}   // bandidos e animais selvagens: alcance pela metade; bandos de bichos enxergam mais longe
+  if(c.kind){def=Object.assign({},def);if(def.range)def.range*=0.5;if(def.pref)def.pref*=0.5;def.sight=def.ranged?18:14;if(c.kind==='pack')def.sight=22;if(c.kind==='dungeon')def.climb=false}   // na dungeon as aranhas não escalam as paredes (sumiam por cima do teto)   // bandidos e animais selvagens: alcance pela metade; bandos de bichos enxergam mais longe
   const rng=new RNG((WORLD.seed*3+c.id*71+ENEMIES.length*13)>>>0);
   const vest=(type==='soldier'||type==='brute')&&!c.kind&&rng.chance(Math.min(0.6,0.1*c.rank));
   const m=buildEnemyModel(type,rng,c.rank,c,vest);
@@ -551,9 +551,9 @@ function damageEnemy(e,amount,head,byAlly,src){   // src: outro bicho/soldado qu
   burst(e.x,e.y+e.lift+e.def.h*0.6,e.z,e.model.golem?[0x888888,0x666666]:[0xb01818,0x801010],head?12:7,5,0.1);
   if(e.hp<=0){
     e.alive=false;e.deadT=0;e.city.aliveEnemies--;
-    const rw=Math.round(e.def.reward*(0.8+Math.random()*0.5));if(!src)addCoins(rw);
+    // matar inimigos não dá mais ouro (só loot de itens e munição)
     if(!byAlly&&!src)dropLoot(e);   // itens do inimigo morto pelo jogador
-    if(!byAlly&&!src){giveRandomAmmo();game_kills++;toast('+'+rw+' moedas  ('+e.def.name+')',1200);sfx('kill',0)}
+    if(!byAlly&&!src){giveRandomAmmo();game_kills++;sfx('kill',0)}
     checkConquest(e.city);
   }
 }
