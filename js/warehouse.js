@@ -6,6 +6,7 @@
 // que se acumula até ser retirado. Madeira, minério e alimentos são ITENS (1 item = 1 unidade) e podem ser comprados, vendidos e carregados.
 // Mover itens é sempre ARRASTAR e soltar; os botões servem para mover em lote.
 const WH_SLOTS=24,SUP_STACK=60,PROD_STACK=99,FOOD_SLOTS=10;
+const LEATHER_SLOTS=Math.max(1,Object.values(DATA.items).filter(d=>d.supply&&d.supply.res==='leather').length);   // um slot para cada item que vale como couro
 const FOOD_TYPES=['carne','tilapia','lambari','bagre','truta','ervas'];   // alimentos possíveis na produção em abundância
 const RES_ITEM={wood:'tora',ore:'minerio',leather:'couro'};
 const supplyOf=id=>{const d=itemDef(id);if(!d)return null;if(d.supply)return d.supply;if(d.tags&&d.tags.includes('fish'))return{res:'food'};return null};
@@ -26,20 +27,23 @@ function whOf(c){
   const e=ec(c);
   if(!e.wh)e.wh={prod:null,wood:null,ore:null,leather:null,food:new Array(FOOD_SLOTS).fill(null)};
   if(!e.wh.food)e.wh.food=new Array(FOOD_SLOTS).fill(null);
+  if(!Array.isArray(e.wh.leather)){const old=e.wh.leather;e.wh.leather=new Array(LEATHER_SLOTS).fill(null);if(old)e.wh.leather[0]=old}
   return e.wh;
 }
 const slotN=s=>s?s.n:0;
 function storedOf(c,res){
   const w=whOf(c);
   if(res==='food')return w.food.reduce((a,s)=>a+slotN(s),0);
-  if(res==='wood'||res==='ore'||res==='leather')return slotN(w[res]);
+  if(res==='leather')return w.leather.reduce((a,s)=>a+slotN(s),0);
+  if(res==='wood'||res==='ore')return slotN(w[res]);
   return 0;
 }
 // gasta n unidades dos slots de suprimento (fim da rodada)
 function consumeSupply(c,res,n){
   const w=whOf(c);
-  if(res==='wood'||res==='ore'||res==='leather'){const s=w[res];if(!s)return 0;const t=Math.min(n,s.n);s.n-=t;if(s.n<=0)w[res]=null;return t}
-  let left=n;for(let i=0;i<FOOD_SLOTS&&left>0;i++){const s=w.food[i];if(!s)continue;const t=Math.min(left,s.n);s.n-=t;left-=t;if(s.n<=0)w.food[i]=null}
+  if(res==='wood'||res==='ore'){const s=w[res];if(!s)return 0;const t=Math.min(n,s.n);s.n-=t;if(s.n<=0)w[res]=null;return t}
+  const arr=res==='leather'?w.leather:w.food;   // comida e couro têm vários slots (um por tipo de item)
+  let left=n;for(let i=0;i<arr.length&&left>0;i++){const s=arr[i];if(!s)continue;const t=Math.min(left,s.n);s.n-=t;left-=t;if(s.n<=0)arr[i]=null}
   return n-left;
 }
 // produção em abundância da rodada (cidade-foco sem caravana)
@@ -72,6 +76,7 @@ function refGet(c,ref){
   if(ref.area==='store')return shOf().store[ref.i]||null;
   if(ref.area==='prod')return w.prod;
   if(ref.area==='food')return w.food[ref.i]||null;
+  if(ref.area==='leather')return w.leather[ref.i]||null;
   return w[ref.area]||null;
 }
 function refSet(c,ref,v){
@@ -80,6 +85,7 @@ function refSet(c,ref,v){
   else if(ref.area==='store')shOf().store[ref.i]=v;
   else if(ref.area==='prod')w.prod=v;
   else if(ref.area==='food')w.food[ref.i]=v;
+  else if(ref.area==='leather')w.leather[ref.i]=v;
   else w[ref.area]=v;
 }
 const refCap=(ref,id)=>ref.area==='prod'?PROD_STACK:(ref.area==='wood'||ref.area==='ore'||ref.area==='leather'||ref.area==='food')?SUP_STACK:itemDef(id).stack;
@@ -109,9 +115,10 @@ function autoDest(c,kind,id){
   }
   if(kind==='sup'){
     const sp=supplyOf(id);if(!sp)return null;
-    if(sp.res==='wood'||sp.res==='ore'||sp.res==='leather'){const s=w[sp.res];return(!s||(s.id===id&&s.n<SUP_STACK))?{area:sp.res}:null}
-    for(let i=0;i<FOOD_SLOTS;i++)if(w.food[i]&&w.food[i].id===id&&w.food[i].n<SUP_STACK)return{area:'food',i};
-    for(let i=0;i<FOOD_SLOTS;i++)if(!w.food[i])return{area:'food',i};
+    if(sp.res==='wood'||sp.res==='ore'){const s=w[sp.res];return(!s||(s.id===id&&s.n<SUP_STACK))?{area:sp.res}:null}
+    const arr=sp.res==='leather'?w.leather:w.food,ar=sp.res==='leather'?'leather':'food';
+    for(let i=0;i<arr.length;i++)if(arr[i]&&arr[i].id===id&&arr[i].n<SUP_STACK)return{area:ar,i};
+    for(let i=0;i<arr.length;i++)if(!arr[i])return{area:ar,i};
   }
   return null;
 }
@@ -231,7 +238,7 @@ function renderWarehouse(){
     lab(L,'Produção em abundância de '+c.name+' (reserva)');grid(L,[w.prod],1,()=>({area:'prod',i:0}));
     lab(L,resIcon('wood')+' Madeira — precisa '+needOf(c,'wood'));grid(L,[w.wood],1,()=>({area:'wood',i:0}));
     lab(L,resIcon('ore')+' Minério — precisa '+needOf(c,'ore'));grid(L,[w.ore],1,()=>({area:'ore',i:0}));
-    lab(L,resIcon('leather')+' Couro — precisa '+needOf(c,'leather'));grid(L,[w.leather],1,()=>({area:'leather',i:0}));
+    lab(L,resIcon('leather')+' Couro ('+LEATHER_SLOTS+' tipos: couro, pele de lobo) — precisa '+needOf(c,'leather'));grid(L,w.leather,LEATHER_SLOTS,i=>({area:'leather',i}));
     lab(L,resIcon('food')+' Alimentos (até 10 tipos) — precisa '+needOf(c,'food'));grid(L,w.food,5,i=>({area:'food',i}));
   }
   // direita: bolsa + detalhes e ações em lote

@@ -86,3 +86,7 @@ Por quê (semente de teste, 7 cidades): antes a necessidade total era 225 unidad
 - **Itens**: couro e pele de lobo contam 1 de couro (um slot de couro no armazém, como madeira e minério). A Loja vende couro (◉7, estoque limitado pela produção da cidade). Cidades de foco couro produzem couro.
 - **Bônus e debuff**: entregar acima da meta → 🟤 **coletes 20% mais baratos** (o seu e os dos soldados); faltar → coletes custam o **dobro**.
 - **Caravana**: o efeito no recurso trazido agora é **100% some • 150% cai para 100% • 200% cai para 150%**. Antes de fechar o acordo aparece **uma tabela** por cidade com a necessidade, o valor com a caravana e as unidades por rodada (a linha de hoje destacada).
+## Últimos ajustes
+- **Minimapa e mapa grande** mostram o **armazém** (letra **Z**); o mapa grande tem uma legenda das letras dos edifícios.
+- **Couro: um slot por tipo de item que vale como couro** (hoje 2: couro e pele de lobo). A quantidade se ajusta sozinha se novos itens de couro forem criados.
+- **Configurações (pausa, nos dois modos)**: aparece a **semente do mundo** com o botão **📋 Copiar**.

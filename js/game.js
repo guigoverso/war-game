@@ -226,8 +226,13 @@ $('clinicbtns').addEventListener('click',e=>{
 $('resume').onclick=()=>{document.querySelector('#pause h2').textContent='⏸ PAUSA';if(AC&&AC.state==='suspended')AC.resume();G.introBook=false;closePanel()};$('respawn').onclick=respawn;
 function toggleMute(){G.muted=!G.muted;if(master)master.gain.value=G.muted?0:0.35;refreshCheats();toast(G.muted?'Som desligado':'Som ligado',1000)}
 function toggleInvis(){G.invis=!G.invis;if(G.invis){for(const e of ENEMIES)e.aggro=false}}
-function refreshCheats(){$('cNoWear').textContent='Desgaste das armas: '+(G.noWear?'desligado':'LIGADO');$('ledgerline').textContent='Rodada '+STATE.round+'  •  '+Ledger.summary()+(Ledger.anyDebt()?'  •  ⚠ EM DÍVIDA: compras bloqueadas':'');$('cInvis').textContent='Invisível: '+(G.invis?'LIGADO':'desligado');$('cMute').textContent='Som: '+(G.muted?'desligado':'LIGADO');$('cGod').textContent='Invencível: '+(G.god?'LIGADO':'desligado');$('cAmmo').textContent='Munição infinita: '+(G.infAmmo?'LIGADA':'desligada');$('cMag').textContent='Pente infinito (sem recarregar): '+(G.noReload?'LIGADO':'desligado')}
+function refreshCheats(){
+  {const ss=$('seedshow');if(ss&&typeof WORLD!=='undefined'&&WORLD.seed!==undefined)ss.textContent=WORLD.seed}
+  $('cNoWear').textContent='Desgaste das armas: '+(G.noWear?'desligado':'LIGADO');$('ledgerline').textContent='Rodada '+STATE.round+'  •  '+Ledger.summary()+(Ledger.anyDebt()?'  •  ⚠ EM DÍVIDA: compras bloqueadas':'');$('cInvis').textContent='Invisível: '+(G.invis?'LIGADO':'desligado');$('cMute').textContent='Som: '+(G.muted?'desligado':'LIGADO');$('cGod').textContent='Invencível: '+(G.god?'LIGADO':'desligado');$('cAmmo').textContent='Munição infinita: '+(G.infAmmo?'LIGADA':'desligada');$('cMag').textContent='Pente infinito (sem recarregar): '+(G.noReload?'LIGADO':'desligado')}
 $('cMute').onclick=toggleMute;
+$('seedcopy').onclick=()=>{const s=String(WORLD.seed),done=()=>toast('Semente '+s+' copiada!',1800);
+  const fb=()=>{const ta=document.createElement('textarea');ta.value=s;ta.style.cssText='position:fixed;left:-999px';document.body.appendChild(ta);ta.select();try{document.execCommand('copy');done()}catch(e){toast('Não foi possível copiar. A semente é '+s,3000)}ta.remove()};
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(s).then(done,fb);else fb()};
 $('cSave').onclick=()=>SaveUI.open('game');
 $('loadbtn').onclick=()=>SaveUI.open('load');
 $('cRes').onclick=()=>{toast('Itens: '+(invGive([['tora',20],['minerio',20],['couro',20],['carne',20],['tilapia',10]])||'(bolsa cheia)'),2500);refreshCheats()};
@@ -513,6 +518,7 @@ function cityIcons(c){
   if(c.clinic)l.push({x:c.clinic.x,z:c.clinic.z,t:'+',col:'#4ac05a'});
   if(c.barracks)l.push({x:c.barracks.x,z:c.barracks.z,t:'Q',col:'#3a8aff'});
   if(c.hall)l.push({x:c.hall.x,z:c.hall.z,t:'P',col:'#ffd23a'});
+  if(c.warehouse)l.push({x:c.warehouse.x,z:c.warehouse.z,t:'Z',col:'#d8a85a'});
   if(c.chapel)l.push({x:c.chapel.x,z:c.chapel.z,t:'†',col:'#c8a0ff'});
   return l;
 }
