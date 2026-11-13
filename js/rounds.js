@@ -12,7 +12,7 @@ const MOOD={rich:{n:'Próspera',icon:'😄',col:'#ffd23a'},ok:{n:'Contente',icon
 // ---------- números da economia (todos juntos para ajustar com facilidade) ----------
 // baseNeed: unidades de um recurso para 100% de necessidade (150% = ×1,5; 200% = ×2) • prodBase/prodRank: produção em abundância por rodada (+1 se próspera)
 // goldMul: ouro por unidade na cidade de foco dinheiro • taxBase/taxRank: imposto por rodada (×1,5 se próspera, 0 se descontente) • caravan/capital: custos em ouro
-const ECON={baseNeed:6,prodBase:7,prodRank:1,goldMul:8,taxBase:25,taxRank:10,caravan:300,capital:300};
+const ECON={baseNeed:6,prodBase:7,prodRank:1,goldMul:8,taxBase:25,taxRank:10,caravan:300,capital:300,shopMul:2};   // shopMul: o estoque da Loja da cidade = (produção da cidade) × shopMul para o recurso dela (25% dos outros)
 const TAX_BASE=ECON.taxBase,TAX_RANK=ECON.taxRank;
 const CAP_MAX_LVL=4;
 const TYPE_NAME={food:'Alimentos',ore:'Minérios',wood:'Madeira',gold:'Dinheiro',port:'Porto'};
@@ -135,6 +135,7 @@ function endRound(city){
     if(c.owner==='player')continue;const e=ec(c),r=Math.random(),pu=0.18+0.04*Math.max(1,c.rank||1),pr=0.15;
     e.mood=r<pu?'upset':r>1-pr?'rich':'ok';
   }
+  for(const c of WORLD.cities)rerollNeeds(c);refreshShops();   // novas necessidades (dado) e Lojas reabastecidas conforme a produção
   rd.debuff=prep?(rd.debuff||{}):debuf;   // debuffs valem na rodada que começa (a necessidade não muda)
   rd.rbuf={};if(prep)computeBuffs();   // o que foi entregue na rodada 0 já vale para a rodada 1
   rd.hallCity=(city||WORLD.home).id;rd.report=rep;
@@ -283,28 +284,45 @@ function refreshRoundHud(){
 // ---------- caravanas decorativas (paradas na estrada entre as cidades de uma rota) ----------
 const CARAVANS=[];
 function clearCaravans(){for(const m of CARAVANS)scene.remove(m.group);CARAVANS.length=0}
+// ponto NA ESTRADA, longe das cidades, em terreno plano e livre de blocos (árvores, pedras, casas); devolve também a direção da estrada (yaw)
 function roadSpot(ax,az,bx,bz,t){
-  const x0=ax+(bx-ax)*t,z0=az+(bz-az)*t;
-  const ok=(x,z,road)=>{
-    if(x<4||z<4||x>=W-4||z>=W-4)return false;const i=z*W+x;
-    if(H[i]<SEA+0.5||(road&&T[i]!==T_ROAD))return false;
-    if(WORLD.cities.some(c=>Math.max(Math.abs(c.cx-x),Math.abs(c.cz-z))<c.half+7))return false;
-    if(DG.ok&&x>DG.rx-6&&x<DG.rx+DG.S+6&&z>DG.rz-6&&z<DG.rz+DG.S+6)return false;
-    return true;
+  const x0=ax+(bx-ax)*t,z0=az+(bz-az)*t,toB=Math.atan2(bx-ax,bz-az);
+  const nearCity=(x,z)=>WORLD.cities.some(c=>Math.max(Math.abs(c.cx-x),Math.abs(c.cz-z))<c.half+12);
+  const isRoad=(x,z)=>{x=Math.floor(x);z=Math.floor(z);return x>=0&&z>=0&&x<W&&z<W&&(T[z*W+x]===T_ROAD||T[z*W+x]===T_BRIDGE)};
+  const dirAt=(x,z)=>{   // direção da estrada: a que tem mais trechos de estrada à frente e atrás
+    let best=0,bc=-1;
+    for(let k=0;k<8;k++){const a=k*Math.PI/8;let n=0;for(let s=-7;s<=7;s++)if(s&&isRoad(x+Math.sin(a)*s,z+Math.cos(a)*s))n++;if(n>bc){bc=n;best=a}}
+    return Math.cos(best-toB)>=0?best:best+Math.PI;   // aponta para a outra cidade
   };
-  // a estrada de verdade serpenteia: procura o trecho de estrada mais perto do ponto da linha reta
-  let best=null,bd=1e9;
-  for(let z=Math.round(z0)-48;z<=Math.round(z0)+48;z++)for(let x=Math.round(x0)-48;x<=Math.round(x0)+48;x++){
-    const d=(x-x0)*(x-x0)+(z-z0)*(z-z0);if(d>=bd||!ok(x,z,true))continue;bd=d;best=[x,z];
+  const clear=(x,z,yaw,lat,tol,blocks)=>{   // carroça + cavalo (≈2×9) ao longo da estrada: terreno plano e (opcional) sem blocos
+    const cy=tH(x,z),sy=Math.sin(yaw),cyw=Math.cos(yaw);
+    for(let s=-3.5;s<=5;s+=1.5)for(let l=-lat;l<=lat;l+=lat||1){
+      const px=x+sy*s+cyw*l,pz=z+cyw*s-sy*l;
+      if(px<4||pz<4||px>=W-4||pz>=W-4)return false;
+      const h=tH(px,pz);if(h<SEA+0.5||Math.abs(h-cy)>tol)return false;
+      if(blocks&&Col.near(px-0.6,pz-0.6,px+0.6,pz+0.6).length)return false;
+    }
+    return true;
+  };  const cands=[];
+  for(let z=Math.round(z0)-220;z<=Math.round(z0)+220;z++)for(let x=Math.round(x0)-220;x<=Math.round(x0)+220;x++){
+    if(!isRoad(x,z)||nearCity(x,z))continue;cands.push([(x-x0)*(x-x0)+(z-z0)*(z-z0),x+0.5,z+0.5]);
   }
-  if(best)return{x:best[0]+0.5,z:best[1]+0.5};
-  for(let r=0;r<=16;r++)for(let k=0;k<(r?14:1);k++){   // sem estrada por perto: um ponto em terra firme perto da linha
-    const a=k*0.4488,x=Math.round(x0+Math.cos(a)*r),z=Math.round(z0+Math.sin(a)*r);
-    if(ok(x,z,false))return{x:x+0.5,z:z+0.5};
+  cands.sort((a,b)=>a[0]-b[0]);
+  for(const [lat,tol,blocks] of[[1.2,1.0,true],[0.8,1.4,true],[0.8,2.0,false]])   // da exigência maior para a menor, sempre NA estrada
+    for(let i=0;i<cands.length&&i<2500;i+=1){const [,x,z]=cands[i],yaw=dirAt(x,z);if(clear(x,z,yaw,lat,tol,blocks))return{x,z,yaw}}
+  if(cands.length){   // estrada em terreno difícil: fica com o trecho de estrada mais plano que houver (nunca fora da estrada)
+    let bs=1e9,bp=null;
+    for(let i=0;i<cands.length&&i<2500;i+=1){const [d,x,z]=cands[i],yaw=dirAt(x,z),sy=Math.sin(yaw),cyw=Math.cos(yaw);let lo=1e9,hi=-1e9;
+      for(let s=-3.5;s<=5;s+=1.5){const h=tH(x+sy*s,z+cyw*s);lo=Math.min(lo,h);hi=Math.max(hi,h)}
+      const sc=(hi-lo)+Math.sqrt(d)*0.03+(lo<SEA+0.5?50:0);if(sc<bs){bs=sc;bp={x,z,yaw}}}
+    if(bp)return bp;
   }
-  return{x:x0,z:z0};
-}
-function makeCaravan(c,x,z,yaw){
+  for(let r=0;r<=30;r++)for(let k=0;k<(r?16:1);k++){   // sem estrada livre por perto: ponto plano e livre perto da linha
+    const a=k*0.3927,x=x0+Math.cos(a)*r,z=z0+Math.sin(a)*r;
+    if(!nearCity(x,z)&&clear(x,z,toB,0.8,1.4,true))return{x,z,yaw:toB};
+  }
+  return{x:x0,z:z0,yaw:toB};
+}function makeCaravan(c,x,z,yaw){
   const g=new THREE.Group();
   const bx=(col,sx,sy,sz,px,py,pz)=>{const o=new THREE.Mesh(GEO_BOX,mat(col));o.scale.set(sx,sy,sz);o.position.set(px,py,pz);g.add(o);return o};
   const W1=0x7a5632,W2=0x5a3d22,CV=0xe8dcc0,HR=0x8a5a3a;
@@ -317,13 +335,15 @@ function makeCaravan(c,x,z,yaw){
   for(const sx of[-0.22,0.22])for(const sz of[2.5,3.5])bx(0x5a3a22,0.16,0.8,0.16,sx,0.4,sz);
   bx(0x2a1a10,0.06,2.8,0.06,0.9,2.3,-1.4);                        // mastro da bandeira
   bx(c.flagMat?c.flagMat.color.getHex():0x2a6aff,1.1,0.4,0.05,1.45,3.5,-1.4);bx(CITY_COLS[c.id%CITY_COLS.length],1.1,0.35,0.05,1.45,3.1,-1.4);   // bandeira da cidade (azul) com a faixa de identidade
-  g.position.set(x,tH(x,z),z);g.rotation.y=yaw;
+  let gy=tH(x,z);for(let s=-3.5;s<=5;s+=1.5)gy=Math.max(gy,tH(x+Math.sin(yaw)*s,z+Math.cos(yaw)*s));   // não fica enterrada em declives
+  g.position.set(x,gy,z);g.rotation.y=yaw;
   const root=new THREE.Group();root.add(g);
   // 3 guardas da cidade/facção em volta da caravana: ficam parados, de guarda, olhando para fora
   for(const [ox,oz] of[[-3.1,1.2],[3.1,1.2],[0,-3.6]]){
     const gx=x+ox*Math.cos(yaw)+oz*Math.sin(yaw),gz=z-ox*Math.sin(yaw)+oz*Math.cos(yaw);
     const m=buildHuman({skin:SKINS[(c.id*3+Math.floor(ox+4))%SKINS.length],shirt:c.flagMat?c.flagMat.color.getHex():0x2a6aff,pants:0x2a2a3a,hairStyle:'helmet',hat:0x8a9ab0,gun:{len:0.75},scarf:CITY_COLS[c.id%CITY_COLS.length]});
     m.arms[1].rotation.x=-1.2;m.arms[0].rotation.x=-1.0;
+    if(Math.abs(tH(gx,gz)-tH(x,z))>1.4||tH(gx,gz)<SEA+0.5||Col.near(gx-0.5,gz-0.5,gx+0.5,gz+0.5).length)continue;   // não põe guarda dentro de pedra/árvore
     m.group.position.set(gx,tH(gx,gz),gz);m.group.rotation.y=Math.atan2(gx-x,gz-z);root.add(m.group);
   }
   scene.add(root);
@@ -333,14 +353,11 @@ function rebuildCaravans(){
   clearCaravans();
   for(const r of STATE.rd.routes){
     const A=WORLD.cities[r.a],B=WORLD.cities[r.b];if(!A||!B)continue;
-    const dist=Math.hypot(B.cx-A.cx,B.cz-A.cz)||1,yAB=Math.atan2(B.cx-A.cx,B.cz-A.cz);
-    // cada caravana sai da sua cidade (logo depois dos muros), levando a bandeira dela, rumo à outra
-    const ta=clamp((A.half+14)/dist,0.08,0.45),tb=clamp(1-(B.half+14)/dist,0.55,0.92);
-    const s1=roadSpot(A.cx,A.cz,B.cx,B.cz,ta),s2=roadSpot(A.cx,A.cz,B.cx,B.cz,tb);
-    makeCaravan(A,s1.x,s1.z,yAB);makeCaravan(B,s2.x,s2.z,yAB+Math.PI);
+    // duas caravanas no meio da estrada: a da cidade A um pouco antes do meio, a da B um pouco depois, cada uma voltada para a outra cidade
+    const s1=roadSpot(A.cx,A.cz,B.cx,B.cz,0.40),s2=roadSpot(B.cx,B.cz,A.cx,A.cz,0.40);
+    makeCaravan(A,s1.x,s1.z,s1.yaw);makeCaravan(B,s2.x,s2.z,s2.yaw);
   }
-}
-function renderDeposit(){const el=document.getElementById('invdeposit');if(el)el.innerHTML='<p class="st">Madeira, minério e comida são itens: entregue-os à cidade no <b>armazém</b>.</p>'}
+}function renderDeposit(){const el=document.getElementById('invdeposit');if(el)el.innerHTML='<p class="st">Madeira, minério e comida são itens: entregue-os à cidade no <b>armazém</b>.</p>'}
 // ---------- livro: bolsa + livro do prefeito (tecla B) ----------
 const LB={top:'book',tab:'resumo',city:null,ra:null,rb:null};
 const LSUBS=[['resumo','📜 Resumo'],['cidades','🏘 Cidades'],['caravanas','🛒 Caravanas'],['capital','🏛 Capital']];
@@ -507,11 +524,43 @@ document.addEventListener('click',e=>{
   }
   if(c.id===MP.a){MP.a=null;MP.step=1;drawBigMap();updatePickBanner();return}
   const A=WORLD.cities[MP.a];
-  UI.confirm('Montar uma caravana de '+A.name+' para '+c.name+' por ◉'+CARAVAN_COST+'? '+A.name+' passará a receber '+resName(focusOf(c)).toLowerCase()+' por ela.',()=>{
-    MP.on=false;updatePickBanner();buyCaravan(A,c);openBook('book','caravanas');
-  },'Comprar');
+  dealSummary(A,c,()=>{MP.on=false;updatePickBanner();buyCaravan(A,c);openBook('book','caravanas')});
 });
 document.addEventListener('mousemove',e=>{
   if(!MP.on||MP.step!==2||G.panel!=='map'||e.target.id!=='bigmap')return;
   const c=pickCityAt(e),h=c&&c.id!==MP.a?c.id:undefined;if(h!==MP.hover){MP.hover=h;drawBigMap()}
 });
+// resumo da negociação: o que cada cidade dá e recebe, antes de fechar o acordo
+function dealSummary(A,B,onYes){
+  const fa=focusOf(A),fb=focusOf(B),ic=r=>resIcon(r)+' '+resName(r).toLowerCase();
+  const line=(X,give,get,mine)=>'<tr><td><b>'+X.name+'</b>'+(mine?' <small>(sua)</small>':' <small>(neutra)</small>')+'</td><td>dá: <b>'+ic(give)+'</b></td><td>recebe: <b>'+ic(get)+'</b></td></tr>';
+  const effects=[];
+  if(NEEDS.includes(fb))effects.push('✔ '+A.name+' passa a ter <b>necessidade 0</b> de '+ic(fb)+' e a sua produção de '+ic(fa)+' segue pela caravana (não vai ao armazém).');
+  else effects.push('⚠ '+B.name+' produz '+ic(fb)+', que não é necessidade: '+A.name+' não ganha nada nessa direção.');
+  if(B.owner==='player'&&NEEDS.includes(fa))effects.push('✔ '+B.name+' passa a ter <b>necessidade 0</b> de '+ic(fa)+'.');
+  else if(B.owner!=='player')effects.push('ℹ '+B.name+' não é sua: ela só recebe '+ic(fa)+', sem efeito no seu jogo.');
+  const w=UI.window({title:'🛒 Resumo da negociação',width:Math.min(520,innerWidth-30),z:60});
+  w.body.innerHTML='<table class="ldt" style="width:100%;color:#ddd">'+line(A,fa,fb,true)+line(B,fb,fa,B.owner==='player')+'</table><p style="font-size:13px;line-height:1.6">'+effects.join('<br>')+'</p><p>Preço do acordo: <b style="color:#ffd23a">◉ '+CARAVAN_COST+'</b> • Duas caravanas (uma de cada cidade) vão para a estrada, com guardas.</p>';
+  w.foot.append(UI.button('Fechar acordo (◉'+CARAVAN_COST+')','gold',()=>{w.close();w.el.remove();onYes()}),UI.button('Voltar ao mapa','alt',()=>{w.close();w.el.remove()}));
+  w.open();return w;
+}
+
+// ---------- as necessidades mudam a cada rodada: "joga-se o dado" para ver qual recurso pesa mais ----------
+function rerollNeeds(c){
+  const e=ec(c);if(!e||e.type==='port')return;   // o porto é distribuído pelo jogador
+  const foc=e.type,others=NEEDS.filter(r=>r!==foc),lv=[200,150,100];
+  for(let i=lv.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));const x=lv[i];lv[i]=lv[j];lv[j]=x}
+  e.pct={};if(NEEDS.includes(foc))e.pct[foc]=0;others.forEach((r,i)=>e.pct[r]=lv[i]);
+}
+// ---------- lojas: o estoque à venda depende da produção da cidade ----------
+const SHOP_ITEM={food:'carne',wood:'tora',ore:'minerio'};
+function refreshShops(){
+  for(const c of WORLD.cities){
+    const e=ec(c);if(!e)continue;
+    const base=(ECON.prodBase+ECON.prodRank*Math.max(1,c.rank||1))*ECON.shopMul,f=focusOf(c),s={};
+    for(const r of NEEDS)s[SHOP_ITEM[r]]=f===r?base:f==='gold'?Math.floor(base*0.5):Math.floor(base*0.25);
+    e.shop=s;
+  }
+}
+function shopLeft(c,id){const e=ec(c);if(!e)return 99;if(!e.shop)refreshShops();return e.shop[id]===undefined?null:e.shop[id]}   // null = item sem limite
+function shopTake(c,id,n){const e=ec(c);if(e&&e.shop&&e.shop[id]!==undefined)e.shop[id]=Math.max(0,e.shop[id]-n)}

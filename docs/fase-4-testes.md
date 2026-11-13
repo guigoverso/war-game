@@ -67,8 +67,13 @@ Todos os números ficam juntos em `ECON` (início de `js/rounds.js`) para ajusta
 | Imposto por rodada | 20 + 10/nível | **25 + 10/nível** (×1,5 próspera, 0 descontente) |
 | Caravana | ◉200 | **◉300** |
 | Preços na Loja (carne / tronco / minério) | 7 / 9 / 12 | **6 / 8 / 10** |
-| Kit inicial (partida nova) | nada | **8 troncos, 8 minérios, 8 carnes** na bolsa |
 
 Por quê (semente de teste, 7 cidades): antes a necessidade total era 225 unidades/rodada para ~53 de produção (déficit de ~170 unidades ≈ ◉1.500 contra ◉360 de imposto: impossível). Agora, com as 7 cidades: necessidade 135, produção 58, déficit ~77 unidades (≈ ◉600 comprando tudo na Loja) contra ~◉395 de imposto: **fecha na faixa de caravanas, cidades prósperas e quests**, e uma cidade sozinha (a capital: necessidade 18, produção 8) se sustenta com uma caçada/pesca por rodada. O que observar jogando: se faltar tempo para suprir 4+ cidades, aumente a produção; se sobrar ouro, diminua o imposto ou suba os preços.
 
 **Caravanas**: cada acordo cria **duas caravanas**, uma saindo de cada cidade (logo depois dos muros, rumo à outra) com a **bandeira da cidade** e **3 guardas dessa cidade** parados em volta, de guarda.
+## Ajustes seguintes (caravanas, lojas e necessidades variáveis)
+- **Kit inicial removido.**
+- **Lojas limitadas**: carne, tronco e minério têm **estoque por cidade**, que depende da produção dela: o recurso de foco da cidade = (7 + nível) × 2; os outros = 25% disso; cidade de foco dinheiro = 50% de cada. O estoque é **reabastecido a cada rodada** e aparece no cartão do item ("Em estoque"). Esgotou, só na próxima rodada. (`ECON.shopMul`)
+- **Necessidades por dado**: a cada rodada, cada cidade (menos o porto, que é do jogador) **sorteia** qual recurso pesa mais: os valores 200%/150%/100% são redistribuídos entre os recursos que ela precisa (o foco continua em 0). Veja o livro no começo de cada rodada.
+- **Caravanas**: ficam **no meio da estrada** entre as cidades, **sempre sobre a estrada** (inclusive pontes), em trecho plano e livre de pedras/árvores; o trecho mais plano disponível é escolhido quando a estrada é íngreme. Cada uma carrega a bandeira da sua cidade e tem 3 guardas parados em volta.
+- **Mapa da caravana**: ao lado do nome de cada cidade aparece o **ícone do que ela troca** (o recurso de foco). Ao escolher a origem e o destino, abre o **resumo da negociação**: o que cada cidade dá e recebe, o efeito nas necessidades e o preço, com "Fechar acordo" ou "Voltar ao mapa".

@@ -63,15 +63,18 @@ function renderStore(){
       const price=pc(d.price,c,kind==='tavern'?'tavern':'buy');
       const own=d.rod&&invCount(d.id)>0;
       const card=document.createElement('div');card.className='card';
-      card.innerHTML='<b>'+d.icon+' '+d.name+'</b><div class="st">'+d.desc+'<br>Preço: <b>◉'+price+'</b>'+(own?'<br>Você já tem esta vara.':'')+'</div>';
+      const left=(d.supply&&d.shop==='store'&&typeof shopLeft==='function')?shopLeft(c,d.id):null;   // estoque limitado pela produção da cidade
+      card.innerHTML='<b>'+d.icon+' '+d.name+'</b><div class="st">'+d.desc+'<br>Preço: <b>◉'+price+'</b>'+(left!==null?'<br>Em estoque: <b>'+left+'</b> (reabastece a cada rodada, conforme a produção da cidade)':'')+(own?'<br>Você já tem esta vara.':'')+'</div>';
       const btn=UI.button('Comprar ◉'+price,'gold',()=>{
         if(Ledger.anyDebt()){toast('Você está em dívida: compras bloqueadas.',2000);return}
         const need=d.type==='weapon'?(STATE.inv.wbar.includes(null)||invRoomFor(d.id)>=1):invRoomFor(d.id)>=1;
         if(!need){toast('Bolsa cheia! Descarte algo antes de comprar.',2200);return}
+        if(left!==null&&shopLeft(c,d.id)<=0){toast('Esgotado nesta cidade até a próxima rodada.',2200);return}
         if(!Ledger.spend({gold:price})){toast('Ouro insuficiente.',1800);return}
+        if(left!==null)shopTake(c,d.id,1);
         invGive([[d.id,1]]);sfx('coin',0);toast(d.icon+' '+d.name+' comprado'+(d.type==='weapon'?' — coloque na barra 1–6 e equipe':''),2500);renderStore();
       });
-      btn.disabled=own||Ledger.anyDebt()||P.coins<price;
+      btn.disabled=own||Ledger.anyDebt()||P.coins<price||(left!==null&&left<=0);
       card.appendChild(btn);grid.appendChild(card);
     }
     body.appendChild(grid);

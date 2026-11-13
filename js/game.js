@@ -528,7 +528,7 @@ function drawBigMap(){
   for(const c of WORLD.cities){
     const x=c.cx*s,y=c.cz*s;g.fillStyle=cityCol(c);g.strokeStyle='#fff';g.lineWidth=2;
     g.beginPath();g.rect(x-7,y-7,14,14);g.fill();g.stroke();
-    g.fillStyle='#fff';g.strokeStyle='#000';g.lineWidth=3;g.strokeText(c.name,x,y-12);g.fillText(c.name,x,y-12);
+    g.fillStyle='#fff';g.strokeStyle='#000';g.lineWidth=3;const lbl=c.name+(MP.on?'  '+resIcon(focusOf(c)):'');g.strokeText(lbl,x,y-12);g.fillText(lbl,x,y-12);   // na escolha de caravana, o ícone do que a cidade troca
   }
   drawRose(g,cv.width-64,64,30);
   drawPickOverlay(g,s);   // modo de escolha de caravana (rounds.js)
@@ -624,7 +624,7 @@ async function startGame(creative,loadData){
     msg('Calculando rotas...');await tick();buildNav();initWeapons();buildViewmodels(camera);initFx();initSky();initDayNight();populateCities();populateWild();placePlayerHome();
     syncOwned();ensureEquipped();genFishSpots();
     if(loadData){applySave(loadData);applyFishGone();rebuildPortals();rebuildSmoke()}
-    else{spawnPortals();RAID.active=false;RAID.area=null;STATE.rd.hallCity=WORLD.home.id;G.introBook=true;invGive([['tora',8],['minerio',8],['carne',8]])}   // kit inicial de suprimentos para aprender a mecânica   // partida nova: começa dentro da prefeitura (rodada 0) com o livro aberto no resumo
+    else{spawnPortals();RAID.active=false;RAID.area=null;STATE.rd.hallCity=WORLD.home.id;G.introBook=true}   // partida nova: começa dentro da prefeitura (rodada 0) com o livro aberto no resumo
     refreshHotbar();refreshBuffs();fishClean();
     G.running=true;$('hud').classList.remove('hidden');initEconomy();rebuildCaravans();refreshRoundHud();if(STATE.phase==='leader'||G.introBook){if(OFFICE.ok)enterOffice(true);else if(G.introBook)placeAtHall()}
     refreshCheats();
