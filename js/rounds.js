@@ -9,7 +9,11 @@ const RES4=['food','ore','wood','gold'];
 const NEEDS=['food','ore','wood'];   // o que as cidades precisam suprir (o ouro é só economia: imposto e produção)
 // humor da cidade (resultado da última rodada): próspera = alguma meta acima (gera bônus); contente = todas atendidas; descontente = faltou algo
 const MOOD={rich:{n:'Próspera',icon:'😄',col:'#ffd23a'},ok:{n:'Contente',icon:'🙂',col:'#9fe89f'},upset:{n:'Descontente',icon:'😠',col:'#ff8a8a'}};
-const TAX_BASE=20,TAX_RANK=10;
+// ---------- números da economia (todos juntos para ajustar com facilidade) ----------
+// baseNeed: unidades de um recurso para 100% de necessidade (150% = ×1,5; 200% = ×2) • prodBase/prodRank: produção em abundância por rodada (+1 se próspera)
+// goldMul: ouro por unidade na cidade de foco dinheiro • taxBase/taxRank: imposto por rodada (×1,5 se próspera, 0 se descontente) • caravan/capital: custos em ouro
+const ECON={baseNeed:6,prodBase:7,prodRank:1,goldMul:8,taxBase:25,taxRank:10,caravan:300,capital:300};
+const TAX_BASE=ECON.taxBase,TAX_RANK=ECON.taxRank;
 const CAP_MAX_LVL=4;
 const TYPE_NAME={food:'Alimentos',ore:'Minérios',wood:'Madeira',gold:'Dinheiro',port:'Porto'};
 const CITY_COLS=[0xe0402a,0x2aa04a,0xe8b820,0x8a3ac8,0x20b0c8,0xe87820,0xd0409a,0x8a8a8a];   // cor de identidade de cada cidade (faixa da bandeira)
@@ -75,7 +79,7 @@ function pctOf(c,res){
   }
   return pct;
 }
-const needOf=(c,res)=>Math.round(pctOf(c,res)*(res==='gold'?1:0.1));   // recursos 1 para 1: 100% = 10 (ou 100 de ouro)
+const needOf=(c,res)=>Math.round(pctOf(c,res)*ECON.baseNeed/100);   // recursos 1 para 1: 100% = ECON.baseNeed unidades
 // recursos do mais abundante (necessidade 0) ao menos abundante (necessidade 200%) nesta rodada
 const abundOf=c=>(focusOf(c)==='gold'?['gold']:[]).concat(NEEDS.slice().sort((a,b)=>pctOf(c,a)-pctOf(c,b)||NEEDS.indexOf(a)-NEEDS.indexOf(b)));
 const abundHtml=c=>abundOf(c).map((r,i)=>'<span title="'+resName(r)+': necessidade '+pctOf(c,r)+'%">'+resIcon(r)+'</span>').join(' › ');
@@ -84,7 +88,7 @@ const missingOf=(c,r)=>Math.max(0,needOf(c,r)-storedOf(c,r));
 const cityMet=c=>NEEDS.every(r=>missingOf(c,r)===0);
 function moodOf(c){const e=STATE.rd&&STATE.rd.cities&&STATE.rd.cities[c.id];return(e&&e.mood)||'ok'}
 const hasRoute=c=>STATE.rd.routes.some(r=>r.a===c.id||r.b===c.id);
-const prodOf=c=>(5+Math.max(1,c.rank||1)+(moodOf(c)==='rich'?1:0))*(focusOf(c)==='gold'?10:1);   // cidade próspera: +1 de produção
+const prodOf=c=>(ECON.prodBase+ECON.prodRank*Math.max(1,c.rank||1)+(moodOf(c)==='rich'?1:0))*(focusOf(c)==='gold'?ECON.goldMul:1);   // cidade próspera: +1 de produção
 const taxOf=c=>moodOf(c)==='upset'?0:Math.round((TAX_BASE+TAX_RANK*Math.max(1,c.rank||1))*(moodOf(c)==='rich'?1.5:1));
 const deliverAndRefresh=()=>{computeBuffs();refreshRoundHud()};function computeBuffs(){
   const b={};
@@ -313,19 +317,29 @@ function makeCaravan(c,x,z,yaw){
   for(const sx of[-0.22,0.22])for(const sz of[2.5,3.5])bx(0x5a3a22,0.16,0.8,0.16,sx,0.4,sz);
   bx(0x2a1a10,0.06,2.8,0.06,0.9,2.3,-1.4);                        // mastro da bandeira
   bx(c.flagMat?c.flagMat.color.getHex():0x2a6aff,1.1,0.4,0.05,1.45,3.5,-1.4);bx(CITY_COLS[c.id%CITY_COLS.length],1.1,0.35,0.05,1.45,3.1,-1.4);   // bandeira da cidade (azul) com a faixa de identidade
-  g.position.set(x,tH(x,z),z);g.rotation.y=yaw;scene.add(g);
-  const m={group:g,x,z};CARAVANS.push(m);return m;
+  g.position.set(x,tH(x,z),z);g.rotation.y=yaw;
+  const root=new THREE.Group();root.add(g);
+  // 3 guardas da cidade/facção em volta da caravana: ficam parados, de guarda, olhando para fora
+  for(const [ox,oz] of[[-3.1,1.2],[3.1,1.2],[0,-3.6]]){
+    const gx=x+ox*Math.cos(yaw)+oz*Math.sin(yaw),gz=z-ox*Math.sin(yaw)+oz*Math.cos(yaw);
+    const m=buildHuman({skin:SKINS[(c.id*3+Math.floor(ox+4))%SKINS.length],shirt:c.flagMat?c.flagMat.color.getHex():0x2a6aff,pants:0x2a2a3a,hairStyle:'helmet',hat:0x8a9ab0,gun:{len:0.75},scarf:CITY_COLS[c.id%CITY_COLS.length]});
+    m.arms[1].rotation.x=-1.2;m.arms[0].rotation.x=-1.0;
+    m.group.position.set(gx,tH(gx,gz),gz);m.group.rotation.y=Math.atan2(gx-x,gz-z);root.add(m.group);
+  }
+  scene.add(root);
+  const m={group:root,x,z};CARAVANS.push(m);return m;
 }
 function rebuildCaravans(){
   clearCaravans();
   for(const r of STATE.rd.routes){
     const A=WORLD.cities[r.a],B=WORLD.cities[r.b];if(!A||!B)continue;
-    const yAB=Math.atan2(B.cx-A.cx,B.cz-A.cz);
-    const s1=roadSpot(A.cx,A.cz,B.cx,B.cz,0.36),s2=roadSpot(A.cx,A.cz,B.cx,B.cz,0.64);
+    const dist=Math.hypot(B.cx-A.cx,B.cz-A.cz)||1,yAB=Math.atan2(B.cx-A.cx,B.cz-A.cz);
+    // cada caravana sai da sua cidade (logo depois dos muros), levando a bandeira dela, rumo à outra
+    const ta=clamp((A.half+14)/dist,0.08,0.45),tb=clamp(1-(B.half+14)/dist,0.55,0.92);
+    const s1=roadSpot(A.cx,A.cz,B.cx,B.cz,ta),s2=roadSpot(A.cx,A.cz,B.cx,B.cz,tb);
     makeCaravan(A,s1.x,s1.z,yAB);makeCaravan(B,s2.x,s2.z,yAB+Math.PI);
   }
 }
-
 function renderDeposit(){const el=document.getElementById('invdeposit');if(el)el.innerHTML='<p class="st">Madeira, minério e comida são itens: entregue-os à cidade no <b>armazém</b>.</p>'}
 // ---------- livro: bolsa + livro do prefeito (tecla B) ----------
 const LB={top:'book',tab:'resumo',city:null,ra:null,rb:null};
@@ -398,8 +412,8 @@ function bookPages(){
   const R='<h3>Evoluir a capital</h3>'+(lvl>=CAP_MAX_LVL?'<p>A capital já é uma cidade fortificada.</p>':'<p>Próximo nível: <b>'+(lvl+1)+'</b> (+1 ação por rodada, a partir da próxima rodada).</p><p>Custo: <b>◉ '+cost.gold+'</b> + 1 ação</p><button data-a="cap" '+(can&&Ledger.canAfford(cost)?'':'disabled')+'>Evoluir</button>'+leaderOnly()+(Ledger.anyDebt()?'<p class="ldwarn">Com dívida não é possível comprar.</p>':''));
   return[L,R];
 }
-const CARAVAN_COST=200;
-const capCost=()=>({gold:300*STATE.rd.lvl});
+const CARAVAN_COST=ECON.caravan;
+const capCost=()=>({gold:ECON.capital*STATE.rd.lvl});
 function renderBook(){
   const inv=LB.top==='inv'&&!G.office;if(!inv&&LB.top==='inv')LB.top='book';
   $('ldsub').style.display=inv?'none':'flex';

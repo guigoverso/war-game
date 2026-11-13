@@ -56,3 +56,19 @@ Use `?mute=1` (sem música). O modo criativo (`?auto=1`) tem botões de teste na
 - **Horário**: ao encerrar o turno do líder, o turno do comandante começa **às 8h**.
 - **Rebelião**: se o turno foi encerrado na cidade que se rebelou, o jogador vai para a **cidade sua mais próxima**.
 - **Noclip**: sem nenhuma colisão e pode descer abaixo do mapa até as camadas escondidas (Q desce). Encerrar o turno com noclip ligado leva ao escritório (antes parava em outro canto do mapa).
+## Ajuste da economia (passo 2) e caravanas com guardas
+Todos os números ficam juntos em `ECON` (início de `js/rounds.js`) para ajustar com facilidade.
+
+| Parâmetro | Antes | Agora |
+|---|---|---|
+| Necessidade (100%) | 10 unidades | **6** (150% = 9, 200% = 12) |
+| Produção em abundância | 5 + nível | **7 + nível** (+1 se próspera) |
+| Ouro por unidade na cidade de foco dinheiro | ×10 | **×8** |
+| Imposto por rodada | 20 + 10/nível | **25 + 10/nível** (×1,5 próspera, 0 descontente) |
+| Caravana | ◉200 | **◉300** |
+| Preços na Loja (carne / tronco / minério) | 7 / 9 / 12 | **6 / 8 / 10** |
+| Kit inicial (partida nova) | nada | **8 troncos, 8 minérios, 8 carnes** na bolsa |
+
+Por quê (semente de teste, 7 cidades): antes a necessidade total era 225 unidades/rodada para ~53 de produção (déficit de ~170 unidades ≈ ◉1.500 contra ◉360 de imposto: impossível). Agora, com as 7 cidades: necessidade 135, produção 58, déficit ~77 unidades (≈ ◉600 comprando tudo na Loja) contra ~◉395 de imposto: **fecha na faixa de caravanas, cidades prósperas e quests**, e uma cidade sozinha (a capital: necessidade 18, produção 8) se sustenta com uma caçada/pesca por rodada. O que observar jogando: se faltar tempo para suprir 4+ cidades, aumente a produção; se sobrar ouro, diminua o imposto ou suba os preços.
+
+**Caravanas**: cada acordo cria **duas caravanas**, uma saindo de cada cidade (logo depois dos muros, rumo à outra) com a **bandeira da cidade** e **3 guardas dessa cidade** parados em volta, de guarda.
