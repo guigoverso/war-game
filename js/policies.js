@@ -37,6 +37,7 @@ Hooks.on('round',()=>{
   const P=STATE.pol;if(!P||!STATE.rd)return;
   const rep=STATE.rd.report||(STATE.rd.report=[]);
   for(const f of P.fx){
+    if(f.t==='routeProd')for(const id of[f.p.a,f.p.b]){const c=WORLD.cities[id];if(c&&c.owner==='player'&&!polFlag('noProd',id)){const g=prodAdd(c,focusOf(c),f.p.add);rep.push('📜 '+f.txt+': +'+g+' em '+c.name+'.')}}
     if(f.t==='gold'&&f.p.add){shOf().vault+=f.p.add;rep.push('📜 '+f.txt+': +◉'+f.p.add+' no cofre.')}
     f.left--;
   }
@@ -68,6 +69,7 @@ function rollPolicy(force){
   const tot=cand.reduce((a,x)=>a+(x.d.weight||1),0);let r=rng.next()*tot,pick=cand[0];
   for(const x of cand){r-=(x.d.weight||1);if(r<=0){pick=x;break}}
   P.pending={pid:pick.d.id,city:pick.city?pick.city.id:-1,round:STATE.round};
+  if(pick.d.data)P.pending.data=pick.d.data(rng);   // dados extras sorteados (ex.: qual rota de caravana)
   toast('📜 Há uma política a decidir. Abra o livro na mesa (E).',4500);polNoteUpdate();
 }
 // modo criativo: "Disparar evento na próxima rodada" força o sorteio no próximo turno do Líder
@@ -91,8 +93,8 @@ function polNoteUpdate(){
 // ---------- janela do cartão ----------
 let polWin=null;
 const polCityOf=pd=>pd&&pd.city>=0?WORLD.cities[pd.city]:null;
-function polCtx(d,op,c){
-  return{def:d,op,city:c,
+function polCtx(d,op,c,data){
+  return{def:d,op,city:c,data,
     fx:spec=>polAddFx(Object.assign({pid:d.id,c:c?c.id:-1},spec)),
     gold:n=>Ledger.add('gold',n),vault:n=>{shOf().vault+=n},
     toast:(m,ms)=>toast(m,ms||3500)};
@@ -104,13 +106,13 @@ function showPolicy(){
   if(!polWin)polWin=UI.window({title:'',width:600,z:50});
   polWin.setTitle('📜 '+d.name+(c?' — '+c.name:''));
   const b=polWin.body;b.innerHTML='';
-  const nar=document.createElement('p');nar.style.cssText='font-style:italic;line-height:1.5';nar.textContent='“'+d.text(c)+'”';b.appendChild(nar);
+  const nar=document.createElement('p');nar.style.cssText='font-style:italic;line-height:1.5';nar.textContent='“'+d.text(c,pd.data)+'”';b.appendChild(nar);
   for(const op of d.options){
-    const ty=POL_TYPE[op.type]||POL_TYPE.neutral,ctx=polCtx(d,op,c);
+    const ty=POL_TYPE[op.type]||POL_TYPE.neutral,ctx=polCtx(d,op,c,pd.data);
     const why=op.can?op.can(ctx):null;   // pagar sem ter o ouro é permitido: gera dívida (ver polChoose)
     const debt=op.cost&&!Ledger.canAfford(op.cost);
     const row=document.createElement('div');row.className='card';row.style.cssText='margin:6px 0;padding:8px 10px';
-    row.innerHTML='<b>'+op.k+'. '+op.label+'</b> <span style="color:'+ty.col+';font-size:13px">['+ty.n+']</span><br><span style="font-size:14px;line-height:1.5">'+op.eff(c)+(op.onStart?' <b>⏱</b>':'')+'</span>';
+    row.innerHTML='<b>'+op.k+'. '+op.label+'</b> <span style="color:'+ty.col+';font-size:13px">['+ty.n+']</span><br><span style="font-size:14px;line-height:1.5">'+op.eff(c,pd.data)+(op.onStart?' <b>⏱</b>':'')+'</span>';
     const btn=UI.button('Escolher '+op.k,why?'alt':'gold',()=>polChoose(op.k));btn.style.marginTop='6px';
     if(why){btn.disabled=true;const w=document.createElement('small');w.style.cssText='margin-left:8px;color:#ff9a9a';w.textContent=why;row.append(btn,w)}
     else{row.appendChild(btn);if(debt){const w=document.createElement('small');w.style.cssText='margin-left:8px;color:#ffb060';w.textContent='💳 você não tem o ouro: o valor vira dívida (compras bloqueadas até pagar)';row.appendChild(w)}}
@@ -123,11 +125,11 @@ function showPolicy(){
 function polChoose(k){
   const pd=STATE.pol.pending;if(!pd)return;
   const d=POL.byId[pd.pid],op=d&&d.options.find(o=>o.k===k),c=polCityOf(pd);if(!op)return;
-  const ctx=polCtx(d,op,c);
+  const ctx=polCtx(d,op,c,pd.data);
   const go=()=>{
     if(op.cost){const dv=!Ledger.canAfford(op.cost);Ledger.borrow(op.cost);if(dv)toast('💳 Sem ouro suficiente: o saldo ficou em dívida.',3500)}   // pagar é sempre possível; sem saldo, vira dívida
     if(op.apply)op.apply(ctx);
-    if(op.onStart)STATE.pol.queue.push({pid:d.id,k,city:pd.city});
+    if(op.onStart)STATE.pol.queue.push({pid:d.id,k,city:pd.city,data:pd.data});
     const cd=op.cool!==undefined?op.cool:d.cool;   // recarga (rodadas) para a mesma política na mesma cidade; a opção pode ter a sua
     if(cd)STATE.pol.cool[d.id+(c?':'+c.id:'')]=STATE.round+cd;
     STATE.pol.log.push({round:STATE.round,pid:d.id,k,city:pd.city});if(STATE.pol.log.length>20)STATE.pol.log.shift();
@@ -150,7 +152,7 @@ function polRunQueue(){
   const q=STATE.pol&&STATE.pol.queue.splice(0)||[];
   for(const e of q){
     const d=POL.byId[e.pid],op=d&&d.options.find(o=>o.k===e.k);if(!op||!op.onStart)continue;
-    try{op.onStart(polCtx(d,op,e.city>=0?WORLD.cities[e.city]:null))}catch(err){console.error('política '+e.pid,err)}
+    try{op.onStart(polCtx(d,op,e.city>=0?WORLD.cities[e.city]:null,e.data))}catch(err){console.error('política '+e.pid,err)}
   }
 }
 // bloco do livro (Resumo): política pendente e efeitos ativos
@@ -288,4 +290,26 @@ definePolicy({id:'raid',name:'Raid de bandidos',city:true,cool:3,
       apply:x=>{const r=polRaidCalc(x.city);
         if(r.win)x.toast('🛡 Seus soldados repeliram o ataque a '+x.city.name+'.',4500);
         else{const lost=raidLoss(x.city);igniteCity(x.city);x.toast('🔥 Os soldados perderam: '+x.city.name+' foi saqueada'+(lost.length?' ('+lost.join(', ')+')':'')+' e pegou fogo.',6000)}}}
+  ]});
+
+// ---------- Etapa 3 da 4C: ataque às caravanas ----------
+// fx 'routeProd' (+2 por rodada para cada cidade sua da rota) é pago no gancho de fim de rodada, no início deste arquivo
+const polRouteOf=d=>d&&STATE.rd.routes.find(r=>(r.a===d.a&&r.b===d.b)||(r.a===d.b&&r.b===d.a));
+const polRouteName=d=>WORLD.cities[d.a].name+' e '+WORLD.cities[d.b].name;
+definePolicy({id:'caravanas',name:'Ataque às caravanas',city:false,
+  cond:()=>STATE.rd.routes.length>0&&typeof CARAVANS!=='undefined'&&CARAVANS.length>0,
+  data:rng=>{const r=rng.pick(STATE.rd.routes);return{a:r.a,b:r.b}},
+  text:(c,d)=>'Os guardas da estrada voltaram feridos, sem carga e sem metade dos homens. Bandidos emboscaram uma de suas caravanas entre '+polRouteName(d)+', e os comerciantes juram que não voltam à estrada sem proteção.',
+  options:[
+    {k:'A',label:'Pagar o resgate da carga',type:'debuff',cost:{gold:100},eff:()=>'−◉100. A rota continua funcionando.'},
+    {k:'B',label:'Limpar a estrada',type:'both',cost:{gold:120},eff:()=>'−◉120. No início do turno do Comandante você é levado à caravana: os bandidos saem dela em 3 ondas de 3, 6 e 9. Vencendo, a rota rende +2 unidades do produto por rodada por '+POL.dur+' rodadas. Se você morrer, a rota é desfeita.',
+      onStart:x=>{
+        const d=x.data,route=polRouteOf(d);if(!route){x.toast('A rota já não existe.',3000);return}
+        const ok=startCaravanBattle(route,{
+          onWin:()=>{x.fx({t:'routeProd',c:-1,p:{a:d.a,b:d.b,add:2},txt:'Rota '+polRouteName(d)+': +2 do produto por rodada (estrada limpa)'});x.toast('🛡 Estrada limpa! A rota vai render mais por '+POL.dur+' rodadas.',5000)},
+          onLose:()=>{const rt=polRouteOf(d);if(rt){STATE.rd.routes.splice(STATE.rd.routes.indexOf(rt),1);rebuildCaravans();computeBuffs()}x.toast('☠ A caravana foi perdida: a rota entre '+polRouteName(d)+' foi desfeita.',5000)}});
+        if(!ok)x.toast('Não foi possível iniciar a emboscada agora.',3000);
+      }},
+    {k:'C',label:'Desfazer a rota',type:'debuff',eff:(c,d)=>'A rota entre '+polRouteName(d)+' é desfeita, sem reembolso. Nada mais é cobrado.',
+      apply:x=>{const rt=polRouteOf(x.data);if(rt){STATE.rd.routes.splice(STATE.rd.routes.indexOf(rt),1);rebuildCaravans();computeBuffs()}}}
   ]});

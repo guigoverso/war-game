@@ -391,7 +391,7 @@ function rebuildCaravans(){
     const A=WORLD.cities[r.a],B=WORLD.cities[r.b];if(!A||!B)continue;
     // duas caravanas no meio da estrada: a da cidade A um pouco antes do meio, a da B um pouco depois, cada uma voltada para a outra cidade
     const s1=roadSpot(A.cx,A.cz,B.cx,B.cz,0.40),s2=roadSpot(B.cx,B.cz,A.cx,A.cz,0.40);
-    makeCaravan(A,s1.x,s1.z,s1.yaw);makeCaravan(B,s2.x,s2.z,s2.yaw);
+    makeCaravan(A,s1.x,s1.z,s1.yaw).r=r;makeCaravan(B,s2.x,s2.z,s2.yaw).r=r;   // .r = a rota da caravana (política Ataque às caravanas)
   }
 }function renderDeposit(){const el=document.getElementById('invdeposit');if(el)el.innerHTML='<p class="st">Madeira, minério e comida são itens: entregue-os à cidade no <b>armazém</b>.</p>'}
 // ---------- livro: bolsa + livro do prefeito (tecla B) ----------
@@ -516,7 +516,7 @@ document.addEventListener('click',e=>{if(e.target.closest('#ldbook'))bookClick(e
 // botão "Encerrar a rodada" no quadro da prefeitura
 function hallRoundAction(c){
   if(STATE.phase==='leader'){closePanel();openBook('book','resumo');return}
-  if(RAID.active){toast('Há um ataque em andamento! Defenda a cidade antes de encerrar a rodada.',3000);return}
+  if(RAID.active||CVB.active){toast('Há um ataque em andamento! Defenda a cidade antes de encerrar a rodada.',3000);return}
   const rnd=STATE.round<1?'rodada 0, preparação':'rodada '+STATE.round;
   UI.confirm('Encerrar o turno do comandante ('+rnd+')? '+(STATE.round<1?'Nada é cobrado. ':'As cidades produzem e cobram as necessidades (o que faltar deixa a cidade descontente e liga debuffs). ')+'Depois você decide no escritório.',()=>{closePanel();endRound(c)},'Encerrar');
 }

@@ -88,7 +88,56 @@ function raidFailed(){
   toast('🔥 Os bandidos saquearam '+c.name+'! Você perdeu ◉'+lostGold+(lost.length?' e '+lost.join(', '):'')+'. A cidade está em chamas.',6000);
   endRaid();
 }
+// ---------- emboscada a uma caravana (política "Ataque às caravanas", opção B) ----------
+// Os bandidos surgem da caravana em 3 ondas de 3, 6 e 9, com CVB_GAP s entre elas. Vencer: onWin(); morrer: onLose().
+const CVB={active:false},CVB_WAVES=[3,6,9],CVB_GAP=15;
+function startCaravanBattle(route,cb){
+  if(RAID.active||CVB.active||G.dg||G.office||P.dead)return false;
+  const m=CARAVANS.find(k=>k.r===route);if(!m)return false;
+  const A=WORLD.cities[route.a],B=WORLD.cities[route.b];
+  const area={kind:'raid',id:700+(STATE.raidSeq=(STATE.raidSeq||0)+1),name:'Emboscada na estrada',cx:m.x,cz:m.z,y:tH(m.x,m.z),half:25,biome:A.biome,rank:Math.max(A.rank||1,B.rank||1),hpMul:1,state:'attacking',owner:'enemy',home:false,
+    enemies:[],npcs:[],walk:[],flags:[],aliveEnemies:0,totalEnemies:0,leash:999,city:A};
+  WORLD.areas.push(area);
+  Object.assign(CVB,{active:true,area,route,m,i:0,gapT:null,cb:cb||{},alliesCalled:false,seeT:0});
+  const f=freeSpot(m.x+7,m.z+7,0.5,1.8,0.45);P.x=f[0];P.z=f[1];P.y=tH(P.x,P.z)+0.1;P.vx=P.vz=P.vy=0;P.camY=P.y;P.yaw=Math.atan2(-(m.x-P.x),-(m.z-P.z));P.pitch=0;   // você chega ao lado da caravana
+  spawnCvbWave();
+  return true;
+}
+function spawnCvbWave(){
+  const n=CVB_WAVES[CVB.i],m=CVB.m;
+  for(let k=0;k<n;k++){
+    const a=Math.random()*6.283,r=4+Math.random()*3,x=m.x+Math.cos(a)*r,z=m.z+Math.sin(a)*r;
+    const e=spawnEnemy(CVB.area,(k===n-1&&CVB.area.rank>=2&&CVB.i>=1)?'hound':'soldier',x,z);e.aggro=true;e.unseenT=99;e.reactT=0.5;
+  }
+  CVB.i++;CVB.gapT=null;sfx('alarm',0);toast('⚔ Emboscada! Onda '+CVB.i+'/'+CVB_WAVES.length+': '+n+' bandidos saem da caravana!',4000);
+}
+function cvbEnd(win){
+  if(!CVB.active)return;
+  const a=CVB.area,cb=CVB.cb;
+  for(const al of ALLIES)if(al.assaultCity===a){al.state='patrol';al.patrolCity=WORLD.home;al.assaultCity=null}
+  if(a){for(const e of a.enemies){e.alive=false;e.gone=true;scene.remove(e.group)}a.enemies=[];a.aliveEnemies=0;const i=WORLD.areas.indexOf(a);if(i>=0)WORLD.areas.splice(i,1)}
+  CVB.active=false;CVB.area=null;
+  const el=document.getElementById('raidhud');if(el)el.style.display='none';
+  if(win){sfx('win',0);if(cb.onWin)cb.onWin()}else if(cb.onLose)cb.onLose();
+}
+function updateCvb(dt){
+  if(!CVB.active)return;
+  const hud=document.getElementById('raidhud'),alive=CVB.area.enemies.filter(e=>e.alive).length;
+  if(!CVB.alliesCalled&&!P.dead&&!G.invis){
+    CVB.seeT-=dt;
+    if(CVB.seeT<=0){CVB.seeT=0.3;
+      if(CVB.area.enemies.some(e=>e.alive&&Math.hypot(e.x-P.x,e.z-P.z)<46&&playerVisibleFrom(e.x,e.y+e.def.eye,e.z,P))){CVB.alliesCalled=true;armyAssault(CVB.area,'★ Seus soldados chegaram para defender a caravana!')}
+    }
+  }
+  if(alive===0){
+    if(CVB.i>=CVB_WAVES.length){cvbEnd(true);return}
+    if(CVB.gapT===null){CVB.gapT=CVB_GAP;toast('✔ Onda '+CVB.i+' vencida! A próxima vem em '+CVB_GAP+' s.',4000)}
+    CVB.gapT-=dt;if(CVB.gapT<=0)spawnCvbWave();
+  }
+  if(hud){hud.style.display='block';hud.innerHTML=alive===0&&CVB.gapT!==null?'⏳ Caravana: próxima onda em <b>'+Math.max(0,Math.ceil(CVB.gapT))+' s</b>':'🛡 Defenda a caravana: onda '+CVB.i+'/'+CVB_WAVES.length+' • '+alive+' bandidos'}
+}
 function updateRaids(dt){
+  updateCvb(dt);
   const hud=document.getElementById('raidhud');
   // gatilho automático: a cada dia de jogo, uma chance de raid (a partir do 2º dia, com intervalo mínimo)
   const day=Math.floor(DN.days);
@@ -99,7 +148,7 @@ function updateRaids(dt){
   // fim da fumaça
   for(const id in STATE.burnt)if(DN.days-STATE.burnt[id]>SMOKE_DAYS){delete STATE.burnt[id];clearSmoke(WORLD.cities[id])}
   updateSmoke(dt);
-  if(!RAID.active){if(hud)hud.style.display='none';return}
+  if(!RAID.active){if(hud&&!CVB.active)hud.style.display='none';return}
   const c=RAID.city,alive=RAID.area.enemies.filter(e=>e.alive).length;
   if(!RAID.engaged&&inCityZone(c))RAID.engaged=true;
   // seus soldados aparecem atrás de você no instante em que um bandido te enxerga (assim não precisam atravessar o mapa devagar)

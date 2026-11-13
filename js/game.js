@@ -117,7 +117,7 @@ function damagePlayer(dmg,fx,fz){
   $(id).style.opacity=1;setTimeout(()=>$(id).style.opacity=0,350);
   if(P.hp<=0){P.hp=0;die()}
 }
-function die(){P.dead=true;G.fireHeld=false;G.aiming=false;openPanel('dead');if(RAID.active&&RAID.engaged)raidFailed()}   // morrer defendendo a cidade: o raid é perdido (saque)
+function die(){P.dead=true;G.fireHeld=false;G.aiming=false;openPanel('dead');if(RAID.active&&RAID.engaged)raidFailed();if(CVB.active)cvbEnd(false)}   // morrer defendendo a cidade: o raid é perdido (saque)
 function respawn(){
   if(G.dg)leaveDungeon(true);
   P.dead=false;P.hp=P.maxhp;P.armor=0;P.coins=P.coins>0?Math.floor(P.coins*0.9):P.coins;P.crouch=false;P.regen=null;fishClean();

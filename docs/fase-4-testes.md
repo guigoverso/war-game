@@ -132,3 +132,9 @@ Arquivo novo: `js/policies.js`. Textos e números aprovados: `docs/politicas-loc
 - **Política Raid de bandidos:** A ⏱ (você é levado à cidade e enfrenta as 3 ondas; vitória ◉40 + 30 × nível); B (−◉100, sem ataque); C (**resumo da batalha antes de confirmar**: poder dos soldados = soldados × 3 × melhorias de dano (+25% por nível) × vida (+15% por nível) × colete (×1,15) contra o dos 30 bandidos (+10% por nível da cidade); vencendo, nada muda; perdendo, −15% dos suprimentos e fumaça).
 - Testado por script: ondas 5/10/15 nos lados N, N+S e E+N+S, intervalo de 30 s, recompensa, derrota ao morrer, resumo de derrota e de vitória, onStart do A.
 - Faltam: Ataque às caravanas (3 ondas de 3, 6 e 9 saindo da caravana) e Dungeon dourada.
+## 4C, etapa 3 (parte 2) — Ataque às caravanas
+- **Política** (só sorteia com rota ativa; a rota é sorteada e fica no cartão): A (−◉100, a rota continua); B ⏱ (−◉120; no início do turno do Comandante você é levado ao lado da caravana e os bandidos saem dela em **3 ondas de 3, 6 e 9**, com **15 s** entre elas (`CVB_GAP`, proposto); vencendo, as duas cidades da rota (suas) recebem **+2 do que produzem por rodada durante 5 rodadas**; **morrendo, a rota é desfeita**); C (a rota é desfeita, sem reembolso).
+- Durante a emboscada não dá para encerrar a rodada. Seus soldados são chamados quando um bandido te vê, como nos raids.
+- O motor ganhou **dados extras no cartão** (`def.data`), usados aqui para guardar a rota sorteada.
+- Testado por script: elegibilidade (só com rota), as 3 ondas (3/6/9) e o intervalo, pagamento de +2 por rodada, derrota ao morrer (rota desfeita) e a opção C.
+- Falta só a **Dungeon dourada**.
