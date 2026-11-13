@@ -275,13 +275,18 @@ function updateNpc(n,dt){
   const dx=P.x-n.x,dz=P.z-n.z,d=Math.hypot(dx,dz);
   let moving=false;const px0=n.x,pz0=n.z;
   if(c.state==='attacking'&&d<45&&!n.stationary){n.fear=Math.max(n.fear,1);n.fx=P.x;n.fz=P.z}
-  n.scareT=(n.scareT||0)-dt;   // civis fogem de animais selvagens por perto
-  if(n.scareT<=0&&!n.stationary){n.scareT=0.3;for(const pk of WORLD.packs)for(const a of pk.enemies)if(a.alive&&Math.abs(a.x-n.x)<12&&Math.abs(a.z-n.z)<12&&Math.hypot(a.x-n.x,a.z-n.z)<12){n.fear=Math.max(n.fear,1.5);n.fx=a.x;n.fz=a.z}}
+  n.scareT=(n.scareT||0)-dt;   // civis fogem de animais selvagens e de bandidos de raid por perto
+  if(n.scareT<=0&&!n.stationary){
+    n.scareT=0.3;
+    const scare=a=>{if(a.alive&&Math.abs(a.x-n.x)<12&&Math.abs(a.z-n.z)<12&&Math.hypot(a.x-n.x,a.z-n.z)<12){n.fear=Math.max(n.fear,1.5);n.fx=a.x;n.fz=a.z}};
+    for(const pk of WORLD.packs)for(const a of pk.enemies)scare(a);
+    if(RAID.active)for(const a of RAID.area.enemies)scare(a);
+  }
   if(n.fear>0){
     n.fear-=dt;const ax=n.x-n.fx,az=n.z-n.fz,al=Math.hypot(ax,az)||1;
     steer(n,n.x+ax/al*5,n.z+az/al*5,4.6,dt,n.r,1.8,1.05);faceMove(n,px0,pz0,dt);moving=true;n.phase+=dt*12;
   }else if(n.stationary){
-    if(d<7){n.yaw+=(Math.atan2(dx,dz)-n.yaw+Math.PI*3)%(Math.PI*2)-Math.PI;}
+    if(d<7&&!n.sit&&n.role!=='cook'){n.yaw+=(Math.atan2(dx,dz)-n.yaw+Math.PI*3)%(Math.PI*2)-Math.PI;}   // clientes sentados e o taverneiro ficam parados
   }else if(n.state==='idle'){
     n.timer-=dt;
     if(d<4.5)n.yaw+=((Math.atan2(dx,dz)-n.yaw+Math.PI*3)%(Math.PI*2)-Math.PI)*Math.min(1,dt*3);
@@ -431,7 +436,7 @@ function updateEnemy(e,dt){  const def=e.def,m=e.model;
   const tg=e.tg,dx=tg.x-e.x,dz=tg.z-e.z,d=Math.hypot(dx,dz);
   e.cool-=dt;e.losT-=dt;e.flash-=dt;
   let active=c.state==='attacking'&&!P.dead&&d<140;
-  if(c.kind==='cave'||c.kind==='camp'||c.kind==='pack'){
+  if(c.kind==='cave'||c.kind==='camp'||c.kind==='pack'||c.kind==='dungeon'){
     const dc=Math.hypot(P.x-c.cx,P.z-c.cz),leash=c.leash||(c.kind==='cave'?24:30);
     e.wildT=(e.wildT||0)-dt;
     if(e.wildT<=0){
@@ -554,6 +559,8 @@ function damageEnemy(e,amount,head,byAlly,src){   // src: outro bicho/soldado qu
 }
 function checkConquest(c){
   if(c.aliveEnemies>0)return;
+  if(c.kind==='raid'){onRaidCleared();return}                   // raid repelido
+  if(c.kind==='dungeon'){c.state='cleared';toast('✔ A dungeon foi limpa! Abra o baú do fundo.',4000);return}
   if(c.kind==='camp'&&!c.ambush&&!c.gone&&c.state!=='cleared'){clearCamp(c);return}   // acampamento esvaziado (até por animais): baú e refém liberados
   if(c.state!=='attacking')return;
   if(c.ambush)c.state='cleared';else if(c.kind==='camp')clearCamp(c);else if(c.kind==='cave'||c.kind==='pack')c.state='idle';else if(c.owner==='enemy')conquerCity(c);

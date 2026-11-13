@@ -13,7 +13,8 @@ function collectSave(){
   return {
     v:SAVE_VERSION,savedAt:new Date().toISOString(),seed:WORLD.seed,bio:G.startBio||'',creative:!!G.creative,
     flags:{god:!!G.god,infAmmo:!!G.infAmmo,noReload:!!G.noReload,won:!!G.won},
-    player:{x:P.x,y:P.y,z:P.z,yaw:P.yaw,pitch:P.pitch,hp:P.hp,maxhp:P.maxhp,armor:P.armor,coins:P.coins},
+    player:G.dg?{x:G.dg.ret.x,y:G.dg.ret.y,z:G.dg.ret.z,yaw:G.dg.ret.yaw,pitch:P.pitch,hp:P.hp,maxhp:P.maxhp,armor:P.armor,coins:P.coins}   // dentro da dungeon, salva a posição do portal
+      :{x:P.x,y:P.y,z:P.z,yaw:P.yaw,pitch:P.pitch,hp:P.hp,maxhp:P.maxhp,armor:P.armor,coins:P.coins},
     weapons:{owned:WS.owned.slice(),mag:WS.mag.slice(),reserve:WS.reserve.slice(),cur:WS.cur},
     army,allies:allyCount(),
     cities:WORLD.cities.map(c=>({id:c.id,owner:c.owner})),
@@ -32,7 +33,8 @@ function migrateSave(d){
   if(d.v<2){d.v=2}   // v2 acrescentou inventário e durabilidade dentro de state (ausentes = padrão)
   if(d.v<3){d.v=3}   // v3 acrescentou bônus de comida, vendedores e a vara de pescar (ausentes = padrão)
   if(d.v<4){d.v=4}   // v4: armas viram itens (barra 1–6), atalhos 7–9 guardam pilhas e há cardumes de pesca (ausentes = padrão)
-  // if(d.v<5){ ...ajustes...; d.v=5 }
+  if(d.v<5){d.v=5}   // v5: portais, armas lendárias, cidades queimadas e controle de raids (ausentes = padrão)
+  // if(d.v<6){ ...ajustes...; d.v=6 }
   return d;
 }
 
@@ -56,7 +58,9 @@ function applySave(d){
   // estado geral (recursos, rodada...)
   resetState();
   const s=d.state||{};STATE.round=s.round||1;STATE.phase=s.phase||'commander';STATE.res=Object.assign({food:0,ore:0,wood:0},s.res||{});
-  if(s.inv)STATE.inv=s.inv;if(s.dur)STATE.dur=s.dur;if(s.buffs)STATE.buffs=s.buffs;if(s.vendors)STATE.vendors=s.vendors;if(s.fishGone)STATE.fishGone=s.fishGone;normalizeInv();refreshBuffs();   // inventário e durabilidade (salvamentos antigos usam os padrões)
+  if(s.inv)STATE.inv=s.inv;if(s.dur)STATE.dur=s.dur;if(s.buffs)STATE.buffs=s.buffs;if(s.vendors)STATE.vendors=s.vendors;if(s.fishGone)STATE.fishGone=s.fishGone;
+  STATE.portals=s.portals||[];STATE.portalSeq=s.portalSeq||0;STATE.portalDay=s.portalDay;STATE.legend=s.legend||{};STATE.burnt=s.burnt||{};STATE.raidDay=s.raidDay||0;STATE.raidLast=s.raidLast===undefined?-9:s.raidLast;
+  if(!(s.portals&&s.portals.length)&&s.portalDay===undefined)STATE.portalDay=undefined;   // salvamento antigo: os portais nascem na horanormalizeInv();refreshBuffs();   // inventário e durabilidade (salvamentos antigos usam os padrões)
   // cidades conquistadas
   for(const sc of d.cities||[]){
     const c=WORLD.cities[sc.id];if(!c||sc.owner!=='player'||c.owner==='player')continue;

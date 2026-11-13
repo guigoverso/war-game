@@ -55,8 +55,8 @@ function addChest(x,y,z,yaw,gold,lockedBy){
 }
 function openChest(ch){
   if(ch.opened)return;
-  if(ch.lockedBy&&ch.lockedBy.state!=='cleared'){toast('🔒 Trancado: elimine os bandidos primeiro.',1800);return}
-  ch.opened=true;if(ch.lockedBy)ch.lockedBy.completed=true;addCoins(ch.gold);sfx('coin',0);const lt=lootChest();toast('📦 Baú aberto! +'+ch.gold+' moedas'+(lt?'  •  '+lt:''),3500);
+  if(ch.lockedBy&&ch.lockedBy.state!=='cleared'){toast('🔒 Trancado: elimine os inimigos primeiro.',1800);return}
+  ch.opened=true;if(ch.lockedBy)ch.lockedBy.completed=true;addCoins(ch.gold);sfx('coin',0);const lt=lootChest(ch.lootKey);toast('📦 Baú aberto! +'+ch.gold+' moedas'+(lt?'  •  '+lt:''),3500);if(ch.dg)dungeonChestOpened(ch);
 }
 function updateChests(dt){
   for(const ch of WORLD.chests){
@@ -247,6 +247,7 @@ function digCamp(x,z){
 function genPOIs(rng,cities){
   WORLD.camps=[];WORLD.caves=[];WORLD.chests=[];FIRES.length=0;
   const taken=cities.map(c=>({x:c.cx,z:c.cz,r:c.half+8}));
+  genDungeons(rng,cities,taken);   // região reservada num canto do mapa (antes de qualquer outro ponto de interesse)
   const nCamps=rng.int(14,18);
   for(let i=0;i<nCamps;i++){
     const s=findSpot(rng,10,16,6,taken.concat(cities.map(k=>({x:k.cx,z:k.cz,r:k.half+24}))),3500);if(!s)continue;

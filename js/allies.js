@@ -38,13 +38,13 @@ function wildFoe(e){
   return best;
 }
 function wildCiv(e){   // animais preferem perseguir civis (vistos pelo jogador)
-  if(!e.watched)return null;let best=null,bd=45;
+  if(!e.watched&&e.city.kind!=='raid')return null;let best=null,bd=45;
   for(const n of NPCS){if(!n.alive||n.gone||n.role==='hostage'||n.role==='guard')continue;const d=Math.hypot(n.x-e.x,n.z-e.z);if(d<bd){bd=d;best=n}}
   return best;
 }
 function pickTarget(e){
   if(e.revengeT>0&&e.revenge&&(e.revenge===P?!P.dead:e.revenge.alive))return e.revenge;
-  if(e.city.kind==='pack'){const dp=Math.hypot(P.x-e.x,P.z-e.z);if(!(e.aggro&&dp<14)){const cv=wildCiv(e);if(cv)return cv}}
+  if(e.city.kind==='pack'||e.city.kind==='raid'){const dp=Math.hypot(P.x-e.x,P.z-e.z);if(!(e.aggro&&dp<14)){const cv=wildCiv(e);if(cv)return cv}}
   const wf=wildFoe(e);
   if(wf){
     const dp=Math.hypot(P.x-e.x,P.z-e.z),df=Math.hypot(wf.x-e.x,wf.z-e.z);
@@ -97,7 +97,7 @@ function armyConquered(c){for(const a of ALLIES)if(a.alive){a.state='patrol';a.p
 function allyFindTarget(a,w){
   const ey=a.y+1.6;let best=null,bd=1e9,seek=null,sd=1e9;
   for(const e of ENEMIES){
-    if(!e.alive||e.city.state!=='attacking'||e.city.kind)continue;
+    if(!e.alive||e.city.state!=='attacking'||(e.city.kind&&e.city.kind!=='raid'))continue;   // aliados também combatem os bandidos de raid
     const d=Math.hypot(e.x-a.x,e.z-a.z);
     if(d<sd){sd=d;seek=e}
     if(d<Math.min(w.range,60)&&d<bd&&losClear(a.x,ey,a.z,e.x,e.y+e.lift+e.def.h*0.6,e.z)){bd=d;best=e}

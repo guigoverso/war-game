@@ -96,21 +96,21 @@ function buildViewmodels(camera){
     hand(b,0,-9,5,1);hand(b,-1,-9,-14,-1.5);
   },0,-46);
   // 6 vara de pescar (índice WEAPONS.length): cabo de cortiça, carretilha com manivela, haste que sobe, passadores e ponta vermelha
-  const RODTIP=[17,-88];
+  // (estilo Minecraft: uma mão só, a haste aponta para cima e um pouco para a frente)
+  const RODTIP=[40,-20];
   mk(b=>{
     const BR=0x6b4a2a,BR2=0x4a321a,RD=0xb03a3a,CORK=0xc8a060,CORK2=0xa88040,GY=0x6a7078,GD=0x2a2a2e,YL=0xe0c030;
-    b.box(-2,-5,-6,2,0,10,CORK);b.box(-2,-5,-6,2,-4,10,CORK2);          // cabo
-    b.box(-2,-6,10,2,-1,14,BR2);                                         // fundo do cabo
-    b.box(-3,-8,0,3,-5,6,GY);b.box(-2,-10,1,2,-8,5,GD);                 // carretilha
-    b.box(3,-7,2,6,-6,3,YL);b.box(6,-7,2,7,-4,3,YL);                    // manivela
-    b.box(-1,-5,-12,1,-1,-6,BR2);                                        // virola
-    for(let i=0;i<16;i++){                                               // haste em gomos que sobe e afina
-      const z=-12-i*5,y=-3+Math.round(i*1.2);
-      b.box(-1,y,z-5,1,y+2,z,i%5===4?RD:BR);
-      if(i>0&&i%3===0)b.box(-1,y+2,z-2,1,y+3,z-1,GY),b.box(0,y+3,z-2,1,y+4,z-1,GY);   // passadores de linha
+    b.box(-2,-4,0,2,4,4,CORK);b.box(-2,-4,0,2,-1,4,CORK2);              // cabo (na mão)
+    b.box(-2,-6,1,2,-4,4,BR2);                                           // fundo do cabo
+    b.box(-3,0,3,3,4,7,GY);b.box(-2,1,6,2,3,9,GD);                      // carretilha
+    b.box(3,1,5,5,2,6,YL);b.box(5,1,5,6,4,6,YL);                        // manivela
+    for(let i=0;i<9;i++){                                                // haste fina em gomos: sobe 4 voxels e avança 2 a cada gomo
+      const y=4+i*4,z=-i*2-1;
+      b.box(0,y,z-2,1,y+4,z+1,i%4===3?RD:BR);
+      if(i>0&&i%3===1)b.box(-1,y+1,z-3,2,y+2,z-2,GY);                   // passadores de linha
     }
-    b.box(0,RODTIP[0]-1,RODTIP[1]-1,1,RODTIP[0]+2,RODTIP[1]+3,RD);       // ponteira vermelha
-    hand(b,0,-5,3,1);hand(b,-1,-3,-20,-1.6);
+    b.box(0,RODTIP[0]-2,RODTIP[1]-1,1,RODTIP[0],RODTIP[1]+2,RD);         // ponteira vermelha
+    hand(b,0,0,2,1);                                                     // uma mão só, segurando o cabo
   },RODTIP[0],RODTIP[1]);
   {
     // linha pendurada na ponta, com boia e anzol (some quando a linha é lançada)
@@ -161,7 +161,7 @@ function fireWeapon(){
   if(weaponBroken()){sfx('empty',0);WS.cool=0.4;if(!G.brokenToast||G.t-G.brokenToast>3){toast('💥 '+w.name+' quebrada! Troque de arma ou conserte no armeiro.',2500);G.brokenToast=G.t}return}
   if(WS.mag[WS.cur]<=0&&!G.noReload){if(WS.reserve[WS.cur]>0||G.infAmmo)startReload();else{sfx('empty',0);WS.cool=0.3}return}
   if(!G.noReload)WS.mag[WS.cur]--;WS.cool=60/w.rpm;WS.recoil=1;WS.flash=0.05;
-  const dmul=durMul()*buffMul('dmg');wearWeapon();   // desgaste: arma muito gasta causa menos dano
+  const dmul=durMul()*buffMul('dmg')*legendMul(WS.cur);wearWeapon();   // desgaste: arma muito gasta causa menos dano
   camera.getWorldDirection(_d);camera.getWorldPosition(_o);
   _r.set(1,0,0).applyQuaternion(camera.quaternion);_u.set(0,1,0).applyQuaternion(camera.quaternion);
   const aimed=G.aiming,mulSp=(aimed?0.35:1)*(P.crouch?0.7:1)*(P.speed>2?1.35:1)*(P.ground?1:1.8);
@@ -206,7 +206,7 @@ function updateWeapons(dt){
   WS.recoil=Math.max(0,WS.recoil-dt*9);WS.flash-=dt;
   if(WS.rod){   // vara na mão: balança de leve e a linha pendurada some enquanto a linha está lançada
     const rv=WS.vm[WEAPONS.length];
-    if(rv){rv.position.x+=(0.24-rv.position.x)*Math.min(1,dt*14);rv.position.y+=(-0.22-rv.position.y)*Math.min(1,dt*14);rv.position.z=-0.62+Math.sin(G.bob*2)*0.004*(P.speed>1?1:0);rv.rotation.x=Math.sin(G.t*1.6)*0.01;rv.rotation.z=Math.sin(G.bob)*0.01*(P.speed>1?1:0);rv.visible=true}
+    if(rv){rv.position.x+=(0.34-rv.position.x)*Math.min(1,dt*14);rv.position.y+=(-0.5-rv.position.y)*Math.min(1,dt*14);rv.position.z=-0.7+Math.sin(G.bob*2)*0.004*(P.speed>1?1:0);rv.rotation.x=-(WS.rodSwing||0)+Math.sin(G.t*1.6)*0.01;rv.rotation.z=Math.sin(G.bob)*0.01*(P.speed>1?1:0);rv.visible=true}
     if(WS.rodDangle)WS.rodDangle.visible=(typeof FISH==='undefined'||FISH.state==='idle');
   }
   const vm=(WS.rod||WS.none)?null:WS.vm[WS.cur];

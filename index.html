@@ -26,6 +26,7 @@ canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block}
 .hb{position:relative;width:46px;height:46px;background:rgba(20,20,28,.75);border:3px solid #111;box-shadow:inset 0 0 0 2px #5a5a66;display:flex;align-items:center;justify-content:center;font-size:24px}.hb i{position:absolute;left:3px;top:0;font-size:11px;font-style:normal;color:#ccc}.hb b{position:absolute;right:3px;bottom:0;font-size:12px;color:#ffd23a;text-shadow:1px 1px 0 #000}.hb.empty{opacity:.45}
 .invalert{background:#a83a3a;border:3px solid #111;padding:4px 8px;font-size:13px;animation:blink 1s infinite}@keyframes blink{50%{opacity:.55}}
 .slot.rel,.hb.rel{background:#b8941f;border-color:#f0c93a}.slot.heal,.hb.heal{background:#b04848;border-color:#e88080}
+#raidhud{position:absolute;left:50%;top:78px;transform:translateX(-50%);background:rgba(120,20,20,.8);border:3px solid #111;padding:6px 14px;font-size:16px;text-shadow:1px 1px 0 #000;animation:blink 1.2s infinite}
 #buffs{position:absolute;left:18px;top:110px;font-size:13px;line-height:1.5}.buff{background:rgba(20,20,28,.7);border:2px solid #111;padding:2px 8px;margin-bottom:3px;display:inline-block;clear:both}.buff small{opacity:.8}#buffs{display:flex;flex-direction:column;align-items:flex-start}
 #fishhud{position:absolute;left:50%;top:62%;transform:translateX(-50%);text-align:center;font-size:18px;text-shadow:2px 2px 0 #000;background:rgba(20,20,28,.6);padding:8px 14px;border:3px solid #111}
 .fbar{width:280px;height:16px;border:3px solid #111;background:#222;margin:6px auto}.fbar div{height:100%;width:0;background:#4ac0e0}.fbar.t div{background:#4ac05a}#fishbars small{font-size:11px;opacity:.8}
@@ -103,6 +104,7 @@ label{font-size:14px}
   <div id="obj"></div>
   <div id="hotbar"></div>
   <div id="buffs"></div>
+  <div id="raidhud" style="display:none"></div>
   <div id="fishhud" style="display:none"><div></div><div id="fishbars" style="display:none"><div class="fbar"><div id="fishprog"></div></div><div class="fbar t"><div id="fishten"></div></div><small>Progresso (azul) e tensão (cuidado com o vermelho)</small></div></div>
 </div>
 
@@ -137,6 +139,7 @@ label{font-size:14px}
   </div>
   <button id="invup" class="gold">Ampliar bolsa</button><button id="invclose" class="alt">Fechar (B)</button></div></div>
 <div id="store" class="screen hidden"><div class="panel" style="min-width:640px"><h2 id="storetitle">🛒 LOJA</h2><div class="big" id="storeinfo"></div><div id="storebody"></div><button id="storeclose" class="alt" style="margin-top:10px">Sair (E)</button></div></div>
+<div id="raid" class="screen hidden"><div class="panel" style="min-width:460px"><h2>⚠ ATAQUE DE BANDIDOS</h2><p id="raidtxt"></p><div id="raidbtns"></div></div></div>
 <div id="cook" class="screen hidden"><div class="panel" style="min-width:560px"><h2>🍳 COZINHA</h2><div class="big" id="cookinfo"></div><div class="grid" id="cookbody"></div><button id="cookclose" class="alt">Fechar (E)</button></div></div>
 <div id="pause" class="screen hidden"><div class="panel" style="min-width:420px"><h2>⏸ PAUSA</h2>
   <button id="resume" class="gold">▶ Continuar</button><br>
@@ -147,6 +150,7 @@ label{font-size:14px}
   <div id="ledgerline"></div>
   <button id="cRes" class="alt">+100 alimentos, minério e madeira</button><button id="cDebt" class="alt">Dívida de teste (−50 ouro)</button><button id="cRound" class="alt">Rodada +1</button><br>
   <button id="cItems" class="alt">Dar 1 de cada item</button><button id="cFill" class="alt">Encher a bolsa (teste de bolsa cheia)</button><button id="cWear" class="alt">Desgastar arma atual −40%</button><button id="cFix" class="alt">Consertar todas as armas (grátis)</button><button id="cNoWear" class="alt">Desgaste: ?</button><br>
+  <button id="cPortals" class="alt">Criar portais agora</button><button id="cGoPortal" class="alt">Ir ao portal mais próximo</button><button id="cRaid" class="alt">Iniciar raid agora</button><button id="cLegend" class="alt">Dar uma arma lendária</button><br>
   <button id="cKit" class="alt">Kit de cozinha (peixes, carne, ervas)</button><button id="cVend" class="alt">Zerar ouro do vendedor da cidade atual</button><button id="cBuffs" class="alt">Dar todos os bônus (comida)</button><br>
   <button id="cInvis" class="alt">Invisível: ?</button><button id="cGod" class="alt">Invencível: ?</button><button id="cAmmo" class="alt">Munição infinita: ?</button><button id="cMag" class="alt">Pente infinito: ?</button><br>
   <select id="packsel" style="font-family:inherit;font-size:15px;padding:6px"><option value="">Bando: do bioma</option><option value="wolf">Lobos</option><option value="bear">Ursos</option><option value="spider">Aranhas</option><option value="boar">Javalis</option><option value="scorpion">Escorpiões</option></select><button id="cPack" class="gold">🐾 Invocar bando de animais</button><br>
@@ -182,6 +186,8 @@ label{font-size:14px}
 <script src="js/store.js"></script>
 <script src="js/cooking.js"></script>
 <script src="js/fishing.js"></script>
+<script src="js/dungeon.js"></script>
+<script src="js/raids.js"></script>
 <script src="js/save.js"></script>
 <script src="js/game.js"></script>
 </body>

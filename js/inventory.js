@@ -15,6 +15,7 @@ const wItemId=i=>'w_'+WEAPONS[i].id;
 function newInv(){return{size:INV_BASE,slots:new Array(INV_BASE).fill(null),bar:new Array(CBAR).fill(null),wbar:['w_pistol',null,null,null,null,null],upgraded:false,pending:[]}}
 Hooks.on('resetState',()=>{
   STATE.inv=newInv();STATE.dur=WEAPONS.map(()=>100);STATE.buffs=[];STATE.vendors={};STATE.fishGone={};
+  STATE.portals=[];STATE.portalSeq=0;STATE.portalDay=undefined;STATE.legend={};STATE.burnt={};STATE.raidDay=0;STATE.raidLast=-9;
 });
 // garante que um estado carregado tenha todos os campos (salvamentos antigos)
 function normalizeInv(){
@@ -29,6 +30,11 @@ function normalizeInv(){
   if(!STATE.buffs)STATE.buffs=[];
   if(!STATE.vendors)STATE.vendors={};
   if(!STATE.fishGone)STATE.fishGone={};
+  if(!STATE.portals)STATE.portals=[];
+  if(!STATE.legend)STATE.legend={};
+  if(!STATE.burnt)STATE.burnt={};
+  if(STATE.raidDay===undefined)STATE.raidDay=0;
+  if(STATE.raidLast===undefined)STATE.raidLast=-9;
 }
 // classe de cor do espaço: relíquia dourada, itens de cura em vermelho claro
 function itemSlotCls(id){const d=itemDef(id);return !d?'':d.type==='relic'?'rel':(d.type==='consumable'&&d.use&&d.use.heal)?'heal':''}
@@ -275,10 +281,10 @@ function weaponBroken(i){return durOf(i===undefined?WS.cur:i)<=0}
 function durMul(){const d=durOf(WS.cur);return d<25?0.75:d<50?0.9:1}
 function wearWeapon(){
   if(G.noWear)return;
-  const i=WS.cur,before=STATE.dur[i];STATE.dur[i]=Math.max(0,before-WEAR[i]);const now=STATE.dur[i];
-  if(before>=25&&now<25)toast('⚠ '+WEAPONS[i].name+' desgastada (25%). Conserte no armeiro.',3000);
-  else if(before>=10&&now<10)toast('⚠ '+WEAPONS[i].name+' quase quebrando (10%)!',3000);
-  else if(before>0&&now<=0)toast('💥 '+WEAPONS[i].name+' QUEBROU! Conserte no armeiro.',4000);
+  const i=WS.cur,before=STATE.dur[i];STATE.dur[i]=Math.max(0,before-WEAR[i]*(STATE.legend[i]?0.5:1));const now=STATE.dur[i];   // armas lendárias gastam metade
+  if(before>=25&&now<25)toast('⚠ '+wName(i)+' desgastada (25%). Conserte no armeiro.',3000);
+  else if(before>=10&&now<10)toast('⚠ '+wName(i)+' quase quebrando (10%)!',3000);
+  else if(before>0&&now<=0)toast('💥 '+wName(i)+' QUEBROU! Conserte no armeiro.',4000);
 }
 function repairCost(i,c){
   const miss=100-durOf(i);if(miss<=0)return 0;
@@ -296,7 +302,7 @@ function repairWeapon(i,c){
 // ---------- tela da bolsa ----------
 function openInventory(){G.invSel=null;G.pendSel=null;openPanel('inv');renderInventory()}
 function slotTitle(it,loc){
-  const d=itemDef(it.id);let t=d.name+(it.n>1?' ×'+it.n:'');
+  const d=itemDef(it.id);let t=(d.weapon!==undefined?wName(d.weapon):d.name)+(it.n>1?' ×'+it.n:'');
   if(d.weapon!==undefined)t+=' — '+(weaponBroken(d.weapon)?'QUEBRADA':Math.round(durOf(d.weapon))+'%');
   return t;
 }
@@ -330,7 +336,8 @@ function renderInventory(){
     const d=itemDef(s.id);
     let extra='';
     if(d.weapon!==undefined){const i=d.weapon;extra='<br>Durabilidade: '+(weaponBroken(i)?'<b style="color:#ff6a6a">QUEBRADA</b>':Math.round(durOf(i))+'%')+'<br>Munição reserva: '+WS.reserve[i]}
-    det.innerHTML='<div style="font-size:30px">'+d.icon+'</div><b>'+d.name+'</b>'+(s.n>1?' ×'+s.n:'')+'<p class="st">'+d.desc+'<br>Valor: ◉'+d.value+(d.noSell?' (não vendável)':'')+extra+'</p>';
+    if(d.weapon!==undefined&&STATE.legend[d.weapon])extra+='<br><b style="color:#ffd23a">★ Lendária: +50% de dano e desgaste pela metade</b>';
+    det.innerHTML='<div style="font-size:30px">'+d.icon+'</div><b>'+(d.weapon!==undefined?wName(d.weapon):d.name)+'</b>'+(s.n>1?' ×'+s.n:'')+'<p class="st">'+d.desc+'<br>Valor: ◉'+d.value+(d.noSell?' (não vendável)':'')+extra+'</p>';
     const fromBag=sel.k==='bag';
     if(d.use){
       det.appendChild(UI.button('Usar','gold',()=>{if(sel.k==='cbar')useBar(sel.i);else invUse(s.id);G.invSel=null;renderInventory()}));

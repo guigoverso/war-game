@@ -119,6 +119,7 @@ function damagePlayer(dmg,fx,fz){
 }
 function die(){P.dead=true;G.fireHeld=false;G.aiming=false;openPanel('dead')}
 function respawn(){
+  if(G.dg)leaveDungeon(true);
   P.dead=false;P.hp=P.maxhp;P.armor=0;P.coins=P.coins>0?Math.floor(P.coins*0.9):P.coins;P.crouch=false;P.regen=null;fishClean();
   for(const c of WORLD.cities)if(c.state==='attacking'){c.state='idle';for(const e of c.enemies)if(e.alive){e.hp=e.maxhp;e.x=e.homeX;e.z=e.homeZ;e.y=tH(e.x,e.z)}}
   placePlayerHome();closePanel();
@@ -137,7 +138,7 @@ function conquerCity(c){
 }
 
 // ---------- Painéis ----------
-const SCREENS=['start','shop','clinic','barracks','quests','pause','map','dead','victory','inv','store','cook'];
+const SCREENS=['start','shop','clinic','barracks','quests','pause','map','dead','victory','inv','store','cook','raid'];
 function openPanel(name){
   if(G.frozen)setFrozen(false);
   SCREENS.forEach(s=>$(s).classList.add('hidden'));$(name).classList.remove('hidden');
@@ -190,17 +191,20 @@ $('shopgrid').addEventListener('click',e=>{
   else if(b.dataset.a==='ammo'&&P.coins>=pk){P.coins-=pk;WS.reserve[i]=Math.min(WS.reserve[i]+w.pack,w.pack*8);sfx('coin',0)}
   renderShop();
 });
-function openClinic(c){G.clinicCity=c;openPanel('clinic');renderClinic()}
+function openClinic(c){G.clinicCity=c;G.clinicMode='menu';openPanel('clinic');renderClinic()}
 const clinicCost=(h,c)=>Math.max(1,Math.round(h*0.5*cityMul(c)));
 function renderClinic(){
   const c=G.clinicCity,miss=Math.ceil(P.maxhp-P.hp),full=clinicCost(miss,c),q=Math.min(miss,25),qc=clinicCost(q,c);
   $('clinictxt').innerHTML='Vida: <b>'+Math.ceil(P.hp)+'/'+P.maxhp+'</b> • Moedas: <b>◉ '+P.coins+'</b><br>'+priceLabel(c)+'. Aqui a vida <b>não</b> volta sozinha: cada ponto custa ◉'+(0.5*cityMul(c)).toFixed(2).replace('.',',')+'.';
-  $('clinicbtns').innerHTML=(miss<=0?'<p>Você está saudável!</p>':'<button class="gold" data-h="'+miss+'" '+(P.coins<full?'disabled':'')+'>Curar tudo (+'+miss+') ◉'+full+'</button><button data-h="'+q+'" '+(P.coins<qc?'disabled':'')+'>+'+q+' vida ◉'+qc+'</button>')
-    +'<p class="st" style="margin-top:10px">Itens de cura (ficam na bolsa; atalhos 7, 8, 9):</p>'
-    +Object.values(DATA.items).filter(d=>d.shop==='clinic').map(d=>{const p=pc(d.price,c);return '<button data-buy="'+d.id+'" '+(P.coins<p||Ledger.anyDebt()?'disabled':'')+'>'+d.icon+' '+d.name+' ◉'+p+'</button>'}).join('');
+  const mode=G.clinicMode||'menu',back='<br><button class="alt" data-mode="menu" style="margin-top:8px">← Voltar</button>';
+  if(mode==='menu')$('clinicbtns').innerHTML='<p>— Em que posso ajudar?</p><button class="gold" data-mode="heal">❤ Curar</button><button class="gold" data-mode="buy">🛍 Comprar</button>';
+  else if(mode==='heal')$('clinicbtns').innerHTML=(miss<=0?'<p>Você está saudável!</p>':'<button class="gold" data-h="'+miss+'" '+(P.coins<full?'disabled':'')+'>Curar tudo (+'+miss+') ◉'+full+'</button><button data-h="'+q+'" '+(P.coins<qc?'disabled':'')+'>+'+q+' vida ◉'+qc+'</button>')+back;
+  else $('clinicbtns').innerHTML='<p class="st">Itens de cura (ficam na bolsa; atalhos 7, 8, 9):</p>'
+    +Object.values(DATA.items).filter(d=>d.shop==='clinic').map(d=>{const p=pc(d.price,c);return '<button data-buy="'+d.id+'" '+(P.coins<p||Ledger.anyDebt()?'disabled':'')+'>'+d.icon+' '+d.name+' ◉'+p+'</button>'}).join('')+back;
 }
 $('clinicbtns').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.mode){G.clinicMode=b.dataset.mode;renderClinic();return}
   if(b.dataset.buy){
     const id=b.dataset.buy,d=itemDef(id),p=pc(d.price,G.clinicCity);
     if(invRoomFor(id)<1)toast('Bolsa cheia! Descarte algo antes de comprar.',2000);
@@ -227,6 +231,14 @@ $('cFix').onclick=()=>{STATE.dur=WEAPONS.map(()=>100);toast('Todas as armas cons
 $('cNoWear').onclick=()=>{G.noWear=!G.noWear;refreshCheats()};
 $('storeclose').onclick=closePanel;$('cookclose').onclick=closePanel;
 $('cookbody').addEventListener('click',e=>{const b=e.target.closest('button');if(b&&b.dataset.r){cook(b.dataset.r);renderCooking()}});
+$('cPortals').onclick=()=>{const n=spawnPortals();toast('Portais criados: '+n+' (veja o mapa)',2500)};
+$('cGoPortal').onclick=()=>{
+  let best=null,bd=1e9;for(const pt of STATE.portals){const d=Math.hypot(pt.x-P.x,pt.z-P.z);if(d<bd){bd=d;best=pt}}
+  if(!best){toast('Nenhum portal ativo.',1500);return}
+  P.x=best.x+4;P.z=best.z;P.y=tH(P.x,P.z)+0.3;P.vy=0;P.camY=P.y;P.yaw=Math.atan2(-(best.x-P.x),-(best.z-P.z));closePanel();
+};
+$('cRaid').onclick=()=>{closePanel();if(!startRaid())toast('Não foi possível iniciar o raid agora.',2000)};
+$('cLegend').onclick=()=>{const i=rollLegendary();if(i<0){toast('Todas já são lendárias.',1500);return}STATE.legend[i]=true;if(!weaponHere(i))giveWeapon(i,true);invChanged();toast('★ '+WEAPONS[i].name+' lendária!',2500)};
 $('cKit').onclick=()=>{toast('Kit de cozinha: '+(invGive([['lambari',3],['tilapia',2],['truta',1],['sardinha',2],['peixe_dourado',1],['carne',6],['ervas',5]])||'(bolsa cheia)'),3000)};
 $('cVend').onclick=()=>{const c=G.curCity&&!G.curCity.kind?G.curCity:WORLD.home;getVendor(c).gold=0;toast('Vendedor de '+c.name+' sem ouro (teste)',2200)};
 $('cBuffs').onclick=()=>{for(const id of Object.keys(DATA.buffs))applyBuff(id);toast('Todos os bônus aplicados',1800)};
@@ -276,10 +288,10 @@ canvas.addEventListener('mousedown',e=>{
   if(!G.running)return;
   if(!G.locked&&!G.panel){try{canvas.requestPointerLock()}catch(_){}return}
   if(G.panel||G.frozen)return;
-  if(e.button===0){G.fireHeld=true;G.firePressed=true}
-  else if(e.button===2){if(WS.rod)fishRight(true);else G.aiming=true}   // com a vara, o botão direito pesca
+  if(e.button===0){if(WS.rod)fishLeft(true);else{G.fireHeld=true;G.firePressed=true}}   // com a vara, o botão esquerdo é o minigame
+  else if(e.button===2){if(WS.rod)fishRight(true);else G.aiming=true}                  // e o botão direito lança/recolhe a linha
 });
-window.addEventListener('mouseup',e=>{if(e.button===0)G.fireHeld=false;else if(e.button===2){G.aiming=false;fishRight(false)}});
+window.addEventListener('mouseup',e=>{if(e.button===0){G.fireHeld=false;fishLeft(false)}else if(e.button===2){G.aiming=false}});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 document.addEventListener('mousemove',e=>{
   if(!G.locked||G.panel)return;
@@ -307,7 +319,7 @@ window.addEventListener('keydown',e=>{
     return;
   }
   if(e.code==='KeyM'){if(G.panel==='map')closePanel();else if(!G.panel){drawBigMap();openPanel('map')}return}
-  if(G.panel==='shop'||G.panel==='clinic'||G.panel==='barracks'||G.panel==='quests'||G.panel==='store'||G.panel==='cook'){if(e.code==='KeyE'||e.code==='Escape')closePanel();return}
+  if(G.panel==='shop'||G.panel==='clinic'||G.panel==='barracks'||G.panel==='quests'||G.panel==='store'||G.panel==='cook'||G.panel==='raid'){if(e.code==='KeyE'||e.code==='Escape')closePanel();return}
   if(G.panel==='inv'){if(e.code==='KeyB'||e.code==='Escape'){if(!UI.closeTop())closePanel()}return}
   if(G.panel)return;
   if(e.repeat)return;
@@ -329,7 +341,7 @@ window.addEventListener('blur',()=>{G.keys={};G.fireHeld=false;G.aiming=false});
 
 function doInteract(){
   const t=G.target;if(!t)return;
-  if(t.type==='hall')openQuests(t.c);else if(t.type==='barracks')openBarracks(t.c);else if(t.type==='shop')openShop(t.c);else if(t.type==='clinic')openClinic(t.c);else if(t.type==='store')openStore(t.c,'store');else if(t.type==='tavern')openStore(t.c,'tavern');else if(t.type==='stove')openCooking('tavern');else if(t.type==='fire')openCooking('fire');else if(t.type==='npc')npcTalk(t.n);else if(t.type==='chest')openChest(t.ch);else if(t.type==='cage')openCage(t.c);
+  if(t.type==='hall')openQuests(t.c);else if(t.type==='barracks')openBarracks(t.c);else if(t.type==='shop')openShop(t.c);else if(t.type==='clinic')openClinic(t.c);else if(t.type==='portal'){if(RAID.active&&!RAID.engaged)toast('Há um ataque em andamento! Defenda a cidade antes.',2500);else enterDungeon(t.p)}else if(t.type==='dgexit')leaveDungeon();else if(t.type==='store')openStore(t.c,'store');else if(t.type==='tavern')openStore(t.c,'tavern');else if(t.type==='stove')openCooking('tavern');else if(t.type==='fire')openCooking('fire');else if(t.type==='npc')npcTalk(t.n);else if(t.type==='chest')openChest(t.ch);else if(t.type==='cage')openCage(t.c);
 }
 function updateInteract(){
   G.target=null;G.attackCity=null;G.curCity=null;const lines=[];
@@ -350,6 +362,8 @@ function updateInteract(){
   for(const c of WORLD.camps){if(c.gone)continue;const d=Math.max(Math.abs(P.x-c.cx),Math.abs(P.z-c.cz));if(d<c.half+8&&d<bestD){bestD=d;G.curCity=c}
     if(c.firePos&&Math.hypot(P.x-c.firePos.x,P.z-c.firePos.z)<3.4){G.target={type:'fire',c};lines.push('[E] Fogueira: cozinhar')}
     if(c.cage&&!c.cage.opened&&Math.hypot(P.x-c.cage.dp.x,P.z-c.cage.dp.z)<2.8){G.target={type:'cage',c};lines.push(c.state==='cleared'?'[E] Abrir a grade e libertar o refém':'🔒 Grade trancada — elimine os bandidos')}}
+  {const pp=portalNear();if(pp){G.target={type:'portal',p:pp};lines.push('[E] Entrar no portal — dungeon nível '+pp.tier+' • recompensa: '+rewardText(pp))}}
+  if(G.dg&&G.dgPad&&Math.hypot(P.x-G.dgPad.x,P.z-G.dgPad.z)<2.6){G.target={type:'dgexit'};lines.push('[E] Sair da dungeon (volta ao portal)')}
   for(const ch of WORLD.chests){if(ch.opened)continue;const d=Math.hypot(ch.x-P.x,ch.z-P.z);if(d<2.8&&Math.abs(ch.y-P.y)<2){G.target={type:'chest',ch};lines.push(ch.lockedBy&&ch.lockedBy.state!=='cleared'?'🔒 Baú trancado — elimine os bandidos':'[E] Abrir baú')}}
   if(!G.target){
     camera.getWorldDirection(_d);let bd=3.4;
@@ -357,7 +371,7 @@ function updateInteract(){
       if(d<bd&&(dx*_d.x+dz*_d.z)/(d||1)>0.75*Math.hypot(_d.x,_d.z)){bd=d;G.target={type:'npc',n}}}
     if(G.target)lines.unshift('[E] Falar');
   }
-  if(!lines.length&&FISH.state==='idle'&&WS.rod&&!P.dead){const sp=findFishSpot();lines.push(sp?'[Botão direito] Pescar neste cardume':'🎣 Procure um cardume (peixes nadando em círculo) e mire nele')}
+  if(!lines.length&&FISH.state==='idle'&&WS.rod&&!P.dead){const sp=findFishSpot();lines.push(sp?'[Botão direito] Lançar a linha neste cardume':'🎣 Procure um cardume (peixes nadando em círculo) e mire nele')}
   $('prompt').innerHTML=lines.join('<br>');
 }
 
@@ -400,10 +414,10 @@ function updateHUD(dt){
   $('hpfill').style.width=(P.hp/P.maxhp*100)+'%';$('hptext').textContent='VIDA '+Math.ceil(P.hp)+' / '+P.maxhp;$('arfill').style.width=P.armor+'%';$('arbox').style.display=P.armor>0?'block':'none';
   $('coins').textContent='◉ '+P.coins+(P.coins<0?'  (dívida)':'');$('coins').classList.toggle('debt',P.coins<0);
   const w=WEAPONS[WS.cur];
-  if(WS.rod){$('wname').textContent='🎣 Vara de pescar';$('ammo').innerHTML='<small>botão direito: pescar</small>'}
+  if(WS.rod){$('wname').textContent='🎣 Vara de pescar';$('ammo').innerHTML='<small>direito: lançar • esquerdo: puxar</small>'}
   else if(WS.none){$('wname').textContent='Sem arma';$('ammo').innerHTML='<small>coloque uma arma na barra 1–6 (B)</small>'}
   else{
-    $('wname').textContent=w.name+(weaponBroken()?'  💥 QUEBRADA':'  •  '+Math.round(durOf(WS.cur))+'%')+(WS.reload>0?'  (recarregando...)':'');
+    $('wname').textContent=wName(WS.cur)+(weaponBroken()?'  💥 QUEBRADA':'  •  '+Math.round(durOf(WS.cur))+'%')+(WS.reload>0?'  (recarregando...)':'');
     $('ammo').innerHTML=(G.noReload?'∞':WS.mag[WS.cur])+' <small>/ '+(G.infAmmo?'∞':WS.reserve[WS.cur])+'</small>';
   }
   if(!wlistBuilt){$('wlist').innerHTML=[0,1,2,3,4,5].map(i=>'<div class="ws" id="ws'+i+'">'+(i+1)+'</div>').join('');wlistBuilt=true}
@@ -430,7 +444,7 @@ function updateHUD(dt){
   }else $('obj').innerHTML='Cidades: <b>'+n+'/7</b><br>Todas conquistadas!';
   $('obj').innerHTML+=questLine();drawMinimap();
 }
-function cityCol(c){if(c.owner==='player')return '#3a8aff';return(c.state==='attacking'&&Math.floor(G.t*4)%2)?'#ffffff':'#'+RANK_COL[c.rank].toString(16).padStart(6,'0')}
+function cityCol(c){if(RAID.active&&RAID.city===c)return Math.floor(G.t*4)%2?'#ff3030':'#ffffff';if(c.owner==='player')return '#3a8aff';return(c.state==='attacking'&&Math.floor(G.t*4)%2)?'#ffffff':'#'+RANK_COL[c.rank].toString(16).padStart(6,'0')}
 const mm=$('mm'),mmc=mm.getContext('2d');
 function drawMinimap(){
   const s=1.5,R=88;
@@ -443,6 +457,7 @@ function drawMinimap(){
     mmc.strokeStyle='#fff';mmc.lineWidth=2;mmc.beginPath();mmc.rect(x-6,y-6,12,12);mmc.fill();mmc.stroke();
   }
   {const qt=questTarget();if(qt){let x=(qt.x-P.x)*s,y=(qt.z-P.z)*s;const L=Math.hypot(x,y),maxL=62;if(L>maxL){x*=maxL/L;y*=maxL/L}drawStar(mmc,x,y,7)}}
+  for(const pt of STATE.portals||[]){let x=(pt.x-P.x)*s,y=(pt.z-P.z)*s;const L=Math.hypot(x,y),maxL=66;if(L>maxL){x*=maxL/L;y*=maxL/L}mmc.fillStyle='#c080ff';mmc.strokeStyle='#fff';mmc.lineWidth=1.5;mmc.beginPath();mmc.moveTo(x,y-6);mmc.lineTo(x+5,y);mmc.lineTo(x,y+6);mmc.lineTo(x-5,y);mmc.closePath();mmc.fill();mmc.stroke()}   // portais: losango roxo
   for(const a of ALLIES)if(a.alive){mmc.fillStyle='#4aa0ff';mmc.fillRect((a.x-P.x)*s-2,(a.z-P.z)*s-2,4,4)}
   for(const e of ENEMIES)if(e.alive&&e.city.state==='attacking'){mmc.fillStyle='#ff2a2a';mmc.fillRect((e.x-P.x)*s-1.5,(e.z-P.z)*s-1.5,3,3)}
   mmc.restore();drawCompassRim(mmc,88,88,77,P.yaw);
@@ -498,6 +513,7 @@ function drawBigMap(){
     g.beginPath();g.rect(x-7,y-7,14,14);g.fill();g.stroke();
     g.fillStyle='#fff';g.strokeStyle='#000';g.lineWidth=3;g.strokeText(c.name,x,y-12);g.fillText(c.name,x,y-12);
   }
+  for(const pt of STATE.portals||[]){const x=pt.x*s,y=pt.z*s;g.fillStyle='#c080ff';g.strokeStyle='#fff';g.lineWidth=2;g.beginPath();g.moveTo(x,y-9);g.lineTo(x+7,y);g.lineTo(x,y+9);g.lineTo(x-7,y);g.closePath();g.fill();g.stroke();g.fillStyle='#e6c8ff';g.strokeStyle='#000';g.lineWidth=3;g.strokeText('Portal '+pt.tier,x,y-14);g.fillText('Portal '+pt.tier,x,y-14)}
   drawRose(g,cv.width-64,64,30);
   {const qt=questTarget();if(qt){drawStar(g,qt.x*s,qt.z*s,10);g.fillStyle='#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText('Missão',qt.x*s,qt.z*s-16);g.fillText('Missão',qt.x*s,qt.z*s-16)}}
   g.save();g.translate(P.x*s,P.z*s);g.rotate(-P.yaw);g.fillStyle='#fff';g.strokeStyle='#000';g.beginPath();g.moveTo(0,-9);g.lineTo(7,8);g.lineTo(0,4);g.lineTo(-7,8);g.closePath();g.fill();g.stroke();g.restore();
@@ -555,7 +571,7 @@ function update(dt){
   if(!P.dead)updatePlayer(dt);
   updateWeapons(dt);
   updateActors(dt);updateAllies(dt);updateCritters(dt);updateWild(dt);updateChests(dt);updateDayNight(dt);updateQuests(dt);
-  updateFx(dt);checkStuck(dt);updateInventory(dt);updateFishing(dt);updateVendors();
+  updateFx(dt);checkStuck(dt);updateInventory(dt);updateFishing(dt);updateVendors();updatePortals(dt);updateRaids(dt);
   updateInteract();
   // recuo: cidade em ataque se o jogador se afastou demais
   for(const c of WORLD.cities)if(c.state==='attacking'&&Math.hypot(c.cx-P.x,c.cz-P.z)>170){c.state='idle';toast('Você recuou. Os inimigos voltam aos postos.',2500);for(const e of c.enemies)if(e.alive){e.hp=e.maxhp}}
@@ -590,7 +606,8 @@ async function startGame(creative,loadData){
     msg('Populando cidades...');await tick();
     msg('Calculando rotas...');await tick();buildNav();initWeapons();buildViewmodels(camera);initFx();initSky();initDayNight();populateCities();populateWild();placePlayerHome();
     syncOwned();ensureEquipped();genFishSpots();
-    if(loadData){applySave(loadData);applyFishGone()}
+    if(loadData){applySave(loadData);applyFishGone();rebuildPortals();rebuildSmoke()}
+    else{spawnPortals();RAID.active=false;RAID.area=null}
     refreshHotbar();refreshBuffs();fishClean();
     G.running=true;$('hud').classList.remove('hidden');
     refreshCheats();

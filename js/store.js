@@ -52,8 +52,8 @@ function renderStore(){
   $('storeinfo').textContent='◉ '+P.coins+(kind==='store'?'  •  Ouro do vendedor: ◉'+Math.floor(v.gold)+' / '+vendorMax(c)+(c.owner==='enemy'?'  •  cidade inimiga paga metade':''):'')+(Ledger.anyDebt()?'  •  ⚠ em dívida: compras bloqueadas':'');
   if(G.storeMode==='menu'){
     const p=document.createElement('p');p.textContent=kind==='tavern'?'— Sente-se! Tenho comida quente. O fogão lá no fundo é seu, se quiser cozinhar.':'— Bem-vindo à loja! O que deseja?';body.appendChild(p);
-    if(kind==='store')body.appendChild(UI.button('🎒 Vender itens','gold',()=>{G.storeMode='sell';G.storeSel=null;renderStore()}));
     body.appendChild(UI.button(kind==='tavern'?'🍲 Comprar comidas':'🛍 Comprar','gold',()=>{G.storeMode='buy';renderStore()}));
+    if(kind==='store')body.appendChild(UI.button('🎒 Vender itens','gold',()=>{G.storeMode='sell';G.storeSel=null;renderStore()}));
     return;
   }
   if(G.storeMode==='buy'){

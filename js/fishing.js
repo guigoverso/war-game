@@ -102,15 +102,20 @@ function fishBars(on){const b=document.getElementById('fishbars');if(b)b.style.d
 function fishClean(){
   if(FISH.bob){scene.remove(FISH.bob);FISH.bob=null}
   if(FISH.line){scene.remove(FISH.line);FISH.line.geometry.dispose();FISH.line=null}
-  FISH.state='idle';FISH.fish=null;FISH.spot=null;FISH.click=false;FISH.hold=false;fishHud(null);fishBars(false);
+  FISH.state='idle';FISH.fish=null;FISH.spot=null;FISH.click=false;FISH.hold=false;WS.rodSwing=0;fishHud(null);fishBars(false);
 }
 function fishCancel(msg){if(msg)toast(msg,1800);fishClean()}
-// botão direito: pressionar (down=true) ou soltar (false)
+// botão direito: lança a linha (parado) ou recolhe (esperando)
 function fishRight(down){
-  if(!down){FISH.hold=false;return}
+  if(!down)return;
   if(!WS.rod||P.dead||G.panel||G.frozen)return;
   if(FISH.state==='idle'){startCast();return}
-  if(FISH.state==='wait'){fishCancel('Você recolheu a linha.');return}
+  if(FISH.state==='wait')fishCancel('Você recolheu a linha.');
+}
+// botão esquerdo: minigame (fisgar quando morder; segurar para puxar)
+function fishLeft(down){
+  if(!down){FISH.hold=false;return}
+  if(!WS.rod||P.dead||G.panel||G.frozen)return;
   if(FISH.state==='bite'){FISH.click=true;FISH.hold=true;return}
   if(FISH.state==='reel')FISH.hold=true;
 }
@@ -142,16 +147,17 @@ function updateFishing(dt){
   FISH.t+=dt;
   if(FISH.state==='cast'){
     const k=Math.min(1,FISH.t/0.7);bx=hx+(FISH.bx-hx)*k;bz=hz+(FISH.bz-hz)*k;by=hy+(SEA+0.06-hy)*k+Math.sin(k*Math.PI)*1.8;
-    if(k>=1){FISH.state='wait';FISH.t=0;FISH.waitT=2+Math.random()*5.5;fishSound('splash');fishHud('🎣 Esperando o peixe morder... (botão direito recolhe)')}
+    WS.rodSwing=0.7*Math.sin(Math.min(1,FISH.t/0.5)*Math.PI);   // a vara balança para a frente ao lançar
+    if(k>=1){FISH.state='wait';FISH.t=0;FISH.waitT=2+Math.random()*5.5;fishSound('splash');fishHud('🎣 Esperando o peixe morder... (botão direito recolhe a linha)')}
   }else if(FISH.state==='wait'){
-    by+=Math.sin(FISH.t*2.2)*0.025;FISH.waitT-=dt;
-    if(FISH.waitT<=0){FISH.state='bite';FISH.t=0;FISH.biteT=1.3;FISH.click=false;fishSound('bite');fishHud('❗ <b>O peixe mordeu! Botão direito!</b>')}
+    by+=Math.sin(FISH.t*2.2)*0.025;FISH.waitT-=dt;WS.rodSwing=0;
+    if(FISH.waitT<=0){FISH.state='bite';FISH.t=0;FISH.biteT=1.3;FISH.click=false;fishSound('bite');fishHud('❗ <b>O peixe mordeu! Botão esquerdo!</b>')}
   }else if(FISH.state==='bite'){
-    by-=0.12+Math.sin(FISH.t*30)*0.03;FISH.biteT-=dt;
+    by-=0.12+Math.sin(FISH.t*30)*0.03;FISH.biteT-=dt;WS.rodSwing=0.12*Math.sin(FISH.t*40);
     if(FISH.click){
       FISH.click=false;FISH.fish=rollFish(FISH.kind,B[Math.floor(P.z)*W+Math.floor(P.x)]);
       FISH.state='reel';FISH.prog=25;FISH.tens=0.35;FISH.pull=0;FISH.pullT=0.4;FISH.timeT=0;
-      fishHud('🎣 Segure o botão direito para puxar. Não deixe a tensão estourar!');fishBars(true);
+      fishHud('🎣 Segure o botão esquerdo para puxar. Não deixe a tensão estourar!');fishBars(true);
     }else if(FISH.biteT<=0){toast('O peixe escapou. Tente de novo.',1800);fishClean();return}
   }else if(FISH.state==='reel'){
     const f=FISH.fish,fight=f.fight;FISH.timeT+=dt;
@@ -159,6 +165,7 @@ function updateFishing(dt){
     if(FISH.hold){FISH.prog+=17*dt/(0.6+0.4*fight);FISH.tens+=(0.62+0.5*FISH.pull)*dt}
     else{FISH.tens-=0.55*dt;FISH.prog-=(4+5*fight)*dt+FISH.pull*3*dt}
     FISH.tens=Math.max(0,FISH.tens);by+=Math.sin(FISH.t*14)*0.03;bx+=Math.sin(FISH.t*3)*0.3;
+    WS.rodSwing=(FISH.hold?-0.25:0.0)+0.06*Math.sin(FISH.t*18)*FISH.tens;   // puxando, a vara entorta para trás e vibra com a tensão
     const pf=document.getElementById('fishprog'),tf=document.getElementById('fishten');
     if(pf)pf.style.width=clamp(FISH.prog,0,100)+'%';
     if(tf){tf.style.width=clamp(FISH.tens*100,0,100)+'%';tf.style.background=FISH.tens>0.8?'#e03a3a':FISH.tens>0.55?'#e0c03a':'#4ac05a'}
