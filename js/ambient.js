@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 // ---------- Som ambiente e passos ----------
 // Substitui a música calma: vento, folhas, água, pássaros, grilos, vozes na cidade, sino, martelo, bichos de fazenda, fogueira, goteiras
 // e passos que mudam conforme o chão. Tudo muda com bioma, hora do dia, lugar (cidade, caverna, dentro de casa) e com o combate.
@@ -119,7 +119,7 @@ function stepSurface(px,pz,py){
   if(px===undefined){px=P.x;pz=P.z;py=P.y}
   const x=Math.floor(px),z=Math.floor(pz);if(x<0||z<0||x>=W||z>=W)return'grass';
   const i=z*W+x,t=T[i],b=B[i],h=H[i];
-  if(py<SEA-0.3&&tH(px,pz)<SEA)return'splash';
+  if(py<SEA-0.3&&tH(px,pz)<SEA&&!inDGxz(px,pz))return'splash';
   if(t===T_FLOOR||t===T_BRIDGE)return'wood';
   if(t===T_STREET||t===T_PLAZA||t===T_CAVE)return'stone';
   if(t===T_ROAD||t===T_SOIL)return'dirt';
@@ -153,7 +153,7 @@ function ambSample(){
   // água por perto (mar, rio ou lago)
   let wd=99;
   for(const r of[2,4,7,11])for(let k=0;k<8;k++){const a=k*0.785,xx=Math.floor(P.x+Math.cos(a)*r),zz=Math.floor(P.z+Math.sin(a)*r);if(xx>=0&&zz>=0&&xx<W&&zz<W&&H[zz*W+xx]<SEA){wd=Math.min(wd,r);break}}
-  if(tH(P.x,P.z)<SEA)wd=0;
+  if(tH(P.x,P.z)<SEA&&!inDGxz(P.x,P.z))wd=0;
   e.water=clamp(1-wd/12,0,1);
   const alt=Math.max(0,(P.y-SEA)/60);
   const wb={[BIO_PLAINS]:0.35,[BIO_FOREST]:0.18,[BIO_DESERT]:0.6,[BIO_SNOW]:0.7,[BIO_ROCK]:0.75}[b]||0.3;

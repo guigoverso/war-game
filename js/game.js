@@ -397,7 +397,7 @@ function updatePlayer(dt){
   const fw=(k.KeyW?1:0)-(k.KeyS?1:0),st=(k.KeyD?1:0)-(k.KeyA?1:0);
   const sprint=k.ShiftLeft&&fw>0&&!P.crouch&&!G.aiming;
   let spd=P.crouch?2.4:sprint?8.2:5;if(G.aiming)spd*=0.65;spd*=buffMul('speed');
-  const water=P.y<SEA-0.3&&tH(P.x,P.z)<SEA;if(water)spd*=0.6;
+  const water=P.y<SEA-0.3&&tH(P.x,P.z)<SEA&&!inDungeonRegion();if(water)spd*=0.6;
   const sy=Math.sin(P.yaw),cy=Math.cos(P.yaw);
   let wx=-sy*fw+cy*st,wz=-cy*fw-sy*st;const l=Math.hypot(wx,wz);if(l>0){wx/=l;wz/=l}
   const acc=P.ground?14:3.5;
@@ -417,7 +417,7 @@ function updatePlayer(dt){
   camera.rotation.set(P.pitch,P.yaw,0);
   const zoom=G.aiming?WEAPONS[WS.cur].zoom:1,tf=75/zoom+(sprint?5:0);
   camera.fov+=(tf-camera.fov)*Math.min(1,dt*12);camera.updateProjectionMatrix();
-  const uw=camera.position.y<SEA-0.15&&tH(P.x,P.z)<SEA;
+  const uw=camera.position.y<SEA-0.15&&tH(P.x,P.z)<SEA&&!inDungeonRegion();
   $('under').classList.toggle('hidden',!uw);
   $('scope').classList.toggle('hidden',!(G.aiming&&WS.cur===4&&!WS.rod&&!WS.none));
   $('crosshair').style.display=(G.aiming&&WS.cur===4&&!WS.rod&&!WS.none)?'none':'block';

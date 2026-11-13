@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 // ---------- Geração procedural do mundo ----------
 const T_NAT=0,T_ROAD=1,T_STREET=2,T_PLAZA=3,T_FLOOR=4,T_BRIDGE=5,T_GARDEN=6,T_SOIL=7,T_WHEAT=8;
 const BIO_PLAINS=0,BIO_FOREST=1,BIO_DESERT=2,BIO_SNOW=3,BIO_ROCK=4;
@@ -483,6 +483,7 @@ function meshTerrain(){
       for(const dd of dirs){
         const nx=x+dd[0],nz=z+dd[1];if(nx<0||nz<0||nx>=W||nz>=W)continue;
         const nh=H[nz*W+nx];if(nh>=h)continue;
+        if(DG.ok&&nx>=DG.rx&&nx<DG.rx+DG.S&&nz>=DG.rz&&nz<DG.rz+DG.S)continue;   // abertura da região subterrânea: sem paredes visíveis
         const sc=hex2rgb(subColor(x,z,i)),gf=(T[i]===T_NAT&&B[i]!==BIO_ROCK&&h>=SEA)?0.82:1;
         const top=Math.min(0.3,h-nh);
         if(T[i]===T_NAT&&h>=SEA&&B[i]!==BIO_ROCK&&B[i]!==BIO_DESERT)bt.face(dd[2],x,h-top,z,x+1,h,z+1,tc[0]*gf,tc[1]*gf,tc[2]*gf);

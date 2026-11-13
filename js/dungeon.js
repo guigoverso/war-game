@@ -22,7 +22,7 @@ function genDungeons(rng,cities,taken){
     if(land<bl){bl=land;best=[x0,z0]}
   }
   if(!best)return;
-  DG.rx=best[0];DG.rz=best[1];DG.Y=SEA+6;DG.ok=true;
+  DG.rx=best[0];DG.rz=best[1];DG.Y=SEA-250;DG.ok=true;   // a região fica muito abaixo do mapa (fora da vista, escondida pela névoa); só se chega por portal
   taken.push({x:DG.rx+S/2,z:DG.rz+S/2,r:S*0.75});
   // plataforma plana de rocha; a borda desce suavemente até o terreno em volta
   const F=4;
@@ -30,7 +30,7 @@ function genDungeons(rng,cities,taken){
     const x=DG.rx+dx,z=DG.rz+dz;if(x<1||z<1||x>=W-1||z>=W-1)continue;
     const i=z*W+x,inside=dx>=0&&dz>=0&&dx<S&&dz<S;
     if(inside){H[i]=DG.Y;B[i]=BIO_ROCK;T[i]=T_WILD}
-    else{const e=Math.max(-dx,dx-S+1,-dz,dz-S+1);H[i]=Math.round(lerp(DG.Y,H[i],clamp(e/(F+1),0,1)));B[i]=BIO_ROCK}
+    // fora da região o terreno não muda (a abertura embaixo do mapa não tem paredes desenhadas, ver meshTerrain)
   }
   for(let k=0;k<WING_OFF.length;k++)DG.wings.push(buildWing(new RNG((WORLD.seed*57+k*911+13)>>>0),k));
   genOffice();   // o 4º quadrante da região guarda o escritório do líder (rounds.js)
@@ -212,6 +212,7 @@ function drawDungeonMinimap(){
 
 // ---------- ambiente escuro dentro da dungeon ----------
 function inDungeonRegion(){return DG.ok&&P.x>=DG.rx&&P.x<DG.rx+DG.S&&P.z>=DG.rz&&P.z<DG.rz+DG.S}
+const inDGxz=(x,z)=>DG.ok&&x>=DG.rx-1&&x<DG.rx+DG.S+1&&z>=DG.rz-1&&z<DG.rz+DG.S+1;
 function updateDungeonMood(){
   const inside=inDungeonRegion();
   if(DN.group)DN.group.visible=!inside;
