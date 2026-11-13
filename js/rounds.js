@@ -11,17 +11,24 @@ const TYPE_NAME={food:'Alimentos',ore:'Minérios',wood:'Madeira',gold:'Dinheiro'
 const CITY_COLS=[0xe0402a,0x2aa04a,0xe8b820,0x8a3ac8,0x20b0c8,0xe87820,0xd0409a,0x8a8a8a];   // cor de identidade de cada cidade (faixa da bandeira)
 const resIcon=k=>DATA.resources[k].icon,resName=k=>DATA.resources[k].name;
 
-Hooks.on('resetState',()=>{STATE.phase='commander';STATE.rd={lvl:1,actions:1,cities:{},routes:[],rbuf:{},report:[],hallCity:0}});
+Hooks.on('resetState',()=>{STATE.phase='commander';STATE.rd={lvl:1,actions:1,cities:{},routes:[],rbuf:{},debuff:{},report:[],hallCity:0}});
 const rbufOn=r=>!!(STATE.rd&&STATE.rd.rbuf&&STATE.rd.rbuf[r]);
+const debOn=r=>!!(STATE.rd&&STATE.rd.debuff&&STATE.rd.debuff[r]);   // debuff: faltou suprimento na rodada anterior
+// dívida em itens (o que faltou e ainda não foi pago) das cidades do jogador
+function cityItemDebt(){if(!STATE.rd||!STATE.rd.cities||typeof WORLD==='undefined')return false;return WORLD.cities.some(c=>c.owner==='player'&&STATE.rd.cities[c.id]&&STATE.rd.cities[c.id].debt&&Object.keys(STATE.rd.cities[c.id].debt).some(k=>STATE.rd.cities[c.id].debt[k]>0))}
+const DEB_TXT={food:'recrutar e melhorar soldados custa o dobro',ore:'armas, munição e conserto custam o dobro',wood:'missões pagam 20% a menos',gold:'curar custa o dobro'};
 // bônus de entrega: valor fixo, vale até o fim da rodada (ver seção 14 do design)
 addPriceMod('rbuf',(p,ctx)=>{
   const k=ctx.kind;
   if(rbufOn('ore')&&(k==='weapon'||k==='ammo'||k==='repair'))return p*0.8;
   if(rbufOn('gold')&&(k==='recruit'||k==='heal'))return p*0.8;
   if(rbufOn('food')&&k==='soldierup')return p*0.8;
+  // debuffs (faltou suprimento): preços sobem; a quantidade a suprir não muda
+  if(debOn('food')&&(k==='recruit'||k==='soldierup'))p*=2;
+  if(debOn('ore')&&(k==='weapon'||k==='ammo'||k==='repair'))p*=2;
   return p;
 },60);
-const qPay=q=>Math.round(q.reward*(rbufOn('wood')?1.1:1));   // madeira entregue: missões pagam 10% a mais
+const qPay=q=>Math.round(q.reward*(rbufOn('wood')?1.1:1)*(debOn('wood')?0.8:1));   // madeira entregue: missões pagam 10% a mais
 
 // ---------- economia das cidades ----------
 const ec=c=>STATE.rd.cities[c.id];
@@ -81,22 +88,24 @@ function playerPort(){return playerCities().find(c=>ec(c).type==='port')}
 function endRound(city){
   if(STATE.phase==='leader'||G.office||P.dead)return false;
   const rd=STATE.rd,rep=[];
-  const pcs=playerCities();
+  const pcs=playerCities(),debuf={};
   const prep=STATE.round<1;   // rodada 0: preparação, sem cobrança nem produção
   if(prep)rep.push('Rodada 0 (preparação): sem cobrança e sem produção. A contagem começa agora, na rodada 1.');
   else for(const c of pcs){
-    const e=ec(c),carry2={};
+    const e=ec(c),carry2={};if(!e.debt)e.debt={};
     for(const r of RES4){
       const need=needOf(c,r),cover=storedOf(c,r),short=Math.max(0,need-cover);
-      if(short>0){const debt=short*UNIT_PRICE[r];Ledger.add('gold',-debt);rep.push('⚠ '+c.name+': faltaram '+short+' de '+resName(r).toLowerCase()+' (dívida de ◉'+debt+').')}
-      consumeSupply(c,r,Math.min(need,cover));   // a cidade consome o que precisava; o que sobrar adianta a próxima rodada
-      const left=storedOf(c,r);if(left>0)carry2[r]=left;
-    }
+      if(short>0){e.debt[r]=(e.debt[r]||0)+short;debuf[r]=true;rep.push('⚠ '+c.name+': faltaram '+short+' de '+resName(r).toLowerCase()+(r==='gold'?' (dívida de ouro; debuff nesta rodada).':' (dívida em itens; debuff nesta rodada).'))}
+      consumeSupply(c,r,Math.min(need,cover));   // o que a cidade precisa é consumido (destruído); a necessidade da rodada seguinte é a mesma
+      const extra=storedOf(c,r);   // o que sobrar paga a dívida em itens e, se ainda sobrar, adianta a próxima rodada
+      if(extra>0&&e.debt[r]>0){const pay=Math.min(extra,e.debt[r]);consumeSupply(c,r,pay);e.debt[r]-=pay;if(e.debt[r]<=0)delete e.debt[r];rep.push('✔ '+c.name+' pagou '+pay+' de '+resName(r).toLowerCase()+' da dívida.')}
+      const left=storedOf(c,r);if(left>0)carry2[r]=left;    }
     e.got={};e.carry=carry2;
     const f=focusOf(c),amt=prodOf(c);
     if(hasRoute(c))rep.push('🛒 '+c.name+': a produção de '+resName(f).toLowerCase()+' ('+amt+') seguiu por caravana.');
     else{const got=prodAdd(c,f,amt);rep.push('✔ '+c.name+' produziu '+got+' de '+resName(f).toLowerCase()+(f==='gold'?' (no cofre do armazém).':' (na reserva do armazém).'))}
   }
+  rd.debuff=prep?(rd.debuff||{}):debuf;   // debuffs valem na rodada que começa (a necessidade não muda)
   rd.rbuf={};if(prep)computeBuffs();   // o que foi entregue na rodada 0 já vale para a rodada 1
   rd.hallCity=(city||WORLD.home).id;rd.report=rep;
   STATE.round++;Hooks.emit('round',STATE.round);
@@ -224,7 +233,8 @@ function updateRounds(dt){
 function refreshRoundHud(){
   const el=$('rdline');if(!el||!STATE.rd)return;
   const b=STATE.rd.rbuf||{},t={food:'soldados −20%',ore:'armas −20%',gold:'recrutar/curar −20%',wood:'obras −10%, missões +10%'};
-  el.innerHTML='📖 Rodada '+STATE.round+(STATE.round<1?' • preparação':STATE.phase==='leader'?' • turno do líder':' • turno do comandante')+Object.keys(b).map(r=>'<br><small>'+resIcon(r)+' '+t[r]+'</small>').join('');
+  const deb=Object.keys(STATE.rd.debuff||{});
+  el.innerHTML='📖 Rodada '+STATE.round+(STATE.round<1?' • preparação':STATE.phase==='leader'?' • turno do líder':' • turno do comandante')+Object.keys(b).map(r=>'<br><small>'+resIcon(r)+' '+t[r]+'</small>').join('')+deb.map(r=>'<br><small style="color:#ff9a9a">⚠ '+resIcon(r)+' '+DEB_TXT[r]+'</small>').join('');
 }
 
 // ---------- caravanas decorativas (paradas na estrada entre as cidades de uma rota) ----------
@@ -320,7 +330,7 @@ function bookPages(){
       R='<h3>'+c.name+'</h3><p>'+typeLabel(c)+'</p><table class="ldt">'+RES4.map(r=>{
         const need=needOf(c,r),st=storedOf(c,r),g=gotOf(c,r),cy=carryOf(c,r),miss=missingOf(c,r);
         const state=need===0&&st===0?'<span class="ldok">não precisa</span>':miss>0?'<span class="ldbad">falta '+miss+'</span>':(g>Math.max(0,need-cy)?'<span class="ldok">★ bônus</span>':'<span class="ldok">✔</span>');
-        return '<tr><td>'+resIcon(r)+' <b>'+resName(r)+'</b><br><small>precisa '+need+' • no armazém '+st+(cy?' (+'+cy+' da rodada anterior)':'')+'</small></td><td>'+state+'</td></tr>';
+        return '<tr><td>'+resIcon(r)+' <b>'+resName(r)+'</b><br><small>precisa '+need+' • no armazém '+st+(cy?' (+'+cy+' da rodada anterior)':'')+(((e.debt||{})[r])?' • <b class="ldbad">dívida '+e.debt[r]+'</b>':'')+'</small></td><td>'+state+'</td></tr>';
       }).join('')+'</table><p class="ldsm">Para suprir a cidade, entregue os itens no <b>armazém</b> (edifício da cidade). Entregar acima da necessidade dá o bônus da rodada; o excedente fica para a próxima.</p>'
         +'<p class="ldsm">Reserva de produção: '+(w.prod?itemDef(w.prod.id).icon+' '+itemDef(w.prod.id).name+' ×'+w.prod.n:'vazia')+' • Cofre: ◉ '+w.vault+'</p>';
       R+='<p class="ldsm">Abundância (do mais ao menos abundante nesta rodada):<br><b>'+abundHtml(c)+'</b></p>';

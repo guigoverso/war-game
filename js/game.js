@@ -201,7 +201,7 @@ $('shopgrid').addEventListener('click',e=>{
   renderShop();
 });
 function openClinic(c){G.clinicCity=c;G.clinicMode='menu';openPanel('clinic');renderClinic()}
-const clinicCost=(h,c)=>Math.max(1,Math.round(h*0.5*cityMul(c)*(rbufOn('gold')?0.8:1)));
+const clinicCost=(h,c)=>Math.max(1,Math.round(h*0.5*cityMul(c)*(rbufOn('gold')?0.8:1)*(debOn('gold')?2:1)));
 function renderClinic(){
   const c=G.clinicCity,miss=Math.ceil(P.maxhp-P.hp),full=clinicCost(miss,c),q=Math.min(miss,25),qc=clinicCost(q,c);
   $('clinictxt').innerHTML='Vida: <b>'+Math.ceil(P.hp)+'/'+P.maxhp+'</b> • Moedas: <b>◉ '+P.coins+'</b><br>'+priceLabel(c)+'. Aqui a vida <b>não</b> volta sozinha: cada ponto custa ◉'+(0.5*cityMul(c)*(rbufOn('gold')?0.8:1)).toFixed(2).replace('.',',')+'.';

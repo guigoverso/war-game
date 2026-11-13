@@ -249,12 +249,10 @@ function buildWarehouse(c,f,D,doorU,rng){
   const WOOD=0x7a5632,DK=0x4a2f1a;
   // prateleiras no fundo com caixotes
   for(const y of[0,1.1,2.2]){FB(c,f,1.0,V-1.5,U-1.0,V-1.05,y,y+0.1,DK,false,{j:0});for(let u=1.2;u<U-1.6;u+=0.9)FB(c,f,u,V-1.45,u+0.7,V-1.1,y+0.1,y+0.1+0.5+0.25*((u*3)%2),rng.pick([0x8a6a3a,0xa08050,0x6b4a2a,0xc8a85a]),false,{j:0.03})}
-  // barris e sacos nos cantos
-  for(const [u,v] of[[1.2,1.4],[2.4,1.4],[U-2.2,1.4],[U-3.4,1.4]])FB(c,f,u,v,u+0.9,v+0.9,0,1.0,0x6b3a22,true,{j:0.03});
-  for(let k=0;k<3;k++)FB(c,f,U-3.2+k*0.9,3.2,U-2.4+k*0.9,4.0,0,0.5,rng.pick([0xd8d0a8,0xc8b888]),true,{j:0.05});
-  // grande baú de guarda no centro
-  FB(c,f,mid-1.4,V-3.8,mid+1.4,V-2.6,0,1.0,WOOD,true);FB(c,f,mid-1.5,V-3.9,mid+1.5,V-2.5,1.0,1.25,DK,false,{j:0.02});FB(c,f,mid-0.2,V-3.95,mid+0.2,V-2.45,0.8,1.2,0xe0b030,false,{j:0});
-  const p=wx(mid,V-4.8);c.warehouse={x:p[0],z:p[1]};
+  // barris e sacos só junto às paredes do fundo (a entrada e o centro ficam livres)
+  for(const u of[1.1,U-2.0])FB(c,f,u,V-3.0,u+0.9,V-2.1,0,0.9,0x6b3a22,false,{j:0.03});  // grande baú de guarda no centro
+  FB(c,f,mid-1.2,V-3.6,mid+1.2,V-2.6,0,1.0,WOOD,true);FB(c,f,mid-1.5,V-3.9,mid+1.5,V-2.5,1.0,1.25,DK,false,{j:0.02});FB(c,f,mid-0.2,V-3.95,mid+0.2,V-2.45,0.8,1.2,0xe0b030,false,{j:0});
+  const p=wx(mid,V-4.4);c.warehouse={x:p[0],z:p[1]};
   const sp=wx(doorU+1,-0.22);makeSign('ARMAZÉM',3.4,0.85,0x5a4a2a,0xf0e0b0,sp[0],c.y+3.3,sp[1],D);
 }
 // loja: balcão// loja: balcão, prateleiras com mercadorias, caixotes e o mercador atrás do balcão

@@ -152,7 +152,7 @@ function whSummaryHtml(c){
   const rows=RES4.map(r=>{
     const need=needOf(c,r),st=storedOf(c,r),m=Math.max(0,need-st),bonus=(ec(c).got[r]||0)>Math.max(0,need-(ec(c).carry[r]||0));
     const tag=need===0&&st===0?'<span style="color:#9fe89f">não precisa</span>':m>0?'<span style="color:#ff8a8a">falta '+m+'</span>':bonus?'<span style="color:#ffd23a">★ bônus</span>':'<span style="color:#9fe89f">✔</span>';
-    return '<div>'+resIcon(r)+' '+resName(r)+': <b>'+st+'</b> / '+need+' '+tag+'</div>';
+    const dv=(ec(c).debt||{})[r]||0;return '<div>'+resIcon(r)+' '+resName(r)+': <b>'+st+'</b> / '+need+' '+tag+(dv?' <span style="color:#ff8a8a">• dívida '+dv+'</span>':'')+'</div>';
   }).join('');
   return '<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:8px"><div class="card" style="flex:1;min-width:250px"><b>Produção de '+c.name+'</b><div class="st">'+prodTxt+'<br>Cofre: <b>◉ '+w.vault+'</b></div></div><div class="card" style="flex:1;min-width:250px"><b>Suprimentos desta rodada</b><div class="st" style="line-height:1.6">'+rows+'</div></div></div>';
 }

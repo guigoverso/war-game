@@ -21,7 +21,7 @@ const Ledger={
   get(k){return k==='gold'?P.coins:(STATE.res[k]||0)},
   set(k,v){if(k==='gold')P.coins=v;else STATE.res[k]=v;Hooks.emit('ledger',{key:k,value:v})},
   add(k,n){this.set(k,this.get(k)+n)},
-  anyDebt(){return this.keys.some(k=>this.get(k)<0)},
+  anyDebt(){return this.keys.some(k=>this.get(k)<0)||(typeof cityItemDebt==='function'&&cityItemDebt())},   // dívida de ouro ou de itens (suprimentos que faltaram)
   inDebt(k){return this.get(k)<0},
   // cost = {gold:50, wood:3}. Dívida em qualquer recurso bloqueia a compra.
   canAfford(cost){
