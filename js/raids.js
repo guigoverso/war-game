@@ -64,7 +64,7 @@ function onRaidCleared(){
 function raidFailed(){
   const c=RAID.city,lostGold=Math.max(0,Math.min(P.coins,RAID_LOSS_GOLD));
   Ledger.add('gold',-lostGold);
-  const lost=[];for(const k of['food','ore','wood']){const l=Math.floor((STATE.res[k]||0)*RAID_LOSS_RES);if(l>0){Ledger.add(k,-l);lost.push(l+' '+DATA.resources[k].name.toLowerCase())}}
+  const lost=raidLoss(c);   // perde parte dos suprimentos guardados no armazém da cidade
   igniteCity(c);
   toast('🔥 Os bandidos saquearam '+c.name+'! Você perdeu ◉'+lostGold+(lost.length?' e '+lost.join(', '):'')+'. A cidade está em chamas.',6000);
   endRaid();

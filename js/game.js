@@ -138,7 +138,7 @@ function conquerCity(c){
 }
 
 // ---------- Painéis ----------
-const SCREENS=['start','shop','clinic','barracks','quests','pause','map','dead','victory','store','cook','raid','ldbook'];
+const SCREENS=['start','shop','clinic','barracks','quests','pause','map','dead','victory','store','cook','raid','ldbook','warehouse'];
 function openPanel(name){
   if(G.frozen)setFrozen(false);
   SCREENS.forEach(s=>$(s).classList.add('hidden'));$(name).classList.remove('hidden');
@@ -230,7 +230,7 @@ function refreshCheats(){$('cNoWear').textContent='Desgaste das armas: '+(G.noWe
 $('cMute').onclick=toggleMute;
 $('cSave').onclick=()=>SaveUI.open('game');
 $('loadbtn').onclick=()=>SaveUI.open('load');
-$('cRes').onclick=()=>{for(const k of['food','ore','wood'])Ledger.add(k,100);refreshCheats()};
+$('cRes').onclick=()=>{toast('Itens: '+(invGive([['tora',20],['minerio',20],['carne',20],['tilapia',10]])||'(bolsa cheia)'),2500);refreshCheats()};
 $('cDebt').onclick=()=>{Ledger.borrow({gold:50});refreshCheats()};
 $('cRound').onclick=()=>{endRound();refreshCheats();closePanel()};
 $('cLeader').onclick=()=>{if(STATE.phase==='leader'||G.office){closePanel();return}STATE.rd.hallCity=WORLD.home.id;beginLeaderTurn();closePanel()};
@@ -331,7 +331,7 @@ window.addEventListener('keydown',e=>{
     return;
   }
   if(e.code==='KeyM'){if(G.panel==='map')closePanel();else if(!G.panel){drawBigMap();openPanel('map')}return}
-  if(G.panel==='shop'||G.panel==='clinic'||G.panel==='barracks'||G.panel==='quests'||G.panel==='store'||G.panel==='cook'||G.panel==='raid'){if(e.code==='KeyE'||e.code==='Escape')closePanel();return}
+  if(G.panel==='shop'||G.panel==='clinic'||G.panel==='barracks'||G.panel==='quests'||G.panel==='store'||G.panel==='cook'||G.panel==='raid'||G.panel==='warehouse'){if(e.code==='KeyE'||e.code==='Escape'){if(!UI.closeTop())closePanel()}return}
   if(G.panel==='uiwin'){if(e.code==='Escape'||e.code==='KeyE')UI.closeTop();return}   // janela de confirmação sobre o jogo
   if(G.panel==='ldbook'){if(e.code==='KeyE'||e.code==='Escape'||e.code==='KeyB'){if(!UI.closeTop())closePanel()}return}   // livro: bolsa + decisões
   if(G.panel)return;
@@ -355,7 +355,7 @@ window.addEventListener('blur',()=>{G.keys={};G.fireHeld=false;G.aiming=false});
 
 function doInteract(){
   const t=G.target;if(!t)return;
-  if(t.type==='hall')openQuests(t.c);else if(t.type==='barracks')openBarracks(t.c);else if(t.type==='shop')openShop(t.c);else if(t.type==='clinic')openClinic(t.c);else if(t.type==='portal'){if(RAID.active&&!RAID.engaged)toast('Há um ataque em andamento! Defenda a cidade antes.',2500);else enterDungeon(t.p)}else if(t.type==='dgexit')leaveDungeon();else if(t.type==='store')openStore(t.c,'store');else if(t.type==='tavern')openStore(t.c,'tavern');else if(t.type==='stove')openCooking('tavern');else if(t.type==='fire')openCooking('fire');else if(t.type==='npc')npcTalk(t.n);else if(t.type==='chest')openChest(t.ch);else if(t.type==='cage')openCage(t.c);else if(t.type==='book')openBook();else if(t.type==='leader')hallRoundAction(t.c);
+  if(t.type==='hall')openQuests(t.c);else if(t.type==='barracks')openBarracks(t.c);else if(t.type==='shop')openShop(t.c);else if(t.type==='clinic')openClinic(t.c);else if(t.type==='portal'){if(RAID.active&&!RAID.engaged)toast('Há um ataque em andamento! Defenda a cidade antes.',2500);else enterDungeon(t.p)}else if(t.type==='dgexit')leaveDungeon();else if(t.type==='store')openStore(t.c,'store');else if(t.type==='tavern')openStore(t.c,'tavern');else if(t.type==='stove')openCooking('tavern');else if(t.type==='fire')openCooking('fire');else if(t.type==='npc')npcTalk(t.n);else if(t.type==='chest')openChest(t.ch);else if(t.type==='cage')openCage(t.c);else if(t.type==='book')openBook();else if(t.type==='leader')hallRoundAction(t.c);else if(t.type==='warehouse')openWarehouse(t.c);
 }
 function updateInteract(){
   G.target=null;G.attackCity=null;G.curCity=null;const lines=[];
@@ -370,6 +370,7 @@ function updateInteract(){
     if(c.store){const ds=Math.hypot(P.x-c.store.x,P.z-c.store.z);if(ds<4.5){G.target={type:'store',c};lines.push('[E] Loja: vender e comprar itens')}}
     if(c.tavern){const ds=Math.hypot(P.x-c.tavern.x,P.z-c.tavern.z);if(ds<3.2){G.target={type:'tavern',c};lines.push('[E] Taverneiro: comprar comida pronta')}}
     if(c.stove){const ds=Math.hypot(P.x-c.stove.x,P.z-c.stove.z);if(ds<3.0){G.target={type:'stove',c};lines.push('[E] Fogão: cozinhar')}}
+    if(c.warehouse){const ds=Math.hypot(P.x-c.warehouse.x,P.z-c.warehouse.z);if(ds<4.5&&Math.abs(P.y-c.y)<2.6){if(c.owner==='player'){G.target={type:'warehouse',c};lines.push('[E] Armazém: guardar itens, entregar suprimentos e recolher a produção')}else lines.push('🔒 Armazém fechado — conquiste a cidade')}}
     if(c.hall){const ds=Math.hypot(P.x-c.hall.x,P.z-c.hall.z);if(ds<4.5&&Math.abs(P.y-c.y)<2.6){if(c.owner==='player'){G.target={type:'hall',c};lines.push('[E] Prefeitura: quadro de missões')}else lines.push('🔒 Prefeitura fechada — conquiste a cidade')}}
     if(c.owner==='enemy'&&c.state==='idle'&&d<c.half+10){G.attackCity=c;lines.push('[F] ATACAR '+c.name.toUpperCase())}
   }

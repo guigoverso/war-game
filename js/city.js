@@ -243,7 +243,21 @@ function buildHall(c,f,D,doorU,rng,o){
   }
   const sp=wx(doorU+1,-0.22);makeSign('PREFEITURA',3.8,0.85,0x2a3a5a,0xf0e0a0,sp[0],c.y+3.5,sp[1],D);
 }
-// loja: balcão, prateleiras com mercadorias, caixotes e o mercador atrás do balcão
+// armazém: prateleiras de caixotes e barris, pilhas de sacos e um grande baú de guarda no centro (c.warehouse = ponto de uso)
+function buildWarehouse(c,f,D,doorU,rng){
+  const wx=(u,v)=>{const m=f.map(u,v);return[c.cx+m[0],c.cz+m[1]]},U=f.U,V=f.V,mid=U/2;
+  const WOOD=0x7a5632,DK=0x4a2f1a;
+  // prateleiras no fundo com caixotes
+  for(const y of[0,1.1,2.2]){FB(c,f,1.0,V-1.5,U-1.0,V-1.05,y,y+0.1,DK,false,{j:0});for(let u=1.2;u<U-1.6;u+=0.9)FB(c,f,u,V-1.45,u+0.7,V-1.1,y+0.1,y+0.1+0.5+0.25*((u*3)%2),rng.pick([0x8a6a3a,0xa08050,0x6b4a2a,0xc8a85a]),false,{j:0.03})}
+  // barris e sacos nos cantos
+  for(const [u,v] of[[1.2,1.4],[2.4,1.4],[U-2.2,1.4],[U-3.4,1.4]])FB(c,f,u,v,u+0.9,v+0.9,0,1.0,0x6b3a22,true,{j:0.03});
+  for(let k=0;k<3;k++)FB(c,f,U-3.2+k*0.9,3.2,U-2.4+k*0.9,4.0,0,0.5,rng.pick([0xd8d0a8,0xc8b888]),true,{j:0.05});
+  // grande baú de guarda no centro
+  FB(c,f,mid-1.4,V-3.8,mid+1.4,V-2.6,0,1.0,WOOD,true);FB(c,f,mid-1.5,V-3.9,mid+1.5,V-2.5,1.0,1.25,DK,false,{j:0.02});FB(c,f,mid-0.2,V-3.95,mid+0.2,V-2.45,0.8,1.2,0xe0b030,false,{j:0});
+  const p=wx(mid,V-4.8);c.warehouse={x:p[0],z:p[1]};
+  const sp=wx(doorU+1,-0.22);makeSign('ARMAZÉM',3.4,0.85,0x5a4a2a,0xf0e0b0,sp[0],c.y+3.3,sp[1],D);
+}
+// loja: balcão// loja: balcão, prateleiras com mercadorias, caixotes e o mercador atrás do balcão
 function buildStore(c,f,D,doorU,rng){
   const wx=(u,v)=>{const m=f.map(u,v);return[c.cx+m[0],c.cz+m[1]]},mid=f.U/2;
   FB(c,f,mid-3,f.V-3.4,mid+3,f.V-2.4,0,1.1,0x5a3d22,true);
@@ -564,9 +578,10 @@ function buildCity(c,rng){  const Hc=c.half;
     const o={h,floors,wall:wallC,roof:rng.pick(c.pal.roofs),roofT,glass:0x9ed4ff,chimney:ord?rng.chance(0.8):rng.chance(0.5),timber:!hallTurn&&!sk&&rng.chance(0.35),shut:rng.chance(0.45)?rng.pick([0x3a5a3a,0x7a2a2a,0x2a4a7a,0x5a3d22]):null};
     if(hallTurn){o.h=5;o.wall=0xe6dcc0;o.roof=0x3f5a8a;o.roofT='hip';o.chimney=false;if(Uu>=9&&Vv>=9){o.floors=2;floors=2;o.hall=true}}   // prefeitura grande: 2 andares (térreo com o quadro, 2º com a sala do líder)
     if(sk==='store'){o.h=4;o.wall=0xe8d8b0;o.roof=0x8a3a2a;o.roofT='gable';o.chimney=false;o.timber=false;o.shut=0x3a5a3a}
+    if(sk==='warehouse'){o.h=4;o.wall=0xb8a078;o.roof=0x5a4a3a;o.roofT='gable';o.chimney=false;o.timber=true;o.shut=0x4a3a2a}
     if(sk==='tavern'){o.h=5;o.wall=0xc89a62;o.roof=0x5a3a24;o.roofT='gable';o.chimney=true;o.timber=true;o.shut=0x5a3d22}
     const f=makeBuilding(c,r,D,p-(ns?r.x0:r.z0),o,rng);(c.doors=c.doors||[]).push(f.map(p-(ns?r.x0:r.z0)+1,-0.5));if(floors>1)(c.multi=c.multi||[]).push({r,floors,D,f});
-    if(hallTurn)buildHall(c,f,D,p-(ns?r.x0:r.z0),rng,o);else if(sk==='store')buildStore(c,f,D,p-(ns?r.x0:r.z0),rng);else if(sk==='tavern')buildTavern(c,f,D,p-(ns?r.x0:r.z0),rng);else if(floors>1){const ub=rng.int(1,Math.max(1,f.U-5));FB(c,f,ub,1,ub+1.6,2,0,0.85,0x8a6a3a,true);FB(c,f,ub+0.1,1.1,ub+0.5,1.5,0.85,1.1,0xd8d0c0,false)}else furnishHouse(c,f,rng,D);
+    if(hallTurn)buildHall(c,f,D,p-(ns?r.x0:r.z0),rng,o);else if(sk==='store')buildStore(c,f,D,p-(ns?r.x0:r.z0),rng);else if(sk==='tavern')buildTavern(c,f,D,p-(ns?r.x0:r.z0),rng);else if(sk==='warehouse')buildWarehouse(c,f,D,p-(ns?r.x0:r.z0),rng);else if(floors>1){const ub=rng.int(1,Math.max(1,f.U-5));FB(c,f,ub,1,ub+1.6,2,0,0.85,0x8a6a3a,true);FB(c,f,ub+0.1,1.1,ub+0.5,1.5,0.85,1.1,0xd8d0c0,false)}else furnishHouse(c,f,rng,D);
     houses.push(r);path.forEach(q=>setTL(c,q.x0,q.z0,T_STREET));
     res.push({x0:r.x0-1,x1:r.x1+1,z0:r.z0-1,z1:r.z1+1});
     if(rng.chance(ord?0.6:0.4)){
@@ -588,7 +603,7 @@ function buildCity(c,rng){  const Hc=c.half;
     if(c.hall)break;
   }
   // a loja (compra e venda de itens) e a taverna (cozinha) também são procuradas antes das casas comuns
-  for(const sp of['store','tavern']){
+  for(const sp of['store','warehouse','tavern']){
     // a taverna é maior (mesas, balcão e fogão): tenta os tamanhos maiores primeiro
     const sizes=sp==='tavern'?[[12,9],[9,12],[11,8],[8,11],[10,8],[8,10]]:[[8,6],[6,8],[7,6],[6,7]];
     for(const [hw,hd] of sizes){
@@ -687,7 +702,15 @@ function buildCity(c,rng){  const Hc=c.half;
       c.hall={x:c.cx+bx,z:c.cz+bz+1.6};c.leader={x:c.cx+bx+2.4,z:c.cz+bz+1.4,y:c.y};c.keepers=c.keepers||[];c.keepers.push({role:'leader',x:c.leader.x,z:c.leader.z,yaw:0});break;
     }
   }
-  // reserva: se a loja não coube num prédio, vira uma barraca de mercador na praça
+  // reserva: se o armazém não coube num prédio, vira uma pilha de caixotes e um baú grande na praça
+  if(!c.warehouse){
+    for(const [bx,bz] of[[-(P-1),0],[P-1,0],[0,-(P-1)],[0,P-1],[-(S+4),P-2],[S+4,-(P-2)]]){
+      if(Col.near(c.cx+bx-2.2,c.cz+bz-2.2,c.cx+bx+2.2,c.cz+bz+2.2).length)continue;
+      Bc(c,bx-1.4,0,bz-0.9,bx+1.4,1.0,bz+0.9,0x7a5632,true);Bc(c,bx-1.5,1.0,bz-1.0,bx+1.5,1.25,bz+1.0,0x4a2f1a,false,{j:0.02});Bc(c,bx-0.2,0.8,bz-1.05,bx+0.2,1.2,bz+1.05,0xe0b030,false,{j:0});
+      for(const [ox,oz] of[[-2.2,0.8],[2.0,-0.6]])Bc(c,bx+ox,0,bz+oz,bx+ox+0.9,1.0,bz+oz+0.9,0x6b3a22,true,{j:0.03});
+      c.warehouse={x:c.cx+bx,z:c.cz+bz+2.4};break;
+    }
+  }  // reserva: se a loja não coube num prédio, vira uma barraca de mercador na praça
   if(!c.store){
     for(const [bx,bz] of[[P-1,0],[-(P-1),0],[0,P-1],[0,-(P-1)],[S+4,P-2],[-(S+4),-(P-2)]]){
       if(Col.near(c.cx+bx-2.2,c.cz+bz-2.2,c.cx+bx+2.2,c.cz+bz+2.2).length)continue;

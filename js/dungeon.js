@@ -134,7 +134,7 @@ function spawnPortals(){
       if(STATE.portals.some(p=>Math.hypot(p.x-x,p.z-z)<(lax?25:60)))continue;
       const d=distHome(x,z),tier=d<150?1:d<270?2:3,r=rng.next();
       let reward;
-      if(r<0.45){const res=rng.pick(['food','ore','wood','gold']);reward={type:'resource',res,amt:(res==='gold'?3:1)*rng.int(60,100)*tier}}
+      if(r<0.45){const res=rng.pick(['food','ore','wood','gold']);reward={type:'resource',res,amt:res==='gold'?3*rng.int(60,100)*tier:rng.int(6,10)*tier}}   // recursos viram itens (1 item = 1 unidade)
       else if(r<0.72)reward={type:'weapon'};
       else reward={type:'relic'};
       STATE.portals.push({id:(STATE.portalSeq=(STATE.portalSeq||0)+1),x:x+0.5,z:z+0.5,wing:k,tier,reward,claimed:false});
@@ -148,7 +148,7 @@ function spawnPortals(){
 function clearPortalMeshes(){for(const m of PORTALS)scene.remove(m.group);PORTALS.length=0}
 function rewardText(p){
   const r=p.reward;
-  if(r.type==='resource')return DATA.resources[r.res].icon+' '+r.amt+' de '+DATA.resources[r.res].name;
+  if(r.type==='resource')return r.res==='gold'?'◉ '+r.amt+' de ouro':DATA.resources[r.res].icon+' '+r.amt+' itens de '+DATA.resources[r.res].name.toLowerCase();
   return r.type==='weapon'?'★ uma arma lendária':'🏺 uma relíquia';
 }
 function makePortalMesh(p){
@@ -289,7 +289,7 @@ function leaveDungeon(noTeleport){
 function dungeonChestOpened(ch){
   const p=ch.dg;if(!p||p.claimed)return;p.claimed=true;
   const r=p.reward;
-  if(r.type==='resource'){Ledger.add(r.res,r.amt);toast('🌀 Recompensa do portal: '+rewardText(p)+'!',5000)}
+  if(r.type==='resource'){const got=giveResource(r.res,r.amt);toast('🌀 Recompensa do portal: '+got+'!',5000)}
   else if(r.type==='relic'){const t=invGive([['reliquia',1]]);toast('🌀 Recompensa do portal: 🏺 Relíquia! '+t,5000)}
   else{
     const idx=rollLegendary();

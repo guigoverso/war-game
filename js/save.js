@@ -35,7 +35,8 @@ function migrateSave(d){
   if(d.v<4){d.v=4}   // v4: armas viram itens (barra 1–6), atalhos 7–9 guardam pilhas e há cardumes de pesca (ausentes = padrão)
   if(d.v<5){d.v=5}   // v5: portais, armas lendárias, cidades queimadas e controle de raids (ausentes = padrão)
   if(d.v<6){d.v=6}   // v6: rodadas, turno do líder, tipos de cidade, rotas de caravana e capital (ausentes = padrão)
-  // if(d.v<7){ ...ajustes...; d.v=7 }
+  if(d.v<7){d.v=7}   // v7: armazém por cidade (suprimentos viram itens); o estoque geral antigo de alimentos/minério/madeira é descartado
+  // if(d.v<8){ ...ajustes...; d.v=8 }
   return d;
 }
 

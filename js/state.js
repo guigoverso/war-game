@@ -1,7 +1,7 @@
 'use strict';
 // ---------- Estado do jogo, livro de recursos, preços e ganchos (Fase 0) ----------
 // Tudo o que precisa sobreviver a um salvamento e que não faz parte do mundo gerado pela semente fica em STATE (JSON puro).
-const SAVE_VERSION=6;
+const SAVE_VERSION=7;
 const STATE={version:SAVE_VERSION,round:0,phase:'commander',res:{food:0,ore:0,wood:0}};
 // zera o estado para uma partida nova; sistemas que guardam coisas em STATE (inventário, durabilidade...) assinam 'resetState'
 function resetState(){STATE.version=SAVE_VERSION;STATE.round=0;STATE.phase='commander';STATE.res={food:0,ore:0,wood:0};Hooks.emit('resetState')}
@@ -32,7 +32,7 @@ const Ledger={
   spend(cost){if(!this.canAfford(cost))return false;for(const k in cost)this.add(k,-cost[k]);return true},
   // gasta mesmo sem saldo, deixando o recurso negativo (ex.: conserto de arma)
   borrow(cost){for(const k in cost)this.add(k,-cost[k])},
-  summary(){return this.keys.map(k=>DATA.resources[k].icon+' '+DATA.resources[k].name+': '+this.get(k)).join('  •  ')}
+  summary(){return DATA.resources.gold.icon+' Ouro: '+this.get('gold')}
 };
 
 // ---------- preço: uma função só, com modificadores encadeados ----------

@@ -25,3 +25,14 @@ Use `?mute=1` (sem música). O modo criativo (`?auto=1`) tem botões de teste na
 - Falta de suprimento → dívida; turno do comandante sem limite; o porto é a cidade mais forte que não é a capital.
 - Entregar estoque é grátis; caravana custa ◉ 200 (sem ação); evoluir a capital gasta 1 ação.
 - Se a cidade não comportar a prefeitura grande, ela cai para o prédio pequeno (com o líder no térreo) ou para o quadro na praça.
+
+## Armazém da cidade (adição) — substitui a entrega pelo livro
+- Toda cidade tem um **armazém** (edifício com baú grande). Perto dele, **E** abre a tela (só em cidade sua).
+- **Tela do armazém**: no alto, o **resumo** (produção da cidade, cofre, e os suprimentos desta rodada: armazenado / necessidade, com ✔, ⚠ falta ou ★ bônus). Duas abas:
+  - **📦 Armazenamento**: 24 slots da cidade (separados da bolsa) + **cofre de ouro** (Guardar/Tirar ◉10, ◉100, tudo). Clique em um item e use os botões para mover entre a bolsa e o armazém.
+  - **📥 Suprimentos**: **1 slot de madeira, 1 de minério e 10 de alimentos** (variedade), o **ouro** (do cofre, +10/+100/Suprir tudo) e o **slot de produção em abundância**. Itens de suprimento da bolsa ou do armazenamento vão para os slots; dá para retirar de volta.
+- **Recursos são itens, 1 para 1**: tronco = 1 madeira, minério bruto/sucata = 1 minério; carne, peixes e ervas = 1 alimento. Podem ser comprados, vendidos e carregados como qualquer item. Ouro continua no seu bolso e no cofre.
+- **Produção em abundância**: a cidade-foco sem caravana produz por rodada (5 + nível; ouro ×10) e o resultado vai para o **slot de produção**; **ouro vai direto ao cofre**. Se o foco é comida, **sorteia-se um tipo** e o slot **soma** rodada após rodada até você retirar. Se a abundância mudar (porto), o que estava na reserva vai ao armazenamento e **o que não couber é destruído**.
+- **Fim da rodada**: a cidade consome o que precisa dos slots; **o excedente fica** (adianta a próxima rodada). O que faltar vira **dívida em ouro** (alimento ◉6, minério ◉10, madeira ◉8 por unidade; ouro 1 por 1).
+- **Livro (aba Cidades)**: só **mostra** o que a cidade tem (necessidade × no armazém, reserva de produção, cofre). Não entrega mais por ali.
+- **Mudanças ligadas**: recompensa de portal em recursos vira **itens** na bolsa; raid bem-sucedido dos bandidos leva 15% dos suprimentos do armazém; evoluir a capital custa só ouro (◉300 × nível); o botão criativo "Dar madeira, minério e comida" dá itens.
