@@ -202,14 +202,14 @@ function initOffice(){
   const halo=new THREE.Mesh(GEO_BOX,new THREE.MeshBasicMaterial({color:0xffd060,transparent:true,opacity:0.35,depthWrite:false}));halo.scale.set(1.8,0.05,1.2);halo.position.y=-0.03;g.add(halo);
   g.position.set(OFFICE.desk.x,Y+1.07,oz+3.1);scene.add(g);OFFICE.book=g;OFFICE.halo=halo;
 }
-function enterOffice(){
+function enterOffice(silent){
   if(G.office||!OFFICE.ok)return;
   initOffice();
   G.office={ret:{x:P.x,y:P.y,z:P.z,yaw:P.yaw}};
   G.fireHeld=false;G.aiming=false;P.crouch=false;fishClean();
   P.x=OFFICE.spawn.x;P.z=OFFICE.spawn.z;P.y=OFFICE.Y+0.05;P.vx=P.vz=P.vy=0;P.camY=P.y;P.yaw=0;P.pitch=0;
   $('hud').classList.add('hidden');WS.vm.forEach(v=>v.visible=false);
-  closePanel();
+  if(!silent)closePanel();   // no início da partida o painel de configurações abre em seguida: não pedir o cursor travado
   const hint=$('officehint');hint.textContent='📖 Chegue perto da mesa e aperte E (ou clique) para abrir o livro';hint.style.display='block';
 }
 function leaveOffice(){

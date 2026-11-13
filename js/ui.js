@@ -16,8 +16,8 @@ const UI={
     const body=document.createElement('div'),foot=document.createElement('div');foot.style.marginTop='10px';
     panel.append(h,body,foot);el.appendChild(panel);document.body.appendChild(el);
     const w={el,body,foot,titleEl:h,
-      open(){el.classList.remove('hidden');if(!UI.stack.includes(w))UI.stack.push(w);if(o.onOpen)o.onOpen(w);return w},
-      close(){el.classList.add('hidden');const i=UI.stack.indexOf(w);if(i>=0)UI.stack.splice(i,1);if(o.onClose)o.onClose(w);return w},
+      open(){el.classList.remove('hidden');if(!UI.stack.includes(w))UI.stack.push(w);if(typeof G!=='undefined'&&G.running&&!G.panel){G.panel='uiwin';w._own=true;G.fireHeld=false;G.aiming=false;if(document.pointerLockElement)document.exitPointerLock()}if(o.onOpen)o.onOpen(w);return w},
+      close(){el.classList.add('hidden');const i=UI.stack.indexOf(w);if(i>=0)UI.stack.splice(i,1);if(w._own){w._own=false;if(G.panel==='uiwin'){G.panel=null;try{const p=canvas.requestPointerLock();if(p&&p.catch)p.catch(()=>{})}catch(e){}}}if(o.onClose)o.onClose(w);return w},
       isOpen(){return !el.classList.contains('hidden')},
       setTitle(t){h.textContent=t}};
     for(const a of o.buttons||[])foot.appendChild(UI.button(a.label,a.cls,()=>{if(a.onClick)a.onClick(w);else w.close()}));

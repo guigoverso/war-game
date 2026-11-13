@@ -332,6 +332,7 @@ window.addEventListener('keydown',e=>{
   }
   if(e.code==='KeyM'){if(G.panel==='map')closePanel();else if(!G.panel){drawBigMap();openPanel('map')}return}
   if(G.panel==='shop'||G.panel==='clinic'||G.panel==='barracks'||G.panel==='quests'||G.panel==='store'||G.panel==='cook'||G.panel==='raid'){if(e.code==='KeyE'||e.code==='Escape')closePanel();return}
+  if(G.panel==='uiwin'){if(e.code==='Escape'||e.code==='KeyE')UI.closeTop();return}   // janela de confirmação sobre o jogo
   if(G.panel==='ldbook'){if(e.code==='KeyE'||e.code==='Escape'||e.code==='KeyB'){if(!UI.closeTop())closePanel()}return}   // livro: bolsa + decisões
   if(G.panel)return;
   if(G.office){if(e.code==='KeyE'&&!e.repeat)doInteract();return}   // no escritório só se anda e se abre o livro
@@ -624,7 +625,7 @@ async function startGame(creative,loadData){
     if(loadData){applySave(loadData);applyFishGone();rebuildPortals();rebuildSmoke()}
     else{spawnPortals();RAID.active=false;RAID.area=null;STATE.rd.hallCity=WORLD.home.id;G.introBook=true}   // partida nova: começa dentro da prefeitura (rodada 0) com o livro aberto no resumo
     refreshHotbar();refreshBuffs();fishClean();
-    G.running=true;$('hud').classList.remove('hidden');initEconomy();rebuildCaravans();refreshRoundHud();if(STATE.phase==='leader'||G.introBook){if(OFFICE.ok)enterOffice();else if(G.introBook)placeAtHall()}
+    G.running=true;$('hud').classList.remove('hidden');initEconomy();rebuildCaravans();refreshRoundHud();if(STATE.phase==='leader'||G.introBook){if(OFFICE.ok)enterOffice(true);else if(G.introBook)placeAtHall()}
     refreshCheats();
     $('seed').value=String(seed);
     document.querySelector('#pause h2').textContent=(loadData?'✔ JOGO CARREGADO — semente ':'✔ MUNDO PRONTO — semente ')+seed;

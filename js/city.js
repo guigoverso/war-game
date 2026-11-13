@@ -175,7 +175,7 @@ function addFloors(c,f,o,rng){
     ring.forEach((p,i)=>{
       const a=st.mir?2-p[0]:p[0],u=st.u0+a,v=y0v+p[1],top=base+0.45*(i+1);
       FB(c,f,u,v,u+1,v+1,base,top,i%2?0x9a7a4a:0x7d5e34,true,{j:0.05});
-      FB(c,f,u-0.01,v-0.01,u+1.01,v+1.01,top-0.07,top,0x5a3d22,false,{j:0});          // borda do degrau
+      FB(c,f,u-0.01,v-0.01,u+1.01,v+1.01,top-0.07,top+0.025,0x5a3d22,false,{j:0});          // borda do degrau
     });
     FB(c,f,st.u0+1,y0v+1,st.u0+2,y0v+2,base,y,0x5a3d22,true,{j:0.03});                  // pilar central
     if(o.hall)continue;   // a prefeitura mobilia o 2º andar por conta própria
@@ -226,18 +226,18 @@ function buildHall(c,f,D,doorU,rng,o){
   c.keepers=c.keepers||[];
   {const k=wx(bc,V-1.9);c.keepers.push({role:'clerk',x:k[0],z:k[1],yaw:face})}
   if(two){
-    // 2º andar: sala igual à do prefeito, com o líder sentado atrás da mesa (falar com ele encerra o turno do comandante)
-    const Y=SH,TOP=0x8a6234,DK=0x4a2f1a;
-    FB(c,f,4.6,V-7.6,U-1.6,V-4.7,Y,Y+0.03,0x7a2a2a,false,{j:0});FB(c,f,4.9,V-7.3,U-1.9,V-5.0,Y+0.03,Y+0.05,0x9a3a3a,false,{j:0});   // tapete
-    FB(c,f,bc-2.4,V-4.4,bc+2.4,V-3.2,Y,Y+1.0,TOP,true,{j:0.02});FB(c,f,bc-2.45,V-4.45,bc+2.45,V-3.15,Y+0.95,Y+1.05,0x9a7040,false,{j:0});   // mesa
-    FB(c,f,bc-0.5,V-2.8,bc+0.5,V-1.9,Y,Y+0.5,0x5a3a1c,false);FB(c,f,bc-0.5,V-2.0,bc+0.5,V-1.8,Y+0.5,Y+1.7,0x5a3a1c,false);   // cadeira do líder
-    FB(c,f,bc-0.7,V-4.0,bc+0.7,V-3.5,Y+1.05,Y+1.12,0x5a2a10,false,{j:0});FB(c,f,bc-0.6,V-3.95,bc+0.6,V-3.55,Y+1.12,Y+1.16,0xf2e8c8,false,{j:0});   // livro aberto
-    FB(c,f,bc-1.9,V-1.2,bc+1.9,V-1.1,Y+2.1,Y+3.2,DK,false,{j:0});FB(c,f,bc-1.7,V-1.12,bc+1.7,V-1.05,Y+2.3,Y+3.0,0x7ab4e8,false,{j:0});FB(c,f,bc-1.7,V-1.12,bc+1.7,V-1.05,Y+2.3,Y+2.65,0x4a8a3a,false,{j:0});   // quadro
-    for(const du of[-3.4,2.8])FB(c,f,bc+du,V-1.15,bc+du+0.6,V-1.08,Y+1.0,Y+3.2,0x2a6aff,false,{j:0});   // bandeiras azuis
-    FB(c,f,U-2.1,2,U-1.1,V-5.2,Y,Y+3.0,DK,true,{j:0.02});   // estante na parede leste
-    for(let row=0;row<3;row++)for(let k=0;k<Math.floor((V-7.2)/0.32);k++)FB(c,f,U-2.2,2.1+k*0.32,U-2.1,2.1+k*0.32+0.26,Y+0.35+row*0.95,Y+0.35+row*0.95+0.45+0.1*((k*7+row)%3),[0xa02a2a,0x2a5aa0,0x2a8a4a,0xc8a020,0x6a2a8a,0xe0d8c0][(k*5+row*3)%6],false,{j:0});
-    const lp=wx(bc,V-1.9);c.leader={x:lp[0],z:lp[1],y:c.y+SH};
-    c.keepers.push({role:'leader',x:lp[0],z:lp[1],yaw:face,sit:true,y:c.y+SH+0.02});
+    // 2º andar: sala igual à do prefeito; a mesa fica na ponta OPOSTA à escada (frente, a leste), com o líder sentado atrás dela
+    const Y=SH,TOP=0x8a6234,DK=0x4a2f1a,dc=U-5;
+    FB(c,f,4.8,1.6,U-1.6,6.2,Y,Y+0.03,0x7a2a2a,false,{j:0});FB(c,f,5.1,1.9,U-1.9,5.9,Y+0.03,Y+0.05,0x9a3a3a,false,{j:0});   // tapete
+    FB(c,f,dc-2.4,2.5,dc+2.4,3.7,Y,Y+1.0,TOP,true,{j:0.02});FB(c,f,dc-2.45,2.45,dc+2.45,3.75,Y+0.95,Y+1.05,0x9a7040,false,{j:0});   // mesa
+    FB(c,f,dc-0.5,1.3,dc+0.5,2.2,Y,Y+0.5,0x5a3a1c,false);FB(c,f,dc-0.5,1.05,dc+0.5,1.3,Y+0.5,Y+1.7,0x5a3a1c,false);   // cadeira do líder
+    FB(c,f,dc-0.7,2.7,dc+0.7,3.2,Y+1.05,Y+1.12,0x5a2a10,false,{j:0});FB(c,f,dc-0.6,2.75,dc+0.6,3.15,Y+1.12,Y+1.16,0xf2e8c8,false,{j:0});   // livro aberto
+    FB(c,f,dc-1.9,1.0,dc+1.9,1.1,Y+2.1,Y+3.2,DK,false,{j:0});FB(c,f,dc-1.7,1.1,dc+1.7,1.16,Y+2.3,Y+3.0,0x7ab4e8,false,{j:0});FB(c,f,dc-1.7,1.1,dc+1.7,1.16,Y+2.3,Y+2.65,0x4a8a3a,false,{j:0});   // quadro
+    for(const du of[-3.4,2.8])FB(c,f,dc+du,1.0,dc+du+0.6,1.08,Y+1.0,Y+3.2,0x2a6aff,false,{j:0});   // bandeiras azuis
+    FB(c,f,U-2.1,4.6,U-1.1,V-1.5,Y,Y+3.0,DK,true,{j:0.02});   // estante na parede leste
+    for(let row=0;row<3;row++)for(let k=0;k<Math.floor((V-6.3)/0.32);k++)FB(c,f,U-2.2,4.7+k*0.32,U-2.1,4.7+k*0.32+0.26,Y+0.35+row*0.95,Y+0.35+row*0.95+0.45+0.1*((k*7+row)%3),[0xa02a2a,0x2a5aa0,0x2a8a4a,0xc8a020,0x6a2a8a,0xe0d8c0][(k*5+row*3)%6],false,{j:0});
+    const lp=wx(dc,1.75);c.leader={x:lp[0],z:lp[1],y:c.y+SH};
+    c.keepers.push({role:'leader',x:lp[0],z:lp[1],yaw:face+Math.PI,sit:true,y:c.y+SH+0.02});   // de frente para quem sobe a escada
   }else{
     const lp=wx(U-2,V-2);c.leader={x:lp[0],z:lp[1],y:c.y};c.keepers.push({role:'leader',x:lp[0],z:lp[1],yaw:face});
   }
