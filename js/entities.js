@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 // ---------- Modelos, NPCs e inimigos ----------
 const NPCS=[],ENEMIES=[],POISON={t:0,acc:0};
 const SKINS=[0xf2c9a0,0xe0ac80,0xc68a5c,0x9a6a44,0x6e4a2e,0x4a3220];
@@ -175,6 +175,7 @@ function npcLook(rng,biome,role,owner){
   if(role==='nurse'){L.shirt=0xf4f4f4;L.pants=0xf4f4f4;L.hairStyle='cap';L.hat=0xf4f4f4;L.scarf=0xd02a2a;L.shoes=0xdddddd}
   if(role==='hostage'){L.shirt=0x8a8a80;L.pants=0x4a4036;L.hairStyle='none';L.scale=1;L.miku=true} // prisioneira temporária: Hatsune Miku
   if(role==='clerk'){L.shirt=0x3a5a8a;L.hairStyle='short';L.scarf=0xe0d8b0}
+  if(role==='leader'){L.shirt=0x5a2a6a;L.pants=0x2a2a3a;L.hairStyle='hat';L.hat=0x2a2a3a;L.scarf=0xe8c040;L.beard=L.hair;L.scale=1.03}
   if(role==='guard'){L.shirt=0x2a4a9a;L.hairStyle='helmet';L.hat=0x7a8aa0;L.gun={len:0.8};L.pants=0x2a2a3a}
   // bochechas coradas: crianças, enfermeiras e uma parte dos adultos (aprox. as mulheres); nunca em homens
   L.blush=role==='child'||role==='nurse'||((role==='civ'||role==='elder')&&rng.chance(0.3));
@@ -188,6 +189,7 @@ const SAY={
   elder:['No meu tempo isto aqui era só mato.','Cuidado com as aranhas, meu filho.','Vi coisas estranhas nas montanhas.','Esse terreno muda a cada geração...'],
   guard:['Em guarda!','Tudo calmo por aqui.','Boa sorte lá fora.','Os portões estão seguros.'],
   clerk:['O quadro de missões está logo ali.','Há sempre trabalho para quem sabe lutar.'],
+  leader:['Quando terminar o seu turno, é só me avisar.','As cidades dependem de suprimentos. Cuide delas.'],
   hostage:['Obrigado... pensei que ninguém viria!','Me tire daqui, por favor!'],
   patron:['Saúde!','Esta cerveja está ótima.','Sente-se, forasteiro.','Dizem que o peixe-dourado existe de verdade...','O taverneiro faz o melhor ensopado da região.'],
   merchant:['Bem-vindo à loja! Aperte E para vender o que você encontrou.','Peles, presas, joias... eu compro quase tudo.'],
@@ -230,7 +232,7 @@ function spawnNpc(c,o){
   if(!o.stationary&&o.role!=='guard'){const f=freeSpot(o.x,o.z,0.3,1.8,0.45);o.x=f[0];o.z=f[1]}
   const role=o.role||'civ',L=npcLook(rng,c.biome===BIO_ROCK?1:c.biome,role,c.owner);
   const m=buildHuman(L);
-  const n={kind:'npc',role:L.roleOut,city:c,model:m,group:m.group,x:o.x,z:o.z,y:tH(o.x,o.z),vy:0,ground:true,yaw:o.yaw||rng.range(0,6.28),state:'idle',timer:rng.range(0,4),
+  const n={kind:'npc',role:L.roleOut,city:c,model:m,group:m.group,x:o.x,z:o.z,y:o.y!==undefined?o.y:tH(o.x,o.z),vy:0,ground:true,yaw:o.yaw||rng.range(0,6.28),state:'idle',timer:rng.range(0,4),
     hp:25,alive:true,eye:1.6*m.s,speed:rng.range(1.2,1.8)*(L.scale<0.8?1.1:1),fear:0,phase:rng.range(0,6),stationary:!!o.stationary||role==='guard',boxStep:0.45,r:0.3*m.s,hitR:0.3*m.s,hitH:2*m.s,lift:0,stuck:0,detour:0,detourT:0,sayT:0,bubble:null,def:{r:0.3*m.s,h:2*m.s,lift:0}};
   if(role==='guard'){m.arms[1].rotation.x=-1.2;m.arms[0].rotation.x=-1.0}
   if(o.sit){n.sit=true;n.stationary=true;m.legs.forEach(l=>l.rotation.x=-1.5);m.arms.forEach(a=>a.rotation.x=-0.7)}   // cliente sentado
@@ -312,7 +314,7 @@ function damageNpc(n,amount,src){   // src: bicho que atacou (não envolve o jog
 }
 function npcTalk(n){
   const c=n.city;let pool;
-  if(n.role==='guard')pool=SAY.guard;else if(n.role==='shop')pool=SAY.shop;else if(n.role==='nurse')pool=SAY.nurse;else if(n.role==='merchant')pool=SAY.merchant;else if(n.role==='cook')pool=SAY.cook;else if(n.role==='patron')pool=SAY.patron;else if(n.role==='hostage')pool=SAY.hostage;else if(n.role==='clerk')pool=SAY.clerk;
+  if(n.role==='guard')pool=SAY.guard;else if(n.role==='shop')pool=SAY.shop;else if(n.role==='nurse')pool=SAY.nurse;else if(n.role==='merchant')pool=SAY.merchant;else if(n.role==='cook')pool=SAY.cook;else if(n.role==='patron')pool=SAY.patron;else if(n.role==='hostage')pool=SAY.hostage;else if(n.role==='clerk')pool=SAY.clerk;else if(n.role==='leader')pool=SAY.leader;
   else if(n.role==='child')pool=SAY.child;else if(n.role==='elder'&&Math.random()<0.6)pool=SAY.elder;
   else pool=c.home?SAY.civ_f:(c.owner==='player'?SAY.civ_c:SAY.civ_e);
   npcSay(n,pool[Math.floor(Math.random()*pool.length)]);
@@ -569,7 +571,7 @@ function checkConquest(c){
 function populateCities(){
   for(const c of WORLD.cities){
     const rng=new RNG(WORLD.seed*13+c.id*101+9);
-    for(const k of c.keepers||[])spawnNpc(c,{role:k.role,x:k.x,z:k.z,yaw:k.yaw,stationary:true,sit:k.sit});
+    for(const k of c.keepers||[])spawnNpc(c,{role:k.role,x:k.x,z:k.z,y:k.y,yaw:k.yaw,stationary:true,sit:k.sit});
     const nCiv=c.home?rng.int(26,34):rng.int(14,20);
     const pts=rng.shuffle(c.walk.slice());
     const chosen=(c.keepers||[]).map(k=>({x:k.x,z:k.z}));let placed=0;

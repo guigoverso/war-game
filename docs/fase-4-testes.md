@@ -2,32 +2,26 @@
 
 Use `?mute=1` (sem música). O modo criativo (`?auto=1`) tem botões de teste na pausa (Tab/O/Esc).
 
-## Como o sistema funciona (versão revisada)
-- **Rodada 0 (preparação)**: a partida **começa na sala do prefeito (o escritório)**, com o **livro aberto no Resumo**; o botão **🚪 Sair do escritório** leva você para fora da prefeitura (de que suprimentos cada cidade precisa). Não há decisões, nada é cobrado nem produzido. A contagem começa na rodada 1.
-- **Turno do comandante** (o jogo normal): você sai atrás de suprimentos para suprir as cidades — **comprando na loja** (carne, tronco de madeira, minério bruto) ou **achando na natureza** (caça, pesca, baús e dungeons). Depois **deposita** na aba Bolsa do livro e **distribui** às cidades (aba Livro → Cidades). A rodada só termina quando você a encerra na prefeitura.
-- **Livro (tecla B)** = bolsa + livro do prefeito, no formato de livro:
-  - Marcador **🎒 Bolsa**: o inventário de antes (armas 1–6, curas 7–9, bolsa, arrastar e soltar) e o botão **📦 Depositar tudo**, que transforma comida, sucata/minério e madeira da bolsa em **estoque geral**.
-  - Marcador **📖 Livro**, com subabas: **Resumo** (rodada atual, recursos ainda não alocados, cidades dominadas e suas necessidades, caravanas ativas), **Cidades** (necessidade × entregue, −/+/Suprir; porto), **Caravanas**, **Capital**.
-- **Encerrar a rodada**: no quadro da prefeitura, **📖 Encerrar a rodada**. Para a rodada ≥ 1: cada cidade paga o que ficou sem suprir (**vira dívida**) e as cidades-foco sem caravana produzem 5 (+1 por nível; ouro ×10) para o estoque.
-- **Turno do líder** (começa na rodada 1): você é levado ao **escritório** (sem inventário, armas, vida ou minimapa). Um soldado guarda a porta. Perto da mesa, **E ou clique** abre o livro (alcance generoso). Aqui valem as decisões: **comprar caravana (◉ 200)**, **trocar a distribuição do porto** (1 por rodada) e **evoluir a capital** (ouro + madeira + 1 ação; +1 ação por rodada no nível seguinte). **Concluir decisões** → você sai para fora da prefeitura.
-- No turno do comandante, as abas de decisão ficam **travadas** (🔒); entregar suprimentos às cidades funciona nos dois turnos.
-- **Caravanas**: a sua cidade pode mandar para **qualquer outra cidade** (por ora todas são neutras; também vale uma cidade sua). A cidade sua que recebe o produto do destino passa a ter necessidade 0 dele. No mapa aparecem **duas caravanas paradas na estrada**, cada uma com a bandeira da sua cidade.
-- **Bônus de entrega** (acima da necessidade; vale até o fim da rodada, aparece na linha "Rodada N"): 🌾 melhorar soldados −20% • ⛏ armas, munição e conserto −20% • ◉ recrutar e curar −20% • 🪵 missões +10%. O excedente adianta a meta da rodada seguinte.
+## Como o sistema funciona
+- **Rodada 0 (preparação)**: a partida começa na **sala do prefeito (o escritório)**, com o livro no Resumo. Nada é decidido, cobrado ou produzido. **Encerrar turno** leva você para fora da prefeitura. A contagem vale a partir da rodada 1.
+- **Prefeitura (prédio grande, 2 andares)**: no **térreo** fica o quadro de missões; no **2º andar**, uma sala igual à do prefeito com o **líder sentado na cadeira**. **Falar com ele (E)** → confirmação → encerra o turno do comandante e começa a nova rodada.
+- **Turno do líder** (rodada ≥ 1): você é levado ao escritório (sem inventário, armas, vida ou minimapa). **E ou clique** perto da mesa abre o livro. Decisões: **comprar caravana (◉ 200)**, **distribuição do porto** (livre; só vale quando o turno acaba), **evoluir a capital**. **Encerrar turno** → você sai da prefeitura.
+- **Turno do comandante**: você busca suprimentos (compra na loja ou acha na natureza) e os **entrega às cidades** pelo livro. As decisões do líder ficam 🔒 e **não há opção de mudar o porto**.
+- **Livro (tecla B)** = bolsa + livro: marcador **🎒 Bolsa** e marcador **📖 Livro** (Resumo, Cidades, Caravanas, Capital).
+- **Estoque = estoque guardado + itens de suprimento na bolsa, 1 para 1** (carne, peixe, ervas = 1 alimento; sucata e minério bruto = 1 minério; tronco = 1 madeira). **Não é preciso depositar**: ao entregar, o jogo usa primeiro o estoque guardado e depois os itens da bolsa.
+- **Cidades**: cada cidade mostra a **abundância**, do recurso mais abundante ao menos abundante nesta rodada (necessidade 0% → 200%), e quanto precisa/entregou de cada um. Entregar acima da necessidade dá o **bônus da rodada** (🌾 soldados −20% • ⛏ armas/munição/conserto −20% • ◉ recrutar/curar −20% • 🪵 missões +10%).
+- **Caravanas**: **Escolher no mapa** abre o mapa: clique na cidade de **origem** (sua) e depois na de **destino** (sua, aliada ou neutra), confirme (◉ 200). A origem passa a receber o produto do destino por caravana (necessidade 0). Aparecem duas caravanas paradas na estrada, com a bandeira de cada cidade.
+- **Encerrar a rodada ≥ 1**: o que faltar vira **dívida** (bloqueia compras); cidades-foco sem caravana produzem 5 (+1 por nível; ouro ×10).
 - **Não há eventos ainda.**
 
 ## Roteiro de teste
-1. `?auto=1&mute=1&seed=11` → Continuar: você está na prefeitura e o livro abre no **Resumo** (rodada 0).
-2. Pausa → **Dar 1 de cada item** (ou compre na Loja carne/tronco/minério) → **B** → marcador **Bolsa** → **Depositar tudo** → o estoque sobe.
-3. **B** → marcador **Livro** → **Cidades**: entregue (+/Suprir). Entregar acima da necessidade mostra ★ bônus e a linha da rodada mostra o bônus.
-4. Vá ao quadro da prefeitura → **Encerrar a rodada** (rodada 0 → 1): o escritório. Ande até a mesa (E ou clique a ~5 m). Aba **Caravanas**: escolha a sua cidade e um destino neutro, **Comprar caravana (◉ 200)**. **Capital**: evoluir. **Concluir decisões**.
-5. Fora, **B** → Livro → Capital/Caravanas: as decisões aparecem 🔒 (turno do comandante). Vá até a estrada entre as cidades: duas caravanas.
-6. Encerre a rodada 1 deixando algo sem suprir: o Resumo da rodada 2 relata as faltas (dívida; compras ficam bloqueadas).
-7. Salvar dentro do escritório e carregar (`?load=1`): você volta ao escritório.
+1. `?auto=1&mute=1&seed=11` → Continuar: você está no escritório (rodada 0), livro aberto. **Encerrar turno** → fora da prefeitura.
+2. Pausa → **Dar 1 de cada item**. **B** → Livro → Cidades: entregue (+/Suprir): os itens da bolsa somem conforme usados.
+3. Entre na prefeitura, suba a escada (oeste, ao fundo) até a sala do líder; fale com ele (E) → confirme → rodada 1 e escritório.
+4. Caravanas → **Escolher no mapa** → origem → destino → **Comprar**. Cidades → (porto conquistado) mude o recurso várias vezes; ao **Encerrar turno** a escolha final passa a valer.
+5. Fora, **B** → Livro: Caravanas/Capital/porto ficam 🔒.
 
 ## Decisões desta fase (padrão: o mais simples)
-- Falta de suprimento → **dívida** (debuffs e rebelião ficam para depois).
-- Turno do comandante **sem limite**; termina ao encerrar a rodada.
-- O porto é a cidade mais forte que não é a capital (o livro avisa enquanto você não tiver um).
-- Entregar estoque é grátis; **caravana custa ◉ 200** (sem gastar ação); **evoluir a capital** gasta 1 ação.
-- Suprimentos: carne (3 alimentos), ervas (1), peixes (2), sucata (1 minério), minério bruto (3), tronco (3 madeira). Loja vende carne, tronco e minério; baús dão tronco e minério.
-- O escritório fica no 4º quadrante da região das dungeons (sem essa região, o livro abre direto na prefeitura).
+- Falta de suprimento → dívida; turno do comandante sem limite; o porto é a cidade mais forte que não é a capital.
+- Entregar estoque é grátis; caravana custa ◉ 200 (sem ação); evoluir a capital gasta 1 ação.
+- Se a cidade não comportar a prefeitura grande, ela cai para o prédio pequeno (com o líder no térreo) ou para o quadro na praça.

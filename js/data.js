@@ -28,12 +28,12 @@ const DATA={
 // use: {heal:N} cura instantânea; {regen:{total:N,secs:S}} cura ao longo do tempo. noSell: não pode ser vendido no armeiro.
 function defItems(list){for(const [id,name,icon,type,stack,value,desc,extra] of list)dataDefine('items',id,Object.assign({name,icon,type,stack,value,desc},extra||{}))}
 defItems([
-  ['sucata','Sucata de metal','🔩','material',20,6,'Peças de metal retorcidas. Pode ser depositada no estoque como minério (livro, aba Bolsa).',{supply:{res:'ore',n:1}}],
+  ['sucata','Sucata de metal','🔩','material',20,6,'Peças de metal retorcidas. Conta como 1 de minério no estoque das cidades.',{supply:{res:'ore'}}],
   ['couro','Couro','🟤','material',20,5,'Couro curtido, útil para qualquer artesão.'],
-  ['carne','Carne crua','🥩','material',20,4,'Carne fresca. Pode ser cozida ou depositada no estoque como alimento.',{supply:{res:'food',n:3},price:7,shop:'store'}],
-  ['ervas','Ervas medicinais','🌿','material',20,3,'Folhas de cheiro forte, usadas em remédios. Também valem como alimento no estoque.',{supply:{res:'food',n:1}}],
-  ['tora','Tronco de madeira','🪵','material',20,6,'Madeira para as cidades. Deposite no estoque pelo livro (aba Bolsa).',{supply:{res:'wood',n:3},price:9,shop:'store'}],
-  ['minerio','Minério bruto','⛏','material',20,8,'Minério para as cidades. Deposite no estoque pelo livro (aba Bolsa).',{supply:{res:'ore',n:3},price:12,shop:'store'}],
+  ['carne','Carne crua','🥩','material',20,4,'Carne fresca. Pode ser cozida ou contar como 1 de alimento no estoque.',{supply:{res:'food'},price:7,shop:'store'}],
+  ['ervas','Ervas medicinais','🌿','material',20,3,'Folhas de cheiro forte, usadas em remédios. Também conta como 1 de alimento no estoque.',{supply:{res:'food'}}],
+  ['tora','Tronco de madeira','🪵','material',20,6,'Madeira para as cidades: conta como 1 de madeira no estoque.',{supply:{res:'wood'},price:9,shop:'store'}],
+  ['minerio','Minério bruto','⛏','material',20,8,'Minério para as cidades: conta como 1 de minério no estoque.',{supply:{res:'ore'},price:12,shop:'store'}],
   ['pele_lobo','Pele de lobo','🐺','trophy',10,12,'Pele grossa e cinzenta de lobo.'],
   ['presa','Presa de javali','🦷','trophy',10,14,'Presa curva e amarelada.'],
   ['seda','Seda de aranha','🕸','trophy',10,12,'Fios resistentes de aranha gigante.'],

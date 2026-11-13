@@ -154,6 +154,7 @@ function setFrozen(v){
 // modo invencível liga/desliga a munição infinita junto
 function setGod(v){G.god=v;G.infAmmo=v}
 function closePanel(){
+  MP.on=false;updatePickBanner();
   SCREENS.forEach(s=>$(s).classList.add('hidden'));G.panel=null;
   try{const p=canvas.requestPointerLock();if(p&&p.catch)p.catch(()=>{})}catch(e){}
 }
@@ -353,7 +354,7 @@ window.addEventListener('blur',()=>{G.keys={};G.fireHeld=false;G.aiming=false});
 
 function doInteract(){
   const t=G.target;if(!t)return;
-  if(t.type==='hall')openQuests(t.c);else if(t.type==='barracks')openBarracks(t.c);else if(t.type==='shop')openShop(t.c);else if(t.type==='clinic')openClinic(t.c);else if(t.type==='portal'){if(RAID.active&&!RAID.engaged)toast('Há um ataque em andamento! Defenda a cidade antes.',2500);else enterDungeon(t.p)}else if(t.type==='dgexit')leaveDungeon();else if(t.type==='store')openStore(t.c,'store');else if(t.type==='tavern')openStore(t.c,'tavern');else if(t.type==='stove')openCooking('tavern');else if(t.type==='fire')openCooking('fire');else if(t.type==='npc')npcTalk(t.n);else if(t.type==='chest')openChest(t.ch);else if(t.type==='cage')openCage(t.c);else if(t.type==='book')openBook();
+  if(t.type==='hall')openQuests(t.c);else if(t.type==='barracks')openBarracks(t.c);else if(t.type==='shop')openShop(t.c);else if(t.type==='clinic')openClinic(t.c);else if(t.type==='portal'){if(RAID.active&&!RAID.engaged)toast('Há um ataque em andamento! Defenda a cidade antes.',2500);else enterDungeon(t.p)}else if(t.type==='dgexit')leaveDungeon();else if(t.type==='store')openStore(t.c,'store');else if(t.type==='tavern')openStore(t.c,'tavern');else if(t.type==='stove')openCooking('tavern');else if(t.type==='fire')openCooking('fire');else if(t.type==='npc')npcTalk(t.n);else if(t.type==='chest')openChest(t.ch);else if(t.type==='cage')openCage(t.c);else if(t.type==='book')openBook();else if(t.type==='leader')hallRoundAction(t.c);
 }
 function updateInteract(){
   G.target=null;G.attackCity=null;G.curCity=null;const lines=[];
@@ -368,12 +369,13 @@ function updateInteract(){
     if(c.store){const ds=Math.hypot(P.x-c.store.x,P.z-c.store.z);if(ds<4.5){G.target={type:'store',c};lines.push('[E] Loja: vender e comprar itens')}}
     if(c.tavern){const ds=Math.hypot(P.x-c.tavern.x,P.z-c.tavern.z);if(ds<3.2){G.target={type:'tavern',c};lines.push('[E] Taverneiro: comprar comida pronta')}}
     if(c.stove){const ds=Math.hypot(P.x-c.stove.x,P.z-c.stove.z);if(ds<3.0){G.target={type:'stove',c};lines.push('[E] Fogão: cozinhar')}}
-    if(c.hall){const ds=Math.hypot(P.x-c.hall.x,P.z-c.hall.z);if(ds<4.5){if(c.owner==='player'){G.target={type:'hall',c};lines.push('[E] Prefeitura: quadro de missões')}else lines.push('🔒 Prefeitura fechada — conquiste a cidade')}}
+    if(c.hall){const ds=Math.hypot(P.x-c.hall.x,P.z-c.hall.z);if(ds<4.5&&Math.abs(P.y-c.y)<2.6){if(c.owner==='player'){G.target={type:'hall',c};lines.push('[E] Prefeitura: quadro de missões')}else lines.push('🔒 Prefeitura fechada — conquiste a cidade')}}
     if(c.owner==='enemy'&&c.state==='idle'&&d<c.half+10){G.attackCity=c;lines.push('[F] ATACAR '+c.name.toUpperCase())}
   }
   for(const c of WORLD.camps){if(c.gone)continue;const d=Math.max(Math.abs(P.x-c.cx),Math.abs(P.z-c.cz));if(d<c.half+8&&d<bestD){bestD=d;G.curCity=c}
     if(c.firePos&&Math.hypot(P.x-c.firePos.x,P.z-c.firePos.z)<3.4){G.target={type:'fire',c};lines.push('[E] Fogueira: cozinhar')}
     if(c.cage&&!c.cage.opened&&Math.hypot(P.x-c.cage.dp.x,P.z-c.cage.dp.z)<2.8){G.target={type:'cage',c};lines.push(c.state==='cleared'?'[E] Abrir a grade e libertar o refém':'🔒 Grade trancada — elimine os bandidos')}}
+  for(const c of WORLD.cities)if(c.leader&&c.owner==='player'&&Math.hypot(P.x-c.leader.x,P.z-c.leader.z)<4.8&&Math.abs(P.y-c.leader.y)<2.6){G.target={type:'leader',c};lines.push('[E] Falar com o líder: encerrar o turno do comandante')}
   if(nearBook()){G.target={type:'book'};lines.push('[E] Abrir o livro de decisões')}
   {const pp=portalNear();if(pp){G.target={type:'portal',p:pp};lines.push('[E] Entrar no portal — dungeon nível '+pp.tier+' • recompensa: '+rewardText(pp))}}
   if(G.dg&&G.dgPad&&Math.hypot(P.x-G.dgPad.x,P.z-G.dgPad.z)<2.6){G.target={type:'dgexit'};lines.push('[E] Sair da dungeon (volta ao portal)')}
@@ -527,6 +529,7 @@ function drawBigMap(){
     g.fillStyle='#fff';g.strokeStyle='#000';g.lineWidth=3;g.strokeText(c.name,x,y-12);g.fillText(c.name,x,y-12);
   }
   drawRose(g,cv.width-64,64,30);
+  drawPickOverlay(g,s);   // modo de escolha de caravana (rounds.js)
   {const qt=questTarget();if(qt){drawStar(g,qt.x*s,qt.z*s,10);g.fillStyle='#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText('Missão',qt.x*s,qt.z*s-16);g.fillText('Missão',qt.x*s,qt.z*s-16)}}
   g.save();g.translate(P.x*s,P.z*s);g.rotate(-P.yaw);g.fillStyle='#fff';g.strokeStyle='#000';g.beginPath();g.moveTo(0,-9);g.lineTo(7,8);g.lineTo(0,4);g.lineTo(-7,8);g.closePath();g.fill();g.stroke();g.restore();
 }

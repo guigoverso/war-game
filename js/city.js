@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 // ---------- Geração procedural de cidades ----------
 const PAL={
   0:{walls:[0xd9c9a3,0xc9b48a,0xe8e0cc,0xb98b5e,0xa8573e,0xcfc0a0],roofs:[0x8b3a2b,0x6b4a2a,0x4a5a6a,0x9a5a2a,0x7a3030],base:0x7d7d7d,trim:0x5a3d22},
@@ -178,6 +178,7 @@ function addFloors(c,f,o,rng){
       FB(c,f,u-0.01,v-0.01,u+1.01,v+1.01,top-0.07,top,0x5a3d22,false,{j:0});          // borda do degrau
     });
     FB(c,f,st.u0+1,y0v+1,st.u0+2,y0v+2,base,y,0x5a3d22,true,{j:0.03});                  // pilar central
+    if(o.hall)continue;   // a prefeitura mobilia o 2º andar por conta própria
     // mobília do andar: cama e baú junto à parede da porta (longe da escada)
     const ub=rng.int(1,Math.max(1,U-5)),yy=y;
     FB(c,f,ub,1,ub+2,2,yy,yy+0.45,0x6b4a2a,true);FB(c,f,ub,1,ub+1.2,2,yy+0.45,yy+0.6,rng.pick([0xc03a3a,0x3a5ac0,0xe0e0e0,0x3aa05a]),false,{j:0});
@@ -213,19 +214,35 @@ function makeBuilding(c,r,D,doorU,o,rng){
   return f;
 }
 
-function buildHall(c,f,D,doorU,rng){
-  const wx=(u,v)=>{const m=f.map(u,v);return[c.cx+m[0],c.cz+m[1]]},mid=f.U/2;
-  // quadro de missões na parede do fundo, com avisos, e uma mesa
-  FB(c,f,mid-1.8,f.V-1.2,mid+1.8,f.V-1.05,0.9,2.7,0x6b4a2a,false,{j:0});
-  for(let k=0;k<6;k++){const u=mid-1.5+(k%3)*1.1,y=1.15+Math.floor(k/3)*0.75;FB(c,f,u,f.V-1.27,u+0.7,f.V-1.2,y,y+0.55,rng.pick([0xf2ecd0,0xe8dcc0,0xf4f0e0]),false,{j:0})}
-  FB(c,f,mid-1.5,f.V-3.6,mid+1.5,f.V-2.6,0,1.0,0x5a3d22,true);
-  const p=wx(mid,f.V-4.6);c.hall={x:p[0],z:p[1]};
+function buildHall(c,f,D,doorU,rng,o){
+  const wx=(u,v)=>{const m=f.map(u,v);return[c.cx+m[0],c.cz+m[1]]},U=f.U,V=f.V,two=!!(o&&o.hall);
+  const bc=two?6:U/2,face=(()=>{const q={N:[0,-1],S:[0,1],E:[1,0],W:[-1,0]}[D];return Math.atan2(q[0],q[1])})();
+  // térreo: quadro de missões na parede do fundo, com avisos, e uma mesa (no prédio de 2 andares, deslocados para longe da escada, que fica a oeste)
+  FB(c,f,bc-1.8,V-1.2,bc+1.8,V-1.05,0.9,2.7,0x6b4a2a,false,{j:0});
+  for(let k=0;k<6;k++){const u=bc-1.5+(k%3)*1.1,y=1.15+Math.floor(k/3)*0.75;FB(c,f,u,V-1.27,u+0.7,V-1.2,y,y+0.55,rng.pick([0xf2ecd0,0xe8dcc0,0xf4f0e0]),false,{j:0})}
+  FB(c,f,bc-1.5,V-3.6,bc+1.5,V-2.6,0,1.0,0x5a3d22,true);
+  const p=wx(bc,V-4.6);c.hall={x:p[0],z:p[1]};
   {const ho=wx(doorU+1,-2.4);c.hallOut={x:ho[0],z:ho[1]}}   // ponto do lado de fora da porta (o líder reaparece aqui ao sair do escritório)
-  const k=wx(mid,f.V-1.9);c.keepers=c.keepers||[];
-  c.keepers.push({role:'clerk',x:k[0],z:k[1],yaw:(()=>{const o={N:[0,-1],S:[0,1],E:[1,0],W:[-1,0]}[D];return Math.atan2(o[0],o[1])})()});
+  c.keepers=c.keepers||[];
+  {const k=wx(bc,V-1.9);c.keepers.push({role:'clerk',x:k[0],z:k[1],yaw:face})}
+  if(two){
+    // 2º andar: sala igual à do prefeito, com o líder sentado atrás da mesa (falar com ele encerra o turno do comandante)
+    const Y=SH,TOP=0x8a6234,DK=0x4a2f1a;
+    FB(c,f,4.6,V-7.6,U-1.6,V-4.7,Y,Y+0.03,0x7a2a2a,false,{j:0});FB(c,f,4.9,V-7.3,U-1.9,V-5.0,Y+0.03,Y+0.05,0x9a3a3a,false,{j:0});   // tapete
+    FB(c,f,bc-2.4,V-4.4,bc+2.4,V-3.2,Y,Y+1.0,TOP,true,{j:0.02});FB(c,f,bc-2.45,V-4.45,bc+2.45,V-3.15,Y+0.95,Y+1.05,0x9a7040,false,{j:0});   // mesa
+    FB(c,f,bc-0.5,V-2.8,bc+0.5,V-1.9,Y,Y+0.5,0x5a3a1c,false);FB(c,f,bc-0.5,V-2.0,bc+0.5,V-1.8,Y+0.5,Y+1.7,0x5a3a1c,false);   // cadeira do líder
+    FB(c,f,bc-0.7,V-4.0,bc+0.7,V-3.5,Y+1.05,Y+1.12,0x5a2a10,false,{j:0});FB(c,f,bc-0.6,V-3.95,bc+0.6,V-3.55,Y+1.12,Y+1.16,0xf2e8c8,false,{j:0});   // livro aberto
+    FB(c,f,bc-1.9,V-1.2,bc+1.9,V-1.1,Y+2.1,Y+3.2,DK,false,{j:0});FB(c,f,bc-1.7,V-1.12,bc+1.7,V-1.05,Y+2.3,Y+3.0,0x7ab4e8,false,{j:0});FB(c,f,bc-1.7,V-1.12,bc+1.7,V-1.05,Y+2.3,Y+2.65,0x4a8a3a,false,{j:0});   // quadro
+    for(const du of[-3.4,2.8])FB(c,f,bc+du,V-1.15,bc+du+0.6,V-1.08,Y+1.0,Y+3.2,0x2a6aff,false,{j:0});   // bandeiras azuis
+    FB(c,f,U-2.1,2,U-1.1,V-5.2,Y,Y+3.0,DK,true,{j:0.02});   // estante na parede leste
+    for(let row=0;row<3;row++)for(let k=0;k<Math.floor((V-7.2)/0.32);k++)FB(c,f,U-2.2,2.1+k*0.32,U-2.1,2.1+k*0.32+0.26,Y+0.35+row*0.95,Y+0.35+row*0.95+0.45+0.1*((k*7+row)%3),[0xa02a2a,0x2a5aa0,0x2a8a4a,0xc8a020,0x6a2a8a,0xe0d8c0][(k*5+row*3)%6],false,{j:0});
+    const lp=wx(bc,V-1.9);c.leader={x:lp[0],z:lp[1],y:c.y+SH};
+    c.keepers.push({role:'leader',x:lp[0],z:lp[1],yaw:face,sit:true,y:c.y+SH+0.02});
+  }else{
+    const lp=wx(U-2,V-2);c.leader={x:lp[0],z:lp[1],y:c.y};c.keepers.push({role:'leader',x:lp[0],z:lp[1],yaw:face});
+  }
   const sp=wx(doorU+1,-0.22);makeSign('PREFEITURA',3.8,0.85,0x2a3a5a,0xf0e0a0,sp[0],c.y+3.5,sp[1],D);
 }
-
 // loja: balcão, prateleiras com mercadorias, caixotes e o mercador atrás do balcão
 function buildStore(c,f,D,doorU,rng){
   const wx=(u,v)=>{const m=f.map(u,v);return[c.cx+m[0],c.cz+m[1]]},mid=f.U/2;
@@ -545,11 +562,11 @@ function buildCity(c,rng){  const Hc=c.half;
     const roofT=ruin?'none':ord?cityRoofT:(cha||mix)?rng.pick(['gable','hip','flat','gable','hip']):cityRoofT;
     const wallC=ord?rng.pick(c.pal.walls):rng.pick(c.pal.all);
     const o={h,floors,wall:wallC,roof:rng.pick(c.pal.roofs),roofT,glass:0x9ed4ff,chimney:ord?rng.chance(0.8):rng.chance(0.5),timber:!hallTurn&&!sk&&rng.chance(0.35),shut:rng.chance(0.45)?rng.pick([0x3a5a3a,0x7a2a2a,0x2a4a7a,0x5a3d22]):null};
-    if(hallTurn){o.h=5;o.wall=0xe6dcc0;o.roof=0x3f5a8a;o.roofT='hip';o.chimney=false}
+    if(hallTurn){o.h=5;o.wall=0xe6dcc0;o.roof=0x3f5a8a;o.roofT='hip';o.chimney=false;if(Uu>=9&&Vv>=9){o.floors=2;floors=2;o.hall=true}}   // prefeitura grande: 2 andares (térreo com o quadro, 2º com a sala do líder)
     if(sk==='store'){o.h=4;o.wall=0xe8d8b0;o.roof=0x8a3a2a;o.roofT='gable';o.chimney=false;o.timber=false;o.shut=0x3a5a3a}
     if(sk==='tavern'){o.h=5;o.wall=0xc89a62;o.roof=0x5a3a24;o.roofT='gable';o.chimney=true;o.timber=true;o.shut=0x5a3d22}
     const f=makeBuilding(c,r,D,p-(ns?r.x0:r.z0),o,rng);(c.doors=c.doors||[]).push(f.map(p-(ns?r.x0:r.z0)+1,-0.5));if(floors>1)(c.multi=c.multi||[]).push({r,floors,D,f});
-    if(hallTurn)buildHall(c,f,D,p-(ns?r.x0:r.z0),rng);else if(sk==='store')buildStore(c,f,D,p-(ns?r.x0:r.z0),rng);else if(sk==='tavern')buildTavern(c,f,D,p-(ns?r.x0:r.z0),rng);else if(floors>1){const ub=rng.int(1,Math.max(1,f.U-5));FB(c,f,ub,1,ub+1.6,2,0,0.85,0x8a6a3a,true);FB(c,f,ub+0.1,1.1,ub+0.5,1.5,0.85,1.1,0xd8d0c0,false)}else furnishHouse(c,f,rng,D);
+    if(hallTurn)buildHall(c,f,D,p-(ns?r.x0:r.z0),rng,o);else if(sk==='store')buildStore(c,f,D,p-(ns?r.x0:r.z0),rng);else if(sk==='tavern')buildTavern(c,f,D,p-(ns?r.x0:r.z0),rng);else if(floors>1){const ub=rng.int(1,Math.max(1,f.U-5));FB(c,f,ub,1,ub+1.6,2,0,0.85,0x8a6a3a,true);FB(c,f,ub+0.1,1.1,ub+0.5,1.5,0.85,1.1,0xd8d0c0,false)}else furnishHouse(c,f,rng,D);
     houses.push(r);path.forEach(q=>setTL(c,q.x0,q.z0,T_STREET));
     res.push({x0:r.x0-1,x1:r.x1+1,z0:r.z0-1,z1:r.z1+1});
     if(rng.chance(ord?0.6:0.4)){
@@ -564,9 +581,12 @@ function buildCity(c,rng){  const Hc=c.half;
   };
   // a prefeitura é procurada primeiro, em posições aleatórias (garante uma em toda cidade)
   const hallCands=[];
-  for(const [hw,hd] of[[9,7],[7,9],[8,6],[6,8]])for(let hx=-Hc+3;hx<=Hc-3-hw;hx++)for(let hz=-Hc+3;hz<=Hc-3-hd;hz++)hallCands.push([hx,hz,hw,hd]);
-  rng.shuffle(hallCands);
-  for(let i=0;i<hallCands.length&&!c.hall;i++){const q=hallCands[i];tryHouse({x0:q[0],x1:q[0]+q[2]-1,z0:q[1],z1:q[1]+q[3]-1},'hall')}
+  for(const sizes of[[[11,9],[9,11],[10,9],[9,10]],[[9,7],[7,9],[8,6],[6,8]]]){   // tenta primeiro o prédio grande de 2 andares; se não couber, o pequeno
+    const cand=[];for(const [hw,hd] of sizes)for(let hx=-Hc+3;hx<=Hc-3-hw;hx++)for(let hz=-Hc+3;hz<=Hc-3-hd;hz++)cand.push([hx,hz,hw,hd]);
+    rng.shuffle(cand);
+    for(let i=0;i<cand.length&&!c.hall;i++){const q=cand[i];tryHouse({x0:q[0],x1:q[0]+q[2]-1,z0:q[1],z1:q[1]+q[3]-1},'hall')}
+    if(c.hall)break;
+  }
   // a loja (compra e venda de itens) e a taverna (cozinha) também são procuradas antes das casas comuns
   for(const sp of['store','tavern']){
     // a taverna é maior (mesas, balcão e fogão): tenta os tamanhos maiores primeiro
@@ -664,7 +684,7 @@ function buildCity(c,rng){  const Hc=c.half;
       Bc(c,bx-1.5,0,bz-0.12,bx+1.5,0.8,bz+0.12,0x5a3d22,true);Bc(c,bx-1.4,0.8,bz-0.14,bx+1.4,2.4,bz+0.14,0x6b4a2a,false,{j:0});
       for(const k of[-1.5,1.5])Bc(c,bx+k-0.1,0,bz-0.2,bx+k+0.1,2.6,bz+0.2,0x3a2a18,false,{j:0});
       for(let k=0;k<6;k++){const u=bx-1.1+(k%3)*0.8,y=1.0+Math.floor(k/3)*0.7;Bc(c,u,y,bz+0.14,u+0.6,y+0.5,bz+0.19,rng.pick([0xf2ecd0,0xe8dcc0,0xf4f0e0]),false,{j:0})}
-      c.hall={x:c.cx+bx,z:c.cz+bz+1.6};break;
+      c.hall={x:c.cx+bx,z:c.cz+bz+1.6};c.leader={x:c.cx+bx+2.4,z:c.cz+bz+1.4,y:c.y};c.keepers=c.keepers||[];c.keepers.push({role:'leader',x:c.leader.x,z:c.leader.z,yaw:0});break;
     }
   }
   // reserva: se a loja não coube num prédio, vira uma barraca de mercador na praça
