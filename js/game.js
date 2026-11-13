@@ -180,11 +180,14 @@ function renderShop(){
     return '<div class="card'+(own?'':' locked')+'"><b>'+(i+1)+'. '+w.name+'</b><div class="st">'+w.desc+'<br>Dano '+w.dmg+(w.pellets>1?' ×'+w.pellets:'')+' • '+w.rpm+' dpm • Pente '+w.mag+'</div>'+
       (own?'<div class="st">Munição reserva: '+WS.reserve[i]+'<br>Durabilidade: '+(weaponBroken(i)?'<b style="color:#ff6a6a">QUEBRADA</b>':Math.round(durOf(i))+'%')+'</div><button data-a="ammo" data-i="'+i+'" '+(P.coins<pk?'disabled':'')+'>+'+w.pack+' munição ◉'+pk+'</button>'+(durOf(i)<100?'<button data-a="repair" data-i="'+i+'">🔧 Consertar ◉'+repairCost(i,c)+(P.coins<repairCost(i,c)?' (gera dívida)':'')+'</button>':'')
           :'<button class="gold" data-a="buy" data-i="'+i+'" '+(P.coins<pr?'disabled':'')+'>Comprar ◉'+pr+'</button>')+'</div>';
-  }).join('')+'<div class="card"><b>🛡 Colete à prova de bala</b><div class="st">Absorve 60% do dano recebido até acabar (100 de proteção).<br>Proteção atual: '+Math.ceil(P.armor)+'/100</div><button class="gold" data-a="vest" '+(P.coins<pc(180,c)||P.armor>=100?'disabled':'')+'>Comprar ◉'+pc(180,c)+'</button></div>';
+  }).join('')+'<div class="card"><b>🛡 Colete à prova de bala</b><div class="st">Absorve 60% do dano recebido até acabar (100 de proteção).<br>Proteção atual: '+Math.ceil(P.armor)+'/100</div><button class="gold" data-a="vest" '+(P.coins<pc(180,c)||P.armor>=100?'disabled':'')+'>Comprar ◉'+pc(180,c)+'</button></div>'
+    +'<div class="card"><b>🎒 Ampliar a bolsa</b><div class="st">+'+(INV_UPGRADED-INV_BASE)+' espaços ('+INV_BASE+' → '+INV_UPGRADED+'). Só pode ser feito uma vez.</div>'
+    +(STATE.inv.upgraded?'<button disabled>Bolsa já ampliada ✔</button>':'<button class="gold" data-a="bag" '+(P.coins<pc(INV_UP_COST,c,'upgrade')||Ledger.anyDebt()?'disabled':'')+'>Ampliar ◉'+pc(INV_UP_COST,c,'upgrade')+'</button>')+'</div>';
 }
 $('shopgrid').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;const c=G.shopCity;
   if(b.dataset.a==='repair'){repairWeapon(+b.dataset.i,c);renderShop();return}
+  if(b.dataset.a==='bag'){invUpgrade(pc(INV_UP_COST,c,'upgrade'));renderShop();return}
   if(b.dataset.a==='vest'){const pr=pc(180,c);if(P.coins>=pr&&P.armor<100){P.coins-=pr;P.armor=100;sfx('coin',0);toast('Colete equipado!',1500)}renderShop();return}
   const i=+b.dataset.i,w=WEAPONS[i],pr=pc(w.price,c),pk=pc(w.packCost,c);
   if(b.dataset.a==='buy'&&P.coins>=pr){if(giveWeapon(i,true)){P.coins-=pr;sfx('coin',0);toast(w.name+' adquirida!'+(slotOfWeapon(i)>=0?' (barra '+(slotOfWeapon(i)+1)+')':' Está na bolsa: coloque-a na barra 1–6.'),2500)}}
@@ -242,7 +245,7 @@ $('cLegend').onclick=()=>{const i=rollLegendary();if(i<0){toast('Todas já são 
 $('cKit').onclick=()=>{toast('Kit de cozinha: '+(invGive([['lambari',3],['tilapia',2],['truta',1],['sardinha',2],['peixe_dourado',1],['carne',6],['ervas',5]])||'(bolsa cheia)'),3000)};
 $('cVend').onclick=()=>{const c=G.curCity&&!G.curCity.kind?G.curCity:WORLD.home;getVendor(c).gold=0;toast('Vendedor de '+c.name+' sem ouro (teste)',2200)};
 $('cBuffs').onclick=()=>{for(const id of Object.keys(DATA.buffs))applyBuff(id);toast('Todos os bônus aplicados',1800)};
-$('invclose').onclick=closePanel;$('invup').onclick=()=>{invUpgrade();renderInventory()};
+$('invclose').onclick=closePanel;
 function buildMixer(){
   const box=$('mixrows');box.innerHTML='';
   for(const [k,label] of SND){
@@ -450,16 +453,16 @@ function drawMinimap(){
   const s=1.5,R=88;
   mmc.imageSmoothingEnabled=false;mmc.fillStyle='#123';mmc.fillRect(0,0,176,176);
   mmc.save();mmc.translate(R,R);mmc.rotate(P.yaw);
-  mmc.drawImage(WORLD.mapCanvas,-P.x*s,-P.z*s,W*s,W*s);
-  for(const c of WORLD.cities){
+  if(G.dg)drawDungeonMinimap();   // dentro da dungeon, o minimapa mostra a planta da ala (sem marcar inimigos)
+  else mmc.drawImage(WORLD.mapCanvas,-P.x*s,-P.z*s,W*s,W*s);
+  for(const c of G.dg?[]:WORLD.cities){
     const x=(c.cx-P.x)*s,y=(c.cz-P.z)*s;
     mmc.fillStyle=cityCol(c);
     mmc.strokeStyle='#fff';mmc.lineWidth=2;mmc.beginPath();mmc.rect(x-6,y-6,12,12);mmc.fill();mmc.stroke();
   }
-  {const qt=questTarget();if(qt){let x=(qt.x-P.x)*s,y=(qt.z-P.z)*s;const L=Math.hypot(x,y),maxL=62;if(L>maxL){x*=maxL/L;y*=maxL/L}drawStar(mmc,x,y,7)}}
-  for(const pt of STATE.portals||[]){let x=(pt.x-P.x)*s,y=(pt.z-P.z)*s;const L=Math.hypot(x,y),maxL=66;if(L>maxL){x*=maxL/L;y*=maxL/L}mmc.fillStyle='#c080ff';mmc.strokeStyle='#fff';mmc.lineWidth=1.5;mmc.beginPath();mmc.moveTo(x,y-6);mmc.lineTo(x+5,y);mmc.lineTo(x,y+6);mmc.lineTo(x-5,y);mmc.closePath();mmc.fill();mmc.stroke()}   // portais: losango roxo
-  for(const a of ALLIES)if(a.alive){mmc.fillStyle='#4aa0ff';mmc.fillRect((a.x-P.x)*s-2,(a.z-P.z)*s-2,4,4)}
-  for(const e of ENEMIES)if(e.alive&&e.city.state==='attacking'){mmc.fillStyle='#ff2a2a';mmc.fillRect((e.x-P.x)*s-1.5,(e.z-P.z)*s-1.5,3,3)}
+  {const qt=G.dg?null:questTarget();if(qt){let x=(qt.x-P.x)*s,y=(qt.z-P.z)*s;const L=Math.hypot(x,y),maxL=62;if(L>maxL){x*=maxL/L;y*=maxL/L}drawStar(mmc,x,y,7)}}
+  if(!G.dg)for(const a of ALLIES)if(a.alive){mmc.fillStyle='#4aa0ff';mmc.fillRect((a.x-P.x)*s-2,(a.z-P.z)*s-2,4,4)}
+  if(!G.dg)for(const e of ENEMIES)if(e.alive&&e.city.state==='attacking'){mmc.fillStyle='#ff2a2a';mmc.fillRect((e.x-P.x)*s-1.5,(e.z-P.z)*s-1.5,3,3)}
   mmc.restore();drawCompassRim(mmc,88,88,77,P.yaw);
   {const cs=Math.cos(P.yaw),sn=Math.sin(P.yaw);
     for(const c of WORLD.cities){if(Math.max(Math.abs(P.x-c.cx),Math.abs(P.z-c.cz))>c.half+40)continue;
@@ -513,7 +516,6 @@ function drawBigMap(){
     g.beginPath();g.rect(x-7,y-7,14,14);g.fill();g.stroke();
     g.fillStyle='#fff';g.strokeStyle='#000';g.lineWidth=3;g.strokeText(c.name,x,y-12);g.fillText(c.name,x,y-12);
   }
-  for(const pt of STATE.portals||[]){const x=pt.x*s,y=pt.z*s;g.fillStyle='#c080ff';g.strokeStyle='#fff';g.lineWidth=2;g.beginPath();g.moveTo(x,y-9);g.lineTo(x+7,y);g.lineTo(x,y+9);g.lineTo(x-7,y);g.closePath();g.fill();g.stroke();g.fillStyle='#e6c8ff';g.strokeStyle='#000';g.lineWidth=3;g.strokeText('Portal '+pt.tier,x,y-14);g.fillText('Portal '+pt.tier,x,y-14)}
   drawRose(g,cv.width-64,64,30);
   {const qt=questTarget();if(qt){drawStar(g,qt.x*s,qt.z*s,10);g.fillStyle='#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText('Missão',qt.x*s,qt.z*s-16);g.fillText('Missão',qt.x*s,qt.z*s-16)}}
   g.save();g.translate(P.x*s,P.z*s);g.rotate(-P.yaw);g.fillStyle='#fff';g.strokeStyle='#000';g.beginPath();g.moveTo(0,-9);g.lineTo(7,8);g.lineTo(0,4);g.lineTo(-7,8);g.closePath();g.fill();g.stroke();g.restore();

@@ -43,6 +43,12 @@ const UI={
       if(r.count>1){const c=document.createElement('b');c.textContent=r.count;d.appendChild(c)}
       if(r.title)UI.tip(d,()=>r.title);
       if(opts.onClick)d.onclick=()=>opts.onClick(slot,i);
+      if(opts.dnd){   // arrastar e soltar: dnd = {start(slot,i), drop(slot,i)}
+        if(slot){d.draggable=true;d.ondragstart=e=>{opts.dnd.start(slot,i);e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain','item')}catch(_){}d.style.opacity='0.5'};d.ondragend=()=>{d.style.opacity=''}}
+        d.ondragover=e=>{e.preventDefault();e.dataTransfer.dropEffect='move'};
+        d.ondragenter=e=>{e.preventDefault();d.style.outline='2px solid #ffd23a'};d.ondragleave=()=>{d.style.outline=''};
+        d.ondrop=e=>{e.preventDefault();d.style.outline='';opts.dnd.drop(slot,i)};
+      }
       g.appendChild(d);
     });
     container.appendChild(g);return g;

@@ -37,6 +37,26 @@ function newArea(kind,id,name,s,rng,extra){
 }
 
 // ---------- baús ----------
+// baú das dungeons: maior, roxo, brilhante e todo quadrado (a tampa é um bloco que abre para trás)
+function addArcaneChest(x,y,z,yaw,gold,lockedBy){
+  const g=new THREE.Group();g.position.set(x,y,z);g.rotation.y=yaw;
+  const P1=0x6a2aa8,P2=0x4a1a7a,P3=0x8a4ad0,GOLD=0xe0b030;
+  const box=(parent,col,sx,sy,sz,px,py,pz,basic)=>{const m=new THREE.Mesh(GEO_BOX,basic?new THREE.MeshBasicMaterial({color:col}):mat(col));m.scale.set(sx,sy,sz);m.position.set(px,py,pz);parent.add(m);return m};
+  box(g,P2,1.5,0.14,1.1,0,0.07,0);                                                    // base
+  box(g,P1,1.4,0.7,1.0,0,0.49,0);                                                     // corpo
+  for(const sx of[-0.62,0.62])box(g,P2,0.16,0.76,1.06,sx,0.5,0);                      // cintas laterais
+  for(const sx of[-0.7,0.7])for(const sz of[-0.5,0.5])box(g,GOLD,0.16,0.16,0.16,sx,0.85,sz);   // cantos dourados
+  box(g,GOLD,0.3,0.28,0.1,0,0.62,0.54);box(g,0x2a1040,0.08,0.12,0.12,0,0.6,0.56);    // fechadura
+  const lid=new THREE.Group();lid.position.set(0,0.84,-0.5);g.add(lid);               // dobradiça atrás
+  box(lid,P3,1.5,0.26,1.1,0,0.13,0.5);box(lid,P2,1.54,0.08,1.14,0,0.04,0.5);
+  for(const sx of[-0.62,0.62])box(lid,P2,0.16,0.3,1.14,sx,0.15,0.5);
+  box(lid,0xd8a0ff,0.5,0.06,0.5,0,0.29,0.5,true);                                     // gema brilhante no topo
+  const glow=new THREE.Mesh(GEO_BOX,new THREE.MeshBasicMaterial({color:0xb060ff,transparent:true,opacity:0.22,depthWrite:false,blending:THREE.AdditiveBlending}));
+  glow.scale.set(1.95,1.5,1.5);glow.position.set(0,0.7,0);g.add(glow);               // brilho em volta
+  scene.add(g);
+  const ch={x,y,z,gold,lockedBy:lockedBy||null,opened:false,g,lid,open:0,sparkT:Math.random()*2,glow};
+  WORLD.chests.push(ch);return ch;
+}
 function addChest(x,y,z,yaw,gold,lockedBy){
   const g=new THREE.Group();g.position.set(x,y,z);g.rotation.y=yaw;
   // corpo de tábuas, cantos e cintas de ferro; tampa em degraus; fechadura dourada
@@ -60,6 +80,7 @@ function openChest(ch){
 }
 function updateChests(dt){
   for(const ch of WORLD.chests){
+    if(ch.glow)ch.glow.material.opacity=ch.opened?0.08:0.2+0.08*Math.sin(G.t*2.4);   // baú arcano: brilho pulsando
     if(ch.opened&&ch.open<1){ch.open=Math.min(1,ch.open+dt*2.5);ch.lid.rotation.x=-ch.open*1.9}
   }
 }

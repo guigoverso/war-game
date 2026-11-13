@@ -322,7 +322,7 @@ function npcTalk(n){
 // uma cor de uniforme por nível (rank) da cidade
 const RANK_COL=[0x2a6aff,0x6a7a2a,0xc8641e,0x9a2a2a,0x6a3a9a,0x2e2e3a,0xd8b830];
 function buildEnemyModel(type,rng,rank,c,vest){
-  const red=RANK_COL[rank]||0x9a2a2a,dark=shadec(red,0.6),steel=0x9ab0c8,camp=c&&c.kind==='camp';
+  const red=RANK_COL[rank]||0x9a2a2a,dark=shadec(red,0.6),steel=0x9ab0c8,camp=c&&(c.kind==='camp'||c.kind==='raid');   // bandidos de raid usam o visual dos bandidos de acampamento
   switch(type){
     case'soldier':
       if(camp)return buildHuman({skin:rng.pick(SKINS),shirt:0x6b4a2a,sleeve:0x4a3a2a,pants:0x3a2f24,hairStyle:'bandana',hat:0xb02a2a,hair:0x2a1a10,beard:rng.chance(0.5)?0x2a1a10:undefined,gun:{len:0.7}});

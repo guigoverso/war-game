@@ -164,7 +164,7 @@ function makePortalMesh(p){
   box(stone,0.55,3.4,0.55,-1.45,1.85,0);box(stone,0.55,3.4,0.55,1.45,1.85,0);   // pilares
   box(stone,3.6,0.55,0.7,0,3.75,0);box(dark,0.9,0.4,0.8,0,4.15,0);      // arco com pedra-chave
   const swirl=new THREE.Mesh(new THREE.PlaneGeometry(2.4,3.2),glow);swirl.position.set(0,1.95,0);g.add(swirl);
-  const orbs=[];for(let i=0;i<6;i++){const o=new THREE.Mesh(GEO_BOX,new THREE.MeshBasicMaterial({color:0xe0b0ff}));o.scale.set(0.16,0.16,0.16);g.add(o);orbs.push(o)}
+  const orbs=[];for(let i=0;i<6;i++){const o=new THREE.Mesh(GEO_BOX,new THREE.MeshBasicMaterial({color:0xe0b0ff}));o.scale.set(0.16,0.16,0.16);const a=i*1.047;o.position.set(Math.cos(a)*1.2,1.95+Math.sin(a)*1.5,0.05);g.add(o);orbs.push(o)}
   const beam=new THREE.Mesh(GEO_BOX,new THREE.MeshBasicMaterial({color:0xa060ff,transparent:true,opacity:0.2,depthWrite:false}));beam.scale.set(0.7,60,0.7);beam.position.set(0,30,0);g.add(beam);   // coluna de luz visível de longe
   scene.add(g);
   const m={id:p.id,group:g,swirl,orbs,beam,p};PORTALS.push(m);return m;
@@ -184,15 +184,27 @@ function updatePortals(dt){
   if(!DG.ok)return;
   if(!STATE.portals)STATE.portals=[];
   if(!G.dg&&(!STATE.portals.length&&STATE.portalDay===undefined||DN.days-(STATE.portalDay||0)>=PORTAL_DAYS)){spawnPortals()}
-  const t=G.t;
-  for(const m of PORTALS){
-    const d=Math.hypot(m.p.x-P.x,m.p.z-P.z);m.group.visible=d<260;if(d>=260)continue;
-    m.swirl.rotation.z=t*1.2;m.swirl.material.opacity=0.55+0.2*Math.sin(t*3+m.id);
-    m.orbs.forEach((o,i)=>{const a=t*1.6+i*1.047;o.position.set(Math.cos(a)*1.2,1.95+Math.sin(a)*1.5,0.05)});
-  }
+  for(const m of PORTALS)m.group.visible=Math.hypot(m.p.x-P.x,m.p.z-P.z)<260;   // o brilho do portal é estático
   updateDungeonMood();
 }
 Hooks.on('round',()=>{if(DG.ok&&!G.dg)spawnPortals()});
+
+// ---------- minimapa da dungeon: planta da ala (chão claro, rocha escura); marca só a saída e o baú, nunca os inimigos ----------
+function wingCanvas(w){
+  if(w.cv)return w.cv;
+  const N=w.N,cv=document.createElement('canvas');cv.width=cv.height=N;
+  const g=cv.getContext('2d');g.fillStyle='#07070b';g.fillRect(0,0,N,N);
+  for(let z=0;z<N;z++)for(let x=0;x<N;x++)if(w.g[z*N+x]){g.fillStyle=hash2(x,z,9)>0.5?'#76768a':'#6a6a7e';g.fillRect(x,z,1,1)}
+  return w.cv=cv;
+}
+function drawDungeonMinimap(){
+  const d=G.dg,w=d.wing,s=4;
+  mmc.imageSmoothingEnabled=false;
+  mmc.drawImage(wingCanvas(w),(w.ox-P.x)*s,(w.oz-P.z)*s,w.N*s,w.N*s);
+  const dot=(x,z,col)=>{mmc.fillStyle=col;mmc.strokeStyle='#000';mmc.lineWidth=1.5;mmc.beginPath();mmc.rect((x-P.x)*s-4,(z-P.z)*s-4,8,8);mmc.fill();mmc.stroke()};
+  dot(w.entrance.x,w.entrance.z,'#c080ff');                               // saída
+  if(d.chest&&!d.chest.opened)dot(d.chest.x,d.chest.z,'#ffd23a');        // baú
+}
 
 // ---------- ambiente escuro dentro da dungeon ----------
 function inDungeonRegion(){return DG.ok&&P.x>=DG.rx&&P.x<DG.rx+DG.S&&P.z>=DG.rz&&P.z<DG.rz+DG.S}
@@ -215,9 +227,11 @@ function enterDungeon(p){
   G.dg={p,ret:{x:P.x,y:P.y,z:P.z,yaw:P.yaw},area,chest:null,wing:w};
   WORLD.areas.push(area);
   populateWing(p,w,area);
-  // baú do chefe: trancado até todos os inimigos morrerem
-  const ang=Math.atan2(w.entrance.x-w.boss.x,w.entrance.z-w.boss.z);
-  const ch=addChest(w.boss.x+2,DG.Y,w.boss.z+2,ang,40+30*p.tier,area);ch.dg=p;ch.lootKey='chest_dungeon';G.dg.chest=ch;
+  // baú do chefe: trancado até todos os inimigos morrerem. Fica no centro da sala (os pilares ficam nos cantos) e longe de qualquer bloco
+  let cx=w.boss.x,cz=w.boss.z;
+  for(let r=0;r<=4;r+=1){let ok=false;for(let k=0;k<(r?8:1)&&!ok;k++){const a=k*0.785,x=w.boss.x+Math.cos(a)*r,z=w.boss.z+Math.sin(a)*r;if(!Col.near(x-1,z-1,x+1,z+1).some(b=>b.y1>DG.Y+0.3&&b.y0<DG.Y+2)){cx=x;cz=z;ok=true}}if(ok)break}   // livre de pilares e caixas (o teto não conta)
+  const ang=Math.atan2(w.entrance.x-cx,w.entrance.z-cz);
+  const ch=addArcaneChest(cx,DG.Y,cz,ang,40+30*p.tier,area);ch.dg=p;ch.lootKey='chest_dungeon';G.dg.chest=ch;
   P.x=w.entrance.x;P.z=w.entrance.z;P.y=DG.Y+0.2;P.vy=0;P.vx=P.vz=0;P.camY=P.y;P.yaw=Math.atan2(-(w.boss.x-w.entrance.x),-(w.boss.z-w.entrance.z));
   G.dgPad=w.entrance;
   {   // pedra de saída: disco de pedra com brilho roxo
@@ -233,7 +247,7 @@ function populateWing(p,w,area){
   const plan={1:['spider','spider','hound','hound','bot'],2:['spider','spider','scorpion','scorpion','hound','hound','bot','bot'],3:['spider','spider','spider','scorpion','scorpion','scorpion','bot','bot','bot','brute']}[p.tier];
   const pts=w.spawns.slice().sort(()=>Math.random()-0.5);
   plan.forEach((t,i)=>{const s=pts[i%pts.length];spawnEnemy(area,t,s.x,s.z)});
-  spawnEnemy(area,p.tier===1?'scorpion':p.tier===2?'brute':'golem',w.boss.x-2,w.boss.z-2);   // chefe
+  spawnEnemy(area,p.tier===1?'scorpion':p.tier===2?'brute':'golem',w.boss.x-3,w.boss.z-3);   // chefe
 }
 function leaveDungeon(noTeleport){
   const d=G.dg;if(!d)return;

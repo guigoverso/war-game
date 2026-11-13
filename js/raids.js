@@ -25,6 +25,7 @@ function startRaid(c){
   WORLD.areas.push(area);
   RAID.active=true;RAID.area=area;RAID.city=c;RAID.t=RAID_TIME;RAID.engaged=inCityZone(c);STATE.raidLast=DN.days;
   sfx('alarm',0);
+  armyAssault(area,'★ Seus soldados foram chamados e estão atrás de você!');   // os soldados aparecem atrás do jogador, onde ele estiver
   if(!RAID.engaged)openRaidPanel();else toast('⚠ Bandidos atacam '+c.name+'! Defenda a cidade!',4000);
   return true;
 }
@@ -32,7 +33,7 @@ function openRaidPanel(){
   const c=RAID.city,d=Math.round(Math.hypot(c.cx-P.x,c.cz-P.z));
   $('raidtxt').innerHTML='Bandidos estão atacando <b>'+c.name+'</b>, a <b>'+d+' m</b> de você.<br>Se você não chegar em '+RAID_TIME+' segundos, a cidade perde recursos e pega fogo.';
   const box=$('raidbtns');box.innerHTML='';
-  if(QUEST.active)box.appendChild(UI.button('🌀 Abandonar a missão e ir até lá','red',()=>{failQuest('Você abandonou a missão para defender '+c.name+'.');raidTeleport();closePanel()}));
+  if(QUEST.active)box.appendChild(UI.button('🌀 Abandonar a missão e ir até lá','red',()=>{failQuest('Você abandonou a missão para defender '+c.name+'.');raidTeleport();armyAssault(RAID.area,'★ Seus soldados chegaram com você!');closePanel()}));
   box.appendChild(UI.button('Entendido ('+RAID_TIME+' s)','gold',()=>closePanel()));
   openPanel('raid');
 }
@@ -49,6 +50,7 @@ function raidTeleport(){
 }
 function endRaid(){
   const a=RAID.area;
+  for(const al of ALLIES)if(al.assaultCity===a){al.state='patrol';al.patrolCity=WORLD.home;al.assaultCity=null}   // os soldados voltam a acompanhar o jogador
   if(a){for(const e of a.enemies){e.alive=false;e.gone=true;scene.remove(e.group)}a.enemies=[];a.aliveEnemies=0;const i=WORLD.areas.indexOf(a);if(i>=0)WORLD.areas.splice(i,1)}
   RAID.active=false;RAID.area=null;RAID.city=null;
   const el=document.getElementById('raidhud');if(el)el.style.display='none';

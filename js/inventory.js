@@ -123,9 +123,10 @@ function flushPending(){
   for(let i=p.length-1;i>=0;i--){const left=invAdd(p[i].id,p[i].n);if(left<=0)p.splice(i,1);else p[i].n=left}
 }
 function invChanged(){flushPending();syncOwned();refreshHotbar();if(G.panel==='inv')renderInventory()}
-function invUpgrade(){
+// a ampliação da bolsa é vendida no Armeiro (o preço vem de lá)
+function invUpgrade(cost){
   const inv=STATE.inv;if(inv.upgraded){toast('A bolsa já foi ampliada.',1500);return false}
-  if(!Ledger.spend({gold:INV_UP_COST})){toast(Ledger.anyDebt()?'Você está em dívida: compras bloqueadas.':'Ouro insuficiente.',2000);return false}
+  if(!Ledger.spend({gold:cost||INV_UP_COST})){toast(Ledger.anyDebt()?'Você está em dívida: compras bloqueadas.':'Ouro insuficiente.',2000);return false}
   inv.upgraded=true;inv.size=INV_UPGRADED;while(inv.slots.length<inv.size)inv.slots.push(null);
   sfx('coin',0);toast('🎒 Bolsa ampliada para '+inv.size+' espaços!',2500);invChanged();return true;
 }
@@ -175,9 +176,11 @@ function slotOfWeapon(i){return STATE.inv.wbar.indexOf(wItemId(i))}
 function equippedSlot(){const w=STATE.inv.wbar;if(WS.rod)return w.indexOf('vara');if(WS.none)return -1;return w.indexOf(wItemId(WS.cur))}
 
 // ---------- loot ----------
+const CHEST_MAX_ITEMS=3;   // no máximo 3 tipos de item por baú
 function rollLoot(key){
-  const t=DATA.loot[key];if(!t)return[];const out=[];
+  const t=DATA.loot[key];if(!t)return[];let out=[];
   for(const d of t.drops){if(Math.random()<d.p){const n=d.min?d.min+Math.floor(Math.random()*(d.max-d.min+1)):1;out.push([d.id,n])}}
+  if((key==='chest'||key==='chest_dungeon')&&out.length>CHEST_MAX_ITEMS)out=out.sort(()=>Math.random()-0.5).slice(0,CHEST_MAX_ITEMS);
   return out;
 }
 // sorteia UM item da tabela, ponderado pelas chances (usado quando o loot é garantido)
@@ -316,6 +319,10 @@ function renderInventory(){
       return{label:d?d.icon:'',count:s&&k!=='wbar'?s.n:0,key:keyBase?(i+keyBase):'',title:s?slotTitle(s,{k,i}):(k==='wbar'?'Barra de armas '+(i+1)+' (vazia)':k==='cbar'?'Atalho '+(i+7)+' (vazio)':'Vazio'),
         cls:(isSel(k,i)?'sel':'')+(G.pendSel!==null&&G.pendSel!==undefined&&k==='bag'&&s?' target':'')+(s?' '+itemSlotCls(s.id):'')};
     },
+    dnd:{
+      start:(s,i)=>{G.drag={k,i};G.invSel={k,i}},
+      drop:(s,i)=>{const src=G.drag;G.drag=null;if(!src)return;if(moveItem(src,{k,i})){G.invSel={k,i};afterMove()}else toast('Esse item não vai nesse espaço.',1500)}
+    },
     onClick:(s,i)=>{
       if(k==='bag'&&G.pendSel!==null&&G.pendSel!==undefined&&inv.pending[G.pendSel]){
         // trocar: descarta a pilha clicada e guarda o item novo no lugar
@@ -341,18 +348,11 @@ function renderInventory(){
     const fromBag=sel.k==='bag';
     if(d.use){
       det.appendChild(UI.button('Usar','gold',()=>{if(sel.k==='cbar')useBar(sel.i);else invUse(s.id);G.invSel=null;renderInventory()}));
-      if(sel.k!=='cbar')for(let b=0;b<CBAR;b++)det.appendChild(UI.button('Atalho '+(b+7),'alt',()=>{if(moveItem(sel,{k:'cbar',i:b})){G.invSel={k:'cbar',i:b};afterMove()}else toast('Não foi possível mover para esse atalho.',1500)}));
     }
-    if(d.type==='weapon'){
-      for(let b=0;b<WBAR;b++)if(!(sel.k==='wbar'&&sel.i===b))det.appendChild(UI.button('Barra '+(b+1),'alt',()=>{if(moveItem(sel,{k:'wbar',i:b})){G.invSel={k:'wbar',i:b};afterMove()}}));
-      if(sel.k==='wbar')det.appendChild(UI.button('Equipar','gold',()=>{selectSlot(sel.i);renderInventory()}));
-    }
-    if(sel.k!=='bag'){
-      det.appendChild(UI.button('Para a bolsa','alt',()=>{const f=bagFree();if(f<0){toast('A bolsa está cheia.',1500);return}if(moveItem(sel,{k:'bag',i:f})){G.invSel={k:'bag',i:f};afterMove()}}));
-    }
+    if(d.type==='weapon'&&sel.k==='wbar')det.appendChild(UI.button('Equipar','gold',()=>{selectSlot(sel.i);renderInventory()}));
     const lastWeapon=d.weapon!==undefined&&weaponsOwnedCount()<=1;
     if(!d.key&&!lastWeapon)det.appendChild(UI.button('Descartar','red',()=>UI.confirm('Descartar '+d.name+(s.n>1?' ×'+s.n:'')+'? Esta ação não pode ser desfeita.',()=>{setLoc(sel,null);G.invSel=null;afterMove()},'Descartar')));
-  }else det.innerHTML='<p class="st">Clique em um item para ver os detalhes. Armas vão na barra 1–6 e curas nos atalhos 7–9: o que está nelas não ocupa espaço na bolsa.</p>';
+  }else det.innerHTML='<p class="st">Clique em um item para ver os detalhes e <b>arraste</b> os itens entre a bolsa, a barra de armas (1–6) e os atalhos de cura (7–9). O que está nas barras não ocupa espaço na bolsa.</p>';
   // itens pendentes (bolsa cheia)
   const pe=$('invpending');pe.innerHTML='';
   if(inv.pending.length){
@@ -366,6 +366,4 @@ function renderInventory(){
     });
     pe.appendChild(h);
   }
-  const up=$('invup');up.textContent=inv.upgraded?'Bolsa ampliada ✔':'Ampliar bolsa (+'+(INV_UPGRADED-INV_BASE)+' espaços) ◉'+INV_UP_COST;
-  up.disabled=inv.upgraded;
 }

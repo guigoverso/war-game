@@ -42,7 +42,7 @@ function sellItem(c,id,qty){
 
 // ---------- tela da loja / taverna ----------
 // kind: 'store' (vende e compra itens) ou 'tavern' (só compra comida pronta)
-function openStore(c,kind){G.storeCity=c;G.storeKind=kind||'store';G.storeMode='menu';G.storeSel=null;openPanel('store');renderStore()}
+function openStore(c,kind){G.storeCity=c;G.storeKind=kind||'store';G.storeMode=G.storeKind==='tavern'?'buy':'menu';G.storeSel=null;openPanel('store');renderStore()}   // a taverna só tem uma opção: abre direto na compra
 function buyCards(kind,c){
   return Object.values(DATA.items).filter(d=>d.shop===kind);
 }
@@ -75,7 +75,7 @@ function renderStore(){
       card.appendChild(btn);grid.appendChild(card);
     }
     body.appendChild(grid);
-    const back=UI.button('← Voltar','alt',()=>{G.storeMode='menu';renderStore()});back.style.marginTop='10px';body.appendChild(back);
+    if(kind==='store'){const back=UI.button('← Voltar','alt',()=>{G.storeMode='menu';renderStore()});back.style.marginTop='10px';body.appendChild(back)}
     return;
   }
   // modo vender: a mochila aparece; clique em um item para ver o preço e vender

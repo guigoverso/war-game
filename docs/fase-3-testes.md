@@ -38,3 +38,24 @@ Branch: `factions-update`. Arquivos novos: `js/dungeon.js`, `js/raids.js`. Alter
 
 ## Verificado por mim (por script, sem ouvir áudio)
 Geração da dungeon (3 alas, todas as salas alcançáveis); portais (nível, recompensa, minimapa); entrar, aggro, baú trancado, limpar, abrir e receber a recompensa, sair, morrer dentro; raid de aviso, perda por tempo, defesa com recompensa, teleporte com missão e raid automático por dia; fumaça; salvar/carregar de portais, lendárias e fumaça; clínica, loja, taverna e minigame no botão esquerdo; console sem erros.
+
+---
+
+# Fase 3 — ajustes (rodada 2)
+
+- **Raids com bandidos:** os atacantes agora usam o visual dos bandidos de acampamento (bandana vermelha), não o de soldados.
+- **Soldados chamados no raid:** assim que o raid começa, **todos os seus soldados são teleportados para trás de você**, onde você estiver, em formação, e já partem para combater os bandidos (com a opção de teleporte da missão, eles vão junto). Ao fim do raid voltam a acompanhar você. (Antes eles só patrulhavam a cidade, por isso só um aparecia por perto.)
+- **Lojas com uma opção só:** a **taverna** abre direto na lista de comidas, sem menu e sem botão "Voltar".
+- **Sem marcações de dungeon no mapa e no minimapa:** os portais não aparecem mais nos mapas; a coluna de luz roxa basta.
+- **Minimapa da dungeon:** dentro da dungeon o minimapa mostra a **planta da ala** (chão claro, rocha escura) girando com você, com a **saída** (roxo) e o **baú** (dourado). **Inimigos não aparecem** nele (nem aliados/cidades).
+- **Baú de dungeon novo:** maior, **roxo e brilhante**, todo **quadrado** (a tampa é um bloco que abre para trás), com cantos e fechadura dourados, gema na tampa e um halo que pulsa. Agora fica no centro da sala, livre de pilares e caixas (verifiquei nas 3 alas).
+- **Brilho do portal estático:** o redemoinho e as luzes ficam parados.
+- **Máximo de 3 itens por baú** (comum e de dungeon).
+- **Arrastar e soltar na bolsa (B):** arraste itens entre a **bolsa**, a **barra de armas 1–6** e os **atalhos de cura 7–9**. Tipo errado (ex.: cura na barra de armas) é recusado com aviso. Os botões de mover foram removidos; ficaram Usar, Equipar e Descartar.
+- **Ampliar a bolsa agora é no Armeiro** (cartão "🎒 Ampliar a bolsa", ◉300 vezes o preço da cidade); o botão saiu da tela da bolsa.
+
+## Como testar
+1. **Raid:** recrute alguns soldados no quartel, vá para longe da cidade e use **Iniciar raid agora** (criativo): todos os soldados aparecem atrás de você. Veja os bandidos de bandana vermelha.
+2. **Taverna:** fale com o taverneiro: a lista de comidas abre direto.
+3. **Dungeon:** crie portais, entre e veja o minimapa com a planta; abra o baú roxo.
+4. **Bolsa:** aperte B e arraste itens entre as três áreas. Compre a ampliação da bolsa no armeiro.

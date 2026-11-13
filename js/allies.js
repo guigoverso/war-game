@@ -80,7 +80,7 @@ function damageAlly(a,dmg){
   a.hp-=dmg;burst(a.x,a.y+1,a.z,0x2a5ac0,6,4,0.1);
   if(a.hp<=0){a.alive=false;a.deadT=0;toast('☠ Um soldado seu caiu! Recrute outro no Quartel.',3000)}
 }
-function armyAssault(c){
+function armyAssault(c,msg){
   let n=0;const sy=Math.sin(P.yaw),cy=Math.cos(P.yaw),tot=allyCount();
   for(const a of ALLIES){if(!a.alive)continue;
     // aparecem atrás do jogador, em formação escalonada
@@ -91,7 +91,7 @@ function armyAssault(c){
     }
     a.x=x;a.z=z;a.y=tH(x,z);a.vy=0;a.state='assault';a.assaultCity=c;a.tgtE=null;a.path=null;
     a.form={ang:n/Math.max(1,tot)*6.283+Math.random()*0.5,r:5+Math.random()*5};a.holdMul=0.75+Math.random()*0.6;n++}
-  if(n)toast('★ Seus '+n+' soldados avançam para o centro de '+c.name+'!',3000);
+  if(n&&msg!=='')toast(msg||('★ Seus '+n+' soldados avançam para o centro de '+c.name+'!'),3000);
 }
 function armyConquered(c){for(const a of ALLIES)if(a.alive){a.state='patrol';a.patrolCity=c;a.assaultCity=null}}
 function allyFindTarget(a,w){
