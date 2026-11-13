@@ -14,25 +14,29 @@ const REWARD_NAMES={resource:'Recursos',weapon:'Arma lendária',relic:'Relíquia
 // ---------- geração (roda dentro de genPOIs, antes da malha do terreno) ----------
 function genDungeons(rng,cities,taken){
   DG.ok=false;DG.wings=[];
-  const S=DG.S,corners=[[4,4],[W-S-4,4],[4,W-S-4],[W-S-4,W-S-4]];
-  let best=null,bl=1e9;
-  for(const [x0,z0] of corners){
-    if(cities.some(c=>Math.max(Math.abs(c.cx-(x0+S/2)),Math.abs(c.cz-(z0+S/2)))<S/2+c.half+10))continue;
-    let land=0;for(let dz=0;dz<S;dz+=4)for(let dx=0;dx<S;dx+=4)if(H[(z0+dz)*W+x0+dx]>=SEA)land++;
-    if(land<bl){bl=land;best=[x0,z0]}
+  const S=DG.S,M=12;
+  // acha o quadrado de 100x100 com menos terra (preferindo as bordas do mapa), longe das cidades. A região fica EMBAIXO do mapa:
+  // como o terreno é um mapa de alturas, as colunas dessa área precisam ser rebaixadas; por isso ela deve ficar sob o mar (onde ninguém vê)
+  let best=null,bs=1e9;
+  for(let z0=4;z0<=W-S-4;z0+=12)for(let x0=4;x0<=W-S-4;x0+=12){
+    if(cities.some(c=>Math.max(Math.abs(c.cx-(x0+S/2)),Math.abs(c.cz-(z0+S/2)))<S/2+c.half+M+4))continue;
+    let land=0;for(let dz=0;dz<S;dz+=5)for(let dx=0;dx<S;dx+=5)if(H[(z0+dz)*W+x0+dx]>=SEA)land++;
+    const edge=Math.min(x0,z0,W-S-x0,W-S-z0),sc=land*1000+edge;
+    if(sc<bs){bs=sc;best=[x0,z0]}
   }
   if(!best)return;
   DG.rx=best[0];DG.rz=best[1];DG.Y=SEA-250;DG.ok=true;   // a região fica muito abaixo do mapa (fora da vista, escondida pela névoa); só se chega por portal
   taken.push({x:DG.rx+S/2,z:DG.rz+S/2,r:S*0.75});
-  // plataforma plana de rocha; a borda desce suavemente até o terreno em volta
-  const F=4;
-  for(let dz=-F;dz<S+F;dz++)for(let dx=-F;dx<S+F;dx++){
+  // o mar cobre a região: qualquer terra que houvesse ali desce suavemente até o fundo do mar (sem buraco visível)
+  const seabed=SEA-5;
+  for(let dz=-M;dz<S+M;dz++)for(let dx=-M;dx<S+M;dx++){
     const x=DG.rx+dx,z=DG.rz+dz;if(x<1||z<1||x>=W-1||z>=W-1)continue;
     const i=z*W+x,inside=dx>=0&&dz>=0&&dx<S&&dz<S;
     if(inside){H[i]=DG.Y;B[i]=BIO_ROCK;T[i]=T_WILD}
-    // fora da região o terreno não muda (a abertura embaixo do mapa não tem paredes desenhadas, ver meshTerrain)
+    else{const e=Math.max(-dx,dx-S+1,-dz,dz-S+1);if(H[i]>seabed){H[i]=Math.min(H[i],Math.round(lerp(seabed,H[i],clamp((e-1)/M,0,1))));if(H[i]<SEA){T[i]=T_NAT}}}
   }
-  for(let k=0;k<WING_OFF.length;k++)DG.wings.push(buildWing(new RNG((WORLD.seed*57+k*911+13)>>>0),k));
+  // fundo do mar invisível sobre a região: quem nadar por cima não cai na dungeon
+  Col.add({x0:DG.rx,y0:seabed-3,z0:DG.rz,x1:DG.rx+S,y1:seabed,z1:DG.rz+S});  for(let k=0;k<WING_OFF.length;k++)DG.wings.push(buildWing(new RNG((WORLD.seed*57+k*911+13)>>>0),k));
   genOffice();   // o 4º quadrante da região guarda o escritório do líder (rounds.js)
 }
 
