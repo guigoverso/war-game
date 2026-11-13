@@ -60,7 +60,8 @@ function applySave(d){
   const s=d.state||{};STATE.round=s.round||1;STATE.phase=s.phase||'commander';STATE.res=Object.assign({food:0,ore:0,wood:0},s.res||{});
   if(s.inv)STATE.inv=s.inv;if(s.dur)STATE.dur=s.dur;if(s.buffs)STATE.buffs=s.buffs;if(s.vendors)STATE.vendors=s.vendors;if(s.fishGone)STATE.fishGone=s.fishGone;
   STATE.portals=s.portals||[];STATE.portalSeq=s.portalSeq||0;STATE.portalDay=s.portalDay;STATE.legend=s.legend||{};STATE.burnt=s.burnt||{};STATE.raidDay=s.raidDay||0;STATE.raidLast=s.raidLast===undefined?-9:s.raidLast;
-  if(!(s.portals&&s.portals.length)&&s.portalDay===undefined)STATE.portalDay=undefined;   // salvamento antigo: os portais nascem na horanormalizeInv();refreshBuffs();   // inventário e durabilidade (salvamentos antigos usam os padrões)
+  if(!(s.portals&&s.portals.length)&&s.portalDay===undefined)STATE.portalDay=undefined;   // salvamento antigo: os portais nascem na hora
+  normalizeInv();refreshBuffs();   // inventário e durabilidade (salvamentos antigos usam os padrões)
   // cidades conquistadas
   for(const sc of d.cities||[]){
     const c=WORLD.cities[sc.id];if(!c||sc.owner!=='player'||c.owner==='player')continue;
