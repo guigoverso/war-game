@@ -39,3 +39,13 @@ Use `?mute=1` (sem música). O modo criativo (`?auto=1`) tem botões de teste na
 ### Debuffs (faltou suprimento na rodada anterior)
 - 🌾 alimentos: soldados (recrutar/melhorar) e pratos da taverna custam o dobro • ⛏ minérios: armas, munição e conserto custam o dobro • 🪵 madeira: missões pagam 80% menos, a Loja cobra o dobro e compra por 50% do valor • ◉ ouro: curar e itens de cura custam o dobro.
 - Aparecem em vermelho na linha "Rodada N" e a dívida (em itens) aparece no armazém e no livro. Os itens entregues são **destruídos** no fim da rodada; na seguinte é preciso suprir tudo de novo.
+## Humor das cidades (adição) — o ouro deixa de ser necessidade
+- **Necessidades**: só 🌾 comida, ⛏ minério e 🪵 madeira. O ouro é só economia: **imposto** por rodada e produção das cidades de foco "dinheiro" (que passam a precisar dos três recursos físicos). O debuff de ouro saiu.
+- **Humor** (resultado da última rodada fechada), mostrado no livro (Resumo e Cidades) e no armazém:
+  - 😄 **Próspera**: tudo atendido e algum recurso acima da meta → imposto ×1,5, **+1 de produção** e **10% de desconto** nas lojas da cidade.
+  - 🙂 **Contente**: tudo atendido → imposto normal.
+  - 😠 **Descontente**: faltou algo → **sem imposto e sem produção**; curar e itens de cura custam o **dobro** na cidade; os debuffs por recurso continuam valendo.
+- **Imposto**: ◉ (20 + 10 × nível da cidade) por rodada, vai para o **cofre do armazém** (você precisa buscar).
+- **Rebelião**: duas rodadas seguidas descontente → na seguinte a cidade **se rebela**: vira inimiga, perde o armazém, a rota de caravana e ganha uma guarnição. A **capital não se rebela** (só sofre os efeitos). Suprir tudo zera a contagem.
+- **Cidades que não são suas** têm humor simulado por sorte e nível (por enquanto só aparece no Resumo do livro).
+- Caravana só leva madeira, minério ou comida: rotas que não supririam nada são recusadas.

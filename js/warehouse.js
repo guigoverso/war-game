@@ -149,12 +149,12 @@ function openWarehouse(c){WHU.city=c;WHU.sel=null;whOf(c);openPanel('warehouse')
 function whSummaryHtml(c){
   const f=focusOf(c),w=whOf(c),route=hasRoute(c),amt=prodOf(c);
   const prodTxt=route?'enviada por caravana (não vai para o armazém)':'+'+amt+' '+resIcon(f)+' '+resName(f).toLowerCase()+' por rodada';
-  const rows=RES4.map(r=>{
+  const rows=NEEDS.map(r=>{
     const need=needOf(c,r),st=storedOf(c,r),m=Math.max(0,need-st),bonus=(ec(c).got[r]||0)>Math.max(0,need-(ec(c).carry[r]||0));
     const tag=need===0&&st===0?'<span style="color:#9fe89f">não precisa</span>':m>0?'<span style="color:#ff8a8a">falta '+m+'</span>':bonus?'<span style="color:#ffd23a">★ bônus</span>':'<span style="color:#9fe89f">✔</span>';
     const dv=(ec(c).debt||{})[r]||0;return '<div>'+resIcon(r)+' '+resName(r)+': <b>'+st+'</b> / '+need+' '+tag+(dv?' <span style="color:#ff8a8a">• dívida '+dv+'</span>':'')+'</div>';
   }).join('');
-  return '<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:8px"><div class="card" style="flex:1;min-width:250px"><b>Produção de '+c.name+'</b><div class="st">'+prodTxt+'<br>Cofre: <b>◉ '+w.vault+'</b></div></div><div class="card" style="flex:1;min-width:250px"><b>Suprimentos desta rodada</b><div class="st" style="line-height:1.6">'+rows+'</div></div></div>';
+  return '<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:8px"><div class="card" style="flex:1;min-width:250px"><b>Produção de '+c.name+'</b><div class="st">'+prodTxt+'<br>Cofre: <b>◉ '+w.vault+'</b><br>Humor: '+moodHtml(c)+' • imposto por rodada: ◉'+taxOf(c)+'</div></div><div class="card" style="flex:1;min-width:250px"><b>Suprimentos desta rodada</b><div class="st" style="line-height:1.6">'+rows+'</div></div></div>';
 }
 function whItemSlot(s,key,title){
   const d=s&&itemDef(s.id);
@@ -188,12 +188,6 @@ function renderWarehouse(){
     lab(L,resIcon('wood')+' Madeira — precisa '+needOf(c,'wood'));grid(L,'wood',[w.wood],1,()=>({area:'wood',i:0}));
     lab(L,resIcon('ore')+' Minério — precisa '+needOf(c,'ore'));grid(L,'ore',[w.ore],1,()=>({area:'ore',i:0}));
     lab(L,resIcon('food')+' Alimentos (até 10 tipos) — precisa '+needOf(c,'food'));grid(L,'food',w.food,5,i=>({area:'food',i}));
-    lab(L,'◉ Ouro — precisa '+needOf(c,'gold')+'  •  entregue ◉ '+w.supGold+'  •  cofre ◉ '+w.vault);
-    const gb=document.createElement('div');
-    for(const n of[10,100])gb.appendChild(UI.button('+'+n,'',()=>{supGoldMove(c,n);computeBuffs();refreshRoundHud();sfx('coin',0);renderWarehouse()}));
-    gb.appendChild(UI.button('Suprir tudo','gold',()=>{supGoldMove(c,Math.max(0,needOf(c,'gold')-w.supGold));computeBuffs();refreshRoundHud();sfx('coin',0);renderWarehouse()}));
-    for(const n of[10,100])gb.appendChild(UI.button('−'+n,'alt',()=>{supGoldMove(c,-n);computeBuffs();refreshRoundHud();renderWarehouse()}));
-    L.appendChild(gb);
   }
   // direita: bolsa + detalhes e ações
   lab(R,'Sua bolsa');grid(R,'bag',STATE.inv.slots.slice(0,STATE.inv.size),5,i=>({area:'bag',i}));
