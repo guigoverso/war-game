@@ -1,16 +1,17 @@
 'use strict';
 // ---------- Rodadas, escritório do líder, livro de decisões e caravanas (Fase 4) ----------
-// Uma rodada = turno do LÍDER (decisões, num escritório onde o jogador anda a pé) + turno do COMANDANTE (o jogo normal).
+// A partida começa na RODADA 0 (preparação): só o turno do comandante, sem decisões e sem cobrança. A contagem vale a partir da rodada 1.
+// Rodada N>=1 = turno do LÍDER (decisões, num escritório onde o jogador anda a pé: caravanas, porto, capital) + turno do COMANDANTE (o jogo normal,
+// em que ele busca suprimentos e os distribui às cidades pelo livro, que também guarda a bolsa — tecla B).
 // O jogador encerra a rodada na prefeitura; o mundo avança (produção, cobrança das necessidades) e ele é levado ao escritório.
-// Lá, na mesa, um livro reúne as decisões: distribuir o estoque entre as cidades, mandar caravanas, ajustar o porto e evoluir a capital.
-// Ao concluir, o jogador é teleportado para fora da prefeitura e volta a jogar. Eventos ficam para depois.
+// Ao concluir as decisões, é teleportado para fora da prefeitura. Eventos ficam para depois.
 const RES4=['food','ore','wood','gold'];
 const CAP_MAX_LVL=4;
 const TYPE_NAME={food:'Alimentos',ore:'Minérios',wood:'Madeira',gold:'Dinheiro',port:'Porto'};
 const CITY_COLS=[0xe0402a,0x2aa04a,0xe8b820,0x8a3ac8,0x20b0c8,0xe87820,0xd0409a,0x8a8a8a];   // cor de identidade de cada cidade (faixa da bandeira)
 const resIcon=k=>DATA.resources[k].icon,resName=k=>DATA.resources[k].name;
 
-Hooks.on('resetState',()=>{STATE.phase='commander';STATE.rd={lvl:1,actions:1,cities:{},routes:[],rbuf:{},report:[],hallCity:0,grace:true}});
+Hooks.on('resetState',()=>{STATE.phase='commander';STATE.rd={lvl:1,actions:1,cities:{},routes:[],rbuf:{},report:[],hallCity:0}});
 const rbufOn=r=>!!(STATE.rd&&STATE.rd.rbuf&&STATE.rd.rbuf[r]);
 // bônus de entrega: valor fixo, vale até o fim da rodada (ver seção 14 do design)
 addPriceMod('rbuf',(p,ctx)=>{
@@ -70,6 +71,7 @@ function deliver(c,res,delta){
   if(delta>0){const amt=Math.min(delta,Math.max(0,Math.floor(Ledger.get(res))));if(amt<=0)return 0;Ledger.add(res,-amt);e.got[res]=(e.got[res]||0)+amt;return amt}
   const back=Math.min(-delta,e.got[res]||0);if(back<=0)return 0;Ledger.add(res,back);e.got[res]-=back;return -back;
 }
+function deliverAndRefresh(c,res,delta){const r=deliver(c,res,delta);computeBuffs();refreshRoundHud();return r}   // os bônus acompanham as entregas
 function computeBuffs(){
   const b={};
   for(const c of playerCities())for(const r of RES4)if(gotOf(c,r)>Math.max(0,needOf(c,r)-carryOf(c,r)))b[r]=true;
@@ -82,12 +84,13 @@ function endRound(city){
   if(STATE.phase==='leader'||G.office||P.dead)return false;
   const rd=STATE.rd,rep=[];
   const pcs=playerCities();
-  if(rd.grace)rep.push('Primeira rodada: sem cobrança de necessidades.');
-  for(const c of pcs){
+  const prep=STATE.round<1;   // rodada 0: preparação, sem cobrança nem produção
+  if(prep)rep.push('Rodada 0 (preparação): sem cobrança e sem produção. A contagem começa agora, na rodada 1.');
+  else for(const c of pcs){
     const e=ec(c),carry2={};
     for(const r of RES4){
       const need=needOf(c,r),cover=gotOf(c,r)+carryOf(c,r),short=Math.max(0,need-cover);
-      if(!rd.grace&&short>0){Ledger.add(r,-short);rep.push('⚠ '+c.name+': faltaram '+short+' de '+resName(r).toLowerCase()+' (virou dívida).')}
+      if(short>0){Ledger.add(r,-short);rep.push('⚠ '+c.name+': faltaram '+short+' de '+resName(r).toLowerCase()+' (virou dívida).')}
       if(need>0&&cover>need)carry2[r]=Math.min(cover-need,need);   // o excedente adianta a meta da próxima rodada
     }
     e.got={};e.carry=carry2;e.pch=false;
@@ -95,7 +98,8 @@ function endRound(city){
     if(hasRoute(c))rep.push('🛒 '+c.name+': a produção de '+resName(f).toLowerCase()+' ('+amt+') seguiu por caravana.');
     else{Ledger.add(f,amt);rep.push('✔ '+c.name+' produziu '+amt+' de '+resName(f).toLowerCase()+' para o estoque.')}
   }
-  rd.rbuf={};rd.grace=false;rd.hallCity=(city||WORLD.home).id;rd.report=rep;
+  rd.rbuf={};if(prep)computeBuffs();   // o que foi entregue na rodada 0 já vale para a rodada 1
+  rd.hallCity=(city||WORLD.home).id;rd.report=rep;
   STATE.round++;Hooks.emit('round',STATE.round);
   beginLeaderTurn();
   return true;
@@ -160,8 +164,9 @@ function genOffice(){
   for(const lx of[3.2,Wd-3.8]){ob(lx,0,2.6,lx+0.6,0.2,3.2,DK,false);ob(lx+0.25,0.2,2.85,lx+0.35,2.0,2.95,DK,false);ob(lx-0.1,2.0,2.5,lx+0.7,2.7,3.3,0xffc060,false,{j:0})}
   // marca o chão (som de piso interno) e guarda os pontos de interesse
   for(let z=0;z<Dp;z++)for(let x=0;x<Wd;x++)T[(oz+z)*W+ox+x]=T_FLOOR;
-  OFFICE.desk={x:ox+mx,z:oz+4.9};OFFICE.spawn={x:ox+mx,z:oz+Dp-4.2};OFFICE.ok=true;
+  OFFICE.desk={x:ox+mx,z:oz+3.1};OFFICE.spawn={x:ox+mx,z:oz+Dp-4.2};OFFICE.ok=true;
 }
+const nearBook=()=>!!(G.office&&OFFICE.desk&&Math.hypot(P.x-OFFICE.desk.x,P.z-OFFICE.desk.z)<5.5);   // alcance generoso: basta estar diante da mesa
 function inOfficeRoom(){return OFFICE.ok&&P.x>=OFFICE.ox-1&&P.x<=OFFICE.ox+OFFICE.Wd+1&&P.z>=OFFICE.oz-1&&P.z<=OFFICE.oz+OFFICE.Dp+1}
 // objetos de cena do escritório: o soldado-comandante na porta e o livro sobre a mesa
 function initOffice(){
@@ -186,7 +191,7 @@ function enterOffice(){
   P.x=OFFICE.spawn.x;P.z=OFFICE.spawn.z;P.y=OFFICE.Y+0.05;P.vx=P.vz=P.vy=0;P.camY=P.y;P.yaw=0;P.pitch=0;
   $('hud').classList.add('hidden');WS.vm.forEach(v=>v.visible=false);
   closePanel();
-  const hint=$('officehint');hint.textContent='📖 Vá até a mesa e aperte E para abrir o livro de decisões';hint.style.display='block';
+  const hint=$('officehint');hint.textContent='📖 Chegue perto da mesa e aperte E (ou clique) para abrir o livro';hint.style.display='block';
 }
 function leaveOffice(){
   const had=G.office;G.office=null;
@@ -211,8 +216,8 @@ let rdT=0;
 function updateRounds(dt){
   if(OFFICE.halo)OFFICE.halo.material.opacity=0.28+0.14*Math.sin(G.t*3);
   if(G.office){
-    const near=Math.hypot(P.x-OFFICE.desk.x,P.z-OFFICE.desk.z)<2.8;
-    $('officehint').textContent=near?'📖 [E] Abrir o livro de decisões':'📖 Vá até a mesa e aperte E para abrir o livro de decisões';
+    const near=nearBook();
+    $('officehint').textContent=near?'📖 [E] ou clique: abrir o livro':'📖 Chegue perto da mesa e aperte E (ou clique) para abrir o livro';
   }
   rdT-=dt;if(rdT<=0){rdT=0.5;refreshRoundHud()}
   for(const m of CARAVANS)m.group.visible=Math.hypot(m.x-P.x,m.z-P.z)<250;
@@ -220,7 +225,7 @@ function updateRounds(dt){
 function refreshRoundHud(){
   const el=$('rdline');if(!el||!STATE.rd)return;
   const b=STATE.rd.rbuf||{},t={food:'soldados −20%',ore:'armas −20%',gold:'recrutar/curar −20%',wood:'obras −10%, missões +10%'};
-  el.innerHTML='📖 Rodada '+STATE.round+(STATE.phase==='leader'?' • turno do líder':' • turno do comandante')+Object.keys(b).map(r=>'<br><small>'+resIcon(r)+' '+t[r]+'</small>').join('');
+  el.innerHTML='📖 Rodada '+STATE.round+(STATE.round<1?' • preparação':STATE.phase==='leader'?' • turno do líder':' • turno do comandante')+Object.keys(b).map(r=>'<br><small>'+resIcon(r)+' '+t[r]+'</small>').join('');
 }
 
 // ---------- caravanas decorativas (paradas na estrada entre as cidades de uma rota) ----------
@@ -273,28 +278,60 @@ function rebuildCaravans(){
   }
 }
 
-// ---------- livro de decisões ----------
-const LB={tab:'resumo',city:null,ra:null,rb:null};
-const LTABS=[['resumo','📜','Resumo'],['cidades','🏘','Cidades'],['caravanas','🛒','Caravanas'],['capital','🏛','Capital']];
-function openBook(){
+// ---------- suprimentos: itens que viram estoque ----------
+const supplyOf=id=>{const d=itemDef(id);if(!d)return null;if(d.supply)return d.supply;if(d.tags&&d.tags.includes('fish'))return{res:'food',n:2};return null};
+function depositPreview(){
+  const t={food:0,ore:0,wood:0},idx=[];
+  STATE.inv.slots.slice(0,STATE.inv.size).forEach((s,i)=>{if(!s)return;const sp=supplyOf(s.id);if(sp){t[sp.res]+=sp.n*s.n;idx.push(i)}});
+  return{t,idx};
+}
+function depositSupplies(){
+  const p=depositPreview();if(!p.idx.length){toast('Nada para depositar.',1500);return}
+  for(const i of p.idx)STATE.inv.slots[i]=null;
+  for(const r in p.t)if(p.t[r])Ledger.add(r,p.t[r]);
+  sfx('coin',0);toast('📦 Estoque: '+Object.keys(p.t).filter(r=>p.t[r]).map(r=>'+'+p.t[r]+' '+resIcon(r)).join('  '),3000);
+  invChanged();refreshRoundHud();
+}
+function renderDeposit(){
+  const el=document.getElementById('invdeposit');if(!el)return;
+  const p=depositPreview(),tx=Object.keys(p.t).filter(r=>p.t[r]).map(r=>p.t[r]+' '+resIcon(r)).join('  ');
+  el.innerHTML='<h4>📦 Estoque geral</h4><p class="st">'+RES4.map(r=>resIcon(r)+' '+Ledger.get(r)).join(' &nbsp; ')+'</p><p class="st">Comida, minérios e troncos da bolsa viram suprimentos para distribuir às cidades.</p>';
+  const b=UI.button(p.idx.length?'Depositar tudo ('+tx+')':'Nada para depositar','gold',depositSupplies);b.disabled=!p.idx.length;el.appendChild(b);
+}
+
+// ---------- livro: bolsa + livro do prefeito (tecla B) ----------
+const LB={top:'book',tab:'resumo',city:null,ra:null,rb:null};
+const LSUBS=[['resumo','📜 Resumo'],['cidades','🏘 Cidades'],['caravanas','🛒 Caravanas'],['capital','🏛 Capital']];
+const INV_L='<h3>🎒 Bolsa</h3><div id="invinfo" class="ldsm"></div><b class="st">Armas e vara — teclas 1–6</b><div id="invwbar"></div><b class="st" style="display:block;margin-top:8px">Curas — teclas 7–9</b><div id="invcbar"></div><b class="st" style="display:block;margin-top:8px">Bolsa</b><div id="invgrid"></div>';
+const INV_R='<div id="invdetail"></div><div id="invpending"></div><div id="invdeposit"></div>';
+function openBook(top,tab){
+  if(G.office)top='book';
+  if(top)LB.top=top;if(tab)LB.tab=tab;
   if(LB.city===null||!WORLD.cities[LB.city]||WORLD.cities[LB.city].owner!=='player')LB.city=WORLD.home.id;
+  if(LB.top==='inv'){G.invSel=null;G.pendSel=null}
   openPanel('ldbook');renderBook();
 }
-function closeBookUI(){$('ldbook').classList.add('hidden');if(G.panel==='ldbook')G.panel=null}
+const isLeader=()=>STATE.phase==='leader';
 const actionsHtml=()=>'<span style="color:#8a4a10;letter-spacing:2px">'+'◆'.repeat(STATE.rd.actions)+'◇'.repeat(Math.max(0,maxActions()-STATE.rd.actions))+'</span> ('+STATE.rd.actions+'/'+maxActions()+')';
 function stockHtml(){
   return '<table class="ldt">'+RES4.map(r=>{const v=Ledger.get(r);return '<tr><td>'+resIcon(r)+' '+resName(r)+'</td><td style="text-align:right"><b'+(v<0?' style="color:#a01818"':'')+'>'+v+'</b>'+(v<0?' (dívida)':'')+'</td></tr>'}).join('')+'</table>';
 }
 function typeLabel(c){const e=ec(c);return e.type==='port'?'⚓ Porto (produz '+resIcon(e.pf)+' '+resName(e.pf).toLowerCase()+')':resIcon(e.type)+' '+TYPE_NAME[e.type]}
+const needsLine=c=>RES4.map(r=>resIcon(r)+needOf(c,r)).join(' ');
+const routeName=r=>WORLD.cities[r.a].name+' ⇄ '+WORLD.cities[r.b].name;
+const leaderOnly=()=>isLeader()?'':'<p class="ldsm">🔒 Esta decisão só pode ser tomada no <b>turno do líder</b> (no escritório).</p>';
 function bookPages(){
   const rd=STATE.rd,pcs=playerCities();
   if(LB.tab==='resumo'){
+    const turn=STATE.round<1?'Preparação (nenhuma decisão necessária)':isLeader()?'Turno do líder':'Turno do comandante';
     const port=playerPort(),hasWorldPort=WORLD.cities.some(c=>ec(c).type==='port');
-    const L='<h3>Rodada '+STATE.round+'</h3><p>Ações do líder: '+actionsHtml()+'</p><h4>Estoque geral</h4>'+stockHtml()
-      +'<p style="margin-top:10px">Cidades suas: <b>'+pcs.length+'</b> • Rotas de caravana: <b>'+rd.routes.length+'</b></p>'
-      +(port?'':(hasWorldPort?'<p class="ldwarn">⚓ Você ainda não tem um porto. O porto fica na cidade mais forte do mapa; conquiste-a.</p>':''));
-    const R='<h3>Relatório da rodada anterior</h3>'+(rd.report.length?'<ul class="ldul">'+rd.report.map(t=>'<li>'+t+'</li>').join('')+'</ul>':'<p>Ainda não há o que relatar.</p>')
-      +'<h4>Como funciona</h4><p class="ldsm">Cada cidade precisa de recursos para passar a rodada; a cidade-foco produz o seu e não precisa dele. Distribua o estoque na aba <b>Cidades</b>. Entregar <b>mais</b> que a necessidade dá um bônus até o fim da rodada. O que faltar vira dívida e bloqueia compras.</p>';
+    const L='<h3>Rodada '+STATE.round+'</h3><p>'+turn+'</p>'+(isLeader()?'<p>Ações do líder: '+actionsHtml()+'</p>':'')
+      +'<h4>Recursos ainda não alocados</h4>'+stockHtml()
+      +'<h4>Cidades dominadas</h4>'+pcs.map(c=>'<p style="margin:3px 0"><b>'+(c.home?'🏛 ':'')+c.name+'</b> — '+typeLabel(c)+'<br><small>precisa: '+needsLine(c)+' • '+(cityMet(c)?'<span class="ldok">✔ suprida</span>':'<span class="ldbad">⚠ faltam recursos</span>')+'</small></p>').join('');
+    const R='<h3>Caravanas ativas</h3>'+(rd.routes.length?'<ul class="ldul">'+rd.routes.map(r=>'<li>'+routeName(r)+'</li>').join('')+'</ul>':'<p>Nenhuma caravana.</p>')
+      +(STATE.round<1?'<h4>Rodada 0</h4><p class="ldsm">Não há decisões agora e nada é cobrado: a contagem começa na rodada 1. Veja de que suprimentos cada cidade precisa (aba <b>Cidades</b>) e comece a juntá-los: compre na loja ou ache na natureza (caça, pesca, baús), deposite na aba <b>Bolsa</b> e distribua aqui. Quando estiver pronto, encerre a rodada no quadro da prefeitura.</p>'
+        :'<h4>Relatório da rodada anterior</h4>'+(rd.report.length?'<ul class="ldul">'+rd.report.map(t=>'<li>'+t+'</li>').join('')+'</ul>':'<p>Nada a relatar.</p>'))
+      +(port||!hasWorldPort?'':'<p class="ldwarn">⚓ Você ainda não tem um porto. Ele fica na cidade mais forte do mapa.</p>');
     return[L,R];
   }
   if(LB.tab==='cidades'){
@@ -307,66 +344,74 @@ function bookPages(){
         const state=need===0&&g===0?'<span class="ldok">não precisa</span>':miss>0?'<span class="ldbad">falta '+miss+'</span>':(g>Math.max(0,need-cy)?'<span class="ldok">★ bônus</span>':'<span class="ldok">✔</span>');
         return '<tr><td>'+resIcon(r)+' <b>'+resName(r)+'</b><br><small>precisa '+need+' • entregue '+g+(cy?' (+'+cy+' adiantado)':'')+'</small></td><td>'+state+'</td>'
           +'<td class="ldb"><button data-a="dm" data-r="'+r+'" '+(g<=0?'disabled':'')+'>−'+step+'</button><button data-a="dp" data-r="'+r+'" '+(Ledger.get(r)<=0?'disabled':'')+'>+'+step+'</button>'+(miss>0?'<button data-a="sup" data-r="'+r+'" '+(Ledger.get(r)<=0?'disabled':'')+'>Suprir</button>':'')+'</td></tr>';
-      }).join('')+'</table><p class="ldsm">Entregar acima da necessidade dá o bônus da rodada; o excedente adianta a meta da próxima.</p>';
+      }).join('')+'</table><p class="ldsm">Estoque: '+RES4.map(r=>resIcon(r)+' '+Ledger.get(r)).join(' &nbsp; ')+'<br>Entregar acima da necessidade dá o bônus da rodada; o excedente adianta a meta da próxima.</p>';
       if(e.type==='port'){
+        const can=isLeader()&&!e.pch;
         R+='<h4>Distribuição do porto</h4><p class="ldsm">'+(e.pch?'Já alterada nesta rodada.':'Uma troca por rodada. Escolha o que o porto produz e o que lhe falta.')+'</p>'
-          +'<div>Produz: '+RES4.map(r=>'<button class="ldmini'+(e.pf===r?' sel':'')+'" data-a="pf" data-r="'+r+'" '+(e.pch||e.ps===r?'disabled':'')+'>'+resIcon(r)+'</button>').join('')+'</div>'
-          +'<div>Falta: '+RES4.map(r=>'<button class="ldmini'+(e.ps===r?' sel':'')+'" data-a="ps" data-r="'+r+'" '+(e.pch||e.pf===r?'disabled':'')+'>'+resIcon(r)+'</button>').join('')+'</div>';
+          +'<div>Produz: '+RES4.map(r=>'<button class="ldmini'+(e.pf===r?' sel':'')+'" data-a="pf" data-r="'+r+'" '+(!can||e.ps===r?'disabled':'')+'>'+resIcon(r)+'</button>').join('')+'</div>'
+          +'<div>Falta: '+RES4.map(r=>'<button class="ldmini'+(e.ps===r?' sel':'')+'" data-a="ps" data-r="'+r+'" '+(!can||e.pf===r?'disabled':'')+'>'+resIcon(r)+'</button>').join('')+'</div>'+leaderOnly();
       }
     }
     return[L,R];
   }
   if(LB.tab==='caravanas'){
-    const L='<h3>Rotas de caravana</h3>'+(rd.routes.length?rd.routes.map((r,i)=>{const A=WORLD.cities[r.a],B=WORLD.cities[r.b];
-      return '<div class="ldroute"><b>'+A.name+' ⇄ '+B.name+'</b><br><small>'+A.name+' recebe '+resIcon(focusOf(B))+' • '+B.name+' recebe '+resIcon(focusOf(A))+'</small><br><button data-a="unroute" data-i="'+i+'">Desfazer rota</button></div>'}).join(''):'<p>Nenhuma rota ainda.</p>')
-      +'<p class="ldsm">Quem recebe o produto da outra cidade passa a ter necessidade 0 dele. A produção levada pela caravana não vai para o estoque geral.</p>';
-    const opts=sel=>pcs.map(c=>'<option value="'+c.id+'"'+(c.id===sel?' selected':'')+'>'+c.name+' ('+TYPE_NAME[ec(c).type]+')</option>').join('');
+    const L='<h3>Caravanas ativas</h3>'+(rd.routes.length?rd.routes.map((r,i)=>{const A=WORLD.cities[r.a],B=WORLD.cities[r.b];
+      return '<div class="ldroute"><b>'+routeName(r)+'</b><br><small>'+A.name+' recebe '+resIcon(focusOf(B))+' • '+B.name+' recebe '+resIcon(focusOf(A))+'</small><br><button data-a="unroute" data-i="'+i+'" '+(isLeader()?'':'disabled')+'>Desfazer</button></div>'}).join(''):'<p>Nenhuma caravana ainda.</p>')
+      +'<p class="ldsm">A cidade que recebe o produto da outra passa a ter necessidade 0 dele. A produção levada pela caravana não vai para o estoque geral.</p>';
     if(LB.ra===null||!pcs.find(c=>c.id===LB.ra))LB.ra=pcs[0]?pcs[0].id:null;
-    if(LB.rb===null||!pcs.find(c=>c.id===LB.rb)||LB.rb===LB.ra)LB.rb=(pcs.find(c=>c.id!==LB.ra)||{}).id??null;
-    const R='<h3>Nova rota</h3>'+(pcs.length<2?'<p>Você precisa de pelo menos duas cidades.</p>':'<p>Cidade A<br><select data-s="ra">'+opts(LB.ra)+'</select></p><p>Cidade B<br><select data-s="rb">'+opts(LB.rb)+'</select></p><p>Custo: <b>1 ação</b> ('+STATE.rd.actions+' restante'+(STATE.rd.actions===1?'':'s')+')</p><button data-a="route" '+(STATE.rd.actions<1?'disabled':'')+'>Enviar caravanas</button>');
+    const others=WORLD.cities.filter(c=>c.id!==LB.ra);
+    if(LB.rb===null||!others.find(c=>c.id===LB.rb))LB.rb=others[0]?others[0].id:null;
+    const optA=pcs.map(c=>'<option value="'+c.id+'"'+(c.id===LB.ra?' selected':'')+'>'+c.name+' ('+TYPE_NAME[ec(c).type]+')</option>').join('');
+    const optB=others.map(c=>'<option value="'+c.id+'"'+(c.id===LB.rb?' selected':'')+'>'+c.name+' ('+TYPE_NAME[ec(c).type]+(c.owner==='player'?', sua':', neutra')+')</option>').join('');
+    const B=WORLD.cities[LB.rb],A=WORLD.cities[LB.ra];
+    const R='<h3>Nova caravana</h3><p>Sua cidade<br><select data-s="ra">'+optA+'</select></p><p>Destino (cidade sua, aliada ou neutra)<br><select data-s="rb">'+optB+'</select></p>'
+      +(A&&B?'<p class="ldsm">'+A.name+' passa a receber '+resIcon(focusOf(B))+' '+resName(focusOf(B)).toLowerCase()+' por caravana (necessidade 0).</p>':'')
+      +'<p>Preço: <b>◉ '+CARAVAN_COST+'</b></p><button data-a="route" '+(isLeader()&&Ledger.canAfford({gold:CARAVAN_COST})?'':'disabled')+'>Comprar caravana</button>'+leaderOnly()+(Ledger.anyDebt()?'<p class="ldwarn">Com dívida não é possível comprar.</p>':'');
     return[L,R];
   }
-  const lvl=rd.lvl,cost=capCost(),can=lvl<CAP_MAX_LVL&&STATE.rd.actions>=1;
+  const lvl=rd.lvl,cost=capCost(),can=isLeader()&&lvl<CAP_MAX_LVL&&rd.actions>=1;
   const L='<h3>'+WORLD.home.name+' — a capital</h3><p>Nível do líder: <b>'+lvl+'</b> / '+CAP_MAX_LVL+'</p><p>Ações por rodada: <b>'+maxActions()+'</b></p><p class="ldsm">A capital evolui até virar uma cidade fortificada. Cada nível aumenta o número de ações do líder por rodada.</p>';
-  const R='<h3>Evoluir a capital</h3>'+(lvl>=CAP_MAX_LVL?'<p>A capital já é uma cidade fortificada.</p>':'<p>Próximo nível: <b>'+(lvl+1)+'</b> (+1 ação por rodada, a partir da próxima rodada).</p><p>Custo: <b>◉ '+cost.gold+'</b> e <b>'+resIcon('wood')+' '+cost.wood+'</b> + 1 ação</p><button data-a="cap" '+(can&&Ledger.canAfford(cost)?'':'disabled')+'>Evoluir</button>'+(Ledger.anyDebt()?'<p class="ldwarn">Com dívida não é possível comprar.</p>':''));
+  const R='<h3>Evoluir a capital</h3>'+(lvl>=CAP_MAX_LVL?'<p>A capital já é uma cidade fortificada.</p>':'<p>Próximo nível: <b>'+(lvl+1)+'</b> (+1 ação por rodada, a partir da próxima rodada).</p><p>Custo: <b>◉ '+cost.gold+'</b> e <b>'+resIcon('wood')+' '+cost.wood+'</b> + 1 ação</p><button data-a="cap" '+(can&&Ledger.canAfford(cost)?'':'disabled')+'>Evoluir</button>'+leaderOnly()+(Ledger.anyDebt()?'<p class="ldwarn">Com dívida não é possível comprar.</p>':''));
   return[L,R];
 }
+const CARAVAN_COST=200;
 const capCost=()=>({gold:200*STATE.rd.lvl,wood:10*STATE.rd.lvl});
 function renderBook(){
-  const [L,R]=bookPages();
-  $('ldL').innerHTML=L;$('ldR').innerHTML=R;
-  $('ldtabs').innerHTML=LTABS.map(t=>'<button class="'+(LB.tab===t[0]?'sel':'')+'" data-tab="'+t[0]+'">'+t[1]+'<br><small>'+t[2]+'</small></button>').join('');
-  $('lddone').textContent=STATE.phase==='leader'?'✔ Concluir decisões':'Fechar';
+  const inv=LB.top==='inv'&&!G.office;if(!inv&&LB.top==='inv')LB.top='book';
+  $('ldsub').style.display=inv?'none':'flex';
+  $('ldsub').innerHTML=LSUBS.map(t=>'<button class="'+(LB.tab===t[0]?'sel':'')+'" data-tab="'+t[0]+'">'+t[1]+'</button>').join('');
+  if(inv){$('ldL').innerHTML=INV_L;$('ldR').innerHTML=INV_R;renderInventory()}
+  else{const [L,R]=bookPages();$('ldL').innerHTML=L;$('ldR').innerHTML=R}
+  $('ldtabs').innerHTML=G.office?'':[['inv','🎒','Bolsa'],['book','📖','Livro']].map(t=>'<button class="'+((inv?'inv':'book')===t[0]?'sel':'')+'" data-top="'+t[0]+'">'+t[1]+'<br><small>'+t[2]+'</small></button>').join('');
+  $('lddone').style.display=isLeader()?'':'none';
 }
 function bookClick(e){
-  const t=e.target.closest('button');if(!t)return;
+  const t=e.target.closest('button');if(!t||!$('ldbook').contains(t))return;
   const rd=STATE.rd,a=t.dataset.a;
-  if(t.dataset.tab){LB.tab=t.dataset.tab;renderBook();return}
-  if(t.id==='lddone'){
-    if(STATE.phase!=='leader'){closePanel();return}
-    const open=playerCities().some(c=>!cityMet(c));
-    if(open)UI.confirm('Há cidades com necessidades sem suprir. O que faltar vira dívida no fim da rodada. Concluir mesmo assim?',finishLeaderTurn,'Concluir');else finishLeaderTurn();
-    return;
-  }
+  if(t.dataset.top){LB.top=t.dataset.top;G.invSel=null;G.pendSel=null;renderBook();return}
+  if(t.dataset.tab){LB.tab=t.dataset.tab;LB.top='book';renderBook();return}
+  if(t.id==='lddone'){finishLeaderTurn();return}
   if(t.id==='ldclose'){closePanel();return}
+  if(LB.top==='inv')return;   // botões da bolsa têm seus próprios tratadores
   const c=WORLD.cities[LB.city];
   if(a==='city'){LB.city=+t.dataset.id}
-  else if(a==='dp'){deliver(c,t.dataset.r,t.dataset.r==='gold'?10:1);sfx('coin',0)}
-  else if(a==='dm')deliver(c,t.dataset.r,-(t.dataset.r==='gold'?10:1));
-  else if(a==='sup'){deliver(c,t.dataset.r,missingOf(c,t.dataset.r));sfx('coin',0)}
-  else if(a==='pf'||a==='ps'){const en=ec(c);if(!en.pch){en[a]=t.dataset.r;en.pct=portPct(en.pf,en.ps);en.pch=true}}
-  else if(a==='unroute'){rd.routes.splice(+t.dataset.i,1);rebuildCaravans()}
+  else if(a==='dp'){deliverAndRefresh(c,t.dataset.r,t.dataset.r==='gold'?10:1);sfx('coin',0)}
+  else if(a==='dm')deliverAndRefresh(c,t.dataset.r,-(t.dataset.r==='gold'?10:1));
+  else if(a==='sup'){deliverAndRefresh(c,t.dataset.r,missingOf(c,t.dataset.r));sfx('coin',0)}
+  else if(a==='pf'||a==='ps'){const en=ec(c);if(isLeader()&&!en.pch){en[a]=t.dataset.r;en.pct=portPct(en.pf,en.ps);en.pch=true}}
+  else if(a==='unroute'){if(isLeader()){rd.routes.splice(+t.dataset.i,1);rebuildCaravans();computeBuffs()}}
   else if(a==='route'){
     const A=WORLD.cities[LB.ra],B=WORLD.cities[LB.rb];
-    if(!A||!B||A===B)toast('Escolha duas cidades diferentes.',2000);
-    else if(rd.routes.some(r=>(r.a===A.id&&r.b===B.id)||(r.a===B.id&&r.b===A.id)))toast('Já existe uma rota entre elas.',2000);
-    else if(focusOf(A)===focusOf(B))toast('As duas produzem o mesmo recurso: a rota seria inútil.',2500);
-    else if(rd.actions<1)toast('Sem ações de líder.',2000);
-    else{rd.actions--;rd.routes.push({a:A.id,b:B.id});rebuildCaravans();sfx('win',0);toast('🛒 Duas caravanas partiram entre '+A.name+' e '+B.name+'.',3000)}
+    if(!isLeader())toast('Caravanas só no turno do líder.',2000);
+    else if(!A||!B||A===B)toast('Escolha duas cidades diferentes.',2000);
+    else if(rd.routes.some(r=>(r.a===A.id&&r.b===B.id)||(r.a===B.id&&r.b===A.id)))toast('Já existe uma caravana entre elas.',2000);
+    else if(focusOf(A)===focusOf(B))toast('As duas produzem o mesmo recurso: a caravana seria inútil.',2500);
+    else if(!Ledger.spend({gold:CARAVAN_COST}))toast('Ouro insuficiente (ou você está em dívida).',2500);
+    else{rd.routes.push({a:A.id,b:B.id});rebuildCaravans();sfx('win',0);toast('🛒 Duas caravanas partiram entre '+A.name+' e '+B.name+'. (−◉'+CARAVAN_COST+')',3500)}
   }
   else if(a==='cap'){
     const cost=capCost();
-    if(rd.lvl<CAP_MAX_LVL&&rd.actions>=1&&Ledger.spend(cost)){rd.actions--;rd.lvl++;sfx('win',0);toast('🏛 A capital evoluiu! Nível '+rd.lvl+': mais ações a partir da próxima rodada.',3500)}
+    if(isLeader()&&rd.lvl<CAP_MAX_LVL&&rd.actions>=1&&Ledger.spend(cost)){rd.actions--;rd.lvl++;sfx('win',0);toast('🏛 A capital evoluiu! Nível '+rd.lvl+': mais ações a partir da próxima rodada.',3500)}
   }
   renderBook();
 }
@@ -376,8 +421,17 @@ document.addEventListener('change',e=>{const s=e.target.closest('#ldbook select'
 // botão "Encerrar a rodada" no quadro da prefeitura
 function hallRoundAction(){
   const c=G.questCity;
-  if(STATE.phase==='leader'){closePanel();openBook();return}
+  if(STATE.phase==='leader'){closePanel();openBook('book','resumo');return}
   if(RAID.active){toast('Há um ataque em andamento! Defenda a cidade antes de encerrar a rodada.',3000);return}
-  UI.confirm('Encerrar a rodada '+STATE.round+'? As cidades produzem e cobram as necessidades; depois você decide no escritório.',()=>{closePanel();endRound(c)},'Encerrar');
+  const rnd=STATE.round<1?'a rodada 0 (preparação)':'a rodada '+STATE.round;
+  UI.confirm('Encerrar '+rnd+'? '+(STATE.round<1?'Nada é cobrado. ':'As cidades produzem e cobram as necessidades (o que faltar vira dívida). ')+'Depois você decide no escritório.',()=>{closePanel();endRound(c)},'Encerrar');
 }
 document.getElementById('qround').onclick=hallRoundAction;
+// início da partida: o jogador começa dentro da prefeitura da capital, de frente para o quadro
+function placeAtHall(){
+  const c=WORLD.home,o=c.hall;if(!o)return;
+  for(const d of[[0,0],[1,0],[-1,0],[0,1],[0,-1]]){
+    const x=o.x+d[0],z=o.z+d[1];probe(x,z,0.5,tH(x,z)+0.05,1.8,1.05);
+    if(!GR.blocked){const out=c.hallOut||{x:o.x,z:o.z+3};P.x=x;P.z=z;P.y=GR.g;P.vx=P.vz=P.vy=0;P.camY=P.y;P.yaw=Math.atan2(-(o.x-out.x),-(o.z-out.z));P.pitch=0;return}
+  }
+}

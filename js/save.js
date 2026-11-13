@@ -58,7 +58,7 @@ function applySave(d){
   G.won=!!f.won;G.god=!!f.god;G.infAmmo=!!f.infAmmo;G.noReload=!!f.noReload;
   // estado geral (recursos, rodada...)
   resetState();
-  const s=d.state||{};STATE.round=s.round||1;STATE.phase=s.phase||'commander';STATE.res=Object.assign({food:0,ore:0,wood:0},s.res||{});
+  const s=d.state||{};STATE.round=s.round===undefined?1:s.round;STATE.phase=s.phase||'commander';STATE.res=Object.assign({food:0,ore:0,wood:0},s.res||{});
   if(s.inv)STATE.inv=s.inv;if(s.dur)STATE.dur=s.dur;if(s.buffs)STATE.buffs=s.buffs;if(s.vendors)STATE.vendors=s.vendors;if(s.fishGone)STATE.fishGone=s.fishGone;
   STATE.portals=s.portals||[];STATE.portalSeq=s.portalSeq||0;STATE.portalDay=s.portalDay;STATE.legend=s.legend||{};STATE.burnt=s.burnt||{};STATE.raidDay=s.raidDay||0;STATE.raidLast=s.raidLast===undefined?-9:s.raidLast;
   if(!(s.portals&&s.portals.length)&&s.portalDay===undefined)STATE.portalDay=undefined;   // salvamento antigo: os portais nascem na hora

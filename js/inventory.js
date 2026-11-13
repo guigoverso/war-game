@@ -122,7 +122,7 @@ function flushPending(){
   const p=STATE.inv.pending;
   for(let i=p.length-1;i>=0;i--){const left=invAdd(p[i].id,p[i].n);if(left<=0)p.splice(i,1);else p[i].n=left}
 }
-function invChanged(){flushPending();syncOwned();refreshHotbar();if(G.panel==='inv')renderInventory()}
+function invChanged(){flushPending();syncOwned();refreshHotbar();if(G.panel==='ldbook'&&LB.top==='inv')renderInventory()}
 // a ampliação da bolsa é vendida no Armeiro (o preço vem de lá)
 function invUpgrade(cost){
   const inv=STATE.inv;if(inv.upgraded){toast('A bolsa já foi ampliada.',1500);return false}
@@ -303,14 +303,14 @@ function repairWeapon(i,c){
 }
 
 // ---------- tela da bolsa ----------
-function openInventory(){G.invSel=null;G.pendSel=null;openPanel('inv');renderInventory()}
+function openInventory(){openBook('inv')}   // a bolsa vive dentro do livro (rounds.js)
 function slotTitle(it,loc){
   const d=itemDef(it.id);let t=(d.weapon!==undefined?wName(d.weapon):d.name)+(it.n>1?' ×'+it.n:'');
   if(d.weapon!==undefined)t+=' — '+(weaponBroken(d.weapon)?'QUEBRADA':Math.round(durOf(d.weapon))+'%');
   return t;
 }
 function renderInventory(){
-  const inv=STATE.inv;if(!inv)return;
+  const inv=STATE.inv;if(!inv||!document.getElementById('invinfo'))return;
   $('invinfo').textContent='◉ '+P.coins+'  •  Bolsa: '+invUsed()+'/'+inv.size+(P.coins<0?'  •  ⚠ em dívida':'');
   const sel=G.invSel,isSel=(k,i)=>sel&&sel.k===k&&sel.i===i;
   const grid=(el,k,arr,cols,keyBase)=>UI.slotGrid(el,{cols,slots:arr,
@@ -366,4 +366,5 @@ function renderInventory(){
     });
     pe.appendChild(h);
   }
+  if(typeof renderDeposit==='function')renderDeposit();   // botão de depositar suprimentos no estoque (rounds.js)
 }

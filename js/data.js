@@ -28,10 +28,12 @@ const DATA={
 // use: {heal:N} cura instantânea; {regen:{total:N,secs:S}} cura ao longo do tempo. noSell: não pode ser vendido no armeiro.
 function defItems(list){for(const [id,name,icon,type,stack,value,desc,extra] of list)dataDefine('items',id,Object.assign({name,icon,type,stack,value,desc},extra||{}))}
 defItems([
-  ['sucata','Sucata de metal','🔩','material',20,6,'Peças de metal retorcidas. Serve de base para consertos e melhorias.'],
+  ['sucata','Sucata de metal','🔩','material',20,6,'Peças de metal retorcidas. Pode ser depositada no estoque como minério (livro, aba Bolsa).',{supply:{res:'ore',n:1}}],
   ['couro','Couro','🟤','material',20,5,'Couro curtido, útil para qualquer artesão.'],
-  ['carne','Carne crua','🥩','material',20,4,'Carne fresca. Pode ser cozida no futuro.'],
-  ['ervas','Ervas medicinais','🌿','material',20,3,'Folhas de cheiro forte, usadas em remédios.'],
+  ['carne','Carne crua','🥩','material',20,4,'Carne fresca. Pode ser cozida ou depositada no estoque como alimento.',{supply:{res:'food',n:3},price:7,shop:'store'}],
+  ['ervas','Ervas medicinais','🌿','material',20,3,'Folhas de cheiro forte, usadas em remédios. Também valem como alimento no estoque.',{supply:{res:'food',n:1}}],
+  ['tora','Tronco de madeira','🪵','material',20,6,'Madeira para as cidades. Deposite no estoque pelo livro (aba Bolsa).',{supply:{res:'wood',n:3},price:9,shop:'store'}],
+  ['minerio','Minério bruto','⛏','material',20,8,'Minério para as cidades. Deposite no estoque pelo livro (aba Bolsa).',{supply:{res:'ore',n:3},price:12,shop:'store'}],
   ['pele_lobo','Pele de lobo','🐺','trophy',10,12,'Pele grossa e cinzenta de lobo.'],
   ['presa','Presa de javali','🦷','trophy',10,14,'Presa curva e amarelada.'],
   ['seda','Seda de aranha','🕸','trophy',10,12,'Fios resistentes de aranha gigante.'],
@@ -110,9 +112,9 @@ defLoot('spider','Aranha',[{id:'seda',p:.7,min:1,max:2}]);
 defLoot('scorpion','Escorpião',[{id:'ferrao',p:.7}]);
 defLoot('boar','Javali',[{id:'presa',p:.7},{id:'carne',p:.6,min:1,max:2}]);
 // baú comum: itens valiosos (moeda antiga, joia) têm 10% cada; relíquia NUNCA (só em baús de dungeon)
-defLoot('chest','Baú',[{id:'sucata',p:.8,min:1,max:3},{id:'ervas',p:.6,min:1,max:3},{id:'bandagem',p:.5,min:1,max:2},{id:'kit_medico',p:.2},{id:'moeda_antiga',p:.10},{id:'joia',p:.10}]);
+defLoot('chest','Baú',[{id:'sucata',p:.8,min:1,max:3},{id:'ervas',p:.6,min:1,max:3},{id:'bandagem',p:.5,min:1,max:2},{id:'kit_medico',p:.2},{id:'moeda_antiga',p:.10},{id:'joia',p:.10},{id:'tora',p:.5,min:1,max:3},{id:'minerio',p:.4,min:1,max:2}]);
 // baú de dungeon (usado na Fase 3): as relíquias aparecem aqui
-defLoot('chest_dungeon','Baú de dungeon',[{id:'sucata',p:.7,min:2,max:4},{id:'kit_medico',p:.4},{id:'moeda_antiga',p:.3},{id:'joia',p:.25},{id:'reliquia',p:.35}]);
+defLoot('chest_dungeon','Baú de dungeon',[{id:'sucata',p:.7,min:2,max:4},{id:'kit_medico',p:.4},{id:'moeda_antiga',p:.3},{id:'joia',p:.25},{id:'reliquia',p:.35},{id:'tora',p:.5,min:1,max:3},{id:'minerio',p:.5,min:1,max:3}]);
 
 // valida uma tabela: toda entrada precisa de `name`; devolve a lista de problemas (vazia = ok)
 function validateData(){

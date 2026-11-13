@@ -138,7 +138,7 @@ function conquerCity(c){
 }
 
 // ---------- Painéis ----------
-const SCREENS=['start','shop','clinic','barracks','quests','pause','map','dead','victory','inv','store','cook','raid','ldbook'];
+const SCREENS=['start','shop','clinic','barracks','quests','pause','map','dead','victory','store','cook','raid','ldbook'];
 function openPanel(name){
   if(G.frozen)setFrozen(false);
   SCREENS.forEach(s=>$(s).classList.add('hidden'));$(name).classList.remove('hidden');
@@ -222,7 +222,7 @@ $('clinicbtns').addEventListener('click',e=>{
   const h=+b.dataset.h,cost=clinicCost(h,G.clinicCity);
   if(P.coins>=cost){P.coins-=cost;P.hp=Math.min(P.maxhp,P.hp+h);sfx('coin',0)}renderClinic();
 });$('bkclose').onclick=closePanel;$('qclose').onclick=closePanel;$('shopclose').onclick=closePanel;$('clinicclose').onclick=closePanel;$('mapclose').onclick=closePanel;$('vclose').onclick=closePanel;
-$('resume').onclick=()=>{document.querySelector('#pause h2').textContent='⏸ PAUSA';if(AC&&AC.state==='suspended')AC.resume();closePanel()};$('respawn').onclick=respawn;
+$('resume').onclick=()=>{document.querySelector('#pause h2').textContent='⏸ PAUSA';if(AC&&AC.state==='suspended')AC.resume();closePanel();if(G.introBook){G.introBook=false;openBook('book','resumo')}};$('respawn').onclick=respawn;
 function toggleMute(){G.muted=!G.muted;if(master)master.gain.value=G.muted?0:0.35;refreshCheats();toast(G.muted?'Som desligado':'Som ligado',1000)}
 function toggleInvis(){G.invis=!G.invis;if(G.invis){for(const e of ENEMIES)e.aggro=false}}
 function refreshCheats(){$('cNoWear').textContent='Desgaste das armas: '+(G.noWear?'desligado':'LIGADO');$('ledgerline').textContent='Rodada '+STATE.round+'  •  '+Ledger.summary()+(Ledger.anyDebt()?'  •  ⚠ EM DÍVIDA: compras bloqueadas':'');$('cInvis').textContent='Invisível: '+(G.invis?'LIGADO':'desligado');$('cMute').textContent='Som: '+(G.muted?'desligado':'LIGADO');$('cGod').textContent='Invencível: '+(G.god?'LIGADO':'desligado');$('cAmmo').textContent='Munição infinita: '+(G.infAmmo?'LIGADA':'desligada');$('cMag').textContent='Pente infinito (sem recarregar): '+(G.noReload?'LIGADO':'desligado')}
@@ -252,7 +252,7 @@ $('cLegend').onclick=()=>{const i=rollLegendary();if(i<0){toast('Todas já são 
 $('cKit').onclick=()=>{toast('Kit de cozinha: '+(invGive([['lambari',3],['tilapia',2],['truta',1],['sardinha',2],['peixe_dourado',1],['carne',6],['ervas',5]])||'(bolsa cheia)'),3000)};
 $('cVend').onclick=()=>{const c=G.curCity&&!G.curCity.kind?G.curCity:WORLD.home;getVendor(c).gold=0;toast('Vendedor de '+c.name+' sem ouro (teste)',2200)};
 $('cBuffs').onclick=()=>{for(const id of Object.keys(DATA.buffs))applyBuff(id);toast('Todos os bônus aplicados',1800)};
-$('invclose').onclick=closePanel;
+
 function buildMixer(){
   const box=$('mixrows');box.innerHTML='';
   for(const [k,label] of SND){
@@ -297,7 +297,8 @@ document.addEventListener('pointerlockchange',()=>{
 canvas.addEventListener('mousedown',e=>{
   if(!G.running)return;
   if(!G.locked&&!G.panel){try{canvas.requestPointerLock()}catch(_){}return}
-  if(G.panel||G.frozen||G.office)return;
+  if(G.office){if(e.button===0&&!G.panel&&nearBook())openBook();return}   // no escritório, clicar diante da mesa abre o livro
+  if(G.panel||G.frozen)return;
   if(e.button===0){if(WS.rod)fishLeft(true);else{G.fireHeld=true;G.firePressed=true}}   // com a vara, o botão esquerdo é o minigame
   else if(e.button===2){if(WS.rod)fishRight(true);else G.aiming=true}                  // e o botão direito lança/recolhe a linha
 });
@@ -329,8 +330,8 @@ window.addEventListener('keydown',e=>{
     return;
   }
   if(e.code==='KeyM'){if(G.panel==='map')closePanel();else if(!G.panel){drawBigMap();openPanel('map')}return}
-  if(G.panel==='shop'||G.panel==='clinic'||G.panel==='barracks'||G.panel==='quests'||G.panel==='store'||G.panel==='cook'||G.panel==='raid'||G.panel==='ldbook'){if(e.code==='KeyE'||e.code==='Escape')closePanel();return}
-  if(G.panel==='inv'){if(e.code==='KeyB'||e.code==='Escape'){if(!UI.closeTop())closePanel()}return}
+  if(G.panel==='shop'||G.panel==='clinic'||G.panel==='barracks'||G.panel==='quests'||G.panel==='store'||G.panel==='cook'||G.panel==='raid'){if(e.code==='KeyE'||e.code==='Escape')closePanel();return}
+  if(G.panel==='ldbook'){if(e.code==='KeyE'||e.code==='Escape'||e.code==='KeyB'){if(!UI.closeTop())closePanel()}return}   // livro: bolsa + decisões
   if(G.panel)return;
   if(G.office){if(e.code==='KeyE'&&!e.repeat)doInteract();return}   // no escritório só se anda e se abre o livro
   if(e.repeat)return;
@@ -373,7 +374,7 @@ function updateInteract(){
   for(const c of WORLD.camps){if(c.gone)continue;const d=Math.max(Math.abs(P.x-c.cx),Math.abs(P.z-c.cz));if(d<c.half+8&&d<bestD){bestD=d;G.curCity=c}
     if(c.firePos&&Math.hypot(P.x-c.firePos.x,P.z-c.firePos.z)<3.4){G.target={type:'fire',c};lines.push('[E] Fogueira: cozinhar')}
     if(c.cage&&!c.cage.opened&&Math.hypot(P.x-c.cage.dp.x,P.z-c.cage.dp.z)<2.8){G.target={type:'cage',c};lines.push(c.state==='cleared'?'[E] Abrir a grade e libertar o refém':'🔒 Grade trancada — elimine os bandidos')}}
-  if(G.office&&OFFICE.desk&&Math.hypot(P.x-OFFICE.desk.x,P.z-OFFICE.desk.z)<2.8){G.target={type:'book'};lines.push('[E] Abrir o livro de decisões')}
+  if(nearBook()){G.target={type:'book'};lines.push('[E] Abrir o livro de decisões')}
   {const pp=portalNear();if(pp){G.target={type:'portal',p:pp};lines.push('[E] Entrar no portal — dungeon nível '+pp.tier+' • recompensa: '+rewardText(pp))}}
   if(G.dg&&G.dgPad&&Math.hypot(P.x-G.dgPad.x,P.z-G.dgPad.z)<2.6){G.target={type:'dgexit'};lines.push('[E] Sair da dungeon (volta ao portal)')}
   for(const ch of WORLD.chests){if(ch.opened)continue;const d=Math.hypot(ch.x-P.x,ch.z-P.z);if(d<2.8&&Math.abs(ch.y-P.y)<2){G.target={type:'chest',ch};lines.push(ch.lockedBy&&ch.lockedBy.state!=='cleared'?'🔒 Baú trancado — elimine os bandidos':'[E] Abrir baú')}}
@@ -618,7 +619,7 @@ async function startGame(creative,loadData){
     msg('Calculando rotas...');await tick();buildNav();initWeapons();buildViewmodels(camera);initFx();initSky();initDayNight();populateCities();populateWild();placePlayerHome();
     syncOwned();ensureEquipped();genFishSpots();
     if(loadData){applySave(loadData);applyFishGone();rebuildPortals();rebuildSmoke()}
-    else{spawnPortals();RAID.active=false;RAID.area=null}
+    else{spawnPortals();RAID.active=false;RAID.area=null;placeAtHall();G.introBook=true}   // partida nova: começa dentro da prefeitura (rodada 0) com o livro aberto no resumo
     refreshHotbar();refreshBuffs();fishClean();
     G.running=true;$('hud').classList.remove('hidden');initEconomy();rebuildCaravans();refreshRoundHud();if(STATE.phase==='leader')enterOffice();
     refreshCheats();
