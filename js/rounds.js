@@ -19,7 +19,8 @@ Hooks.on('resetState',()=>{STATE.phase='commander';STATE.rd={lvl:1,actions:1,cit
 const rbufOn=r=>!!(STATE.rd&&STATE.rd.rbuf&&STATE.rd.rbuf[r]);
 const debOn=r=>!!(STATE.rd&&STATE.rd.debuff&&STATE.rd.debuff[r]);   // debuff: faltou suprimento na rodada anterior
 // dívida em itens (o que faltou e ainda não foi pago) das cidades do jogador
-function cityItemDebt(){if(!STATE.rd||!STATE.rd.cities||typeof WORLD==='undefined')return false;return WORLD.cities.some(c=>c.owner==='player'&&STATE.rd.cities[c.id]&&STATE.rd.cities[c.id].debt&&Object.keys(STATE.rd.cities[c.id].debt).some(k=>STATE.rd.cities[c.id].debt[k]>0))}
+function cityItemDebt(){return false;   // (recursos não geram dívida)
+  /*if(!STATE.rd||!STATE.rd.cities||typeof WORLD==='undefined')return false;return WORLD.cities.some(c=>c.owner==='player'&&STATE.rd.cities[c.id]&&STATE.rd.cities[c.id].debt&&Object.keys(STATE.rd.cities[c.id].debt).some(k=>STATE.rd.cities[c.id].debt[k]>0))*/}
 const DEB_TXT={food:'soldados e pratos da taverna custam o dobro',ore:'armas, munição e conserto custam o dobro',wood:'missões pagam 80% menos; a loja cobra o dobro e compra por 50%'};
 // bônus de entrega: valor fixo, vale até o fim da rodada (ver seção 14 do design)
 addPriceMod('rbuf',(p,ctx)=>{
@@ -102,16 +103,13 @@ function endRound(city){
   else{
     const rebels=[];
     for(const c of pcs){
-      const e=ec(c),carry2={};if(!e.debt)e.debt={};
+      const e=ec(c),carry2={};delete e.debt;   // recursos não geram dívida
       let short=false,over=false;
       for(const r of NEEDS){
         const need=needOf(c,r),cover=storedOf(c,r),sh=Math.max(0,need-cover);
         if(gotOf(c,r)>Math.max(0,need-carryOf(c,r)))over=true;   // entregou acima da meta: gera bônus (cidade próspera)
-        if(sh>0){short=true;e.debt[r]=(e.debt[r]||0)+sh;debuf[r]=true;rep.push('⚠ '+c.name+': faltaram '+sh+' de '+resName(r).toLowerCase()+' (dívida em itens; debuff nesta rodada).')}
-        consumeSupply(c,r,Math.min(need,cover));   // o que a cidade precisa é consumido (destruído); a necessidade da rodada seguinte é a mesma
-        const extra=storedOf(c,r);   // o que sobrar paga a dívida em itens e, se ainda sobrar, adianta a próxima rodada
-        if(extra>0&&e.debt[r]>0){const pay=Math.min(extra,e.debt[r]);consumeSupply(c,r,pay);e.debt[r]-=pay;if(e.debt[r]<=0)delete e.debt[r];rep.push('✔ '+c.name+' pagou '+pay+' de '+resName(r).toLowerCase()+' da dívida.')}
-        const left=storedOf(c,r);if(left>0)carry2[r]=left;
+        if(sh>0){short=true;debuf[r]=true;rep.push('⚠ '+c.name+': faltaram '+sh+' de '+resName(r).toLowerCase()+' (debuff nesta rodada; a necessidade continua a mesma).')}
+        consumeSupply(c,r,Math.min(need,cover));   // o que a cidade precisa é consumido (destruído); a necessidade da rodada seguinte é a mesma        const left=storedOf(c,r);if(left>0)carry2[r]=left;
       }
       e.got={};e.carry=carry2;
       // humor: descontente se faltou algo; próspera se tudo foi atendido e algo ficou acima da meta; senão contente
@@ -120,10 +118,10 @@ function endRound(city){
         if(e.ups>=2&&!c.home)rebels.push(c);
         else rep.push('😠 '+c.name+' está descontente: sem imposto e sem produção.'+(c.home?' (A capital não se rebela, mas sofre os mesmos efeitos.)':' Se faltar de novo na próxima rodada, ela se rebela!'));
       }else{
-        const tax=taxOf(c);if(tax>0){whOf(c).vault+=tax;rep.push(MOOD[e.mood].icon+' '+c.name+' está '+MOOD[e.mood].n.toLowerCase()+': imposto de ◉'+tax+' no cofre do armazém.')}
+        const tax=taxOf(c);if(tax>0){shOf().vault+=tax;rep.push(MOOD[e.mood].icon+' '+c.name+' está '+MOOD[e.mood].n.toLowerCase()+': imposto de ◉'+tax+' no cofre.')}
         const f=focusOf(c),amt=prodOf(c);
         if(hasRoute(c))rep.push('🛒 '+c.name+': a produção de '+resName(f).toLowerCase()+' ('+amt+') seguiu por caravana.');
-        else{const got=prodAdd(c,f,amt);rep.push('✔ '+c.name+' produziu '+got+' de '+resName(f).toLowerCase()+(f==='gold'?' (no cofre do armazém).':' (na reserva do armazém).'))}
+        else{const got=prodAdd(c,f,amt);rep.push('✔ '+c.name+' produziu '+got+' de '+resName(f).toLowerCase()+(f==='gold'?' (no cofre).':' (na reserva do armazém).'))}
       }
     }
     for(const c of rebels){rep.push('🔥 '+c.name+' SE REBELOU por duas rodadas sem suprimentos! Reconquiste-a.');rebelCity(c)}
@@ -145,7 +143,7 @@ function rebelCity(c){
   const e=ec(c);
   c.owner='enemy';c.state='idle';if(c.flagMat)c.flagMat.color.setHex(RANK_COL[c.rank]||0xcc2222);
   STATE.rd.routes=STATE.rd.routes.filter(r=>r.a!==c.id&&r.b!==c.id);rebuildCaravans();
-  e.wh=null;whOf(c);e.got={};e.carry={};e.debt={};e.ups=0;e.mood='upset';
+  e.wh=null;whOf(c);e.got={};e.carry={};e.ups=0;e.mood='upset';   // perde os suprimentos e a produção da cidade (o armazenamento e o cofre são seus)
   const n=3+Math.max(1,c.rank||1),pts=(c.walk||[]).filter(p=>Math.hypot(p.x-c.cx,p.z-c.cz)>4);
   for(let i=0;i<n&&pts.length;i++){const p=pts[Math.floor(Math.random()*pts.length)];spawnEnemy(c,i===n-1&&(c.rank||1)>=2?'hound':'soldier',p.x,p.z)}
 }function beginLeaderTurn(){
@@ -155,6 +153,7 @@ function rebelCity(c){
 function finishLeaderTurn(){
   for(const c of WORLD.cities){const e=ec(c);if(e.type==='port'&&e.nf){if(e.pf!==e.nf){const lost=moveProdToStore(c);if(lost&&c.owner==='player')toast('⚓ '+c.name+': a abundância mudou. '+lost+'.',4000)}e.pf=e.nf;e.ps=e.ns;e.pct=portPct(e.pf,e.ps)}delete e.nf;delete e.ns}   // a nova distribuição do porto só vale agora
   computeBuffs();STATE.phase='commander';
+  {const tgt=8/24,dlt=((tgt-DN.t)%1+1)%1;DN.days+=dlt;DN.t=tgt}   // o turno do comandante sempre começa às 8 da manhã (nunca volta no tempo)
   const n=Object.keys(STATE.rd.rbuf).length;
   closePanel();leaveOffice();
   toast('✔ Decisões tomadas. Turno do comandante!'+(n?' Bônus de entrega ativos: '+Object.keys(STATE.rd.rbuf).map(resIcon).join(' '):''),4500);
@@ -242,7 +241,11 @@ function leaveOffice(){
   const hint=$('officehint');if(hint)hint.style.display='none';
   if(!had){return}
   $('hud').classList.remove('hidden');ensureEquipped();
-  const c=WORLD.cities[STATE.rd.hallCity]||WORLD.home;
+  let c=WORLD.cities[STATE.rd.hallCity]||WORLD.home;
+  if(c.owner!=='player'){   // a cidade onde ele encerrou o turno se rebelou: vai para a cidade sua mais próxima
+    let best=WORLD.home,bd=1e9;for(const o of playerCities()){const d=Math.hypot(o.cx-c.cx,o.cz-c.cz);if(d<bd){bd=d;best=o}}
+    c=best;STATE.rd.hallCity=c.id;toast('A cidade se rebelou! Você foi levado para '+c.name+'.',4000);
+  }
   hallExit(c);
 }
 // ponto livre do lado de fora da prefeitura, de frente para a porta
@@ -369,7 +372,7 @@ function bookPages(){
       R='<h3>'+c.name+'</h3><p>'+typeLabel(c)+'<br>Humor: '+moodHtml(c)+'<br><small>'+MOOD_TXT[moodOf(c)]+(e.ups?' • rodadas seguidas em falta: '+e.ups+'/2':'')+'</small></p><table class="ldt">'+NEEDS.map(r=>{
         const need=needOf(c,r),st=storedOf(c,r),g=gotOf(c,r),cy=carryOf(c,r),miss=missingOf(c,r);
         const state=need===0&&st===0?'<span class="ldok">não precisa</span>':miss>0?'<span class="ldbad">falta '+miss+'</span>':(g>Math.max(0,need-cy)?'<span class="ldok">★ bônus</span>':'<span class="ldok">✔</span>');
-        return '<tr><td>'+resIcon(r)+' <b>'+resName(r)+'</b><br><small>precisa '+need+' • no armazém '+st+(cy?' (+'+cy+' da rodada anterior)':'')+(((e.debt||{})[r])?' • <b class="ldbad">dívida '+e.debt[r]+'</b>':'')+'</small></td><td>'+state+'</td></tr>';
+        return '<tr><td>'+resIcon(r)+' <b>'+resName(r)+'</b><br><small>precisa '+need+' • no armazém '+st+(cy?' (+'+cy+' da rodada anterior)':'')+''+'</small></td><td>'+state+'</td></tr>';
       }).join('')+'</table><p class="ldsm">Para suprir a cidade, entregue os itens no <b>armazém</b> (edifício da cidade). Entregar acima da necessidade dá o bônus da rodada; o excedente fica para a próxima.</p>'
         +'<p class="ldsm">Reserva de produção: '+(w.prod?itemDef(w.prod.id).icon+' '+itemDef(w.prod.id).name+' ×'+w.prod.n:'vazia')+' • Cofre: ◉ '+w.vault+'</p>';
       R+='<p class="ldsm">Abundância (do mais ao menos abundante nesta rodada):<br><b>'+abundHtml(c)+'</b></p>';
@@ -433,7 +436,7 @@ function hallRoundAction(c){
   if(STATE.phase==='leader'){closePanel();openBook('book','resumo');return}
   if(RAID.active){toast('Há um ataque em andamento! Defenda a cidade antes de encerrar a rodada.',3000);return}
   const rnd=STATE.round<1?'rodada 0, preparação':'rodada '+STATE.round;
-  UI.confirm('Encerrar o turno do comandante ('+rnd+')? '+(STATE.round<1?'Nada é cobrado. ':'As cidades produzem e cobram as necessidades (o que faltar vira dívida). ')+'Depois você decide no escritório.',()=>{closePanel();endRound(c)},'Encerrar');
+  UI.confirm('Encerrar o turno do comandante ('+rnd+')? '+(STATE.round<1?'Nada é cobrado. ':'As cidades produzem e cobram as necessidades (o que faltar deixa a cidade descontente e liga debuffs). ')+'Depois você decide no escritório.',()=>{closePanel();endRound(c)},'Encerrar');
 }
 
 // início da partida: o jogador começa dentro da prefeitura da capital, de frente para o quadro

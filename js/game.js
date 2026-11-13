@@ -541,7 +541,7 @@ function drawBigMap(){
 function noclipMove(dt,fw,st){
   const k=G.keys,sp=k.ShiftLeft?26:11,sy=Math.sin(P.yaw),cy=Math.cos(P.yaw),cp=Math.cos(P.pitch),sPt=Math.sin(P.pitch);
   P.x=clamp(P.x+((-sy*cp)*fw+cy*st)*sp*dt,2,W-2);P.z=clamp(P.z+((-cy*cp)*fw-sy*st)*sp*dt,2,W-2);
-  P.y=Math.max(SEA-3,P.y+(sPt*fw+((k.Space?1:0)-(k.KeyQ?1:0)))*sp*dt);
+  P.y=Math.max(-900,P.y+(sPt*fw+((k.Space?1:0)-(k.KeyQ?1:0)))*sp*dt);   // noclip: nenhuma colisão, inclusive abaixo do mapa (mundo de baixo)
   P.vx=P.vz=P.vy=0;P.ground=false;
 }
 function toggleNoclip(){

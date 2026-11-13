@@ -49,3 +49,10 @@ Use `?mute=1` (sem música). O modo criativo (`?auto=1`) tem botões de teste na
 - **Rebelião**: duas rodadas seguidas descontente → na seguinte a cidade **se rebela**: vira inimiga, perde o armazém, a rota de caravana e ganha uma guarnição. A **capital não se rebela** (só sofre os efeitos). Suprir tudo zera a contagem.
 - **Cidades que não são suas** têm humor simulado por sorte e nível (por enquanto só aparece no Resumo do livro).
 - Caravana só leva madeira, minério ou comida: rotas que não supririam nada são recusadas.
+## Correções (armazém compartilhado, horário, rebelião, noclip)
+- **Sem dívida de recursos**: faltar suprimento só liga debuffs e o humor "descontente"; a necessidade continua a mesma.
+- **Armazenamento e cofre compartilhados**: os 24 slots e o cofre de ouro são os mesmos em **todos** os armazéns (item guardado na cidade X aparece na Y). Em qualquer armazém de cidade sua dá para **gerenciar qualquer cidade sua** (botões "Gerenciar a cidade" no alto): suprimentos, produção e humor são de cada cidade; o imposto vai para o cofre único.
+- **Arrastar e soltar**: mover itens (bolsa ⇄ armazenamento ⇄ slots de suprimento) é arrastando. Slot errado é recusado (ex.: comida no slot de madeira); arrastar sobre outro item **troca** quando cabe. Os botões 1/5/tudo servem para mover em lote.
+- **Horário**: ao encerrar o turno do líder, o turno do comandante começa **às 8h**.
+- **Rebelião**: se o turno foi encerrado na cidade que se rebelou, o jogador vai para a **cidade sua mais próxima**.
+- **Noclip**: sem nenhuma colisão e pode descer abaixo do mapa até as camadas escondidas (Q desce). Encerrar o turno com noclip ligado leva ao escritório (antes parava em outro canto do mapa).
