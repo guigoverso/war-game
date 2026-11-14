@@ -85,3 +85,19 @@ O motor de decisões (cartão com 3 opções, custo, efeitos de 5 rodadas, execu
 - A. Punir o oficial — Perde metade dos soldados que recrutou, mas a felicidade de [Cidade] sobe.
 - B. Perdoar publicamente — Melhorar soldados custa 20% menos por 5 rodadas. Recrutar custa 20% mais no mesmo período. O descontentamento de [Cidade] sobe (não afeta a contagem de rebelião).
 - C. Fingir que nada aconteceu — Perde 30% do ouro armazenado e o descontentamento de [Cidade] sobe (não afeta a contagem de rebelião).
+
+## Política de consequência: Declaração de guerra (Fase 5)
+Não é sorteada: acontece quando uma facção vai declarar guerra ao jogador (massacre ou crimes repetidos) e **toma o lugar do sorteio** da rodada. O turno do líder só encerra depois de resolvida.
+- **Texto (massacre):** "Os mensageiros de [Facção] chegam à sua mesa com a notícia que ninguém queria ouvir: os soldados de [Cidade] foram massacrados. O conselho deles exige reparação e, se ela não vier, a guerra será declarada."
+- **A. Pagar reparação:** paga o valor da reparação (◉2000 para um primeiro crime em facção neutra) e a guerra não é declarada; a relação vai para Desfavorável.
+- **B. Pagar reparação e pedido público de desculpas:** paga o dobro; a relação vai para Neutro.
+- **C. Aceitar a declaração:** a guerra começa (soldados repostos).
+- Facção agressiva: recusa A e B. Facção pacífica nunca chega aqui.
+
+## Política de consequência: Pedido de reparação (Fase 5)
+Também não é sorteada: toma o lugar do sorteio quando uma facção ficou **inimiga** por um crime (soldados feridos, mas nem todos mortos) e não há guerra a caminho.
+- **Texto:** "Um emissário de [Facção] pede audiência. Depois dos tiros trocados em [Cidade], o conselho aceita deixar o assunto para trás mediante reparação. Sem ela, as cidades deles continuam fechadas para você."
+- **A. Pagar reparação:** paga o valor registrado; a relação vai para Desfavorável.
+- **B. Pagar reparação e pedido público de desculpas:** paga o dobro; a relação vai para Neutro.
+- **C. Recusar a reparação:** nada muda; a facção continua inimiga e volta a pedir em 3 rodadas.
+

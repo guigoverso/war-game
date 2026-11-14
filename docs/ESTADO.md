@@ -6,7 +6,7 @@ Mantenha curto: o histórico detalhado das regras fica em `docs/fase-4-testes.md
 ## Resumo
 - **Branch de trabalho:** `factions-update`
 - **Fase atual:** 4 (rodadas, prefeitura, livro, caravanas, políticas locais). As 10 políticas locais já estão implementadas.
-- **Save:** `SAVE_VERSION = 9`.
+- **Save:** `SAVE_VERSION = 11`.
 - **Última atualização:** 2026-11-13 (sessão na nuvem).
 
 ## Feito recentemente
@@ -25,6 +25,16 @@ Mantenha curto: o histórico detalhado das regras fica em `docs/fase-4-testes.md
 - Não testado em tempo real: a luta entre as tropas na disputa do portal dourado.
 - Balanceamento da economia (`ECON`) depende de teste jogando: se faltar tempo para suprir 4+ cidades, aumente a produção; se sobrar ouro, diminua o imposto ou suba os preços.
 - As duas últimas mudanças de raid foram só verificadas por sintaxe, **ainda não testadas no jogo**.
+
+## Facções (Fase 5)
+Decisões em `docs/fase-5-facoes.md`; correções anotadas em `docs/futuras-correcoes.md`. Guerra fica na Fase 6 (`docs/fase-6-guerra.md`).
+- **F0 feita:** valores decididos e rastreio de preços (efeitos somam em %, indicador "?" dentro da caixa de cada item, na venda e nas recompensas).
+- **F1 feita:** facções NPC pela semente, `c.fid`, bandeiras/uniformes/mapa com a cor da facção, `SAVE_VERSION = 10`. Falta testar jogando mais (conquista, save/load).
+- **F1b feita:** tela de criação antes do mundo, editor de bandeira (`js/flageditor.js`), aba Facções no livro, mapa com hover, bandeiras nas entradas e na prefeitura.
+- **F2 feita:** relações 0 a 10 com 6 status (aliado, favorável, neutro, desfavorável, inimiga, em guerra), preços por status, entrar em território inimigo, crime e reparação, aliança e guerra, `SAVE_VERSION = 11`. Invasão só em guerra.
+- **F4 feita:** doação de ouro/relíquia e rota comercial sobem a relação (cada uma gasta 1 ação do líder), decaimento em direção a 5.
+- **Mapa no caderno:** o mapa grande virou a aba **🗺 Mapa** do caderno (Bolsa, Livro, Mapa). **M** abre o caderno nessa aba (com o caderno aberto troca para o mapa; no mapa, fecha). A escolha de origem e destino da caravana também acontece ali. A tela de mapa antiga foi removida.
+- **Próximo:** F3 (relações entre as facções NPC) e missões do líder (sobem a relação).
 
 ## Próximo passo sugerido
 Testar no navegador as duas mudanças de raid (roteiro abaixo) e, depois, implementar a dificuldade do raid (pendência 1 a 3 acima).
