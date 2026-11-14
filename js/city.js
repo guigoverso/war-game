@@ -31,6 +31,18 @@ function addFlag(c,lx,ly,lz,ph){
   m.position.set(c.cx+lx+0.75,c.y+ly+ph-0.5,c.cz+lz);scene.add(m);c.flags.push(m);
   const t=new THREE.Mesh(GEO_BOX,c.flagMat);t.scale.set(0.5,0.35,0.08);t.position.set(c.cx+lx+1.65,c.y+ly+ph-0.35,c.cz+lz);scene.add(t);c.flags.push(t);   // ponta rasgada
 }
+// bandeira grande da facção (caixa fina com a textura; fica fora de c.flags, então não balança)
+function addBanner(c,lx,ly,lz,w,h,alongX){
+  const m=new THREE.Mesh(GEO_BOX,c.flagMat);m.scale.set(alongX?w:0.1,h,alongX?0.1:w);
+  m.position.set(c.cx+lx,c.y+ly,c.cz+lz);scene.add(m);(c.banners=c.banners||[]).push(m);return m;
+}
+// mastro com a bandeira da facção presa no topo, estendida para o lado dir (+1/-1) ao longo do eixo da bandeira
+function addMast(c,lx,lz,h,fw,fh,alongX,dir){
+  Bc(c,lx-0.12,0,lz-0.12,lx+0.12,h,lz+0.12,0x3a3a3a,true,{j:0});
+  Bc(c,lx-0.2,h,lz-0.2,lx+0.2,h+0.32,lz+0.2,0xe0b030,false,{j:0});   // ponteira dourada
+  const fx=alongX?lx+dir*(fw/2+0.12):lx,fz=alongX?lz:lz+dir*(fw/2+0.12);
+  addBanner(c,fx,h-fh/2-0.2,fz,fw,fh,alongX);
+}
 function lamp(c,x,z){
   Bc(c,x-0.1,0,z-0.1,x+0.1,3.2,z+0.1,0x2a2a2a,true,{j:0});
   Bc(c,x-0.3,3.2,z-0.3,x+0.3,3.8,z+0.3,0xffe9a0,false,{j:0});
@@ -222,6 +234,8 @@ function buildHall(c,f,D,doorU,rng,o){
   for(let k=0;k<6;k++){const u=bc-1.5+(k%3)*1.1,y=1.15+Math.floor(k/3)*0.75;FB(c,f,u,V-1.27,u+0.7,V-1.2,y,y+0.55,rng.pick([0xf2ecd0,0xe8dcc0,0xf4f0e0]),false,{j:0})}
   FB(c,f,bc-1.5,V-3.6,bc+1.5,V-2.6,0,1.0,0x5a3d22,true);
   const p=wx(bc,V-4.6);c.hall={x:p[0],z:p[1]};
+  {const pp=wx(doorU-1.2,-1.6),ns=(D==='N'||D==='S'),lx=pp[0]-c.cx,lz=pp[1]-c.cz;   // mastro com a bandeira da facção ao lado da porta da prefeitura
+   addMast(c,lx,lz,6.6,1.8,1.125,ns,1)}
   {const ho=wx(doorU+1,-2.4);c.hallOut={x:ho[0],z:ho[1]}}   // ponto do lado de fora da porta (o líder reaparece aqui ao sair do escritório)
   c.keepers=c.keepers||[];
   {const k=wx(bc,V-1.9);c.keepers.push({role:'clerk',x:k[0],z:k[1],yaw:face})}
@@ -329,7 +343,7 @@ function buildCity(c,rng){  const Hc=c.half;
   const mix=!ord&&!cha;
   if(cha||mix){c.pal.walls=ps.walls.slice();c.pal.roofs=ps.roofs.slice()}
   const propMax=cha?90:ord?24:70,treeN=cha?140:ord?30:110;
-  c.flagMat=new THREE.MeshLambertMaterial({color:c.home?0x2a6aff:(RANK_COL[c.rank]||0xcc2222)});
+  c.flagMat=new THREE.MeshLambertMaterial({color:0xffffff});facSetFlag(c);   // bandeira da facção dona da cidade
   const S=ord?2:cha?1:rng.int(1,3),P=rng.int(8,11);
   c.S=S;c.P=P;
   // áreas reservadas aos prédios especiais (cantos da praça): nenhuma rua nova pode atravessá-las
@@ -797,6 +811,11 @@ function buildCity(c,rng){  const Hc=c.half;
       }
     }
   }
+  // mastros com a bandeira da facção ladeando cada entrada (norte, sul, leste e oeste); as bandeiras apontam para o centro da entrada
+  for(const [ax,e] of[['z',-Hc-1],['z',Hc+1],['x',-Hc-1],['x',Hc+1]])
+    for(const [s,dir] of[[-S-1.4,1],[S+2.4,-1]]){
+      if(ax==='z')addMast(c,s,e+0.5,7.4,1.9,1.2,true,dir);else addMast(c,e+0.5,s,7.4,1.9,1.2,false,dir);
+    }
   // bandeiras na capela / praça
   // props de cobertura
   const cand=[];

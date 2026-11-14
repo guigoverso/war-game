@@ -164,7 +164,7 @@ async function genWorld(seed,status,dominant){
   const others=cities.filter(c=>c!==home).sort((a,b)=>Math.hypot(a.cx-home.cx,a.cz-home.cz)-Math.hypot(b.cx-home.cx,b.cz-home.cz));
   others.forEach((c,i)=>c.rank=i+1);
   for(const c of cities){c.name=cityName(rng,c.biome,used)}
-  WORLD.cities=cities;
+  WORLD.cities=cities;genFactions();   // facções NPC e dono de cada cidade (js/factions.js)
   // Regras por nível (rank): tier A = ordenada, B = mista, C = caótica
   //  1-2: sem muralha, caótica (10% mista) | 3-4: cerca, entre caótica e mista (mais mista no 4)
   //  5: muralha, qualquer tier (chances iguais) | 6: muralha, ordenada

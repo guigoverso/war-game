@@ -18,8 +18,8 @@ function definePolicy(d){
   else if(!d.options.some(o=>!o.cost))console.warn('política '+d.id+': ao menos uma opção deve ser gratuita (ou o jogador pode ficar preso)');
   POL.defs.push(d);POL.byId[d.id]=d;return d;
 }
-Hooks.on('resetState',()=>{STATE.pol={pending:null,fx:[],queue:[],cool:{},log:[]}});
-function normalizePol(){const p=STATE.pol||(STATE.pol={});if(!p.fx)p.fx=[];if(!p.queue)p.queue=[];if(!p.cool)p.cool={};if(!p.log)p.log=[];if(p.pending===undefined)p.pending=null}
+Hooks.on('resetState',()=>{STATE.pol={pending:null,extra:[],fx:[],queue:[],cool:{},log:[]}});   // extra: políticas devidas no mesmo turno, à espera da vez
+function normalizePol(){const p=STATE.pol||(STATE.pol={});if(!p.fx)p.fx=[];if(!p.queue)p.queue=[];if(!p.cool)p.cool={};if(!p.log)p.log=[];if(!p.extra)p.extra=[];if(p.pending===undefined)p.pending=null}
 
 // ---------- efeitos temporários ----------
 const polAll=(t,cid)=>(STATE.pol&&STATE.pol.fx||[]).filter(f=>f.t===t&&(f.c===undefined||f.c<0||cid===undefined||f.c===cid));
@@ -31,7 +31,7 @@ function polAddFx(spec){
   STATE.pol.fx.push(f);return f;
 }
 // preço: efeitos 'price' (ex.: lojas mais baratas). sel = tipo de preço (weapon, ammo, vest, upgrade, heal, buy, tavern, recruit, soldierup, repair) ou todos
-addPriceMod('pol',(p,ctx)=>p*polMul('price',ctx.city?ctx.city.id:undefined,ctx.kind),80);
+addPriceFx('pol',ctx=>polAll('price',ctx.city?ctx.city.id:undefined).filter(f=>polSel(f,ctx.kind==='healhp'?'heal':ctx.kind)).map(f=>({txt:f.txt,mul:(f.p&&f.p.mul)||1})),80);
 
 // ---------- fim de rodada: rendas por rodada e duração ----------
 Hooks.on('round',()=>{
@@ -51,7 +51,7 @@ function polCooling(key){return((STATE.pol.cool[key])||0)>STATE.round}
 function polCandidates(){
   const out=[];
   for(const d of POL.defs){
-    if(d.off||(d.cond&&!d.cond()))continue;
+    if(d.off||d.noRoll||(d.cond&&!d.cond()))continue;   // noRoll: política que só acontece por consequência (nunca sorteada)
     if(!d.city){if(!polCooling(d.id))out.push({d,city:null});continue}
     for(const c of playerCities())if((!d.cityOk||d.cityOk(c))&&!polCooling(d.id+':'+c.id))out.push({d,city:c});
   }
@@ -62,6 +62,8 @@ function polCandidates(){
 function rollPolicy(force){
   normalizePol();
   const P=STATE.pol;if(P.pending){polNoteUpdate();return}
+  {const due=typeof facDueList==='function'?facDueList():[];   // declarações de guerra e pedidos de reparação devidos: SÃO as políticas da rodada (sem sorteio); se houver mais de uma, uma de cada vez
+   if(due.length){P.pending=due[0];P.extra=due.slice(1);toast('📜 Há '+(due.length>1?due.length+' políticas':'uma política')+' a decidir ('+due.map(x=>POL.byId[x.pid].name.toLowerCase()).join(' e ')+'). Abra o livro na mesa (E).',5500);polNoteUpdate();return}}
   if(!force&&STATE.round<1)return;
   const rng=new RNG((WORLD.seed*131+STATE.round*7919+17)>>>0);
   if(!force&&!rng.chance(POL.chance))return;
@@ -94,6 +96,7 @@ function polNoteUpdate(){
 // ---------- janela do cartão ----------
 let polWin=null;
 const polCityOf=pd=>pd&&pd.city>=0?WORLD.cities[pd.city]:null;
+const polCost=(op,ctx)=>typeof op.cost==='function'?op.cost(ctx):op.cost;   // custo fixo ou calculado na hora (ex.: reparação da declaração de guerra)
 function polCtx(d,op,c,data){
   return{def:d,op,city:c,data,
     fx:spec=>polAddFx(Object.assign({pid:d.id,c:c?c.id:-1},spec)),
@@ -111,7 +114,7 @@ function showPolicy(){
   for(const op of d.options){
     const ty=POL_TYPE[op.type]||POL_TYPE.neutral,ctx=polCtx(d,op,c,pd.data);
     const why=op.can?op.can(ctx):null;   // pagar sem ter o ouro é permitido: gera dívida (ver polChoose)
-    const debt=op.cost&&!Ledger.canAfford(op.cost);
+    const oc=polCost(op,ctx),debt=oc&&!Ledger.canAfford(oc);
     const row=document.createElement('div');row.className='card';row.style.cssText='margin:6px 0;padding:8px 10px';
     row.innerHTML='<b>'+op.k+'. '+op.label+'</b> <span style="color:'+ty.col+';font-size:13px">['+ty.n+']</span><div style="font-size:14px;line-height:1.5;margin-top:3px">'+op.eff(c,pd.data)+(op.onStart?' <b>⏱</b>':'')+'</div>';
     const btn=UI.button('Escolher',why?'alt':'gold',()=>polChoose(op.k));btn.style.cssText='display:block;margin:8px 0 0';
@@ -128,18 +131,19 @@ function polChoose(k){
   const d=POL.byId[pd.pid],op=d&&d.options.find(o=>o.k===k),c=polCityOf(pd);if(!op)return;
   const ctx=polCtx(d,op,c,pd.data);
   const go=()=>{
-    if(op.cost){const dv=!Ledger.canAfford(op.cost);Ledger.borrow(op.cost);if(dv)toast('💳 Sem ouro suficiente: o saldo ficou em dívida.',3500)}   // pagar é sempre possível; sem saldo, vira dívida
+    const oc=polCost(op,ctx);if(oc){const dv=!Ledger.canAfford(oc);Ledger.borrow(oc);if(dv)toast('💳 Sem ouro suficiente: o saldo ficou em dívida.',3500)}   // pagar é sempre possível; sem saldo, vira dívida
     if(op.apply)op.apply(ctx);
     if(op.onStart)STATE.pol.queue.push({pid:d.id,k,city:pd.city,data:pd.data});
     const cd=op.cool!==undefined?op.cool:d.cool;   // recarga (rodadas) para a mesma política na mesma cidade; a opção pode ter a sua
     if(cd)STATE.pol.cool[d.id+(c?':'+c.id:'')]=STATE.round+cd;
     STATE.pol.log.push({round:STATE.round,pid:d.id,k,city:pd.city});if(STATE.pol.log.length>20)STATE.pol.log.shift();
-    STATE.pol.pending=null;
+    STATE.pol.pending=(STATE.pol.extra&&STATE.pol.extra.shift())||null;   // a próxima política devida no mesmo turno
     const line='📜 '+d.name+(c?' ('+c.name+')':'')+': '+op.k+'. '+op.label+'.';
     (STATE.rd.report||(STATE.rd.report=[])).push(line);
     polWin.close();sfx('win',0);toast(line,3500);polNoteUpdate();
     if(typeof renderBook==='function'&&G.panel==='ldbook')renderBook();
     refreshRoundHud();
+    if(STATE.pol.pending){toast('📜 Ainda há outra política a decidir.',3500);showPolicy()}
   };
   if(op.preview){   // resumo antes de confirmar (ex.: resultado da batalha calculado no turno do Líder)
     const w=UI.window({title:'📋 Resumo — '+op.label,width:480,z:60});
@@ -160,7 +164,7 @@ function polRunQueue(){
 // invoca uma política específica (modo criativo, só no turno do Líder). Se o jogo não atende às condições, ele é AJUSTADO para atender
 // (def.fixCond e def.fixCity). Devolve uma mensagem de erro ou null.
 function polTakeCity(c){   // transforma uma cidade inimiga em sua (só para o modo criativo)
-  c.owner='player';c.state='conquered';if(c.flagMat)c.flagMat.color.setHex(0x2a6aff);
+  c.owner='player';c.state='conquered';facSetFlag(c);facReskin();
   for(const e of c.enemies)if(e.alive){e.alive=false;e.gone=true;scene.remove(e.group)}c.aliveEnemies=0;
 }
 function polSummon(id){
@@ -187,7 +191,7 @@ function polSummon(id){
 function polInfoHtml(){
   normalizePol();const P=STATE.pol;let h='';
   const last=P.log.length?P.log[P.log.length-1]:null;
-  if(P.pending){const d=POL.byId[P.pending.pid],c=polCityOf(P.pending);h+='<p><b>📜 Política desta rodada:</b> '+(d?d.name:'?')+(c?' ('+c.name+')':'')+' — <i>a decidir</i></p>'}
+  if(P.pending){const d=POL.byId[P.pending.pid],c=polCityOf(P.pending);h+='<p><b>📜 Política desta rodada:</b> '+(d?d.name:'?')+(c?' ('+c.name+')':'')+' — <i>a decidir</i>'+(P.extra&&P.extra.length?' <small>(+'+P.extra.length+' depois: '+P.extra.map(x=>POL.byId[x.pid].name.toLowerCase()).join(', ')+')</small>':'')+'</p>'}
   else if(last&&last.round===STATE.round){const d=POL.byId[last.pid],op=d&&d.options.find(o=>o.k===last.k),c=last.city>=0?WORLD.cities[last.city]:null;
     h+='<p><b>📜 Política desta rodada:</b> '+(d?d.name:'?')+(c?' ('+c.name+')':'')+'<br><small>Escolha: '+last.k+'. '+(op?op.label:'')+(op?' — '+op.eff(c,last.data):'')+'</small></p>'}
   else h+='<p><b>📜 Política desta rodada:</b> nenhuma.</p>';

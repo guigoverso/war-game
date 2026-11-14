@@ -46,7 +46,9 @@ function migrateSave(d){
   if(d.v<7){d.v=7}   // v7: armazém por cidade (suprimentos viram itens); o estoque geral antigo de alimentos/minério/madeira é descartado
   if(d.v<8){d.v=8}   // v8: nível das cidades do jogador (rd.clv) e ações do líder gastas por tipo; ligações por estrada e litoral vêm da semente (ausentes = padrão)
   if(d.v<9){d.v=9}   // v9: motor de políticas (state.pol: pending, fx, queue, cool, log); ausente = nenhuma política ativa
-  // if(d.v<10){ ...ajustes...; d.v=10 }
+  if(d.v<10){d.v=10}   // v10: facções (state.fac = nome, cor e bandeira do jogador); as facções NPC vêm da semente (ausente = padrão)
+  if(d.v<11){d.v=11}   // v11: relações com as facções (state.rel: valor, aliança, guerra, reparação); ausente = todas neutras (5)
+  // if(d.v<12){ ...ajustes...; d.v=12 }
   return d;
 }
 
@@ -84,15 +86,18 @@ function applySave(d){
   STATE.portals=s.portals||[];STATE.portalSeq=s.portalSeq||0;STATE.portalDay=s.portalDay;STATE.legend=s.legend||{};STATE.burnt=s.burnt||{};STATE.raidDay=s.raidDay||0;STATE.raidLast=s.raidLast===undefined?-9:s.raidLast;
   if(!(s.portals&&s.portals.length)&&s.portalDay===undefined)STATE.portalDay=undefined;   // salvamento antigo: os portais nascem na hora
   if(s.pol)STATE.pol=s.pol;normalizePol();   // políticas: carta pendente, efeitos ativos, fila do turno do Comandante, recargas
+  if(s.rel)STATE.rel=s.rel;   // relações com as facções NPC
+  if(s.fac)STATE.fac=Object.assign(STATE.fac||{},s.fac);   // identidade do jogador (nome, cor, bandeira)
   if(s.rd)STATE.rd=s.rd;   // rodadas: tipos de cidade, entregas, rotas, nível da capital (o que faltar é completado por initEconomy)
   normalizeInv();refreshBuffs();   // inventário e durabilidade (salvamentos antigos usam os padrões)
   // cidades conquistadas
   for(const sc of d.cities||[]){
     const c=WORLD.cities[sc.id];if(!c||sc.owner!=='player'||c.owner==='player')continue;
-    c.owner='player';c.state='conquered';c.flagMat.color.setHex(0x2a6aff);
+    c.owner='player';c.state='conquered';facSetFlag(c);
     for(const e of c.enemies)if(e.alive){e.alive=false;e.gone=true;scene.remove(e.group)}
     c.aliveEnemies=0;
   }
+  refreshFactionLook();   // a identidade do jogador pode ter mudado: recolore as bandeiras
   // acampamentos
   for(const sc of d.camps||[]){
     const c=WORLD.camps.find(k=>k.id===sc.id);if(!c)continue;

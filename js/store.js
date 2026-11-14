@@ -22,10 +22,16 @@ function updateVendors(){
   }
 }
 // preço que o vendedor paga agora por UMA unidade
-function sellUnitPrice(id,c){
-  const d=itemDef(id),v=getVendor(c),base=d.value*(c.owner==='enemy'?0.5:1)*(typeof debOn==='function'&&debOn('wood')?0.5:1);   // debuff de madeira: a loja compra por 50% do valor
-  return Math.max(1,Math.round(base*Math.max(VENDOR_MIN_MUL,1-VENDOR_SAT*(v.stock[id]||0))));
+// o que muda o preço de venda, em lista (mesmo formato dos preços de compra; os efeitos SOMAM em %, ver priceMulOf)
+function sellEffects(id,c){
+  const o=[],st=getVendor(c).stock[id]||0;
+  if(c.owner==='enemy'&&c.fid){const st=relStatus(c.fid),p=REL_ST[st].price;if(p)o.push({txt:'Relação com '+facOf(c.fid).name+': '+REL_ST[st].n+(p<0?' (paga mais)':' (paga menos)'),mul:1-p})}   // espelha o desconto/acréscimo de compra
+  if(c.owner==='player'&&typeof debOn==='function'&&debOn('wood'))o.push({txt:'Faltou madeira na rodada passada (a loja compra por 50%)',mul:0.5});
+  if(st>0){const m=Math.max(VENDOR_MIN_MUL,1-VENDOR_SAT*st);if(m<1)o.push({txt:'O vendedor já tem '+st+' no estoque (o preço cai com o excesso)',mul:m})}
+  return o;
 }
+const sellReport=(c,id)=>{const rows=sellEffects(id,c).map(e=>({txt:e.txt,mul:e.mul,ks:['s']})),m=priceMulOf(rows);return{lo:m,hi:m,rows}};
+function sellUnitPrice(id,c){return Math.max(1,Math.round(itemDef(id).value*priceMulOf(sellEffects(id,c))))}
 // vende até `qty` unidades da bolsa; para quando o vendedor fica sem ouro. Devolve {sold, earned, broke}
 function sellItem(c,id,qty){
   const d=itemDef(id),v=getVendor(c);let sold=0,earned=0,broke=false;
@@ -49,7 +55,7 @@ function buyCards(kind,c){
 function renderStore(){
   const c=G.storeCity,kind=G.storeKind,v=getVendor(c),body=$('storebody');body.innerHTML='';
   $('storetitle').textContent=kind==='tavern'?'🍺 TAVERNA':'🛒 LOJA';
-  $('storeinfo').textContent='◉ '+P.coins+(kind==='store'?'  •  Ouro do vendedor: ◉'+Math.floor(v.gold)+' / '+vendorMax(c)+(c.owner==='enemy'?'  •  cidade inimiga paga metade':''):'')+(Ledger.anyDebt()?'  •  ⚠ em dívida: compras bloqueadas':'');
+  $('storeinfo').textContent='◉ '+P.coins+(kind==='store'?'  •  Ouro do vendedor: ◉'+Math.floor(v.gold)+' / '+vendorMax(c):'')+(Ledger.anyDebt()?'  •  ⚠ em dívida: compras bloqueadas':'');
   if(G.storeMode==='menu'){
     const p=document.createElement('p');p.textContent=kind==='tavern'?'— Sente-se! Tenho comida quente. O fogão lá no fundo é seu, se quiser cozinhar.':'— Bem-vindo à loja! O que deseja?';body.appendChild(p);
     body.appendChild(UI.button(kind==='tavern'?'🍲 Comprar comidas':'🛍 Comprar','gold',()=>{G.storeMode='buy';renderStore()}));
@@ -64,7 +70,7 @@ function renderStore(){
       const own=d.rod&&invCount(d.id)>0;
       const card=document.createElement('div');card.className='card';
       const left=(d.supply&&d.shop==='store'&&typeof shopLeft==='function')?shopLeft(c,d.id):null;   // estoque limitado pela produção da cidade
-      card.innerHTML='<b>'+d.icon+' '+d.name+'</b><div class="st">'+d.desc+'<br>Preço: <b>◉'+price+'</b>'+(left!==null?'<br>Em estoque: <b>'+left+'</b> (reabastece a cada rodada, conforme a produção da cidade)':'')+(own?'<br>Você já tem esta vara.':'')+'</div>';
+      card.innerHTML='<b>'+d.icon+' '+d.name+'</b><div class="st">'+d.desc+'<br>Preço: <b>◉'+price+'</b> '+priceTag(c,kind==='tavern'?'tavern':'buy')+(left!==null?'<br>Em estoque: <b>'+left+'</b> (reabastece a cada rodada, conforme a produção da cidade)':'')+(own?'<br>Você já tem esta vara.':'')+'</div>';
       const btn=UI.button('Comprar ◉'+price,'gold',()=>{
         if(Ledger.anyDebt()){toast('Você está em dívida: compras bloqueadas.',2000);return}
         const need=d.type==='weapon'?(STATE.inv.wbar.includes(null)||invRoomFor(d.id)>=1):invRoomFor(d.id)>=1;
@@ -92,7 +98,7 @@ function renderStore(){
   const s=G.storeSel!==null&&G.storeSel!==undefined?inv.slots[G.storeSel]:null;
   if(s){
     const d=itemDef(s.id),n=s.n,p=sellUnitPrice(s.id,c),st=v.stock[s.id]||0;
-    right.innerHTML='<div style="font-size:30px">'+d.icon+'</div><b>'+d.name+'</b> ×'+n+'<p class="st">'+d.desc+'<br>'+(d.noSell?'Este item não pode ser vendido.':'Preço agora: <b>◉'+p+'</b> cada (valor base ◉'+d.value+')'+(st?'<br>O vendedor já tem '+st+' no estoque: o preço cai com o excesso.':''))+'</p>';
+    right.innerHTML='<div style="font-size:30px">'+d.icon+'</div><b>'+d.name+'</b> ×'+n+'<p class="st">'+d.desc+'<br>'+(d.noSell?'Este item não pode ser vendido.':'Preço agora: <b>◉'+p+'</b> cada (valor base ◉'+d.value+') '+(sellEffects(s.id,c).length?whyTag(priceMulOf(sellEffects(s.id,c)),'','data-why="sell" data-c="'+c.id+'" data-i="'+s.id+'"',true):''))+'</p>';
     if(!d.noSell){
       const sell=(q)=>{const r=sellItem(c,s.id,q);if(r.sold>0){sfx('coin',0);toast('Vendido: '+r.sold+'× '+d.name+'  +◉'+r.earned+(r.broke?'  •  o vendedor ficou sem ouro':''),2200)}else if(r.broke)toast('O vendedor está sem ouro para este item.',2200);renderStore()};
       right.appendChild(UI.button('Vender 1','gold',()=>sell(1)));

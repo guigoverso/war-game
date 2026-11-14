@@ -1,7 +1,7 @@
 'use strict';
 // ---------- Estado do jogo, livro de recursos, preços e ganchos (Fase 0) ----------
 // Tudo o que precisa sobreviver a um salvamento e que não faz parte do mundo gerado pela semente fica em STATE (JSON puro).
-const SAVE_VERSION=9;   // ver as regras no topo de migrateSave (save.js)
+const SAVE_VERSION=11;   // ver as regras no topo de migrateSave (save.js)
 const STATE={version:SAVE_VERSION,round:0,phase:'commander',res:{food:0,ore:0,wood:0}};
 // zera o estado para uma partida nova; sistemas que guardam coisas em STATE (inventário, durabilidade...) assinam 'resetState'
 function resetState(){STATE.version=SAVE_VERSION;STATE.round=0;STATE.phase='commander';STATE.res={food:0,ore:0,wood:0};Hooks.emit('resetState')}
@@ -36,19 +36,30 @@ const Ledger={
 };
 
 // ---------- preço: uma função só, com modificadores encadeados ----------
-// Cada modificador recebe (preço, contexto) e devolve o novo preço. Contexto: {city, kind}.
+// Cada modificador explica seus efeitos (addPriceFx) e priceOf soma todos em %. Contexto: {city, kind}.
 // Cidade, buffs de entrega, eventos, reuniões e cidades evoluídas entram aqui no futuro sem mexer nas lojas.
 const PriceMods=[];
-function addPriceMod(id,fn,order){
-  const m={id,fn,order:order===undefined?100:order},i=PriceMods.findIndex(x=>x.id===id);
+function addPriceMod(id,fn,order,why){
+  const m={id,fn,why,order:order===undefined?100:order},i=PriceMods.findIndex(x=>x.id===id);
   if(i>=0)PriceMods[i]=m;else PriceMods.push(m);
   PriceMods.sort((a,b)=>a.order-b.order);
 }
+// modificador "explicado": why(ctx) devolve [{txt,mul}] só com os efeitos que valem agora; o preço soma todos eles (em %).
+// Assim o preço e a lista do popup "?" da loja saem da mesma conta (uma fonte só). Use este para todo modificador novo.
+const priceMulOf=l=>Math.max(0.1,1+l.reduce((s,e)=>s+(e.mul-1),0));   // os efeitos SOMAM em % (−10% e +100% = +90%), não se multiplicam; piso de −90%
+function addPriceFx(id,why,order){addPriceMod(id,(p,ctx)=>p*priceMulOf(why(ctx)),order,why)}
+function priceExplain(ctx){   // cada efeito ativo no contexto, na ordem de aplicação
+  ctx=ctx||{};const out=[];
+  for(const m of PriceMods){
+    if(m.why){for(const e of m.why(ctx))if(e.mul!==1)out.push(e)}
+    else{const f=m.fn(1000,ctx)/1000;if(Math.abs(f-1)>1e-9)out.push({txt:m.id,mul:f})}
+   }
+  return out;
+}
+const priceMul=ctx=>priceMulOf(priceExplain(ctx));
 function removePriceMod(id){const i=PriceMods.findIndex(x=>x.id===id);if(i>=0)PriceMods.splice(i,1)}
 function priceOf(base,ctx){
-  ctx=ctx||{};let p=base;
-  for(const m of PriceMods)p=m.fn(p,ctx);
-  return Math.max(1,Math.round(p));
+  return Math.max(1,Math.round(base*priceMulOf(priceExplain(ctx))));   // soma os efeitos de todos os modificadores (ver priceMulOf)
 }
 
 // ---------- rodada (contador; as regras de turno entram na Fase 4) ----------

@@ -17,7 +17,7 @@ const TAX_BASE=ECON.taxBase,TAX_RANK=ECON.taxRank;
 // ações do líder (Fase 4A): quanto cada decisão gasta por rodada. 0 = não gasta (hoje a caravana é só ouro; o porto e, no futuro, paz e guerra são grátis).
 // Para a caravana também gastar ação, troque caravan para 1. cityUp = custo base (× nível atual) de evoluir uma cidade que não é a capital; cityDisc = desconto nas lojas por nível dela.
 ECON.rebelUps=4;   // rodadas seguidas sem suprimentos até a rebelião: Descontente (1), (0), (−1) e então a rebelião
-ECON.act={caravan:0,capital:1,city:1};ECON.cityUp=200;ECON.cityDisc=0.05;
+ECON.act={caravan:1,capital:1,city:1,give:1,relic:1,ally:1};ECON.cityUp=200;ECON.cityDisc=0.05;   // F4: criar caravana, doar ouro, doar relíquia e fechar aliança gastam 1 ação do líder cada (evita subir a relação com várias facções num turno)
 const CAP_MAX_LVL=4,CITY_MAX_LVL=3;
 const TYPE_NAME={food:'Alimentos',ore:'Minérios',wood:'Madeira',leather:'Couro',gold:'Dinheiro',port:'Porto'};
 const CITY_COLS=[0xe0402a,0x2aa04a,0xe8b820,0x8a3ac8,0x20b0c8,0xe87820,0xd0409a,0x8a8a8a];   // cor de identidade de cada cidade (faixa da bandeira)
@@ -30,7 +30,7 @@ const canAct=kind=>isLeader()&&STATE.rd.actions>=actCost(kind);
 function spendAct(kind){if(!canAct(kind))return false;STATE.rd.actions-=actCost(kind);return true}
 const cityLvl=c=>(STATE.rd.clv&&STATE.rd.clv[c.id])||1;   // nível das cidades do jogador (a capital usa rd.lvl, que também dá ações)
 const cityUpCost=c=>({gold:ECON.cityUp*cityLvl(c)});
-addPriceMod('clv',(p,ctx)=>ctx.city&&ctx.city.owner==='player'&&!ctx.city.home?p*(1-ECON.cityDisc*(cityLvl(ctx.city)-1)):ctx.city&&ctx.city.home?p*(1-ECON.cityDisc*(STATE.rd.lvl-1)):p,70);   // cidade evoluída: desconto nas lojas dela
+addPriceFx('clv',ctx=>{const c=ctx.city;if(!c)return[];const lvl=c.owner==='player'&&!c.home?cityLvl(c):c.home?STATE.rd.lvl:1,m=1-ECON.cityDisc*(lvl-1);return m===1?[]:[{txt:'Cidade evoluída (nível '+lvl+')',mul:m}]},70);   // cidade evoluída: desconto nas lojas dela
 const rbufOn=r=>!!(STATE.rd&&STATE.rd.rbuf&&STATE.rd.rbuf[r]);
 const debOn=r=>!!(STATE.rd&&STATE.rd.debuff&&STATE.rd.debuff[r]);   // debuff: faltou suprimento na rodada anterior
 // dívida em itens (o que faltou e ainda não foi pago) das cidades do jogador
@@ -38,22 +38,25 @@ function cityItemDebt(){return false;   // (recursos não geram dívida)
   /*if(!STATE.rd||!STATE.rd.cities||typeof WORLD==='undefined')return false;return WORLD.cities.some(c=>c.owner==='player'&&STATE.rd.cities[c.id]&&STATE.rd.cities[c.id].debt&&Object.keys(STATE.rd.cities[c.id].debt).some(k=>STATE.rd.cities[c.id].debt[k]>0))*/}
 const DEB_TXT={leather:'coletes (seu e dos soldados) custam o dobro',food:'soldados e pratos da taverna custam o dobro',ore:'armas, munição e conserto custam o dobro',wood:'missões pagam 80% menos; a loja cobra o dobro e compra por 50%'};
 // bônus de entrega: valor fixo, vale até o fim da rodada (ver seção 14 do design)
-addPriceMod('rbuf',(p,ctx)=>{
-  const k=ctx.kind;
-  if(rbufOn('ore')&&(k==='weapon'||k==='ammo'||k==='repair'))return p*0.8;
-  if(rbufOn('food')&&k==='soldierup')return p*0.8;
-  if(rbufOn('leather')&&k==='vest')return p*0.8;
+addPriceFx('rbuf',ctx=>{   // cada efeito leva o texto que aparece no popup "?" das lojas
+  const k=ctx.kind,c=ctx.city,mine=!c||c.owner==='player',out=[],add=(txt,mul)=>out.push({txt,mul}),arms=k==='weapon'||k==='ammo'||k==='repair';
+  if(mine&&rbufOn('ore')&&arms)add('Minério entregue (bônus da rodada)',0.8);
+  if(mine&&rbufOn('food')&&k==='soldierup')add('Comida entregue (bônus da rodada)',0.8);
+  if(mine&&rbufOn('leather')&&k==='vest')add('Couro entregue (bônus da rodada)',0.8);
+  if(mine&&rbufOn('gold')&&k==='healhp')add('Ouro entregue (bônus da rodada)',0.8);
   // debuffs (faltou suprimento): preços sobem; a quantidade a suprir não muda
-  if(debOn('food')&&(k==='recruit'||k==='soldierup'))p*=2;
-  if(debOn('ore')&&(k==='weapon'||k==='ammo'||k==='repair'))p*=2;
-  if(debOn('leather')&&k==='vest')p*=2;                   // coletes (seu e dos soldados)
-  if(debOn('food')&&k==='tavern')p*=2;                 // pratos da taverna
-  if(debOn('wood')&&k==='buy')p*=2;                     // Loja
-  if(k==='heal'&&ctx.city&&moodOf(ctx.city)==='upset')p*=2;   // cidade descontente: itens de cura custam o dobro
-  if(ctx.city&&moodOf(ctx.city)==='rich')p*=0.9;           // cidade próspera: 10% de desconto nas lojas dela
-  return p;
+  if(mine&&debOn('food')&&(k==='recruit'||k==='soldierup'||k==='tavern'))add('Faltou comida na rodada passada',2);   // soldados e pratos da taverna
+  if(mine&&debOn('ore')&&arms)add('Faltou minério na rodada passada',2);
+  if(mine&&debOn('leather')&&k==='vest')add('Faltou couro na rodada passada',2);   // coletes (seu e dos soldados)
+  if(mine&&debOn('wood')&&k==='buy')add('Faltou madeira na rodada passada',2);   // Loja
+  if((k==='heal'||k==='healhp')&&c&&moodOf(c)==='upset')add('Cidade descontente (curas)',2);
+  if(c&&moodOf(c)==='rich')add('Cidade próspera',0.9);
+  return out;
 },60);
-const qPay=q=>Math.round(q.reward*(rbufOn('wood')?1.1:1)*(debOn('wood')?0.2:1));   // madeira entregue: missões pagam 10% a mais
+// recompensas das missões: efeitos em lista (mesmo formato dos preços) para o selo "?" do quadro; somam em %
+const rewardFx=()=>{const o=[];if(rbufOn('wood'))o.push({txt:'Madeira entregue (bônus da rodada)',mul:1.1});if(debOn('wood'))o.push({txt:'Faltou madeira na rodada passada',mul:0.2});return o};
+const rewardReport=()=>{const rows=rewardFx().map(e=>({txt:e.txt,mul:e.mul,ks:['r']})),m=priceMulOf(rows);return{lo:m,hi:m,rows}};
+const qPay=q=>Math.round(q.reward*priceMulOf(rewardFx()));
 
 // ---------- economia das cidades ----------
 const ec=c=>STATE.rd.cities[c.id];
@@ -178,7 +181,7 @@ function endRound(city){
 // rebelião: a cidade deixa de ser sua, perde o armazém e ganha uma guarnição que você precisa derrotar
 function rebelCity(c){
   const e=ec(c);
-  c.owner='enemy';c.state='idle';if(c.flagMat)c.flagMat.color.setHex(RANK_COL[c.rank]||0xcc2222);
+  c.owner='enemy';c.state='idle';facSetFlag(c);facReskin();   // volta à facção de origem
   STATE.rd.routes=STATE.rd.routes.filter(r=>r.a!==c.id&&r.b!==c.id);rebuildCaravans();
   e.wh=null;whOf(c);e.got={};e.carry={};e.ups=0;e.mood='upset';delete e.press;   // perde os suprimentos e a produção da cidade (o armazenamento e o cofre são seus)
   const n=3+Math.max(1,c.rank||1),pts=(c.walk||[]).filter(p=>Math.hypot(p.x-c.cx,p.z-c.cz)>4);
@@ -315,30 +318,112 @@ const GUARD_RANGE=26,GUARD_DMG=13;
 const guardFoe=(e,includeCity)=>e.alive&&!e.gone&&e.city&&e.city.kind&&e.city.kind!=='dungeon';   // bandidos, disputas e animais (nunca soldados de cidade nem a dungeon)
 function nearGuard(e,r){let best=null,bd=r;for(const car of CARAVANS)for(const g of car.guards||[]){if(!g.alive)continue;const d=Math.hypot(g.x-e.x,g.z-e.z);if(d<bd){bd=d;best=g}}return best}
 function damageGuard(g,dmg){if(!g.alive)return;g.hp-=dmg;burst(g.x,g.y+1,g.z,0x2a5ac0,5,4,0.1);if(g.hp<=0){g.alive=false;g.deadT=0}}
+// ---------- guardas de caravana: ronda, reação, tiro ----------
+// Os guardas ficam num CÍRCULO com a caravana no centro (GUARD_PATROL_R): dão pequenos passos, fazem rondas e olham para quem chega perto ou fala com eles.
+// Se o jogador atira em guardas de uma caravana que não é dele, TODOS os guardas dela viram hostis: vão atrás do jogador (até GUARD_CHASE_R do centro) e atiram.
+// Guardas mortos pelo jogador não ressurgem (a caravana fica `hit`); só ressurgem os que morreram para bandidos e animais.
+const GUARD_PATROL_R=7,GUARD_CHASE_R=38,GUARD_PLAYER_DMG=8;
+function guardPatrolPoint(g,car){
+  for(let t=0;t<8;t++){
+    let x,z;
+    if(Math.random()<0.55){const a=Math.random()*6.283,s=1+Math.random()*0.9;x=g.x+Math.cos(a)*s;z=g.z+Math.sin(a)*s}   // pequeno passo em volta de onde está
+    else{const a=Math.random()*6.283,rr=3.6+Math.random()*(GUARD_PATROL_R-3.6);x=car.x+Math.cos(a)*rr;z=car.z+Math.sin(a)*rr}   // ronda pelo círculo
+    if(Math.hypot(x-car.x,z-car.z)>GUARD_PATROL_R)continue;
+    if(tH(x,z)<SEA+0.5||Math.abs(tH(x,z)-tH(car.x,car.z))>1.6||Col.near(x-0.5,z-0.5,x+0.5,z+0.5).length)continue;   // nada de água, barranco, pedra ou a própria carroça
+    return[x,z];
+  }
+  return null;
+}
+const guardPose=g=>{g.model.arms[1].rotation.x=-1.2;g.model.arms[0].rotation.x=-1.0};   // arma erguida (o andar mexe nos braços)
+const guardFace=(g,tx,tz,dt,k)=>{g.yaw+=((Math.atan2(tx-g.x,tz-g.z)-g.yaw+Math.PI*3)%(Math.PI*2)-Math.PI)*Math.min(1,dt*(k||6))};
 function updateCaravanGuards(dt){
   for(const car of CARAVANS){
-    if(Math.hypot(car.x-P.x,car.z-P.z)>150)continue;   // só perto do jogador
+    const dcar=Math.hypot(car.x-P.x,car.z-P.z);
+    if(dcar>150)continue;   // só perto do jogador
+    if(car.hostile&&(P.dead||dcar>GUARD_CHASE_R+30))car.hostile=false;   // jogador morreu ou fugiu: acalmam
     for(const g of car.guards||[]){
       if(!g.alive){
         g.deadT+=dt;g.group.rotation.z=Math.min(1,g.deadT*3)*1.5;
         const seen=Math.hypot(g.x-P.x,g.z-P.z)<85&&losClear(camera.position.x,camera.position.y,camera.position.z,g.x,g.y+0.8,g.z);
-        if(!car.ambush&&g.deadT>6&&!seen){g.alive=true;g.hp=g.maxhp;g.x=g.homeX;g.z=g.homeZ;g.y=tH(g.x,g.z);g.group.rotation.z=0;g.group.rotation.y=g.yaw0;g.group.position.set(g.x,g.y,g.z)}   // ressurge fora da vista
+        if(!car.ambush&&!car.hit&&!g.byPlayer&&g.deadT>6&&!seen){g.alive=true;g.hp=g.maxhp;g.x=g.homeX;g.z=g.homeZ;g.y=tH(g.x,g.z);g.yaw=g.yaw0;g.state='idle';g.group.rotation.z=0;g.group.rotation.y=g.yaw0;g.group.position.set(g.x,g.y,g.z)}   // ressurge fora da vista (só se não foi o jogador)
         continue;
       }
-      g.cool-=dt;
-      let tg=null,bd=GUARD_RANGE;
-      for(const e of ENEMIES){if(!guardFoe(e))continue;const d=Math.hypot(e.x-g.x,e.z-g.z);if(d<bd&&losClear(g.x,g.y+1.5,g.z,e.x,e.y+(e.def.h||1.6)*0.6,e.z)){bd=d;tg=e}}
-      if(tg){
-        g.group.rotation.y=Math.atan2(tg.x-g.x,tg.z-g.z);
-        if(g.cool<=0){g.cool=0.7+Math.random()*0.5;
-          const ox=g.x+Math.sin(g.group.rotation.y)*0.5,oy=g.y+1.35,oz=g.z+Math.cos(g.group.rotation.y)*0.5;
-          tracer(ox,oy,oz,tg.x,tg.y+(tg.def.h||1.6)*0.6,tg.z,0x88ccff);sfx('rifle',bd);
-          if(Math.random()<0.75)damageEnemy(tg,GUARD_DMG,false,true,g);
+      g.cool-=dt;const px0=g.x,pz0=g.z;let moving=false;
+      let foe=null,bd=GUARD_RANGE;
+      for(const e of ENEMIES){if(!guardFoe(e))continue;const d=Math.hypot(e.x-g.x,e.z-g.z);if(d<bd&&losClear(g.x,g.y+1.5,g.z,e.x,e.y+(e.def.h||1.6)*0.6,e.z)){bd=d;foe=e}}
+      const dpl=Math.hypot(P.x-g.x,P.z-g.z);
+      if(car.hostile&&!P.dead&&!G.invis){   // reação: vai para cima do jogador e atira
+        guardFace(g,P.x,P.z,dt,10);
+        if(dpl>12&&Math.hypot(g.x-car.x,g.z-car.z)<GUARD_CHASE_R){steer(g,P.x,P.z,3.4,dt,0.3,1.8,1.05);faceMove(g,px0,pz0,dt);moving=true;g.phase+=dt*12}
+        if(dpl<30&&g.cool<=0&&losClear(g.x,g.y+1.5,g.z,P.x,P.y+1.2,P.z)){
+          g.cool=1.1+Math.random()*0.6;
+          const ox=g.x+Math.sin(g.yaw)*0.5,oy=g.y+1.35,oz=g.z+Math.cos(g.yaw)*0.5;
+          tracer(ox,oy,oz,P.x,P.y+1.2,P.z,0xffaa66);sfx('rifle',dpl);
+          if(Math.random()<0.6)damagePlayer(GUARD_PLAYER_DMG,g.x,g.z);
         }
-      }else g.group.rotation.y+=((g.yaw0-g.group.rotation.y+Math.PI*3)%(Math.PI*2)-Math.PI)*Math.min(1,dt*3);
+      }else if(foe){   // atira em bandidos e animais que chegam perto
+        guardFace(g,foe.x,foe.z,dt,12);
+        if(g.cool<=0){g.cool=0.7+Math.random()*0.5;
+          const ox=g.x+Math.sin(g.yaw)*0.5,oy=g.y+1.35,oz=g.z+Math.cos(g.yaw)*0.5;
+          tracer(ox,oy,oz,foe.x,foe.y+(foe.def.h||1.6)*0.6,foe.z,0x88ccff);sfx('rifle',bd);
+          if(Math.random()<0.75)damageEnemy(foe,GUARD_DMG,false,true,g);
+        }
+      }else if(g.lookT>0){g.lookT-=dt;guardFace(g,P.x,P.z,dt,8)}   // o jogador está falando com ele: olha para o jogador e para
+      else{
+        // ronda: ora parado (olhando para quem chega perto), ora caminhando devagar até um ponto do círculo
+        if(g.state==='walk'){
+          g.walkT-=dt;const dd=steer(g,g.tx,g.tz,0.9,dt,0.3,1.8,1.05);faceMove(g,px0,pz0,dt);moving=true;g.phase+=dt*5;
+          if(dd<0.4||g.walkT<=0){g.state='idle';g.timer=2+Math.random()*6}
+        }else{
+          g.timer=(g.timer===undefined?Math.random()*4:g.timer)-dt;
+          if(dpl<6)guardFace(g,P.x,P.z,dt,3);
+          else if(Math.hypot(g.x-car.x,g.z-car.z)>GUARD_PATROL_R){g.tx=car.x;g.tz=car.z;g.state='walk';g.walkT=10}   // saiu do círculo (empurrado): volta
+          if(g.timer<=0){const p=guardPatrolPoint(g,car);if(p){g.tx=p[0];g.tz=p[1];g.state='walk';g.walkT=9}else g.timer=3}
+        }
+      }
+      if(moving)animWalk(g.model,g.phase,0.55);else g.model.legs.forEach(l=>l.rotation.x*=0.8);
+      guardPose(g);moveY(g,dt,0.3,1.8,1.05);rescueStuck(g,dt,0.3,1.8);
+      g.group.position.set(g.x,g.y,g.z);g.group.rotation.y=g.yaw;
     }
   }
 }
+// ---------- saque, rota destruída e carroças que ficam até o fim do turno ----------
+ECON.loot={items:6,coins:40,perRank:15};   // saque: unidades de um dos produtos da rota + ◉ (base + por nível da cidade dona)
+function destroyRoute(r){   // a rota acaba na hora; as carroças ficam na estrada até o turno acabar
+  const rd=STATE.rd,i=rd.routes.indexOf(r);if(i>=0)rd.routes.splice(i,1);
+  for(const c of CARAVANS)if(c.r===r)c.doomed=true;
+  computeBuffs();
+}
+function lootCaravan(car){
+  if(!car||car.looted||car.city.owner==='player'||car.guards.some(g=>g.alive))return;
+  const r=car.r,goods=r?[focusOf(WORLD.cities[r.a]),focusOf(WORLD.cities[r.b])]:[focusOf(car.city)],L=ECON.loot;
+  const res=goods[Math.floor(Math.random()*goods.length)],coins=L.coins+L.perRank*Math.max(1,car.city.rank||1);let txt;
+  if(res==='gold'){addCoins(coins*2);txt='◉'+coins*2}   // o produto é ouro: só moedas
+  else{const id=res==='food'?FOOD_TYPES[Math.floor(Math.random()*FOOD_TYPES.length)]:RES_ITEM[res];invGive([[id,L.items]]);addCoins(coins);txt=L.items+'× '+itemDef(id).icon+' '+itemDef(id).name+' e ◉'+coins}
+  car.looted=true;car.doomed=true;facCaravanCrime(car);   // saquear também é crime contra a facção
+  if(r)destroyRoute(r);
+  sfx('coin',0);toast('🏴 Caravana saqueada: '+txt+'. Ela está destruída e some quando o turno acabar.',5500);
+}
+function caravanAttacked(g){   // o jogador feriu um guarda de caravana
+  const car=g.caravan;g.byPlayer=true;car.hit=true;
+  if(car.city.owner!=='player')car.hostile=true;   // os guardas de uma caravana de outra facção reagem
+  facCaravanCrime(car);
+}
+function removeCaravan(m){
+  scene.remove(m.group);for(const b of m.cols||[])Col.remove(b);
+  for(const g of m.guards||[]){g.alive=false;g.gone=true;scene.remove(g.group);const i=NPCS.indexOf(g);if(i>=0)NPCS.splice(i,1);const j=g.city&&g.city.npcs?g.city.npcs.indexOf(g):-1;if(j>=0)g.city.npcs.splice(j,1)}   // os guardas são NPCs reais: saem junto
+}
+// reconstruir as caravanas preserva as "condenadas" (rota desfeita ou saqueada): elas só somem quando o turno do comandante acaba
+function clearCaravans(){
+  const keep=CARAVANS.filter(m=>m.doomed);
+  for(const m of CARAVANS)if(!m.doomed)removeCaravan(m);
+  CARAVANS.length=0;CARAVANS.push(...keep);
+}
+function purgeDoomedCaravans(){
+  for(const m of CARAVANS.filter(c=>c.doomed))removeCaravan(m);
+  const keep=CARAVANS.filter(c=>!c.doomed);CARAVANS.length=0;CARAVANS.push(...keep);
+}
+Hooks.on('round',purgeDoomedCaravans);
 
 function refreshRoundHud(){
   polNoteUpdate();   // notificação "política a decidir"
@@ -350,7 +435,6 @@ function refreshRoundHud(){
 
 // ---------- caravanas decorativas (paradas na estrada entre as cidades de uma rota) ----------
 const CARAVANS=[];
-function clearCaravans(){for(const m of CARAVANS)scene.remove(m.group);CARAVANS.length=0}
 // ponto NA ESTRADA, longe das cidades, em terreno plano e livre de blocos (árvores, pedras, casas); devolve também a direção da estrada (yaw)
 function roadSpot(ax,az,bx,bz,t){
   const x0=ax+(bx-ax)*t,z0=az+(bz-az)*t,toB=Math.atan2(bx-ax,bz-az);
@@ -401,22 +485,26 @@ function roadSpot(ax,az,bx,bz,t){
   bx(HR,0.7,0.8,1.5,0,1.15,3.0);bx(HR,0.4,0.7,0.5,0,1.65,3.9);bx(0x2a1a10,0.42,0.2,0.2,0,1.5,4.2);   // cavalo (corpo, cabeça, focinho)
   for(const sx of[-0.22,0.22])for(const sz of[2.5,3.5])bx(0x5a3a22,0.16,0.8,0.16,sx,0.4,sz);
   bx(0x2a1a10,0.06,2.8,0.06,0.9,2.3,-1.4);                        // mastro da bandeira
-  bx(c.flagMat?c.flagMat.color.getHex():0x2a6aff,1.1,0.4,0.05,1.45,3.5,-1.4);bx(CITY_COLS[c.id%CITY_COLS.length],1.1,0.35,0.05,1.45,3.1,-1.4);   // bandeira da cidade (azul) com a faixa de identidade
+  bx(facColor(c.fid)||0x2a6aff,1.1,0.4,0.05,1.45,3.5,-1.4);bx(CITY_COLS[c.id%CITY_COLS.length],1.1,0.35,0.05,1.45,3.1,-1.4);   // bandeira da cidade (azul) com a faixa de identidade
   let gy=tH(x,z);for(let s=-3.5;s<=5;s+=1.5)gy=Math.max(gy,tH(x+Math.sin(yaw)*s,z+Math.cos(yaw)*s));   // não fica enterrada em declives
   g.position.set(x,gy,z);g.rotation.y=yaw;
   const root=new THREE.Group();root.add(g);
-  // 3 guardas da cidade/facção em volta da caravana: ficam parados, de guarda, olhando para fora
-  const guards=[];
+  const car={group:root,x,z,yaw,guards:[],city:c,cols:[]};
+  // colisão: carroça e cavalo são sólidos (caixas alinhadas aos eixos que cobrem o retângulo girado)
+  {const sn=Math.sin(yaw),cs=Math.cos(yaw);
+   const seg=(lz,hw,hl,h)=>{const wx=x+lz*sn,wz=z+lz*cs,rx=Math.abs(hw*cs)+Math.abs(hl*sn),rz=Math.abs(hw*sn)+Math.abs(hl*cs),b={x0:wx-rx,y0:gy,z0:wz-rz,x1:wx+rx,y1:gy+h,z1:wz+rz};Col.add(b);car.cols.push(b)};
+   seg(0,0.9,1.5,2.7);seg(3.1,0.4,1.1,1.5)}
+  // 3 guardas da cidade/facção em volta da caravana: NPCs reais (dá para atirar neles), parados, olhando para fora
   for(const [ox,oz] of[[-3.1,1.2],[3.1,1.2],[0,-3.6]]){
     const gx=x+ox*Math.cos(yaw)+oz*Math.sin(yaw),gz=z-ox*Math.sin(yaw)+oz*Math.cos(yaw);
-    const m=buildHuman({skin:SKINS[(c.id*3+Math.floor(ox+4))%SKINS.length],shirt:c.flagMat?c.flagMat.color.getHex():0x2a6aff,pants:0x2a2a3a,hairStyle:'helmet',hat:0x8a9ab0,gun:{len:0.75},scarf:CITY_COLS[c.id%CITY_COLS.length]});
-    m.arms[1].rotation.x=-1.2;m.arms[0].rotation.x=-1.0;
     if(Math.abs(tH(gx,gz)-tH(x,z))>1.4||tH(gx,gz)<SEA+0.5||Col.near(gx-0.5,gz-0.5,gx+0.5,gz+0.5).length)continue;   // não põe guarda dentro de pedra/árvore
-    m.group.position.set(gx,tH(gx,gz),gz);m.group.rotation.y=Math.atan2(gx-x,gz-z);root.add(m.group);
-    guards.push({kind:'guard',alive:true,x:gx,z:gz,y:tH(gx,gz),eye:1.6,crouch:false,speed:1,hp:70,maxhp:70,model:m,group:m.group,homeX:gx,homeZ:gz,yaw0:m.group.rotation.y,cool:Math.random()*1.5,deadT:0,city:{kind:'guard',rank:1}});
+    const n=spawnNpc(c,{role:'guard',x:gx,z:gz,y:tH(gx,gz),yaw:Math.atan2(gx-x,gz-z),stationary:true});
+    root.add(n.group);   // a caravana inteira some e aparece junto
+    n.group.position.set(gx,n.y,gz);n.group.rotation.y=n.yaw;   // updateNpc não roda para guarda de caravana, então a posição é dada aqui
+    Object.assign(n,{caravan:car,hp:70,maxhp:70,homeX:gx,homeZ:gz,yaw0:n.group.rotation.y,cool:Math.random()*1.5,deadT:0});
+    car.guards.push(n);
   }
-  scene.add(root);
-  const m={group:root,x,z,guards,city:c};CARAVANS.push(m);return m;
+  scene.add(root);CARAVANS.push(car);return car;
 }
 function rebuildCaravans(){
   clearCaravans();
@@ -428,13 +516,14 @@ function rebuildCaravans(){
   }
 }function renderDeposit(){const el=document.getElementById('invdeposit');if(el)el.innerHTML='<p class="st">Madeira, minério e comida são itens: entregue-os à cidade no <b>armazém</b>.</p>'}
 // ---------- livro: bolsa + livro do prefeito (tecla B) ----------
-const LB={top:'book',tab:'resumo',city:null,ra:null,rb:null};
-const LSUBS=[['resumo','📜 Resumo'],['cidades','🏘 Cidades'],['caravanas','🛒 Caravanas'],['capital','🏛 Capital']];
+const LB={top:'book',tab:'resumo',city:null,ra:null,rb:null,fac:0};
+const mapOpen=()=>G.panel==='ldbook'&&LB.top==='map';   // o mapa agora é uma aba do caderno (tecla M)
+const LSUBS=[['resumo','📜 Resumo'],['cidades','🏘 Cidades'],['facs','🏴 Facções'],['caravanas','🛒 Caravanas'],['capital','🏛 Capital']];
 const INV_L='<h3>🎒 Bolsa</h3><div id="invinfo" class="ldsm"></div><b class="st">Armas e vara — teclas 1–6</b><div id="invwbar"></div><b class="st" style="display:block;margin-top:8px">Curas — teclas 7–9</b><div id="invcbar"></div><b class="st" style="display:block;margin-top:8px">Bolsa</b><div id="invgrid"></div>';
 const INV_R='<div id="invdetail"></div><div id="invpending"></div><div id="invdeposit"></div>';
 function openBook(top,tab){
-  if(G.office)top='book';
-  if(top)LB.top=top;if(tab)LB.tab=tab;
+  if(G.office&&top==='inv')top='book';   // no escritório não há bolsa (o mapa e o livro sim)
+  LB.top=top||'book';if(tab)LB.tab=tab;   // sem pedido explícito abre no Livro (mesmo que tenha sido fechado no Mapa)
   if(LB.city===null||!WORLD.cities[LB.city]||WORLD.cities[LB.city].owner!=='player')LB.city=WORLD.home.id;
   if(LB.top==='inv'){G.invSel=null;G.pendSel=null}
   openPanel('ldbook');renderBook();
@@ -452,6 +541,16 @@ const MOOD_TXT={rich:'imposto ×1,5, +1 de produção e 10% de desconto nas loja
 function typeLabel(c){const e=ec(c);return e.type==='port'?'⚓ Porto (produz '+resIcon(e.pf)+' '+resName(e.pf).toLowerCase()+')':resIcon(e.type)+' '+TYPE_NAME[e.type]}
 const needsLine=c=>NEEDS.map(r=>resIcon(r)+needOf(c,r)).join(' ');
 const routeName=r=>WORLD.cities[r.a].name+' ⇄ '+WORLD.cities[r.b].name;
+// texto do mouse sobre o 🛒 de uma cidade na aba Facções: de onde sai, para onde vai e o efeito
+function routeTip(r){
+  if(!r)return '';
+  const A=WORLD.cities[r.a],B=WORLD.cities[r.b],ic=x=>resIcon(x)+' '+resName(x).toLowerCase();
+  const eff=(X,Y)=>{const get=focusOf(Y);
+    if(NEEDS.includes(get)){const cur=ec(X).pct[get]||0;return '• '+X.name+' recebe '+ic(get)+(cur?': necessidade de hoje '+cur+'% → '+(tradePct(cur)?tradePct(cur)+'%':'some'):' (hoje ela já não precisa)')}
+    if(get==='gold'&&focusOf(X)!=='gold')return '• '+X.name+' recebe ouro: +◉'+Math.round(prodOf(Y)*ECON.tradeGold)+' por rodada no cofre';
+    return '• '+X.name+' não ganha nada com o produto de '+Y.name};
+  return '🛒 Caravana: '+A.name+' → '+B.name+'\n'+eff(A,B)+(B.owner==='player'?'\n'+eff(B,A):'');
+}
 const leaderOnly=()=>isLeader()?'':'<p class="ldsm">🔒 Esta decisão só pode ser tomada no <b>turno do líder</b> (no escritório).</p>';
 function bookPages(){
   const rd=STATE.rd,pcs=playerCities();
@@ -496,12 +595,42 @@ function bookPages(){
       }
     }    return[L,R];
   }
+  if(LB.tab==='facs'){   // lista de facções à direita; resumo da escolhida à esquerda
+    const fl=[facOf(0)].concat(WORLD.factions||[]),f=facOf(LB.fac)||fl[0],cs=facCities(f.id);
+    const rt=c=>rd.routes.find(r=>r.a===c.id||r.b===c.id);
+    let relH='';
+    if(!f.player){
+      const rl=relOf(f.id),st=relStatus(f.id),S=REL_ST[st],id=f.id,lead=isLeader();
+      const ac=facAllyCost(id),dv=rl.debt;
+      relH='<h4>Relação</h4><p><b style="color:'+S.col+'">'+S.n+'</b> • '+rl.v+'/10 <span style="letter-spacing:1px;color:'+S.col+'">'+'■'.repeat(rl.v)+'<span style="color:#9a8a6a">'+'□'.repeat(10-rl.v)+'</span></span></p><p class="ldsm">'+S.txt+'</p>'
+        +(dv?'<p class="ldbad">💰 Reparação registrada: <b>◉'+dv.amt+'</b> — '+(rl.war?'é o valor cobrado para pedir paz.':(st==='enemy'&&rl.warAt==null?'um pedido de reparação aparece no turno do líder. ':'')+'É o valor da paz se houver guerra.')+'</p>':'')
+        +(rl.warAt!=null&&!rl.war?'<p class="ldbad">⚔ Declaração de guerra a caminho (rodada '+rl.warAt+'): vira uma política no turno do líder, com a chance de pagar reparação (a agressiva recusa).</p>':'')
+        +'<h4>Decisões</h4><button data-a="fally" data-id="'+id+'" '+(lead&&rl.v>=REL_MAX&&!rl.ally&&!rl.war&&canAct('ally')&&Ledger.canAfford({gold:ac.cost})?'':'disabled')+' title="'+(canAct('ally')?'':'Sem ações do líder nesta rodada.')+'">🤝 Negociar aliança (◉'+ac.cost+' + '+actCost('ally')+' ação)</button> <button data-a="fwar" data-id="'+id+'" '+(lead&&!rl.war?'':'disabled')+'>⚔ Declarar guerra</button>'
+        +(rl.war?' <button data-a="fask" data-id="'+id+'" '+(lead&&Ledger.canAfford({gold:dv?dv.amt:REL_REP.neutral})?'':'disabled')+'>🕊 Pedir paz (◉'+(dv?dv.amt:REL_REP.neutral)+')</button>':'')
+        +'<p class="ldsm">Preço da aliança = ◉'+ECON.ally.base+' × (poder deles ÷ o seu), entre '+ECON.ally.min+'× e '+ECON.ally.max+'×. Seu poder: <b>'+ac.me+'</b> • deles: <b>'+ac.them+'</b> (cada cidade vale 1 + o nível dela).</p>'
+        +(lead?'':'<p class="ldsm">🔒 Só no turno do líder.</p>')
+        +'<h4>Melhorar a relação <small>(cada ação gasta 1 ação ◆)</small></h4>'
+        +[[500,'g'],[1000,'g']].filter(([g])=>!facGoldHidden(id,g)).map(([g])=>{const b=facActBlock(id,'gold',g);return '<button data-a="fgive" data-id="'+id+'" data-g="'+g+'" '+(b?'disabled':'')+' title="'+(b||'')+'">💰 Doar ◉'+g+' (+'+Math.min(relPreview(id,FAC_GOLD[g]),REL_MAX-rl.v)+')</button> '}).join('')
+        +(()=>{const b=facActBlock(id,'relic');return '<button data-a="frelic" data-id="'+id+'" '+(b?'disabled':'')+' title="'+(b||'')+'">🏺 Doar relíquia (+'+Math.min(relPreview(id,FAC_RELIC_GAIN),REL_MAX-rl.v)+')</button>'})()
+        +'<p class="ldsm">Relíquias: '+invCount('reliquia')+' na bolsa, '+facRelicStore()+' no armazém. <b>Rota comercial:</b> crie uma caravana com uma cidade dela na aba 🛒 Caravanas (+'+relPreview(id,FAC_ROUTE_GAIN)+'; exige relação desfavorável ou melhor). Cada ação vale uma vez por rodada por facção. Missões: em breve.</p>'
+        +(()=>{const u=['gold','relic','route'].filter(t=>facActUsed(id,t)).map(t=>({gold:'doação de ouro',relic:'relíquia',route:'rota comercial'})[t]);return u.length?'<p class="ldsm">Já feito nesta rodada: '+u.join(', ')+'.</p>':''})()
+        +(!rl.war&&rl.v!==REL_START&&!rl.ally&&!(st==='enemy'&&rl.debt)?'<p class="ldsm">⏳ Sem novas ações, a relação esfria 1 ponto em direção a 5 a cada '+FAC_DECAY[f.temper||'neutra']+' rodadas.</p>':'');
+      if(G.creative)relH+='<h4>Modo criativo</h4><div>Relação: <button class="ldmini" data-a="frel" data-id="'+id+'" data-d="-1">−1</button><button class="ldmini" data-a="frel" data-id="'+id+'" data-d="1">+1</button> '+[0,2,5,8,10].map(v=>'<button class="ldmini" data-a="frelset" data-id="'+id+'" data-v="'+v+'">'+v+'</button>').join('')+(rl.war?' <button class="ldmini" data-a="fpeace" data-id="'+id+'">🕊 Paz</button>':'')+'</div>';
+    }
+    const L='<h3>'+f.name+(f.player?' <small>(você)</small>':'')+'</h3><img class="fe-img" src="'+facFlagURL(f.id,4)+'" width="128" height="80">'
+      +(G.creative&&!f.player?'<p>Personalidade: <b>'+facTemperName(f)+'</b> <small>(só no modo criativo)</small></p>':'')
+      +relH
+      +'<h4>Cidades</h4>'+(cs.length?'<ul class="ldul">'+cs.map(c=>{const r=rt(c);return '<li>'+(c.home?'🏛 ':'')+c.name+(r?' <span class="cvb" data-ri="'+rd.routes.indexOf(r)+'">🛒</span>':'')+'</li>'}).join('')+'</ul>':'<p>Sem cidades: a facção foi destruída.</p>')
+      +(f.player?'<button data-a="editfac">✏ Editar nome, cor e bandeira</button>'+(isLeader()?'':'<p class="ldsm">Fora do turno do líder só o nome pode ser mudado.</p>'):'');
+    const R='<h3>Facções</h3>'+fl.map(x=>{const sx=x.player?null:REL_ST[relStatus(x.id)];return '<button class="ldcity'+(x.id===f.id?' sel':'')+'" data-a="fac" data-id="'+x.id+'"><span><i style="color:'+hex6(FAC_COLORS[x.color].c)+';font-style:normal">■</i> '+x.name+(x.player?' (você)':'')+'</span><small>'+facCities(x.id).length+' cidade(s)</small>'+(sx?'<em style="color:'+sx.col+'">'+sx.n+' • '+relOf(x.id).v+'/10</em>':'')+'</button>'}).join('');
+    return[L,R];
+  }
   if(LB.tab==='caravanas'){
     const L='<h3>Caravanas ativas</h3>'+(rd.routes.length?rd.routes.map((r,i)=>{const A=WORLD.cities[r.a],B=WORLD.cities[r.b];
       return '<div class="ldroute"><b>'+routeName(r)+'</b><br><small>'+A.name+' recebe '+resIcon(focusOf(B))+' • '+B.name+' recebe '+resIcon(focusOf(A))+'</small><br><button data-a="unroute" data-i="'+i+'" '+(isLeader()?'':'disabled')+'>Desfazer</button></div>'}).join(''):'<p>Nenhuma caravana ainda.</p>')
       +'<p class="ldsm">Quem recebe o produto da outra cidade: a necessidade dele <b>100% some</b>, <b>150% cai para 100%</b> e <b>200% cai para 150%</b> (mostrado numa tabela antes de fechar o acordo). Negociar com uma cidade de <b>ouro</b> rende ouro por rodada (e uma cidade de ouro com acordo não rende imposto). A produção levada pela caravana não vai para o armazém.</p>';
     const R='<h3>Nova caravana</h3><p>Escolha no <b>mapa</b> a cidade de <b>origem</b> (uma das suas) e a de <b>destino</b> (sua, aliada ou neutra). A sua cidade passa a receber o produto do destino por caravana (reduz a necessidade dele ou rende ouro).</p>'
-      +'<p>Preço: <b>◉ '+CARAVAN_COST+'</b></p><button data-a="route" class="gold" '+(canAct('caravan')&&Ledger.canAfford({gold:CARAVAN_COST})&&freeCityForRoute()?'':'disabled')+'>🗺 Escolher no mapa</button>'+(freeCityForRoute()?'':'<p class="ldwarn">Todas as suas cidades já têm uma caravana ativa (cada cidade só pode ter uma por vez). Desfaça uma para criar outra.</p>')+leaderOnly()+(Ledger.anyDebt()?'<p class="ldwarn">Com dívida não é possível comprar.</p>':'');    return[L,R];
+      +'<p>Preço: <b>◉ '+CARAVAN_COST+'</b>'+(actCost('caravan')?' + '+actCost('caravan')+' ação':'')+'</p><button data-a="route" class="gold" '+(canAct('caravan')&&Ledger.canAfford({gold:CARAVAN_COST})&&freeCityForRoute()?'':'disabled')+'>🗺 Escolher no mapa</button>'+(freeCityForRoute()?'':'<p class="ldwarn">Todas as suas cidades já têm uma caravana ativa (cada cidade só pode ter uma por vez). Desfaça uma para criar outra.</p>')+leaderOnly()+(Ledger.anyDebt()?'<p class="ldwarn">Com dívida não é possível comprar.</p>':'');    return[L,R];
   }
   const lvl=rd.lvl,cost=capCost(),can=isLeader()&&lvl<CAP_MAX_LVL&&canAct('capital');
   const L='<h3>'+WORLD.home.name+' — a capital</h3><p>Nível do líder: <b>'+lvl+'</b> / '+CAP_MAX_LVL+'</p><p>Ações por rodada: <b>'+maxActions()+'</b></p><p class="ldsm">A capital evolui até virar uma cidade fortificada. Cada nível aumenta o número de ações do líder por rodada.</p>';
@@ -512,11 +641,15 @@ const CARAVAN_COST=ECON.caravan;
 const capCost=()=>({gold:ECON.capital*STATE.rd.lvl});
 function renderBook(){
   const inv=LB.top==='inv'&&!G.office;if(!inv&&LB.top==='inv')LB.top='book';
-  $('ldsub').style.display=inv?'none':'flex';
+  const mp=LB.top==='map';
+  $('ldsub').style.display=(inv||mp)?'none':'flex';
   $('ldsub').innerHTML=LSUBS.map(t=>'<button class="'+(LB.tab===t[0]?'sel':'')+'" data-tab="'+t[0]+'">'+t[1]+'</button>').join('');
   if(inv){$('ldL').innerHTML=INV_L;$('ldR').innerHTML=INV_R;renderInventory()}
+  else if(mp){const [L,R]=mapPages();$('ldL').innerHTML=L;$('ldR').innerHTML=R;drawBigMap()}
   else{const [L,R]=bookPages();$('ldL').innerHTML=(isLeader()&&LB.tab!=='resumo'?'<p class="ldsm">Ações do líder: '+actionsHtml()+'</p>':'')+L;$('ldR').innerHTML=R}   // as ações restantes aparecem em todas as abas
-  $('ldtabs').innerHTML=G.office?'':[['inv','🎒','Bolsa'],['book','📖','Livro']].map(t=>'<button class="'+((inv?'inv':'book')===t[0]?'sel':'')+'" data-top="'+t[0]+'">'+t[1]+'<br><small>'+t[2]+'</small></button>').join('');
+  if(!inv&&!mp&&LB.tab==='facs')$('ldL').querySelectorAll('.cvb').forEach(el=>UI.tip(el,()=>routeTip(STATE.rd.routes[+el.dataset.ri])));   // o mouse sobre o 🛒 mostra a caravana
+  $('ldtabs').innerHTML=[['inv','🎒','Bolsa'],['book','📖','Livro'],['map','🗺','Mapa']].filter(t=>!(G.office&&t[0]==='inv')).map(t=>'<button class="'+((inv?'inv':mp?'map':'book')===t[0]?'sel':'')+'" data-top="'+t[0]+'">'+t[1]+'<br><small>'+t[2]+'</small></button>').join('');
+  $('ldL').parentNode.classList.toggle('ldmap',mp);   // no mapa o livro vira uma página só, mais alta
   $('lddone').style.display=(isLeader()||G.office)?'':'none';$('lddone').textContent='✔ Encerrar turno';
 }
 function bookClick(e){
@@ -526,10 +659,20 @@ function bookClick(e){
   if(t.dataset.tab){LB.tab=t.dataset.tab;LB.top='book';renderBook();return}
   if(t.id==='lddone'){if(isLeader())finishLeaderTurn();else{closePanel();leaveOffice()}return}
   if(t.id==='ldclose'){closePanel();return}
-  if(LB.top==='inv')return;   // botões da bolsa têm seus próprios tratadores
+  if(LB.top==='inv'||LB.top==='map')return;   // botões da bolsa têm seus próprios tratadores; o mapa só tem o canvas
   const c=WORLD.cities[LB.city];
   if(a==='polopen'){showPolicy();return}
   else if(a==='city'){LB.city=+t.dataset.id}
+  else if(a==='fac'){LB.fac=+t.dataset.id}
+  else if(a==='fally'){if(isLeader())facAlly(+t.dataset.id)}
+  else if(a==='fwar'){const id=+t.dataset.id;if(isLeader())UI.confirm('Declarar guerra a '+facOf(id).name+'? A relação vai a 0, a aliança e as caravanas acabam, e você só entra nas cidades dela atacando.',()=>{facDeclareWar(id);renderBook()},'Declarar guerra');return}
+  else if(a==='fask'){if(isLeader())facAskPeace(+t.dataset.id)}
+  else if(a==='fgive'){facGiveGold(+t.dataset.id,+t.dataset.g)}
+  else if(a==='frelic'){facGiveRelic(+t.dataset.id)}
+  else if(G.creative&&a==='frel'){relChange(+t.dataset.id,+t.dataset.d)}
+  else if(G.creative&&a==='frelset'){relSet(+t.dataset.id,+t.dataset.v)}
+  else if(G.creative&&a==='fpeace'){facPeace(+t.dataset.id)}
+  else if(a==='editfac'){facEditIdentity().then(ok=>{if(ok)renderBook()});return}
   else if(a==='pf'||a==='ps'){const en=ec(c);if(isLeader()&&en.type==='port'){let cf=en.nf||en.pf,cs=en.ns||en.ps;const r=t.dataset.r;if(a==='pf'){if(r===cs)cs=NEEDS.includes(cf)?cf:NEEDS.find(x=>x!==r);cf=r}else{if(r===cf)cf=cs;cs=r}en.nf=cf;en.ns=cs}}
   else if(a==='unroute'){if(isLeader()){rd.routes.splice(+t.dataset.i,1);rebuildCaravans();computeBuffs()}}
   else if(a==='route'){if(!isLeader())toast('Caravanas só no turno do líder.',2000);else{startCaravanPick();return}}
@@ -568,23 +711,36 @@ const MP={on:false,step:0,a:null};
 const freeCityForRoute=()=>playerCities().some(c=>!hasRoute(c));   // para criar uma caravana, ao menos uma cidade sua precisa estar sem caravana
 function startCaravanPick(){
   MP.on=true;MP.step=1;MP.a=null;
-  openPanel('map');drawBigMap();updatePickBanner();
+  openBook('map');   // a escolha de origem e destino acontece no mapa do caderno
 }
-function updatePickBanner(){
-  let el=document.getElementById('mappick');
-  if(!el){el=document.createElement('div');el.id='mappick';el.style.cssText='margin:6px 0;padding:8px 12px;background:#4a2a12;border:3px solid #1e1006;color:#ffe9b0;font-size:16px';const cv=document.getElementById('bigmap');cv.parentNode.insertBefore(el,cv)}
-  el.style.display=MP.on?'block':'none';
-  if(MP.on)el.innerHTML=MP.step===1?'🛒 <b>Caravana</b> — clique no mapa na cidade de <b>ORIGEM</b> (uma das suas). Feche o mapa (M) para cancelar.':'🛒 Origem: <b>'+WORLD.cities[MP.a].name+'</b>. Agora clique na cidade de <b>DESTINO</b>. (clique de novo na origem para trocá-la)';
+function pickBannerText(){return MP.step===1?'🛒 <b>Caravana</b> — clique no mapa na cidade de <b>ORIGEM</b> (uma das suas). Feche o caderno (M ou E) para cancelar.':'🛒 Origem: <b>'+WORLD.cities[MP.a].name+'</b>. Agora clique na cidade de <b>DESTINO</b>. (clique de novo na origem para trocá-la)'}
+function updatePickBanner(){if(mapOpen())renderBook()}   // o aviso da escolha de caravana fica na página do mapa
+// página do caderno para a aba Mapa: o mapa ocupa as duas páginas (sem legenda); na escolha de caravana o aviso fica em cima
+function mapPages(){
+  const h=Math.min(620,innerHeight*0.84),sz=Math.max(260,Math.floor(Math.min(h-34-(MP.on?52:0),Math.min(960,innerWidth*0.86)-70)));
+  return[(MP.on?'<div class="mpick">'+pickBannerText()+'</div>':'')+'<canvas id="bigmap" width="'+sz+'" height="'+sz+'"></canvas>',''];
 }
 function drawPickOverlay(g,s){
   if(!MP.on)return;
   for(const c of WORLD.cities){
-    const ok=MP.step===1?(c.owner==='player'&&!hasRoute(c)):(c.id!==MP.a&&!hasRoute(c));
+    const ok=MP.step===1?(c.owner==='player'&&!hasRoute(c)):(c.id!==MP.a&&!hasRoute(c)&&(c.owner==='player'||facTradeOK(c.fid)));
     g.strokeStyle=c.id===MP.a?'#5aff7a':ok?'#ffd23a':'#555';g.lineWidth=c.id===MP.a?5:3;
     g.beginPath();g.arc(c.cx*s,c.cz*s,16,0,6.283);g.stroke();
   }
   if(MP.a!==null){const A=WORLD.cities[MP.a];g.strokeStyle='#5aff7a';g.setLineDash([6,5]);g.lineWidth=2;g.beginPath();g.moveTo(A.cx*s,A.cz*s);if(MP.hover!==undefined){const B=WORLD.cities[MP.hover];g.lineTo(B.cx*s,B.cz*s)}g.stroke();g.setLineDash([])}
 }
+// o mouse sobre uma cidade do mapa grande mostra a facção dona
+(function(){
+  let tip=null;const hide=()=>{if(tip)tip.style.display='none'};
+  document.addEventListener('mousemove',e=>{
+    const c=mapOpen()&&e.target&&e.target.id==='bigmap'?pickCityAt(e):null;
+    if(!c){hide();return}
+    const f=facOf(c.fid);if(!tip){tip=document.createElement('div');tip.className='uitip';document.body.appendChild(tip)}
+    tip.textContent=c.name+'\nFacção: '+(f?f.name:'—')+(G.creative&&f&&f.temper?' ('+facTemperName(f)+')':'')+(f&&!f.player?'\nRelação: '+REL_ST[relStatus(c.fid)].n+' ('+relOf(c.fid).v+'/10)':'');
+    tip.style.display='block';tip.style.left=(e.clientX+14)+'px';tip.style.top=(e.clientY+14)+'px';
+  });
+  document.addEventListener('keydown',hide);document.addEventListener('click',hide);
+})();
 function pickCityAt(e){
   const cv=document.getElementById('bigmap'),r=cv.getBoundingClientRect(),s=cv.width/W;
   const x=(e.clientX-r.left)*cv.width/r.width,y=(e.clientY-r.top)*cv.height/r.height;
@@ -599,12 +755,13 @@ function buyCaravan(A,B){
   else if(focusOf(A)===focusOf(B))toast('As duas cidades produzem o mesmo recurso: a caravana seria inútil.',3000);
   else if(hasRoute(A)||hasRoute(B))toast('Cada cidade só pode ter uma caravana ativa por vez: '+(hasRoute(A)?A.name:B.name)+' já tem uma.',3500);
   else if(polFlag('noRoute',A.id)||polFlag('noRoute',B.id))toast('Uma epidemia impede novas caravanas para essa cidade.',3000);
+  else if(B.owner!=='player'&&!facTradeOK(B.fid))toast('Sem comércio com '+facOf(B.fid).name+': só com relação desfavorável ou melhor.',3500);
   else if(!canAct('caravan'))toast('Sem ações do líder nesta rodada.',2500);
   else if(!Ledger.spend({gold:CARAVAN_COST}))toast('Ouro insuficiente (ou você está em dívida).',2500);
-  else{spendAct('caravan');rd.routes.push({a:A.id,b:B.id});rebuildCaravans();computeBuffs();sfx('win',0);toast('🛒 Duas caravanas partiram entre '+A.name+' e '+B.name+'. (−◉'+CARAVAN_COST+')',3500)}
+  else{spendAct('caravan');rd.routes.push({a:A.id,b:B.id});rebuildCaravans();computeBuffs();facRouteGain(B);sfx('win',0);toast('🛒 Duas caravanas partiram entre '+A.name+' e '+B.name+'. (−◉'+CARAVAN_COST+')',3500)}
 }
 document.addEventListener('click',e=>{
-  if(!MP.on||G.panel!=='map'||e.target.id!=='bigmap')return;
+  if(!MP.on||!mapOpen()||e.target.id!=='bigmap')return;
   const c=pickCityAt(e);if(!c)return;
   if(MP.step===1){
     if(c.owner!=='player'){toast('A origem precisa ser uma cidade sua.',2000);return}
@@ -614,10 +771,11 @@ document.addEventListener('click',e=>{
   if(c.id===MP.a){MP.a=null;MP.step=1;drawBigMap();updatePickBanner();return}
   const A=WORLD.cities[MP.a];
   if(hasRoute(c)){toast(c.name+' já tem uma caravana ativa (uma por cidade).',2500);return}
+  if(c.owner!=='player'&&!facTradeOK(c.fid)){toast('Sem comércio com '+facOf(c.fid).name+': ela é inimiga ou está em guerra com você.',3000);return}
   dealSummary(A,c,()=>{MP.on=false;updatePickBanner();buyCaravan(A,c);openBook('book','caravanas')});
 });
 document.addEventListener('mousemove',e=>{
-  if(!MP.on||MP.step!==2||G.panel!=='map'||e.target.id!=='bigmap')return;
+  if(!MP.on||MP.step!==2||!mapOpen()||e.target.id!=='bigmap')return;
   const c=pickCityAt(e),h=c&&c.id!==MP.a?c.id:undefined;if(h!==MP.hover){MP.hover=h;drawBigMap()}
 });
 // resumo da negociação: o que cada cidade dá e recebe, antes de fechar o acordo
@@ -641,8 +799,9 @@ function dealSummary(A,B,onYes){
   if(B.owner==='player')side(B,fa,A,true);
   if(focusOf(A)==='gold')effects.push('⚠ '+A.name+' produz ouro: com acordo, ela <b>deixa de render imposto</b> e a produção segue pela caravana.');
   else effects.push('ℹ A produção de '+ic(fa)+' de '+A.name+' segue pela caravana (não vai ao armazém).');
+  if(B.owner!=='player'&&B.fid)effects.push('🤝 Relação com <b>'+facOf(B.fid).name+'</b>: '+(facActUsed(B.fid,'route')||relOf(B.fid).war?'sem ganho (já houve rota nesta rodada)':'<b>+'+relPreview(B.fid,FAC_ROUTE_GAIN)+'</b> (hoje '+relOf(B.fid).v+'/10)')+'.');
   const w=UI.window({title:'🛒 Resumo da negociação',width:Math.min(520,innerWidth-30),z:60});
-  w.body.innerHTML='<table class="ldt" style="width:100%;color:#ddd">'+line(A,fa,fb,true)+(B.owner==='player'?line(B,fb,fa,true):'')+'</table><p style="font-size:13px;line-height:1.6">'+effects.join('<br>')+'</p><p>Preço do acordo: <b style="color:#ffd23a">◉ '+CARAVAN_COST+'</b> • Duas caravanas (uma de cada cidade) vão para a estrada, com guardas.</p>';
+  w.body.innerHTML='<table class="ldt" style="width:100%;color:#ddd">'+line(A,fa,fb,true)+(B.owner==='player'?line(B,fb,fa,true):'')+'</table><p style="font-size:13px;line-height:1.6">'+effects.join('<br>')+'</p><p>Preço do acordo: <b style="color:#ffd23a">◉ '+CARAVAN_COST+'</b>'+(actCost('caravan')?' + '+actCost('caravan')+' ação do líder':'')+' • Duas caravanas (uma de cada cidade) vão para a estrada, com guardas.</p>';
   w.foot.append(UI.button('Fechar acordo (◉'+CARAVAN_COST+')','gold',()=>{w.close();w.el.remove();onYes()}),UI.button('Voltar ao mapa','alt',()=>{w.close();w.el.remove()}));
   w.open();return w;
 }

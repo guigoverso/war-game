@@ -71,7 +71,7 @@ button{pointer-events:auto;cursor:pointer;background:#4a8a3a;color:#fff;border:3
 button:hover{filter:brightness(1.15)}button:disabled{filter:grayscale(1) brightness(.6);cursor:not-allowed}
 .saverow{display:flex;align-items:center;gap:8px;margin:8px 0;padding:8px;background:#23232b;border:2px solid #111}.saveinfo{flex:1;font-size:14px;color:#ddd}.saveinfo span{font-size:12px;color:#aaa}
 .slotgrid{display:grid;gap:4px}.slot{position:relative;width:48px;height:48px;background:#23232b;border:2px solid #111;box-shadow:inset 0 0 0 2px #3a3a46;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer}.slot b{position:absolute;right:2px;bottom:0;font-size:12px;color:#ffd23a;text-shadow:1px 1px 0 #000}.slot:hover{filter:brightness(1.25)}.slot i{position:absolute;left:3px;top:0;font-size:11px;font-style:normal;color:#ccc;text-shadow:1px 1px 0 #000}
-.uitip{position:fixed;z-index:200;display:none;background:#111;color:#eee;border:2px solid #5a5a66;padding:5px 8px;font-size:13px;max-width:260px;pointer-events:none}
+.uitip{white-space:pre-line;position:fixed;z-index:200;display:none;background:#111;color:#eee;border:2px solid #5a5a66;padding:5px 8px;font-size:13px;max-width:260px;pointer-events:none}
 #ledgerline{font-size:13px;color:#ddd;margin:4px 0}
 #rdline{font-size:14px;color:#ffe9a0;margin-top:2px}#rdline small{color:#9fe8a0;font-size:12px}
 #officehint{position:fixed;left:50%;bottom:9%;transform:translateX(-50%);z-index:5;display:none;padding:10px 22px;font-size:22px;background:rgba(40,24,10,.82);border:3px solid #1e1006;color:#ffe9b0;text-shadow:1px 1px 0 #000;pointer-events:none}
@@ -100,6 +100,8 @@ button:hover{filter:brightness(1.15)}button:disabled{filter:grayscale(1) brightn
 .ldpage .st{font-size:12px;color:#6a5434;margin:4px 0}.ldpage b.st{display:block}.ldpage button.red{background:#9a3a2a}.ldpage button.gold{background:#a8781a}.ldpage button.alt{background:#6a5a42}.ldpage .slot{border-color:#2a1608;background:#3a2a18;box-shadow:inset 0 0 0 2px #5a4528}
 .ldtabs{position:absolute;right:-76px;top:34px;display:flex;flex-direction:column;gap:6px}
 .ldtabs button{width:78px;margin:0;padding:8px 4px;background:#8a5a2a;color:#f6e8c4;border:2px solid #1e1006;border-left:0;border-radius:0 8px 8px 0;font-family:Georgia,serif;font-size:20px;text-shadow:none;line-height:1.1;box-shadow:none}
+.ldbook.ldmap{height:min(620px,84vh)}.ldbook.ldmap .ldspine,.ldbook.ldmap .ldpage.r{display:none}.ldbook.ldmap .ldpage.l{background:linear-gradient(90deg,#e4d3a6,#f0e4c0 50%,#e4d3a6);padding:12px;text-align:center}.ldbook.ldmap .mpick{text-align:left}
+.mpick{margin:6px 0;padding:8px 10px;background:#7a4a1e;color:#f6e8c4;border:2px solid #2a1608;font-size:14px;line-height:1.4}.mprow{margin:3px 0;font-size:14px}.ldpage #bigmap{max-width:100%;max-height:none;border:3px solid #2a1608;margin:0 auto}
 .ldtabs button small{font-size:11px}.ldtabs button.sel{background:#d8bd78;color:#3a2210;width:86px}
 .ldfoot{display:flex;justify-content:space-between;margin-top:10px}
 .ldfoot button{font-family:Georgia,serif;background:#b08a1a;color:#fff;border:3px solid #1e1006;padding:8px 20px;font-size:16px}#ldclose{background:#5a3a1c}
@@ -113,6 +115,15 @@ label{font-size:14px}
 .card.locked{opacity:.7}
 #loadmsg{margin-top:12px;color:#9fe;min-height:20px}
 .big{font-size:24px;color:#ffd23a;margin:8px 0}
+.ptag{font-size:12px;font-weight:bold;margin-left:2px}.ptag.bad{color:#ff7a7a}.ptag.good{color:#7aff9a}
+.fe{display:flex;gap:16px;flex-wrap:wrap}.fe-l{width:230px}.fe-r{flex:1;min-width:460px}
+.fe-sw button{width:24px;height:24px;min-width:0;margin:2px;padding:0;border:2px solid #111;cursor:pointer}.fe-sw button.sel{outline:2px solid #ffd23a}.fe-sw button:disabled{opacity:.25;cursor:not-allowed}
+.fe-pre canvas{margin:2px;border:2px solid #111;cursor:pointer;image-rendering:pixelated}
+.fe-tools button{margin:2px;padding:5px 9px}.fe-tools button.sel{outline:2px solid #ffd23a}.fe-opt{margin:4px 0;min-height:22px}
+#fe-cv{border:3px solid #111;image-rendering:pixelated;cursor:crosshair;background:#222;touch-action:none;max-width:100%}
+.fe-prev,.fe-img{border:3px solid #111;image-rendering:pixelated}
+.cvb{cursor:help}
+.qmark{width:22px;height:22px;padding:0;margin:0 0 0 4px;border-radius:50%;font-size:14px;line-height:20px;vertical-align:middle;cursor:pointer}
 #bigmap{display:block;background:#123;border:4px solid #111;max-width:90vw;max-height:80vh}
 #clock{font-size:18px;color:#ffe9a0}#arbox{display:none;margin-top:5px}#artext{font-size:13px;color:#9ad0ff}#arbar{height:12px;border:3px solid #111;background:#10202e}#arfill{height:100%;width:0;background:linear-gradient(#7ac0ff,#3a7ac8)}#subtitle{position:absolute;left:50%;bottom:11%;transform:translateX(-50%);max-width:70vw;padding:8px 18px;font-size:22px;text-align:center;background:rgba(0,0,0,.72);border:2px solid #111;opacity:0;transition:opacity .25s}
 </style>
@@ -154,7 +165,7 @@ label{font-size:14px}
       <li><b>C</b> agachar / cobertura</li><li><b>Mouse</b> mirar • <b>Botão dir.</b> zoom</li>
       <li><b>Botão esq.</b> atirar • <b>R</b> recarregar</li><li><b>1-6</b> / roda do mouse: armas</li>
       <li><b>E</b> interagir (loja, clínica, falar)</li><li><b>F</b> atacar cidade inimiga</li>
-      <li><b>M</b> mapa • <b>K</b> som on/off</li><li><b>U</b> destravar (se ficar preso)</li><li><b>Esc</b>, <b>Tab</b> ou <b>O</b>: pausa e configurações</li><li>Criativo: <b>G</b> invencível • <b>I</b> invisível • <b>N</b> atravessar paredes • <b>P</b> congelar (prints)</li>
+      <li><b>L</b> livro • <b>M</b> mapa • <b>K</b> som on/off</li><li><b>U</b> destravar (se ficar preso)</li><li><b>Esc</b>, <b>Tab</b> ou <b>O</b>: pausa e configurações</li><li>Criativo: <b>G</b> invencível • <b>I</b> invisível • <b>N</b> atravessar paredes • <b>P</b> congelar (prints)</li>
     </ul>
     <p>Dica: agachado atrás de caixas, sacos de areia e muros baixos, os inimigos não te veem. Segure o tiro para levantar e espiar. A vida <b>não</b> regenera: cure-se na clínica.</p>
   </div>
@@ -173,7 +184,7 @@ label{font-size:14px}
 <div id="cook" class="screen hidden"><div class="panel" style="min-width:560px"><h2>🍳 COZINHA</h2><div class="big" id="cookinfo"></div><div class="grid" id="cookbody"></div><button id="cookclose" class="alt">Fechar (E)</button></div></div>
 <div id="pause" class="screen hidden"><div class="panel" style="min-width:560px;max-width:640px"><h2>⏸ PAUSA</h2>
   <button id="resume" class="gold">▶ Continuar</button>
-  <div id="ptabs"><button data-pt="geral" class="sel">⚙ Geral</button><span id="ptabsC" class="hidden"><button data-pt="rod">📅 Rodadas</button><button data-pt="itens">🎒 Itens</button><button data-pt="mundo">🌍 Mundo</button><button data-pt="jog">🛡 Jogador</button></span></div>
+  <div id="ptabs"><button data-pt="geral" class="sel">⚙ Geral</button><span id="ptabsC" class="hidden"><button data-pt="rod">📅 Rodadas</button><button data-pt="itens">🎒 Itens</button><button data-pt="mundo">🌍 Mundo</button><button data-pt="facs">🏴 Facções</button><button data-pt="jog">🛡 Jogador</button></span></div>
   <div class="ppage" data-pp="geral">
     <p style="margin:4px 0 8px;font-size:15px">Semente do mundo: <b id="seedshow" style="color:#ffd23a;user-select:text">—</b> <button id="seedcopy" class="alt" style="padding:3px 10px;font-size:14px">📋 Copiar</button></p>
     <button id="cSave" class="gold">💾 Salvar / Carregar…</button><button id="cMute" class="alt">Som: ?</button><button id="cMixer" class="gold">🔊 Volume dos sons…</button><button id="cStuck" class="alt">Estou preso! Destravar (U)</button>
@@ -195,6 +206,11 @@ label{font-size:14px}
     <button id="cWeap" class="alt">Liberar todas as armas</button><button id="cLegend" class="alt">Dar uma arma lendária</button><button id="cWear" class="alt">Desgastar arma atual −40%</button><button id="cFix" class="alt">Consertar todas as armas (grátis)</button><button id="cNoWear" class="alt">Desgaste: ?</button><br>
     <button id="cKit" class="alt">Kit de cozinha (peixes, carne, ervas)</button><button id="cBuffs" class="alt">Dar todos os bônus (comida)</button>
   </div>
+  <div class="ppage hidden" data-pp="facs">
+    <p class="ptitle">Modo criativo — status das facções</p>
+    <p class="ldsm" style="margin:2px 0 6px">Escolha o status de cada facção. Zera reparação e guerra pendente; aliado = relação 10; guerra = declaração.</p>
+    <div id="facscheat"></div>
+  </div>
   <div class="ppage hidden" data-pp="mundo">
     <p class="ptitle">Modo criativo — mundo</p>
     <button id="cPortals" class="alt">Criar portais agora</button><button id="cGoPortal" class="alt">Ir ao portal mais próximo</button><button id="cRaid" class="alt">Iniciar raid agora</button><br>
@@ -211,7 +227,7 @@ label{font-size:14px}
   <p style="margin:0 0 8px">Ajuste cada som do ambiente. 0% silencia, 100% é o padrão, até 200%. Vale na hora e fica salvo.</p>
   <div id="mixrows"></div>
   <button id="mixreset" class="alt">Restaurar padrão</button><button id="mixclose" class="gold">Fechar</button></div></div>
-<div id="map" class="screen hidden"><div><canvas id="bigmap" width="800" height="800"></canvas><div style="text-align:center"><div style="margin:6px;font-size:13px;text-shadow:1px 1px 0 #000">Cidades: <b style="color:#3a8aff">■ sua</b> <b style="color:#6a7a2a">■ nível 1</b> <b style="color:#c8641e">■ 2</b> <b style="color:#d03030">■ 3</b> <b style="color:#a060e0">■ 4</b> <b style="color:#8a8a9a">■ 5</b> <b style="color:#d8b830">■ 6</b></div><div style="margin:6px;font-size:13px;text-shadow:1px 1px 0 #000">Edifícios: A armeiro • L loja • T taverna • + clínica • Q quartel • P prefeitura • Z armazém • <b style="color:#ffd23a">◆</b> portal dourado</div><button id="mapclose" class="alt">Fechar (M)</button></div></div></div>
+
 <div id="dead" class="screen hidden"><div class="panel"><h1 style="color:#ff6a6a">VOCÊ MORREU</h1><p>Você perde 10% das moedas. Os inimigos sobreviventes se recuperam e voltam aos postos.</p><button id="respawn" class="red">Voltar à sua cidade</button></div></div>
 <div id="victory" class="screen hidden"><div class="panel" style="text-align:center"><h1>VITÓRIA!</h1><p>As 7 cidades hasteiam a sua bandeira. A fronteira é sua.</p><p>Você ainda pode explorar o mundo à vontade.</p><button id="vclose" class="gold">Continuar explorando</button></div></div>
 
@@ -241,6 +257,9 @@ label{font-size:14px}
 <script src="js/warehouse.js"></script>
 <script src="js/rounds.js"></script>
 <script src="js/policies.js"></script>
+<script src="js/factions.js"></script>
+<script src="js/flageditor.js"></script>
+<script src="js/scenario.js"></script>
 <script src="js/save.js"></script>
 <script src="js/game.js"></script>
 </body>

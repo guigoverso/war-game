@@ -232,8 +232,9 @@ function spawnNpc(c,o){
   const rng=new RNG((WORLD.seed*7+c.id*131+NPCS.length*17)>>>0);
   if(!o.stationary&&o.role!=='guard'){const f=freeSpot(o.x,o.z,0.3,1.8,0.45);o.x=f[0];o.z=f[1]}
   const role=o.role||'civ',L=npcLook(rng,c.biome===BIO_ROCK?1:c.biome,role,c.owner);
+  if(role==='guard'&&c.fid!==undefined)L.shirt=facColor(c.fid)||L.shirt;   // uniforme do guarda = cor principal da facção dona da cidade
   const m=buildHuman(L);
-  const n={kind:'npc',role:L.roleOut,city:c,model:m,group:m.group,x:o.x,z:o.z,y:o.y!==undefined?o.y:tH(o.x,o.z),vy:0,ground:true,yaw:o.yaw||rng.range(0,6.28),state:'idle',timer:rng.range(0,4),
+  const n={kind:'npc',role:L.roleOut,look:L,city:c,model:m,group:m.group,x:o.x,z:o.z,y:o.y!==undefined?o.y:tH(o.x,o.z),vy:0,ground:true,yaw:o.yaw||rng.range(0,6.28),state:'idle',timer:rng.range(0,4),
     hp:25,alive:true,eye:1.6*m.s,speed:rng.range(1.2,1.8)*(L.scale<0.8?1.1:1),fear:0,phase:rng.range(0,6),stationary:!!o.stationary||role==='guard',boxStep:0.45,r:0.3*m.s,hitR:0.3*m.s,hitH:2*m.s,lift:0,stuck:0,detour:0,detourT:0,sayT:0,bubble:null,def:{r:0.3*m.s,h:2*m.s,lift:0}};
   if(role==='guard'){m.arms[1].rotation.x=-1.2;m.arms[0].rotation.x=-1.0}
   if(o.sit){n.sit=true;n.stationary=true;m.legs.forEach(l=>l.rotation.x=-1.5);m.arms.forEach(a=>a.rotation.x=-0.7)}   // cliente sentado
@@ -272,6 +273,7 @@ function animWalk(m,phase,amp,quad){
   else if(m.legs.length===4){m.legs[0].rotation.x=a;m.legs[3].rotation.x=a;m.legs[1].rotation.x=-a;m.legs[2].rotation.x=-a}
 }
 function updateNpc(n,dt){
+  if(n.caravan)return;   // guarda de caravana: quem cuida é updateCaravanGuards (rounds.js)
   const c=n.city;
   if(!n.alive){n.deadT+=dt;n.group.rotation.z=Math.min(1,n.deadT*3)*1.5;if(n.deadT>6){scene.remove(n.group);n.gone=true}return}
   if(n.bubble){n.sayT-=dt;if(n.sayT<=0){n.group.remove(n.bubble);n.bubble=null}}
@@ -309,11 +311,12 @@ function updateNpc(n,dt){
 }
 function damageNpc(n,amount,src){   // src: bicho que atacou (não envolve o jogador)
   if(!n.alive)return;n.hp-=amount;burst(n.x,n.y+1,n.z,0xaa1111,8,5,0.1);
-  if(!src&&n.city.owner==='enemy'&&n.city.state==='idle')startAttack(n.city);
+  if(!src){if(n.caravan)caravanAttacked(n);else facHostileAct(n.city)}   // ferir um cidadão: ataque (em guerra) ou crime; ferir guarda de caravana de outra facção: crime contra as facções da rota (factions.js)
   n.fear=5;n.fx=src?src.x:P.x;n.fz=src?src.z:P.z;
   if(n.hp<=0){n.alive=false;n.deadT=0;if(n.bubble){n.group.remove(n.bubble);n.bubble=null}}
 }
 function npcTalk(n){
+  if(n.caravan){n.lookT=4;n.state='idle';n.timer=5;n.yaw=Math.atan2(P.x-n.x,P.z-n.z);n.group.rotation.y=n.yaw}   // guarda de caravana: vira para o jogador e fica olhando enquanto ele fala
   const c=n.city;let pool;
   if(n.role==='guard')pool=SAY.guard;else if(n.role==='shop')pool=SAY.shop;else if(n.role==='nurse')pool=SAY.nurse;else if(n.role==='merchant')pool=SAY.merchant;else if(n.role==='cook')pool=SAY.cook;else if(n.role==='patron')pool=SAY.patron;else if(n.role==='hostage')pool=SAY.hostage;else if(n.role==='clerk')pool=SAY.clerk;else if(n.role==='leader')pool=SAY.leader;
   else if(n.role==='child')pool=SAY.child;else if(n.role==='elder'&&Math.random()<0.6)pool=SAY.elder;
@@ -325,7 +328,7 @@ function npcTalk(n){
 // uma cor de uniforme por nível (rank) da cidade
 const RANK_COL=[0x2a6aff,0x6a7a2a,0xc8641e,0x9a2a2a,0x6a3a9a,0x2e2e3a,0xd8b830];
 function buildEnemyModel(type,rng,rank,c,vest){
-  const red=RANK_COL[rank]||0x9a2a2a,dark=shadec(red,0.6),steel=0x9ab0c8,camp=c&&(c.kind==='camp'||c.kind==='raid');   // bandidos de raid usam o visual dos bandidos de acampamento
+  const fcol=c&&!c.kind&&c.fid!==undefined?facColor(c.fid):null,red=fcol||RANK_COL[rank]||0x9a2a2a,dark=shadec(red,0.6),steel=0x9ab0c8,camp=c&&(c.kind==='camp'||c.kind==='raid');   // bandidos de raid usam o visual dos bandidos de acampamento
   switch(type){
     case'soldier':
       if(camp)return buildHuman({skin:rng.pick(SKINS),shirt:0x6b4a2a,sleeve:0x4a3a2a,pants:0x3a2f24,hairStyle:'bandana',hat:0xb02a2a,hair:0x2a1a10,beard:rng.chance(0.5)?0x2a1a10:undefined,gun:{len:0.7}});
@@ -355,12 +358,13 @@ function buildEnemyModel(type,rng,rank,c,vest){
   if(def.ranged&&m.arms.length){m.arms[0].rotation.x=-0.1;m.arms[1].rotation.x=-1.2}
   scene.add(e.group);ENEMIES.push(e);c.enemies.push(e);c.aliveEnemies++;c.totalEnemies++;return e;
 }
-function startAttack(c){
+function startAttack(c,crime){   // crime: a cidade reage ao jogador mas ele não conquista nem recebe soldados (relação ≠ guerra)
   if(c.owner==='player'||c.state==='attacking')return;
+  if(crime)c.crime=true;
   c.state='attacking';
-  if(c.kind==='camp'){toast('⚔ Bandidos em alerta! Elimine todo o bando.',3000);sfx('alarm',0)}else if(!c.kind){toast('⚔ ATAQUE A '+c.name.toUpperCase()+'! Elimine todos os inimigos.',3500);sfx('alarm',0)}
+  if(c.kind==='camp'){toast('⚔ Bandidos em alerta! Elimine todo o bando.',3000);sfx('alarm',0)}else if(!c.kind){toast(c.crime?'🚨 '+c.name.toUpperCase()+': os guardas atiram em você! Sem conquista, sem seus soldados, dano 3×.':'⚔ ATAQUE A '+c.name.toUpperCase()+'! Elimine todos os inimigos.',3500);sfx('alarm',0)}
   for(const e of c.enemies)if(e.alive){e.cool=Math.max(e.cool,1.5+Math.random()*1.5);e.unseenT=99;e.reactT=0}
-  if(!c.kind)armyAssault(c);
+  if(!c.kind&&!c.crime)armyAssault(c);
   if(!c.kind&&c.aliveEnemies<=0)checkConquest(c);   // cidade já esvaziada (por animais): atacar conquista na hora
 }
 function playerVisibleFrom(x,y,z,tg){
@@ -546,7 +550,7 @@ function updateEnemy(e,dt){  const def=e.def,m=e.model;
 function damageEnemy(e,amount,head,byAlly,src){   // src: outro bicho/soldado que causou o dano (briga entre eles, sem envolver o jogador)
   if(!e.alive)return;
   if(e.city.kind==='pack'||src){e.revenge=src||P;e.revengeT=src?8:10;e.tgT=0}   // quem feriu o animal vira o alvo dele
-  if(!src){if(e.city.kind){if(!e.aggro)wildAggro(e)}else if(e.city.state!=='attacking')startAttack(e.city)}
+  if(!src){if(e.city.kind){if(!e.aggro)wildAggro(e)}else if(byAlly){if(e.city.state!=='attacking')startAttack(e.city)}else facHostileAct(e.city)}
   if(e.armor>0){const ab=Math.min(e.armor,amount*0.6);e.armor-=ab;amount-=ab}
   // o tiro é sentido: o inimigo se encolhe e a ação dele atrasa por instantes (golem, urso e brutamonte aguentam melhor)
   {const st=(e.type==='golem'||e.type==='bear'||e.type==='brute')?0.08:0.16;e.reactT=Math.max(e.reactT||0,st);e.flinch=st*1.4;e.lunge=0;if(e.wind>0){e.wind=0;e.model.arms.forEach(a=>a.rotation.x=0.4)}}
@@ -566,7 +570,7 @@ function checkConquest(c){
   if(c.kind==='dungeon'){c.state='cleared';toast('✔ A dungeon foi limpa! Abra o baú do fundo.',4000);return}
   if(c.kind==='camp'&&!c.ambush&&!c.gone&&c.state!=='cleared'){clearCamp(c);return}   // acampamento esvaziado (até por animais): baú e refém liberados
   if(c.state!=='attacking')return;
-  if(c.ambush)c.state='cleared';else if(c.kind==='camp')clearCamp(c);else if(c.kind==='cave'||c.kind==='pack')c.state='idle';else if(c.owner==='enemy')conquerCity(c);
+  if(c.ambush)c.state='cleared';else if(c.kind==='camp')clearCamp(c);else if(c.kind==='cave'||c.kind==='pack')c.state='idle';else if(c.owner==='enemy'){if(c.crime){c.crime=false;c.state='idle';toast('Os guardas caíram, mas a cidade não é sua: você cometeu um crime.',4000);facCityEmptied(c)}else conquerCity(c)}
 }
 
 function populateCities(){

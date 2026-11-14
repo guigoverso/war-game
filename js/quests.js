@@ -166,12 +166,12 @@ function renderQuests(){
   const c=G.questCity,list=QUEST.boards[c.id]||genBoard(c),a=QUEST.active;
   $('qinfo').textContent='Quadro de missões de '+c.name+'  •  missões cumpridas: '+QUEST.done;
   let h='';
-  if(a)h+='<div class="card" style="border-color:#ffd23a;margin-bottom:10px"><b>📜 Missão ativa: '+qTitle(a)+'</b><div class="st">Recompensa ◉'+qPay(a)+'</div><button class="red" data-q="abandon">Abandonar</button></div>';
-  h+='<div class="grid">'+list.map(q=>'<div class="card"><b>'+qTitle(q)+'</b><div class="st">'+qText(q,c)+'<br>Recompensa: <b style="color:#ffd23a">◉'+qPay(q)+'</b></div><button class="gold" data-q="'+q.id+'" '+(a?'disabled':'')+'>Aceitar</button></div>').join('')+'</div>';
+  if(a)h+='<div class="card" style="border-color:#ffd23a;margin-bottom:10px"><b>📜 Missão ativa: '+qTitle(a)+'</b><div class="st">Recompensa ◉'+qPay(a)+' '+rewardTag()+'</div><button class="red" data-q="abandon">Abandonar</button></div>';
+  h+='<div class="grid">'+list.map(q=>'<div class="card"><b>'+qTitle(q)+'</b><div class="st">'+qText(q,c)+'<br>Recompensa: <b style="color:#ffd23a">◉'+qPay(q)+'</b> '+rewardTag()+'</div><button class="gold" data-q="'+q.id+'" '+(a?'disabled':'')+'>Aceitar</button></div>').join('')+'</div>';
   $('qbody').innerHTML=h;
 }
 document.addEventListener('click',e=>{
-  const b=e.target.closest('#qbody button');if(!b)return;
+  const b=e.target.closest('#qbody button');if(!b||b.classList.contains('qmark'))return;
   if(b.dataset.q==='abandon')abandonQuest();
   else{const c=G.questCity,q=(QUEST.boards[c.id]||[]).find(x=>String(x.id)===b.dataset.q);if(q&&acceptQuest(c,q)){closePanel();return}}
   if(QUEST.boards[G.questCity.id]===null)genBoard(G.questCity);

@@ -109,6 +109,7 @@ function hitMarker(kill,head){
 function damagePlayer(dmg,fx,fz){
   if(P.dead||G.god)return;
   dmg*=buffMul('resist');   // bônus de comida: Resistência
+  if(facInCrime())dmg*=3;   // crime numa cidade: 3× de dano
   if(P.armor>0){const ab=Math.min(P.armor,dmg*0.6);P.armor-=ab;dmg-=ab}
   P.hp-=dmg;G.hurtT=0.45;sfx('hurt',0);
   const dx=fx-P.x,dz=fz-P.z,s=Math.sin(P.yaw),c=Math.cos(P.yaw);
@@ -121,7 +122,7 @@ function die(){P.dead=true;G.fireHeld=false;G.aiming=false;openPanel('dead');if(
 function respawn(){
   if(G.dg)leaveDungeon(true);
   P.dead=false;P.hp=P.maxhp;P.armor=0;P.coins=P.coins>0?Math.floor(P.coins*0.9):P.coins;P.crouch=false;P.regen=null;fishClean();
-  for(const c of WORLD.cities)if(c.state==='attacking'){c.state='idle';for(const e of c.enemies)if(e.alive){e.hp=e.maxhp;e.x=e.homeX;e.z=e.homeZ;e.y=tH(e.x,e.z)}}
+  for(const c of WORLD.cities)if(c.state==='attacking'){c.state='idle';c.crime=false;for(const e of c.enemies)if(e.alive){e.hp=e.maxhp;e.x=e.homeX;e.z=e.homeZ;e.y=tH(e.x,e.z)}}
   placePlayerHome();closePanel();
 }
 function placePlayerHome(){
@@ -130,7 +131,7 @@ function placePlayerHome(){
   P.x=c.cx+6;P.z=c.cz+6;P.y=tH(P.x,P.z)+1;P.camY=P.y;
 }
 function conquerCity(c){
-  c.owner='player';c.state='conquered';c.flagMat.color.setHex(0x2a6aff);armyConquered(c);
+  c.owner='player';c.state='conquered';facSetFlag(c);facReskin();armyConquered(c);
   const reward=120+60*c.rank;addCoins(reward);
   const n=WORLD.cities.filter(x=>x.owner==='player').length;
   toast('🏴 '+c.name+' CONQUISTADA! +'+reward+' moedas  ('+n+'/7)',5000);sfx('coin',0);
@@ -138,7 +139,7 @@ function conquerCity(c){
 }
 
 // ---------- Painéis ----------
-const SCREENS=['start','shop','clinic','barracks','quests','pause','map','dead','victory','store','cook','raid','ldbook','warehouse'];
+const SCREENS=['start','shop','clinic','barracks','quests','pause','dead','victory','store','cook','raid','ldbook','warehouse'];
 function openPanel(name){
   if(G.frozen)setFrozen(false);
   SCREENS.forEach(s=>$(s).classList.add('hidden'));$(name).classList.remove('hidden');
@@ -154,7 +155,7 @@ function setFrozen(v){
 // modo invencível liga/desliga a munição infinita junto
 function setGod(v){G.god=v;G.infAmmo=v}
 function closePanel(){
-  MP.on=false;updatePickBanner();
+  MP.on=false;
   SCREENS.forEach(s=>$(s).classList.add('hidden'));G.panel=null;
   try{const p=canvas.requestPointerLock();if(p&&p.catch)p.catch(()=>{})}catch(e){}
 }
@@ -163,35 +164,64 @@ function closePanel(){
 const DISCOUNT=[0,0.10,0.15,0.20,0.25,0.30,0.35];
 function cityMul(c){
   if(!c)return 1;
-  if(c.owner==='enemy')return 2;
+  if(c.owner==='enemy')return 1;   // cidades de facções: o preço vem da relação com a facção (factions.js)
   if(c.home){let m=1;for(const k of WORLD.cities)if(k.owner==='player'&&!k.home)m=Math.min(m,1-DISCOUNT[k.rank]);return m}
   return 1-DISCOUNT[c.rank];
 }
 // o preço passa pela função única priceOf (state.js), que encadeia modificadores; a cidade é o primeiro deles
-addPriceMod('city',(p,ctx)=>p*cityMul(ctx.city),10);
+addPriceFx('city',ctx=>{const c=ctx.city,m=cityMul(c);return m===1?[]:[{txt:m>1?'Cidade inimiga':c.home?'Desconto das cidades conquistadas (vale o melhor)':'Cidade conquistada (nível '+c.rank+')',mul:m}]},10);
 const pc=(base,c,kind)=>priceOf(base,{city:c,kind});
-function priceLabel(c){const m=cityMul(c);return m>1?'Cidade inimiga: preços ×2':m<1?'Desconto de '+Math.round((1-m)*100)+'% nesta cidade':'Preço normal'}
-function mulTag(c){const m=cityMul(c);return m>1?' (preço ×2)':m<1?' (−'+Math.round((1-m)*100)+'%)':''}
+// selo de preço (HTML): total em % de desconto/acréscimo + botão "?" com a lista do que afeta. kinds = tipos de preço que o serviço vende
+const PRICE_KINDS={weapon:'Armas',ammo:'Munição',vest:'Colete',upgrade:'Ampliar a bolsa',heal:'Itens de cura',healhp:'Cura de vida',buy:'Loja',tavern:'Taverna',recruit:'Recrutar soldado',soldierup:'Evoluir soldados',repair:'Conserto'};
+const pricePct=m=>{const v=Math.round((m-1)*100);return v>0?'+'+v+'%':v<0?'−'+(-v)+'%':'0%'};
+function priceReport(c,kinds){
+  const rows=new Map(),tot=[];
+  for(const k of kinds){
+    const ex=priceExplain({city:c,kind:k});tot.push(priceMulOf(ex));
+    for(const e of ex){const key=e.txt+'|'+e.mul;if(!rows.has(key))rows.set(key,{txt:e.txt,mul:e.mul,ks:[]});rows.get(key).ks.push(k)}
+  }
+  return{lo:Math.min(...tot),hi:Math.max(...tot),rows:[...rows.values()].sort((a,b)=>b.ks.length-a.ks.length)};
+}
+// indicador DENTRO da caixa do item: "+90%" (vermelho se encarece, verde se barateia) + "?" com a explicação daquele item.
+// Some quando nada afeta o valor. Os efeitos se somam em %. Botões "?" dentro de grades precisam ser ignorados pelos cliques dos botões da grade.
+const tagLine=s=>s?'<div class="st">'+s+'</div>':'';
+function whyTag(m,label,attrs,goodUp){
+  const cls=m===1?'':((m>1)===!!goodUp?'good':'bad');
+  return '<span class="ptag '+cls+'">'+(label?label+': ':'')+pricePct(m)+'</span><button class="qmark" '+attrs+' title="O que afeta este valor">?</button>';
+}
+function priceTag(c,kind,label){const ex=priceExplain({city:c,kind});return ex.length?whyTag(priceMulOf(ex),label,'data-why="price" data-c="'+c.id+'" data-k="'+kind+'"',false):''}
+const rewardTag=()=>{const ex=rewardFx();return ex.length?whyTag(priceMulOf(ex),'','data-why="reward"',true):''};
+let priceWin=null;
+function openPriceWhy(btn){
+  const d=btn.dataset,isR=d.why==='reward',isS=d.why==='sell',cty=WORLD.cities.find(x=>x.id===+d.c),rep=isR?rewardReport():isS?sellReport(cty,d.i):priceReport(cty,[d.k]),a=pricePct(rep.lo);
+  if(!priceWin)priceWin=UI.window({title:'',width:Math.min(460,innerWidth-30),z:60,buttons:[{label:'Fechar',cls:'gold'}]});
+  priceWin.setTitle('❔ '+(isR?'O que afeta a recompensa':isS?'O que afeta o valor de venda — '+itemDef(d.i).name:'O que afeta o preço'+(PRICE_KINDS[d.k]?' — '+PRICE_KINDS[d.k]:'')));
+  priceWin.body.innerHTML='<p class="st">Os efeitos se somam sobre '+(isR?'a recompensa':isS?'o valor':'o preço')+' base'+(isS?' (◉'+itemDef(d.i).value+')':'')+':</p>'
+    +(rep.rows.length?rep.rows.map(x=>'<div class="st">• '+x.txt+' — <b>'+pricePct(x.mul)+'</b></div>').join(''):'<div class="st">• Nenhum efeito agora: vale o valor base.</div>')
+    +'<p class="st">Total: <b>'+a+'</b></p>';
+  priceWin.open();
+}
+document.addEventListener('click',e=>{const b=e.target.closest('.qmark');if(b)openPriceWhy(b)});
 function openShop(c){G.shopCity=c;G.shopTab='weapons';openPanel('shop');renderShop()}
 function renderShop(){
   const c=G.shopCity;
-  $('shopcoins').textContent='◉ '+P.coins+' moedas  •  '+priceLabel(c);
   const weaponsHtml=WEAPONS.map((w,i)=>{
     const own=WS.owned[i],pr=pc(w.price,c,'weapon'),pk=pc(w.packCost,c,'ammo');
     return '<div class="card'+(own?'':' locked')+'"><b>'+(i+1)+'. '+w.name+'</b><div class="st">'+w.desc+'<br>Dano '+w.dmg+(w.pellets>1?' ×'+w.pellets:'')+' • '+w.rpm+' dpm • Pente '+w.mag+'</div>'+
-      (own?'<div class="st">Munição reserva: '+WS.reserve[i]+'<br>Durabilidade: '+(weaponBroken(i)?'<b style="color:#ff6a6a">QUEBRADA</b>':Math.round(durOf(i))+'%')+'</div><button data-a="ammo" data-i="'+i+'" '+(P.coins<pk?'disabled':'')+'>+'+w.pack+' munição ◉'+pk+'</button>'+(durOf(i)<100?'<button data-a="repair" data-i="'+i+'">🔧 Consertar ◉'+repairCost(i,c)+(P.coins<repairCost(i,c)?' (gera dívida)':'')+'</button>':'')
-          :'<button class="gold" data-a="buy" data-i="'+i+'" '+(P.coins<pr?'disabled':'')+'>Comprar ◉'+pr+'</button>')+'</div>';
+      (own?'<div class="st">Munição reserva: '+WS.reserve[i]+'<br>Durabilidade: '+(weaponBroken(i)?'<b style="color:#ff6a6a">QUEBRADA</b>':Math.round(durOf(i))+'%')+'</div>'+tagLine(priceTag(c,'ammo','Munição')+(durOf(i)<100?' '+priceTag(c,'repair','Conserto'):''))+'<button data-a="ammo" data-i="'+i+'" '+(P.coins<pk?'disabled':'')+'>+'+w.pack+' munição ◉'+pk+'</button>'+(durOf(i)<100?'<button data-a="repair" data-i="'+i+'">🔧 Consertar ◉'+repairCost(i,c)+(P.coins<repairCost(i,c)?' (gera dívida)':'')+'</button>':'')
+          :tagLine(priceTag(c,'weapon'))+'<button class="gold" data-a="buy" data-i="'+i+'" '+(P.coins<pr?'disabled':'')+'>Comprar ◉'+pr+'</button>')+'</div>';
   }).join('');
-  const utilsHtml='<div class="card"><b>🛡 Colete à prova de bala</b><div class="st">Absorve 60% do dano recebido até acabar (100 de proteção).<br>Proteção atual: '+Math.ceil(P.armor)+'/100</div><button class="gold" data-a="vest" '+(P.coins<pc(180,c,'vest')||P.armor>=100?'disabled':'')+'>Comprar ◉'+pc(180,c,'vest')+'</button></div>'
+  const utilsHtml='<div class="card"><b>🛡 Colete à prova de bala</b><div class="st">Absorve 60% do dano recebido até acabar (100 de proteção).<br>Proteção atual: '+Math.ceil(P.armor)+'/100</div>'+tagLine(priceTag(c,'vest'))+'<button class="gold" data-a="vest" '+(P.coins<pc(180,c,'vest')||P.armor>=100?'disabled':'')+'>Comprar ◉'+pc(180,c,'vest')+'</button></div>'
     +'<div class="card"><b>🎒 Ampliar a bolsa</b><div class="st">+'+(INV_UPGRADED-INV_BASE)+' espaços ('+INV_BASE+' → '+INV_UPGRADED+'). Só pode ser feito uma vez.</div>'
-    +(STATE.inv.upgraded?'<button disabled>Bolsa já ampliada ✔</button>':'<button class="gold" data-a="bag" '+(P.coins<pc(INV_UP_COST,c,'upgrade')||Ledger.anyDebt()?'disabled':'')+'>Ampliar ◉'+pc(INV_UP_COST,c,'upgrade')+'</button>')+'</div>';
+    +(STATE.inv.upgraded?'<button disabled>Bolsa já ampliada ✔</button>':tagLine(priceTag(c,'upgrade'))+'<button class="gold" data-a="bag" '+(P.coins<pc(INV_UP_COST,c,'upgrade')||Ledger.anyDebt()?'disabled':'')+'>Ampliar ◉'+pc(INV_UP_COST,c,'upgrade')+'</button>')+'</div>';
   const tab=G.shopTab||'weapons';
+  $('shopcoins').textContent='◉ '+P.coins+' moedas';
   $('shoptabs').innerHTML=[['weapons','🔫 Armas'],['utils','🛠 Úteis']].map(t=>'<button class="'+(tab===t[0]?'gold':'alt')+'" data-tab="'+t[0]+'">'+t[1]+'</button>').join('');
   $('shopgrid').innerHTML=tab==='utils'?utilsHtml:weaponsHtml;
 }
 $('shoptabs').addEventListener('click',e=>{const b=e.target.closest('button');if(b&&b.dataset.tab){G.shopTab=b.dataset.tab;renderShop()}});
 $('shopgrid').addEventListener('click',e=>{
-  const b=e.target.closest('button');if(!b)return;const c=G.shopCity;
+  const b=e.target.closest('button');if(!b||b.classList.contains('qmark'))return;const c=G.shopCity;
   if(b.dataset.a==='repair'){repairWeapon(+b.dataset.i,c);renderShop();return}
   if(b.dataset.a==='bag'){invUpgrade(pc(INV_UP_COST,c,'upgrade'));renderShop();return}
   if(b.dataset.a==='vest'){const pr=pc(180,c,'vest');if(P.coins>=pr&&P.armor<100){P.coins-=pr;P.armor=100;sfx('coin',0);toast('Colete equipado!',1500)}renderShop();return}
@@ -201,19 +231,19 @@ $('shopgrid').addEventListener('click',e=>{
   renderShop();
 });
 function openClinic(c){G.clinicCity=c;G.clinicMode='menu';openPanel('clinic');renderClinic()}
-const clinicCost=(h,c)=>Math.max(1,Math.round(h*0.5*cityMul(c)*polMul('price',c.id,'heal')*(rbufOn('gold')?0.8:1)*(moodOf(c)==='upset'?2:1)*(moodOf(c)==='rich'?0.9:1)));
+const clinicCost=(h,c)=>priceOf(h*0.5,{city:c,kind:'healhp'});   // vida: 0,5 por ponto × todos os modificadores (kind 'healhp')
 function renderClinic(){
   if(polFlag('noHeal',G.clinicCity.id)){$('clinictxt').innerHTML='';$('clinicbtns').innerHTML='<p>— A clínica está fechada: há uma epidemia na cidade e não há como curar nem vender remédios.</p>';return}
   const c=G.clinicCity,miss=Math.ceil(P.maxhp-P.hp),full=clinicCost(miss,c),q=Math.min(miss,25),qc=clinicCost(q,c);
-  $('clinictxt').innerHTML='Vida: <b>'+Math.ceil(P.hp)+'/'+P.maxhp+'</b> • Moedas: <b>◉ '+P.coins+'</b><br>'+priceLabel(c)+'. Aqui a vida <b>não</b> volta sozinha: cada ponto custa ◉'+(0.5*cityMul(c)*(rbufOn('gold')?0.8:1)).toFixed(2).replace('.',',')+'.';
+  $('clinictxt').innerHTML='Vida: <b>'+Math.ceil(P.hp)+'/'+P.maxhp+'</b> • Moedas: <b>◉ '+P.coins+'</b><br>Aqui a vida <b>não</b> volta sozinha: cada ponto custa ◉'+(0.5*priceMul({city:c,kind:'healhp'})).toFixed(2).replace('.',',')+'.';
   const mode=G.clinicMode||'menu',back='<br><button class="alt" data-mode="menu" style="margin-top:8px">← Voltar</button>';
   if(mode==='menu')$('clinicbtns').innerHTML='<p>— Em que posso ajudar?</p><button class="gold" data-mode="heal">❤ Curar</button><button class="gold" data-mode="buy">🛍 Comprar</button>';
-  else if(mode==='heal')$('clinicbtns').innerHTML=(miss<=0?'<p>Você está saudável!</p>':'<button class="gold" data-h="'+miss+'" '+(P.coins<full?'disabled':'')+'>Curar tudo (+'+miss+') ◉'+full+'</button><button data-h="'+q+'" '+(P.coins<qc?'disabled':'')+'>+'+q+' vida ◉'+qc+'</button>')+back;
-  else $('clinicbtns').innerHTML='<p class="st">Itens de cura (ficam na bolsa; atalhos 7, 8, 9):</p>'
+  else if(mode==='heal')$('clinicbtns').innerHTML=(miss<=0?'<p>Você está saudável!</p>':tagLine(priceTag(c,'healhp'))+'<button class="gold" data-h="'+miss+'" '+(P.coins<full?'disabled':'')+'>Curar tudo (+'+miss+') ◉'+full+'</button><button data-h="'+q+'" '+(P.coins<qc?'disabled':'')+'>+'+q+' vida ◉'+qc+'</button>')+back;
+  else $('clinicbtns').innerHTML='<p class="st">Itens de cura (ficam na bolsa; atalhos 7, 8, 9):</p>'+tagLine(priceTag(c,'heal'))
     +Object.values(DATA.items).filter(d=>d.shop==='clinic').map(d=>{const p=pc(d.price,c,'heal');return '<button data-buy="'+d.id+'" '+(P.coins<p||Ledger.anyDebt()?'disabled':'')+'>'+d.icon+' '+d.name+' ◉'+p+'</button>'}).join('')+back;
 }
 $('clinicbtns').addEventListener('click',e=>{
-  const b=e.target.closest('button');if(!b)return;
+  const b=e.target.closest('button');if(!b||b.classList.contains('qmark'))return;
   if(b.dataset.mode){G.clinicMode=b.dataset.mode;renderClinic();return}
   if(b.dataset.buy){
     const id=b.dataset.buy,d=itemDef(id),p=pc(d.price,G.clinicCity,'heal');
@@ -223,7 +253,7 @@ $('clinicbtns').addEventListener('click',e=>{
   }
   const h=+b.dataset.h,cost=clinicCost(h,G.clinicCity);
   if(P.coins>=cost){P.coins-=cost;P.hp=Math.min(P.maxhp,P.hp+h);sfx('coin',0)}renderClinic();
-});$('bkclose').onclick=closePanel;$('qclose').onclick=closePanel;$('shopclose').onclick=closePanel;$('clinicclose').onclick=closePanel;$('mapclose').onclick=closePanel;$('vclose').onclick=closePanel;
+});$('bkclose').onclick=closePanel;$('qclose').onclick=closePanel;$('shopclose').onclick=closePanel;$('clinicclose').onclick=closePanel;$('vclose').onclick=closePanel;
 $('resume').onclick=()=>{document.querySelector('#pause h2').textContent='⏸ PAUSA';if(AC&&AC.state==='suspended')AC.resume();G.introBook=false;closePanel()};$('respawn').onclick=respawn;
 function toggleMute(){G.muted=!G.muted;if(master)master.gain.value=G.muted?0:0.35;refreshCheats();toast(G.muted?'Som desligado':'Som ligado',1000)}
 function toggleInvis(){G.invis=!G.invis;if(G.invis){for(const e of ENEMIES)e.aggro=false}}
@@ -347,7 +377,16 @@ window.addEventListener('keydown',e=>{
     else if(!G.panel){refreshCheats();openPanel('pause')}
     return;
   }
-  if(e.code==='KeyM'){if(G.panel==='map')closePanel();else if(!G.panel){drawBigMap();openPanel('map')}return}
+  if(e.code==='KeyL'){   // L abre o caderno direto no Livro (com o caderno aberto, troca para o Livro; no Livro, fecha)
+    if(G.panel==='ldbook'){if(LB.top==='book')closePanel();else{LB.top='book';renderBook()}}
+    else if(!G.panel)openBook('book');
+    return;
+  }
+  if(e.code==='KeyM'){   // M abre o caderno na aba Mapa (com o caderno aberto, troca para o mapa; no mapa, fecha)
+    if(G.panel==='ldbook'){if(LB.top==='map')closePanel();else{LB.top='map';renderBook()}}
+    else if(!G.panel)openBook('map');
+    return;
+  }
   if(G.panel==='shop'||G.panel==='clinic'||G.panel==='barracks'||G.panel==='quests'||G.panel==='store'||G.panel==='cook'||G.panel==='raid'||G.panel==='warehouse'){if(e.code==='KeyE'||e.code==='Escape'){if(!UI.closeTop())closePanel()}return}
   if(G.panel==='uiwin'){if(e.code==='Escape'||e.code==='KeyE')UI.closeTop();return}   // janela de confirmação sobre o jogo
   if(G.panel==='ldbook'){if(e.code==='KeyE'||e.code==='Escape'||e.code==='KeyB'){if(!UI.closeTop())closePanel()}return}   // livro: bolsa + decisões
@@ -373,7 +412,7 @@ window.addEventListener('blur',()=>{G.keys={};G.fireHeld=false;G.aiming=false});
 function doInteract(){
   const t=G.target;if(!t)return;
   if(t.c&&raidLocked(t.c))return;
-  if(t.type==='hall')openQuests(t.c);else if(t.type==='barracks')openBarracks(t.c);else if(t.type==='shop')openShop(t.c);else if(t.type==='clinic')openClinic(t.c);else if(t.type==='portal'){if(RAID.active&&!RAID.engaged)toast('Há um ataque em andamento! Defenda a cidade antes.',2500);else enterDungeon(t.p)}else if(t.type==='dgexit')leaveDungeon();else if(t.type==='store')openStore(t.c,'store');else if(t.type==='tavern')openStore(t.c,'tavern');else if(t.type==='stove')openCooking('tavern');else if(t.type==='fire')openCooking('fire');else if(t.type==='npc')npcTalk(t.n);else if(t.type==='chest')openChest(t.ch);else if(t.type==='vein')mineVein();else if(t.type==='cage')openCage(t.c);else if(t.type==='book')openBook();else if(t.type==='leader')hallRoundAction(t.c);else if(t.type==='warehouse')openWarehouse(t.c);
+  if(t.type==='hall')openQuests(t.c);else if(t.type==='barracks')openBarracks(t.c);else if(t.type==='shop')openShop(t.c);else if(t.type==='clinic')openClinic(t.c);else if(t.type==='portal'){if(RAID.active&&!RAID.engaged)toast('Há um ataque em andamento! Defenda a cidade antes.',2500);else enterDungeon(t.p)}else if(t.type==='dgexit')leaveDungeon();else if(t.type==='store')openStore(t.c,'store');else if(t.type==='tavern')openStore(t.c,'tavern');else if(t.type==='stove')openCooking('tavern');else if(t.type==='fire')openCooking('fire');else if(t.type==='npc')npcTalk(t.n);else if(t.type==='chest')openChest(t.ch);else if(t.type==='vein')mineVein();else if(t.type==='cage')openCage(t.c);else if(t.type==='book')openBook();else if(t.type==='leader')hallRoundAction(t.c);else if(t.type==='warehouse')openWarehouse(t.c);else if(t.type==='loot')lootCaravan(t.car);
 }
 function updateInteract(){
   G.target=null;G.attackCity=null;G.curCity=null;const lines=[];
@@ -382,21 +421,31 @@ function updateInteract(){
     const d=Math.max(Math.abs(P.x-c.cx),Math.abs(P.z-c.cz));
     if(d<c.half+8&&d<bestD){bestD=d;G.curCity=c}
     if(d>c.half+25)continue;
-    if(raidLocked(c)){if(c.owner==='enemy'&&c.state==='idle'&&d<c.half+10){G.attackCity=c;lines.push('[F] ATACAR '+c.name.toUpperCase())}continue}   // cidade em combate de raid: sem serviços (nem a opção aparece)
-    if(c.shop){const ds=Math.hypot(P.x-c.shop.x,P.z-c.shop.z);if(ds<4.5){G.target={type:'shop',c};lines.push('[E] Comprar armas e munição'+mulTag(c))}}
-    if(c.barracks){const ds=Math.hypot(P.x-c.barracks.x,P.z-c.barracks.z);if(ds<4.5){G.target={type:'barracks',c};lines.push('[E] Quartel: recrutar e equipar soldados'+mulTag(c))}}
-    if(c.clinic){const ds=Math.hypot(P.x-c.clinic.x,P.z-c.clinic.z);if(ds<4.5){G.target={type:'clinic',c};lines.push('[E] Clínica: curar ferimentos'+mulTag(c))}}
+    if(raidLocked(c)||facClosed(c)){   // cidade em combate de raid ou hostil (inimiga, em guerra, em crime): sem serviços (nem a opção aparece)
+      const st=c.owner==='enemy'?relStatus(c.fid):'';
+      if(st==='war'&&c.state==='idle'&&d<c.half+10){G.attackCity=c;lines.push('[F] ATACAR '+c.name.toUpperCase())}
+      else if(st==='enemy'&&c.state==='idle'&&d<c.half+14)lines.push('🚫 Território de '+facOf(c.fid).name+': não entre ou os guardas atiram');
+      else if(c.crime&&c.state==='attacking'&&d<c.half+8)lines.push('🔒 Serviços fechados: cidade hostil');
+      continue;
+    }
+    if(c.shop){const ds=Math.hypot(P.x-c.shop.x,P.z-c.shop.z);if(ds<4.5){G.target={type:'shop',c};lines.push('[E] Comprar armas e munição')}}
+    if(c.barracks){const ds=Math.hypot(P.x-c.barracks.x,P.z-c.barracks.z);if(ds<4.5){G.target={type:'barracks',c};lines.push('[E] Quartel: recrutar e equipar soldados')}}
+    if(c.clinic){const ds=Math.hypot(P.x-c.clinic.x,P.z-c.clinic.z);if(ds<4.5){G.target={type:'clinic',c};lines.push('[E] Clínica: curar ferimentos')}}
     if(c.store){const ds=Math.hypot(P.x-c.store.x,P.z-c.store.z);if(ds<4.5){G.target={type:'store',c};lines.push('[E] Loja: vender e comprar itens')}}
     if(c.tavern){const ds=Math.hypot(P.x-c.tavern.x,P.z-c.tavern.z);if(ds<3.2){G.target={type:'tavern',c};lines.push('[E] Taverneiro: comprar comida pronta')}}
     if(c.stove){const ds=Math.hypot(P.x-c.stove.x,P.z-c.stove.z);if(ds<3.0){G.target={type:'stove',c};lines.push('[E] Fogão: cozinhar')}}
     if(c.warehouse){const ds=Math.hypot(P.x-c.warehouse.x,P.z-c.warehouse.z);if(ds<4.5&&Math.abs(P.y-c.y)<2.6){if(c.owner==='player'){G.target={type:'warehouse',c};lines.push('[E] Armazém: guardar itens, entregar suprimentos e recolher a produção')}else lines.push('🔒 Armazém fechado — conquiste a cidade')}}
     if(c.hall){const ds=Math.hypot(P.x-c.hall.x,P.z-c.hall.z);if(ds<4.5&&Math.abs(P.y-c.y)<2.6){if(c.owner==='player'){G.target={type:'hall',c};lines.push('[E] Prefeitura: quadro de missões')}else lines.push('🔒 Prefeitura fechada — conquiste a cidade')}}
-    if(c.owner==='enemy'&&c.state==='idle'&&d<c.half+10){G.attackCity=c;lines.push('[F] ATACAR '+c.name.toUpperCase())}
+    if(c.owner==='enemy'&&c.state==='idle'&&d<c.half+10&&relStatus(c.fid)==='war'){G.attackCity=c;lines.push('[F] ATACAR '+c.name.toUpperCase())}   // invasão só em guerra
   }
   for(const c of WORLD.camps){if(c.gone)continue;const d=Math.max(Math.abs(P.x-c.cx),Math.abs(P.z-c.cz));if(d<c.half+8&&d<bestD){bestD=d;G.curCity=c}
     if(c.firePos&&Math.hypot(P.x-c.firePos.x,P.z-c.firePos.z)<3.4){G.target={type:'fire',c};lines.push('[E] Fogueira: cozinhar')}
     if(c.cage&&!c.cage.opened&&Math.hypot(P.x-c.cage.dp.x,P.z-c.cage.dp.z)<2.8){G.target={type:'cage',c};lines.push(c.state==='cleared'?'[E] Abrir a grade e libertar o refém':'🔒 Grade trancada — elimine os bandidos')}}
   for(const c of WORLD.cities)if(c.leader&&c.owner==='player'&&Math.hypot(P.x-c.leader.x,P.z-c.leader.z)<4.8&&Math.abs(P.y-c.leader.y)<2.6){G.target={type:'leader',c};lines.push('[E] Falar com o líder: encerrar o turno do comandante')}
+  for(const car of CARAVANS){   // caravana de outra facção sem guardas vivos: dá para saquear
+    if(car.city.owner==='player'||car.looted||car.ambush||car.guards.some(g=>g.alive))continue;
+    if(Math.hypot(P.x-car.x,P.z-car.z)<5){G.target={type:'loot',car};lines.push('[E] Saquear a caravana de '+car.city.name)}
+  }
   if(nearBook()){G.target={type:'book'};lines.push('[E] Abrir o livro de decisões')}
   {const pp=portalNear();if(pp){G.target={type:'portal',p:pp};lines.push('[E] Entrar no portal — dungeon nível '+pp.tier+' • recompensa: '+rewardText(pp))}}
   if(G.dg&&G.dgPad&&Math.hypot(P.x-G.dgPad.x,P.z-G.dgPad.z)<2.6){G.target={type:'dgexit'};lines.push('[E] Sair da dungeon (volta ao portal)')}
@@ -469,7 +518,7 @@ function updateHUD(dt){
   const c=G.curCity;
   if(c){
     if(c.state==='attacking')$('cityinfo').innerHTML='⚔ '+c.name+' — inimigos: <b style="color:#ff8a8a">'+c.aliveEnemies+'</b>/'+c.totalEnemies;
-    else $('cityinfo').innerHTML=c.name+' <small>'+(c.home?'(sua cidade)':c.owner==='player'?'(conquistada)':(c.kind==='camp'?(c.state==='cleared'?'(limpo)':'(bandidos)'):(c.type==='fortaleza'?'(fortaleza inimiga)':'(cidade inimiga)')))+'</small>';
+    else $('cityinfo').innerHTML=c.name+' <small>'+(c.home?'(sua cidade)':c.owner==='player'?'(conquistada)':(c.kind==='camp'?(c.state==='cleared'?'(limpo)':'(bandidos)'):(c.type==='fortaleza'?'(fortaleza ':'(cidade ')+'— '+(facOf(c.fid)||{name:'inimiga'}).name+' · '+REL_ST[relStatus(c.fid)].n+')'))+'</small>';
   }else $('cityinfo').textContent='';
   // objetivo
   const n=WORLD.cities.filter(x=>x.owner==='player').length;
@@ -481,7 +530,7 @@ function updateHUD(dt){
   }else $('obj').innerHTML='Cidades: <b>'+n+'/7</b><br>Todas conquistadas!';
   $('obj').innerHTML+=questLine();drawMinimap();
 }
-function cityCol(c){if(RAID.active&&RAID.city===c)return Math.floor(G.t*4)%2?'#ff3030':'#ffffff';if(c.owner==='player')return '#3a8aff';return(c.state==='attacking'&&Math.floor(G.t*4)%2)?'#ffffff':'#'+RANK_COL[c.rank].toString(16).padStart(6,'0')}
+function cityCol(c){if(RAID.active&&RAID.city===c)return Math.floor(G.t*4)%2?'#ff3030':'#ffffff';return(c.state==='attacking'&&c.owner!=='player'&&Math.floor(G.t*4)%2)?'#ffffff':'#'+(facColor(c.fid)||0x888888).toString(16).padStart(6,'0')}   // cor da facção dona (piscando em ataque)
 const mm=$('mm'),mmc=mm.getContext('2d');
 function drawMinimap(){
   const s=1.5,R=88;
@@ -545,20 +594,21 @@ function drawIcon(ctx,x,y,ic,r){
   ctx.fillStyle=ic.col;ctx.font='bold '+Math.round(r*1.3)+'px monospace';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(ic.t,x,y+1);
 }
 function drawBigMap(){
-  const cv=$('bigmap'),g=cv.getContext('2d'),s=cv.width/W;
+  const cv=$('bigmap');if(!cv)return;
+  const g=cv.getContext('2d'),s=cv.width/W,k=Math.max(0.6,Math.min(1,cv.width/640));   // k: o mapa do caderno é menor, então letras e marcas encolhem
   g.imageSmoothingEnabled=false;g.drawImage(WORLD.mapCanvas,0,0,cv.width,cv.height);
-  g.font='bold 14px monospace';g.textAlign='center';
+  g.font='bold '+Math.round(14*k)+'px monospace';g.textAlign='center';
   for(const c of WORLD.cities){
-    const x=c.cx*s,y=c.cz*s;g.fillStyle=cityCol(c);g.strokeStyle='#fff';g.lineWidth=2;
-    g.beginPath();g.rect(x-7,y-7,14,14);g.fill();g.stroke();
-    g.fillStyle='#fff';g.strokeStyle='#000';g.lineWidth=3;const lbl=c.name+(MP.on?'  '+resIcon(focusOf(c)):'');g.strokeText(lbl,x,y-12);g.fillText(lbl,x,y-12);   // na escolha de caravana, o ícone do que a cidade troca
+    const x=c.cx*s,y=c.cz*s,h=7*k;g.fillStyle=cityCol(c);g.strokeStyle='#fff';g.lineWidth=2;
+    g.beginPath();g.rect(x-h,y-h,2*h,2*h);g.fill();g.stroke();
+    g.fillStyle='#fff';g.strokeStyle='#000';g.lineWidth=3;const lbl=c.name+(MP.on?'  '+resIcon(focusOf(c)):'');g.strokeText(lbl,x,y-12*k);g.fillText(lbl,x,y-12*k);   // na escolha de caravana, o ícone do que a cidade troca
   }
   drawGoldPortals(g,s,0,0,0,true);   // portais dourados no mapa grande
-  {const ct=cvbTarget();if(ct){drawStar(g,ct.x*s,ct.z*s,10);g.fillStyle='#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText('Caravana',ct.x*s,ct.z*s-16);g.fillText('Caravana',ct.x*s,ct.z*s-16)}}
-  drawRose(g,cv.width-64,64,30);
+  {const ct=cvbTarget();if(ct){drawStar(g,ct.x*s,ct.z*s,10*k);g.fillStyle='#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText('Caravana',ct.x*s,ct.z*s-16*k);g.fillText('Caravana',ct.x*s,ct.z*s-16*k)}}
+  drawRose(g,cv.width-64*k,64*k,30*k);
   drawPickOverlay(g,s);   // modo de escolha de caravana (rounds.js)
-  {const qt=questTarget();if(qt){drawStar(g,qt.x*s,qt.z*s,10);g.fillStyle='#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText('Missão',qt.x*s,qt.z*s-16);g.fillText('Missão',qt.x*s,qt.z*s-16)}}
-  g.save();g.translate(P.x*s,P.z*s);g.rotate(-P.yaw);g.fillStyle='#fff';g.strokeStyle='#000';g.beginPath();g.moveTo(0,-9);g.lineTo(7,8);g.lineTo(0,4);g.lineTo(-7,8);g.closePath();g.fill();g.stroke();g.restore();
+  {const qt=questTarget();if(qt){drawStar(g,qt.x*s,qt.z*s,10*k);g.fillStyle='#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText('Missão',qt.x*s,qt.z*s-16*k);g.fillText('Missão',qt.x*s,qt.z*s-16*k)}}
+  g.save();g.translate(P.x*s,P.z*s);g.rotate(-P.yaw);g.scale(k,k);g.fillStyle='#fff';g.strokeStyle='#000';g.beginPath();g.moveTo(0,-9);g.lineTo(7,8);g.lineTo(0,4);g.lineTo(-7,8);g.closePath();g.fill();g.stroke();g.restore();
 }
 
 
@@ -614,9 +664,9 @@ function update(dt){
   updateWeapons(dt);
   updateActors(dt);updateAllies(dt);updateCritters(dt);updateWild(dt);updateChests(dt);updateDayNight(dt);updateQuests(dt);
   updateFx(dt);checkStuck(dt);updateInventory(dt);updateFishing(dt);updateVendors();updatePortals(dt);updateRaids(dt);updateRounds(dt);
-  updateInteract();
+  updateInteract();facPatrol();
   // recuo: cidade em ataque se o jogador se afastou demais
-  for(const c of WORLD.cities)if(c.state==='attacking'&&Math.hypot(c.cx-P.x,c.cz-P.z)>170){c.state='idle';toast('Você recuou. Os inimigos voltam aos postos.',2500);for(const e of c.enemies)if(e.alive){e.hp=e.maxhp}}
+  for(const c of WORLD.cities)if(c.state==='attacking'&&Math.hypot(c.cx-P.x,c.cz-P.z)>170){c.state='idle';c.crime=false;toast('Você recuou. Os inimigos voltam aos postos.',2500);for(const e of c.enemies)if(e.alive){e.hp=e.maxhp}}
   for(const w of WORLD.windmills)w.rotation.z+=dt*0.9;
   for(const c of WORLD.cities)c.flags.forEach((f,i)=>{f.rotation.y=Math.sin(G.t*3+i)*0.18});
   for(const cl of clouds){cl.position.x+=dt*1.5;if(cl.position.x>W+80)cl.position.x=-80}
@@ -642,6 +692,8 @@ async function startGame(creative,loadData){
   const seed=sv?(/^\d+$/.test(sv)?(+sv>>>0):hashStr(sv)):((Math.random()*4294967296)>>>0);
   if(G.creative){setGod(true);G.noReload=true}   // modo criativo: invencível, munição infinita e disparo infinito por padrão (dá para desligar na pausa)
   $('playbtn').disabled=true;$('createbtn').disabled=true;
+  if(loadData){if(loadData.state&&loadData.state.fac)STATE.fac=Object.assign(STATE.fac||{},loadData.state.fac)}   // save: identidade do jogador e cores das NPC já valem na geração do mundo
+  else if((!q.get('auto')&&!q.get('cenario'))||q.get('fac'))await facCreateScreen();   // partida nova: tela de criação da facção antes de gerar o mundo (?auto=1 pula; ?fac=1 força)
   const msg=m=>{$('loadmsg').textContent=m};
   try{
     await genWorld(seed,msg,$('biosel').value);
@@ -651,8 +703,8 @@ async function startGame(creative,loadData){
     if(loadData){applySave(loadData);applyFishGone();rebuildPortals();rebuildSmoke()}
     else{spawnPortals();RAID.active=false;RAID.area=null;STATE.rd.hallCity=WORLD.home.id;G.introBook=true}   // partida nova: começa dentro da prefeitura (rodada 0) com o livro aberto no resumo
     refreshHotbar();refreshBuffs();fishClean();
-    G.running=true;$('hud').classList.remove('hidden');initEconomy();rebuildCaravans();refreshRoundHud();if(STATE.phase==='leader'||G.introBook){if(OFFICE.ok)enterOffice(true);else if(G.introBook)placeAtHall()}
-    refreshCheats();
+    G.running=true;$('hud').classList.remove('hidden');initEconomy();scenarioApply();rebuildCaravans();refreshRoundHud();   // scenarioApply: só com ?cenario=caravanas (scenario.js)if(STATE.phase==='leader'||G.introBook){if(OFFICE.ok)enterOffice(true);else if(G.introBook)placeAtHall()}
+    refreshCheats();scenarioAfter();
     $('seed').value=String(seed);
     document.querySelector('#pause h2').textContent=(loadData?'✔ JOGO CARREGADO — semente ':'✔ MUNDO PRONTO — semente ')+seed;
     openPanel('pause');
@@ -664,11 +716,12 @@ async function startGame(creative,loadData){
 $('playbtn').onclick=()=>startGame(false);$('createbtn').onclick=()=>startGame(true);
 (function(){
   const q=new URLSearchParams(location.search);
-  if(q.get('seed'))$('seed').value=q.get('seed');
+  if(q.get('seed'))$('seed').value=q.get('seed');else if(q.get('cenario'))$('seed').value='11';   // o cenário usa a semente 11
   if(q.get('bio'))$('biosel').value=q.get('bio');
   let ls=null;try{ls=sessionStorage.getItem('fc_loadslot');sessionStorage.removeItem('fc_loadslot')}catch(e){}
   if(ls)setTimeout(()=>startFromSave(+ls),200);          // carregar de dentro do jogo: a página recarregou e inicia direto do salvamento
   else if(q.get('load'))setTimeout(()=>startFromSave(+q.get('load')),200);   // ?load=1 carrega o espaço 1 (testes)
+  else if(q.get('cenario'))setTimeout(()=>startGame(true),200);   // ?cenario=caravanas: modo criativo, sem tela de criação
   else if(q.get('auto'))setTimeout(()=>startGame(q.get('auto')!=='normal'),200);   // ?auto=1 inicia no modo criativo (testes); ?auto=normal inicia o normal
 })();
 frame();
@@ -683,6 +736,7 @@ function pauseTab(name){
   document.querySelectorAll('#pause .ppage').forEach(p=>p.classList.toggle('hidden',p.dataset.pp!==name));
   document.querySelectorAll('#ptabs button').forEach(b=>b.classList.toggle('sel',b.dataset.pt===name));
   if(name==='rod')refreshPolicyCheats();
+  if(name==='facs')renderFacCheats();
 }
 document.addEventListener('click',e=>{const b=e.target.closest('#ptabs button');if(b&&b.dataset.pt)pauseTab(b.dataset.pt)});
 // aba Rodadas: lista de eventos para invocar (só no turno do Líder) e o resumo da política atual
