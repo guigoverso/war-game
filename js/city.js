@@ -44,6 +44,7 @@ function addMast(c,lx,lz,h,fw,fh,alongX,dir){
   addBanner(c,fx,h-fh/2-0.2,fz,fw,fh,alongX);
 }
 function lamp(c,x,z){
+  if((c.doors||[]).some(d=>Math.hypot(d[0]-x,d[1]-z)<2.6))return;   // nunca na frente da porta de um prédio
   Bc(c,x-0.1,0,z-0.1,x+0.1,3.2,z+0.1,0x2a2a2a,true,{j:0});
   Bc(c,x-0.3,3.2,z-0.3,x+0.3,3.8,z+0.3,0xffe9a0,false,{j:0});
   Bc(c,x-0.4,3.8,z-0.4,x+0.4,3.95,z+0.4,0x2a2a2a,false,{j:0});
@@ -813,7 +814,7 @@ function buildCity(c,rng){  const Hc=c.half;
   }
   // mastros com a bandeira da facção ladeando cada entrada (norte, sul, leste e oeste); as bandeiras apontam para o centro da entrada
   for(const [ax,e] of[['z',-Hc-1],['z',Hc+1],['x',-Hc-1],['x',Hc+1]])
-    for(const [s,dir] of[[-S-1.4,1],[S+2.4,-1]]){
+    for(const [s,dir] of[[-S-1.4,1]]){   // um só mastro por entrada
       if(ax==='z')addMast(c,s,e+0.5,7.4,1.9,1.2,true,dir);else addMast(c,e+0.5,s,7.4,1.9,1.2,false,dir);
     }
   // bandeiras na capela / praça

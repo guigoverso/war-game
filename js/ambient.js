@@ -29,7 +29,7 @@ function initAmbient(){
   AMB.windF=AC.createBiquadFilter();AMB.windF.type='bandpass';AMB.windF.frequency.value=420;AMB.windF.Q.value=0.7;
   AMB.windG=AC.createGain();AMB.windG.gain.value=0;
   const w=noise();w.connect(AMB.windF);AMB.windF.connect(AMB.windG);AMB.gustG=AC.createGain();AMB.gustG.gain.value=0.05;AMB.windG.connect(AMB.gustG);AMB.gustG.connect(AMB.bus.wind);w.start();
-  lfo(0.09,0.18,AMB.windG.gain);lfo(0.31,0.1,AMB.windG.gain);lfo(0.07,120,AMB.windF.frequency);
+  lfo(0.05,0.12,AMB.windG.gain);lfo(0.07,120,AMB.windF.frequency);
   // folhas balançando: ruído agudo que pulsa com as rajadas
   const lh=AC.createBiquadFilter();lh.type='highpass';lh.frequency.value=700;
   const lb=AC.createBiquadFilter();lb.type='lowpass';lb.frequency.value=2400;lb.Q.value=0.3;
@@ -179,7 +179,7 @@ function updateAmbient(dt){
   if(AMB.envT<=0){AMB.envT=0.3;ambSample()}
   const e=AMB.env,t=AC.currentTime,calm=AMB.clock>AMB.hush,nx0=AMB.next;
   // vento em rajadas com silêncio entre elas (intervalo menor perto do mar)
-  if(AMB.clock>AMB.gustAt){const sea=e.water>0.45,dur=3+Math.random()*4;AMB.gustEnd=AMB.clock+dur;AMB.gustAt=AMB.clock+dur+(sea?3+Math.random()*5:12+Math.random()*20)}
+  if(AMB.clock>AMB.gustAt){const sea=e.water>0.45,dur=3+Math.random()*4;AMB.gustEnd=AMB.clock+dur;AMB.gustAt=AMB.clock+dur+(sea?8+Math.random()*10:30+Math.random()*40)}
   const gust=AMB.clock<AMB.gustEnd?1:0;
   AMB.windG.gain.setTargetAtTime(0.4*e.wind,t,0.8);AMB.windF.frequency.setTargetAtTime(e.windFq,t,1.5);
   AMB.gustG.gain.setTargetAtTime(gust?1:0.04,t,gust?1.3:2.2);

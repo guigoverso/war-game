@@ -387,16 +387,22 @@ function populateCamp(c){
 }
 function populateWild(){  for(const c of WORLD.camps)populateCamp(c);
   for(const c of WORLD.packs)populatePack(c);
-  for(const c of WORLD.caves){
-    const rng=new RNG(WORLD.seed*19+c.id*71+5),roll=rng.int(0,1);
-    const plan=roll===0?['wolf','wolf','wolf']:['bear','bear'];
-    plan.forEach((t,i)=>{
-      let x,z;
-      if(t==='bear'&&i===0){x=c.bearSpot[0];z=c.bearSpot[1]}
-      else{const p=c.wp(rng.range(-1.2,1.2),-5-rng.range(0,6));x=p[0];z=p[1]}
-      spawnEnemy(c,t,x,z);
-    });
-  }
+  for(const c of WORLD.caves)populateCave(c,new RNG(WORLD.seed*19+c.id*71+5));
+}
+function populateCave(c,rng){
+  const plan=rng.int(0,1)===0?['wolf','wolf','wolf']:['bear','bear'];
+  plan.forEach((t,i)=>{
+    let x,z;
+    if(t==='bear'&&i===0){x=c.bearSpot[0];z=c.bearSpot[1]}
+    else{const p=c.wp(rng.range(-1.2,1.2),-5-rng.range(0,6));x=p[0];z=p[1]}
+    spawnEnemy(c,t,x,z);
+  });
+}
+// as grutas renovam o baú e os animais a cada rodada (quando o jogador não está olhando); o que sobrou vivo fica como está
+function renewCave(c){
+  c.renew=false;const ch=c.chest;
+  if(ch&&ch.opened){ch.opened=false;ch.open=0;if(ch.lid)ch.lid.rotation.x=0;ch.gold=Math.round(120+Math.random()*140)}
+  if(!c.enemies.some(e=>e.alive)){c.enemies=[];c.aliveEnemies=0;c.totalEnemies=0;c.state='idle';populateCave(c,new RNG((Math.random()*1e9)|0))}
 }
 // ---------- ciclo de vida dos acampamentos ----------
 // Concluído (bando eliminado + baú aberto ou refém libertado) e fora da visão: some. Dois dias depois, também fora da visão, reaparece
@@ -432,6 +438,7 @@ function updateCamps(dt){
     if(!c.gone){if(c.completed&&!c.questTarget&&campOutOfSight(c))despawnCamp(c)}
     else if(!c.prepHold&&DN.days-c.goneAt>=2&&campOutOfSight(c))respawnCamp(c);
   }
+  for(const c of WORLD.caves)if(c.renew&&!(STATE.round<1)&&campOutOfSight(c))renewCave(c);
 }
 function updateWild(dt){
   updateCamps(dt);updatePacks(dt);

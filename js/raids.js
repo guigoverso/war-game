@@ -19,7 +19,10 @@ function raidSides(c,n){
 }
 function raidSidePos(c,d){const off=c.half+3;return d==='E'?[c.cx+off,c.cz]:d==='W'?[c.cx-off,c.cz]:d==='S'?[c.cx,c.cz+off]:[c.cx,c.cz-off]}
 // Cidade em combate: durante uma onda (bandidos vivos) os serviços da cidade atacada ficam fechados; só abrem no intervalo entre as ondas.
-function raidLocked(c){return !!(RAID.active&&RAID.city===c&&RAID.area&&RAID.area.enemies.some(e=>e.alive))}
+function raidLocked(c){   // serviços fechados só enquanto há combate: onda de raid na sua cidade (aberto no intervalo entre ondas) ou ataque a uma cidade inimiga
+  if(RAID.active&&RAID.city===c)return !!(RAID.area&&RAID.area.enemies.some(e=>e.alive));
+  return c.owner==='enemy'&&c.state==='attacking'&&!!c.enemies&&c.enemies.some(e=>e.alive);
+}
 function spawnRaidWave(){
   const W=RAID.waves,c=RAID.city,a=RAID.area,spec=RAID_WAVES[W.i],rank=a.rank;
   for(const d of raidSides(c,spec.sides)){

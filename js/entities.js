@@ -220,8 +220,14 @@ function freeSpot(x,z,r,hgt,boxStep){
   return[x,z];
 }
 function rescueStuck(e,dt,r,hgt){
-  if(e.y<UNDER_Y)return;   // no mundo de baixo não há resgate (o resgate usa o terreno de cima)
   e.chkT=(e.chkT||0)-dt;if(e.chkT>0)return;e.chkT=0.3;
+  if(e.y<UNDER_Y){   // dungeon: o resgate usa o piso da ala (nunca o terreno de cima); preso num bloco ou fora do piso volta para o ponto livre mais próximo
+    const w=typeof G!=='undefined'&&G.dg&&G.dg.wing;if(!w||!e.alive)return;
+    const i=Math.floor(e.x-w.ox),j=Math.floor(e.z-w.oz),inFloor=i>=0&&j>=0&&i<w.N&&j<w.N&&w.g[j*w.N+i]===1;
+    probe(e.x,e.z,r*0.6,e.y,hgt,0.5,e.boxStep);
+    if(!inFloor||GR.blocked){e.stuckIn=(e.stuckIn||0)+0.3;if(!inFloor||e.stuckIn>=0.9){const f=dgFreeSpot(w,e.x,e.z,clamp(r,0.5,1.6),hgt);e.x=f[0];e.z=f[1];e.y=DG.Y;e.vy=0;e.path=null;e.stuckIn=0}}else e.stuckIn=0;
+    return;
+  }
   probe(e.x,e.z,r*0.6,e.y,hgt,1.05,e.boxStep);
   if(GR.blocked){
     e.stuckIn=(e.stuckIn||0)+0.3;
@@ -345,7 +351,7 @@ function buildEnemyModel(type,rng,rank,c,vest){
     default:return buildGolemV();
   }
 }function spawnEnemy(c,type,x,z,y,sentry){
-  if(!sentry){const f=freeSpot(x,z,EDEF[type].r,1.8);x=f[0];z=f[1]}
+  if(!sentry&&c.kind!=='dungeon'){const f=freeSpot(x,z,EDEF[type].r,1.8);x=f[0];z=f[1]}   // (a dungeon escolhe o ponto livre sozinha, em dgFreeSpot: freeSpot olha o terreno de cima e jogava os inimigos para dentro de paredes)
   let def=EDEF[type];
   if(c.kind){def=Object.assign({},def);if(def.range)def.range*=0.5;if(def.pref)def.pref*=0.5;def.sight=def.ranged?18:14;if(c.kind==='pack')def.sight=22;if(c.kind==='dungeon')def.climb=false}   // na dungeon as aranhas não escalam as paredes (sumiam por cima do teto)   // bandidos e animais selvagens: alcance pela metade; bandos de bichos enxergam mais longe
   const rng=new RNG((WORLD.seed*3+c.id*71+ENEMIES.length*13)>>>0);

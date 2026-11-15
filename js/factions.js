@@ -8,7 +8,9 @@ const FAC_COLORS=[{n:'Azul',c:0x2a6aff},{n:'Vermelho',c:0xd8322a},{n:'Verde',c:0
 // temperamento: multiplicador do que muda a relação (ganho/perda), para a F2; a pacífica nunca declara guerra (Fase 6)
 const FAC_TEMPER={pacifica:{n:'Pacífica',gain:1.5,loss:0.5},neutra:{n:'Neutra',gain:1,loss:1},agressiva:{n:'Agressiva',gain:0.5,loss:1.5}};
 const FAC_KINDS=['Reino','Ordem','Liga','Clã','Legião','Casa','Aliança','Império','Guilda','Confraria'];
-const FAC_EPITH=['do Corvo','da Aurora','de Ferro','das Brumas','do Leão','da Serpente','do Trovão','dos Pinheiros','da Lua','do Sol','do Lobo','da Rosa','dos Ventos','do Falcão','da Tempestade'];
+const FAC_EPITH=[['do','Corvo'],['da','Aurora'],['de','Ferro'],['das','Brumas'],['do','Leão'],['da','Serpente'],['do','Trovão'],['dos','Pinheiros'],['da','Lua'],['do','Sol'],['do','Lobo'],['da','Rosa'],['dos','Ventos'],['do','Falcão'],['da','Tempestade'],['da','Folha'],['da','Águia'],['do','Farol'],['da','Brasa'],['do','Dia']];   // [preposição, substantivo]
+// nomes prontos de outros formatos: [nome, substantivo-raiz]; duas facções nunca dividem o mesmo substantivo (Reino do Lobo + Império do Lobo)
+const FAC_FIXED=[['Águias Prateadas','Águia'],['Lobos Cinzentos','Lobo'],['Culto da Folha','Folha'],['O Sexto Dia','Dia'],['Corvos Rubros','Corvo'],['Os Filhos da Brasa','Brasa'],['Punho de Ferro','Ferro'],['Irmandade da Lua','Lua'],['Os Sem Coroa','Coroa'],['Véu Escarlate','Véu'],['Leões Dourados','Leão'],['Sentinelas das Cinzas','Cinzas'],['Serpentes do Pântano','Serpente'],['Os Últimos do Farol','Farol'],['Falcões da Aurora','Falcão']];
 // 20 bandeiras prontas (grade 8×5): '.' = cor principal, '#' = cor de contraste
 const FAC_FLAGS=[
   ['........','........','........','........','........'],
@@ -58,7 +60,7 @@ function genFactions(){
   // cores (sem repetir a do jogador), bandeiras e nomes sem repetição
   const pcol=(STATE.fac&&STATE.fac.color)||0,sorted=rng.shuffle(FAC_COLORS.map((_,i)=>i).filter(i=>i!==pcol)),flags=rng.shuffle(FAC_FLAGS.map((_,i)=>i)),used=new Set();
   const sv=STATE.fac&&STATE.fac.npcColors,cols=sv&&sv.length>=n?sv:sorted;if(STATE.fac)STATE.fac.npcColors=cols.slice(0,n);   // salvo: o jogador pode trocar de cor depois sem mudar as das NPC
-  const mkName=()=>{for(let t=0;t<60;t++){const s=rng.pick(FAC_KINDS)+' '+rng.pick(FAC_EPITH);if(!used.has(s)){used.add(s);return s}}return 'Facção '+(used.size+1)};
+  const roots=new Set(),mkName=()=>{for(let t=0;t<80;t++){const fixed=rng.chance(0.45),k=fixed?rng.pick(FAC_FIXED):rng.pick(FAC_EPITH),root=fixed?k[1]:k[1],s=fixed?k[0]:rng.pick(FAC_KINDS)+' '+k[0]+' '+k[1];if(!used.has(s)&&!roots.has(root)){used.add(s);roots.add(root);return s}}return 'Facção '+(used.size+1)};   // formatos: "Reino do Lobo" ou nome pronto ("Águias Prateadas", "O Sexto Dia"); sem substantivo repetido
   WORLD.factions=seeds.map((s,i)=>({id:i+1,name:mkName(),color:cols[i],flag:flags[i],temper:temps[i],seed:s.id}));
   for(const c of cities){
     c.ofid=c===home?0:1+seeds.reduce((bi,s,i)=>dist(c,s)<dist(c,seeds[bi])?i:bi,0);

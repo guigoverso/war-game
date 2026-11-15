@@ -23,6 +23,7 @@ const TYPE_NAME={food:'Alimentos',ore:'Minérios',wood:'Madeira',leather:'Couro'
 const CITY_COLS=[0xe0402a,0x2aa04a,0xe8b820,0x8a3ac8,0x20b0c8,0xe87820,0xd0409a,0x8a8a8a];   // cor de identidade de cada cidade (faixa da bandeira)
 const resIcon=k=>DATA.resources[k].icon,resName=k=>DATA.resources[k].name;
 
+Hooks.on('round',()=>{for(const c of WORLD.caves)if(!(c.nextRenew>STATE.round)){c.renew=true;c.nextRenew=STATE.round+3+Math.floor(Math.random()*3)}});   // cada gruta renova no máximo a cada 3–5 rodadas (cada uma no seu ritmo)   // grutas renovam baú e animais (poi.js, renewCave)
 Hooks.on('resetState',()=>{STATE.phase='commander';STATE.rd={lvl:1,actions:1,cities:{},routes:[],rbuf:{},debuff:{},report:[],hallCity:0,clv:{}}});
 // ---------- ações do líder: um só lugar para gastar e conferir ----------
 const actCost=kind=>ECON.act[kind]||0;
@@ -70,11 +71,14 @@ function portPct(pf,ps){   // porto: o jogador escolhe o que produz (0%) e o que
   // o porto é uma cidade forte que não é a capital e fica no litoral: a mais forte entre as litorâneas; sem litoral, a mais forte de todas
   const strong=WORLD.cities.filter(c=>!c.home).sort((a,b)=>(b.rank||0)-(a.rank||0)||a.id-b.id);
   const cand=strong.find(c=>c.coastal);   // sem cidade litorânea, o mundo não tem porto
+  // tipos distribuídos por rodízio (embaralhado pela semente): nenhum tipo some nem domina, mesmo com poucas cidades
+  const gr=new RNG((WORLD.seed*7919+13)>>>0),kinds=gr.shuffle(['food','ore','wood','leather','gold']),ord=gr.shuffle(WORLD.cities.filter(c=>!rd.cities[c.id]&&!(!hasPort&&cand&&cand.id===c.id))),assign={};
+  ord.forEach((c,i)=>assign[c.id]=kinds[i%kinds.length]);
   for(const c of WORLD.cities){
     if(rd.cities[c.id])continue;
     const rng=new RNG((WORLD.seed*31+c.id*977+5)>>>0);
     const isPort=!hasPort&&cand&&cand.id===c.id;
-    const type=isPort?'port':rng.pick(['food','ore','wood','leather','gold']);
+    const type=isPort?'port':assign[c.id];
     const e={type,pct:{},pf:type==='port'?rng.pick(RES4):type,ps:'',got:{},carry:{}};
     if(type==='port'){do{e.ps=rng.pick(NEEDS)}while(e.ps===e.pf);e.pct=portPct(e.pf,e.ps)}
     else{   // foco = 0%; as outras três necessidades sorteiam 200/150/100
@@ -117,7 +121,7 @@ const taxOf=c=>moodOf(c)==='upset'||polFlag('noTax',c.id)||(focusOf(c)==='gold'&
 const deliverAndRefresh=()=>{computeBuffs();refreshRoundHud()};function computeBuffs(){
   const b={};
   for(const c of playerCities())for(const r of NEEDS)if(gotOf(c,r)>Math.max(0,needOf(c,r)-carryOf(c,r)))b[r]=true;
-  STATE.rd.rbuf=b;
+  STATE.rd.rnext=b;   // o bônus de entrega acima da meta só vale na PRÓXIMA rodada (vira rbuf em endRound)
 }
 function playerPort(){return playerCities().find(c=>ec(c).type==='port')}
 
@@ -125,6 +129,7 @@ function playerPort(){return playerCities().find(c=>ec(c).type==='port')}
 function endRound(city){
   if(STATE.phase==='leader'||G.office||P.dead)return false;
   const rd=STATE.rd,rep=[];
+  computeBuffs();   // fecha os bônus do que foi entregue nesta rodada
   const pcs=playerCities(),debuf={};
   const prep=STATE.round<1;   // rodada 0: preparação, sem cobrança, imposto nem produção
   if(prep)rep.push('Rodada 0 (preparação): sem cobrança, imposto ou produção. A contagem começa agora, na rodada 1.');
@@ -132,14 +137,15 @@ function endRound(city){
     const rebels=[],officers=new Set();
     for(const c of pcs){
       const e=ec(c),carry2={};delete e.debt;   // recursos não geram dívida
-      let short=false,over=false;
+      let short=false,over=false;const overRes=[];
       for(const r of NEEDS){
         const need=needOf(c,r),cover=G.alwaysSupplied?need:storedOf(c,r),sh=Math.max(0,need-cover);   // (modo criativo: sempre supridas)
-        if(gotOf(c,r)>Math.max(0,need-carryOf(c,r)))over=true;   // entregou acima da meta: gera bônus (cidade próspera)
+        if(gotOf(c,r)>Math.max(0,need-carryOf(c,r))){over=true;overRes.push(r)}   // entregou acima da meta: gera bônus (cidade próspera)
         if(sh>0){short=true;debuf[r]=true;rep.push('⚠ '+c.name+': faltaram '+sh+' de '+resName(r).toLowerCase()+' (debuff nesta rodada; a necessidade continua a mesma).')}
         consumeSupply(c,r,Math.min(need,cover));   // o que a cidade precisa é consumido (destruído); a necessidade da rodada seguinte é a mesma        const left=storedOf(c,r);if(left>0)carry2[r]=left;
       }
       e.got={};e.carry=carry2;
+      if(!short)rep.push('✔ '+c.name+': suprida corretamente'+(over?' e acima da meta — bônus de entrega ('+overRes.map(resIcon).join(' ')+') na próxima rodada':'')+'.');
       // humor: descontente se faltou algo; próspera se tudo foi atendido e algo ficou acima da meta; senão contente
       // políticas: festa (efeito 'prosper') e felicidade (e.joyAdj, ±1) empurram o humor entre Descontente(1) e Próspera(3), mas NÃO mudam a contagem de rebelião (e.ups)
       {const ORD=['upset','ok','rich'];e.mood=short?'upset':ORD[clamp((over?2:1)+(e.joyAdj||0)+(polFlag('prosper',c.id)?1:0),polFlag('prosper',c.id)?2:0,2)];e.joyAdj=0}
@@ -172,7 +178,7 @@ function endRound(city){
   }
   for(const c of WORLD.cities)rerollNeeds(c);refreshShops();   // novas necessidades (dado) e Lojas reabastecidas conforme a produção
   rd.debuff=prep?(rd.debuff||{}):debuf;   // debuffs valem na rodada que começa (a necessidade não muda)
-  rd.rbuf={};if(prep)computeBuffs();   // o que foi entregue na rodada 0 já vale para a rodada 1
+  rd.rbuf=Object.assign({},rd.rnext||{});rd.rnext={};   // bônus do que foi entregue vale só na rodada que começa (a rodada 0 também)
   rd.hallCity=(city||WORLD.home).id;rd.report=rep;
   STATE.round++;Hooks.emit('round',STATE.round);
   beginLeaderTurn();
@@ -579,7 +585,7 @@ function bookPages(){
         const need=needOf(c,r),st=storedOf(c,r),g=gotOf(c,r),cy=carryOf(c,r),miss=missingOf(c,r);
         const state=need===0&&st===0?'<span class="ldok">não precisa</span>':miss>0?'<span class="ldbad">falta '+miss+'</span>':(g>Math.max(0,need-cy)?'<span class="ldok">★ bônus</span>':'<span class="ldok">✔</span>');
         return '<tr><td>'+resIcon(r)+' <b>'+resName(r)+'</b><br><small>precisa '+need+' • no armazém '+st+(cy?' (+'+cy+' da rodada anterior)':'')+''+'</small></td><td>'+state+'</td></tr>';
-      }).join('')+'</table><p class="ldsm">Para suprir a cidade, entregue os itens no <b>armazém</b> (edifício da cidade). Entregar acima da necessidade dá o bônus da rodada; o excedente fica para a próxima.</p>'
+      }).join('')+'</table><p class="ldsm">Para suprir a cidade, entregue os itens no <b>armazém</b> (edifício da cidade). Entregar acima da necessidade dá o bônus de entrega na <b>próxima</b> rodada; o excedente também fica para ela.</p>'
         +'<p class="ldsm">Reserva de produção: '+(w.prod?itemDef(w.prod.id).icon+' '+itemDef(w.prod.id).name+' ×'+w.prod.n:'vazia')+' • Cofre: ◉ '+w.vault+'</p>';
       R+='<p class="ldsm">Abundância (do mais ao menos abundante nesta rodada):<br><b>'+abundHtml(c)+'</b></p>';
       if(e.type==='port'){
@@ -609,7 +615,7 @@ function bookPages(){
       relH='<h4>Relação</h4><p><b style="color:'+S.col+'">'+S.n+'</b> • '+rl.v+'/10 <span style="letter-spacing:1px;color:'+S.col+'">'+'■'.repeat(rl.v)+'<span style="color:#9a8a6a">'+'□'.repeat(10-rl.v)+'</span></span></p><p class="ldsm">'+S.txt+'</p>'
         +(dv?'<p class="ldbad">💰 Reparação registrada: <b>◉'+dv.amt+'</b> — '+(rl.war?'é o valor cobrado para pedir paz.':(st==='enemy'&&rl.warAt==null?'um pedido de reparação aparece no turno do líder. ':'')+'É o valor da paz se houver guerra.')+'</p>':'')
         +(rl.warAt!=null&&!rl.war?'<p class="ldbad">⚔ Declaração de guerra a caminho (rodada '+rl.warAt+'): vira uma política no turno do líder, com a chance de pagar reparação (a agressiva recusa).</p>':'')
-        +'<h4>Decisões</h4><button data-a="fally" data-id="'+id+'" '+(lead&&rl.v>=REL_MAX&&!rl.ally&&!rl.war&&canAct('ally')&&Ledger.canAfford({gold:ac.cost})?'':'disabled')+' title="'+(canAct('ally')?'':'Sem ações do líder nesta rodada.')+'">🤝 Negociar aliança (◉'+ac.cost+' + '+actCost('ally')+' ação)</button> <button data-a="fwar" data-id="'+id+'" '+(lead&&!rl.war?'':'disabled')+'>⚔ Declarar guerra</button>'
+        +'<h4>Decisões</h4><button data-a="fally" data-id="'+id+'" '+(lead&&rl.v>=REL_MAX&&!rl.ally&&!rl.war&&canAct('ally')&&Ledger.canAfford({gold:ac.cost})?'':'disabled')+' title="'+(canAct('ally')?'':'Sem ações do líder nesta rodada.')+'">🤝 Negociar aliança (◉'+ac.cost+' + '+actCost('ally')+' ação)</button> <button data-a="fwar" data-id="'+id+'" '+(lead&&!rl.war&&STATE.round>=1?'':'disabled')+(STATE.round<1?' title="Não há guerra na rodada 0."':'')+'>⚔ Declarar guerra</button>'
         +(rl.war?' <button data-a="fask" data-id="'+id+'" '+(lead&&Ledger.canAfford({gold:dv?dv.amt:REL_REP.neutral})?'':'disabled')+'>🕊 Pedir paz (◉'+(dv?dv.amt:REL_REP.neutral)+')</button>':'')
         +'<p class="ldsm">Preço da aliança = ◉'+ECON.ally.base+' × (poder deles ÷ o seu), entre '+ECON.ally.min+'× e '+ECON.ally.max+'×. Seu poder: <b>'+ac.me+'</b> • deles: <b>'+ac.them+'</b> (cada cidade vale 1 + o nível dela).</p>'
         +(lead?'':'<p class="ldsm">🔒 Só no turno do líder.</p>')
@@ -627,11 +633,11 @@ function bookPages(){
       +'<h4>Cidades</h4>'+(cs.length?'<ul class="ldul">'+cs.map(c=>{const r=rt(c);return '<li>'+(c.home?'🏛 ':'')+c.name+(r?' <span class="cvb" data-ri="'+rd.routes.indexOf(r)+'">🛒</span>':'')+'</li>'}).join('')+'</ul>':'<p>Sem cidades: a facção foi destruída.</p>')
       +(f.player?'<button data-a="editfac">✏ Editar nome, cor e bandeira</button>'+(isLeader()?'':'<p class="ldsm">Fora do turno do líder só o nome pode ser mudado.</p>'):'');
     const R='<h3>Facções</h3>'+fl.map(x=>{const sx=x.player?null:REL_ST[relStatus(x.id)];return '<button class="ldcity'+(x.id===f.id?' sel':'')+'" data-a="fac" data-id="'+x.id+'"><span><i style="color:'+hex6(FAC_COLORS[x.color].c)+';font-style:normal">■</i> '+x.name+(x.player?' (você)':'')+'</span><small>'+facCities(x.id).length+' cidade(s)</small>'+(sx?'<em style="color:'+sx.col+'">'+sx.n+' • '+relOf(x.id).v+'/10</em>':'')+'</button>'}).join('');
-    return[L,R];
+    return[R,L];   // a lista de facções à esquerda e os detalhes à direita
   }
   if(LB.tab==='caravanas'){
     const L='<h3>Caravanas ativas</h3>'+(rd.routes.length?rd.routes.map((r,i)=>{const A=WORLD.cities[r.a],B=WORLD.cities[r.b];
-      return '<div class="ldroute"><b>'+routeName(r)+'</b><br><small>'+A.name+' recebe '+resIcon(focusOf(B))+' • '+B.name+' recebe '+resIcon(focusOf(A))+'</small><br><button data-a="unroute" data-i="'+i+'" '+(isLeader()?'':'disabled')+'>Desfazer</button></div>'}).join(''):'<p>Nenhuma caravana ainda.</p>')
+      return '<div class="ldroute"><b>'+routeName(r)+'</b><br><small>'+A.name+': envia '+resIcon(focusOf(A))+' → recebe '+resIcon(focusOf(B))+'<br>'+B.name+': envia '+resIcon(focusOf(B))+' → recebe '+resIcon(focusOf(A))+'</small><br><button data-a="unroute" data-i="'+i+'" '+(isLeader()?'':'disabled')+'>Desfazer</button></div>'}).join(''):'<p>Nenhuma caravana ainda.</p>')
       +'<p class="ldsm">Quem recebe o produto da outra cidade: a necessidade dele <b>100% some</b>, <b>150% cai para 100%</b> e <b>200% cai para 150%</b> (mostrado numa tabela antes de fechar o acordo). Negociar com uma cidade de <b>ouro</b> rende ouro por rodada (e uma cidade de ouro com acordo não rende imposto). A produção levada pela caravana não vai para o armazém.</p>';
     const R='<h3>Nova caravana</h3><p>Escolha no <b>mapa</b> a cidade de <b>origem</b> (uma das suas) e a de <b>destino</b> (sua, aliada ou neutra). A sua cidade passa a receber o produto do destino por caravana (reduz a necessidade dele ou rende ouro).</p>'
       +'<p>Preço: <b>◉ '+CARAVAN_COST+'</b>'+(actCost('caravan')?' + '+actCost('caravan')+' ação':'')+'</p><button data-a="route" class="gold" '+(canAct('caravan')&&Ledger.canAfford({gold:CARAVAN_COST})&&freeCityForRoute()?'':'disabled')+'>🗺 Escolher no mapa</button>'+(freeCityForRoute()?'':'<p class="ldwarn">Todas as suas cidades já têm uma caravana ativa (cada cidade só pode ter uma por vez). Desfaça uma para criar outra.</p>')+leaderOnly()+(Ledger.anyDebt()?'<p class="ldwarn">Com dívida não é possível comprar.</p>':'');    return[L,R];
@@ -670,7 +676,7 @@ function bookClick(e){
   else if(a==='city'){LB.city=+t.dataset.id}
   else if(a==='fac'){LB.fac=+t.dataset.id}
   else if(a==='fally'){if(isLeader())facAlly(+t.dataset.id)}
-  else if(a==='fwar'){const id=+t.dataset.id;if(isLeader())UI.confirm('Declarar guerra a '+facOf(id).name+'? A relação vai a 0, a aliança e as caravanas acabam, e você só entra nas cidades dela atacando.',()=>{facDeclareWar(id);renderBook()},'Declarar guerra');return}
+  else if(a==='fwar'){const id=+t.dataset.id;if(isLeader()&&STATE.round>=1)UI.confirm('Declarar guerra a '+facOf(id).name+'? A relação vai a 0, a aliança e as caravanas acabam, e você só entra nas cidades dela atacando.',()=>{facDeclareWar(id);renderBook()},'Declarar guerra');return}
   else if(a==='fask'){if(isLeader())facAskPeace(+t.dataset.id)}
   else if(a==='fgive'){facGiveGold(+t.dataset.id,+t.dataset.g)}
   else if(a==='frelic'){facGiveRelic(+t.dataset.id)}
@@ -745,7 +751,7 @@ function drawPickOverlay(g,s){
     const c=mapOpen()&&e.target&&e.target.id==='bigmap'?pickCityAt(e):null;
     if(!c){hide();return}
     const f=facOf(c.fid);if(!tip){tip=document.createElement('div');tip.className='uitip';document.body.appendChild(tip)}
-    tip.textContent=c.name+'\nFacção: '+(f?f.name:'—')+(G.creative&&f&&f.temper?' ('+facTemperName(f)+')':'')+(f&&!f.player?'\nRelação: '+REL_ST[relStatus(c.fid)].n+' ('+relOf(c.fid).v+'/10)':'');
+    tip.textContent=c.name+'\nProdução: '+typeLabel(c)+'\nFacção: '+(f?f.name:'—')+(G.creative&&f&&f.temper?' ('+facTemperName(f)+')':'')+(f&&!f.player?'\nRelação: '+REL_ST[relStatus(c.fid)].n+' ('+relOf(c.fid).v+'/10)':'');
     tip.style.display='block';tip.style.left=(e.clientX+14)+'px';tip.style.top=(e.clientY+14)+'px';
   });
   document.addEventListener('keydown',hide);document.addEventListener('click',hide);

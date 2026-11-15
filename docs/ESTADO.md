@@ -7,7 +7,7 @@ Mantenha curto: o histórico detalhado das regras fica em `docs/fase-4-testes.md
 - **Branch de trabalho:** `factions-update` (commitada e enviada).
 - **Fase atual:** 5 (facções). A Fase 4 (rodadas, prefeitura, livro, caravanas, 10 políticas locais) está pronta. A guerra é a Fase 6 (`docs/fase-6-guerra.md`).
 - **Save:** `SAVE_VERSION = 13`.
-- **Última atualização:** 2026-11-15.
+- **Última atualização:** 2026-11-15 (pacote de correções).
 
 ## Facções (Fase 5): o que existe
 Decisões e números completos em `docs/fase-5-facoes.md`. Código principal: `js/factions.js`, `js/flageditor.js`, `js/scenario.js`.
@@ -28,14 +28,17 @@ Decisões e números completos em `docs/fase-5-facoes.md`. Código principal: `j
 - **Facção destruída:** a cor volta a ficar livre, mas não está tratado de ponta a ponta; falta a nova facção criada por rebelião.
 - **Aliado que sofre crime** vira neutro com reparação pendente e nenhuma política cobre esse caso.
 - **Não visto na tela, só por script:** guardas de caravana patrulhando e atirando; mastro da prefeitura (só confirmado por teste); o jogo normal sem criativo. Vale jogar e conferir.
-- **Pacotão de correções:** ver `docs/futuras-correcoes.md` (portal dourado durante batalha, lojas durante invasão, árvores com folhas opacas, NPCs presos nas folhas, balanceamento das raids).
-- **Raid fácil demais:** o jogador venceu as 3 ondas com a arma inicial e ◉100 de cura nos intervalos. Ideias (nada implementado): 1) cura limitada no raid; 2) composição por onda; 3) escalar com a rodada e o nível da cidade; 4) cura mais cara durante o raid; 5) onda chefe, flanco, ameaça ao armazém. As duas últimas mudanças de raid (serviços fechados durante a onda; bandidos não perseguem civis) **ainda não foram testadas no jogo**.
+- **Pacotão de correções (feito, falta jogar):** ver `docs/futuras-correcoes.md`. Ainda abertos: balanceamento das raids e NPCs presos nas folhas (não reproduzido; as folhas não têm colisão). Confirmar jogando: qual botão de política ainda aparece depois de decidir; efeito das copas vazadas (shader em `world.js`); resgate de inimigos presos na dungeon durante a luta.
+- **Raid fácil demais:** o jogador venceu as 3 ondas com a arma inicial e ◉100 de cura nos intervalos. Ideias (nada implementado): 1) cura limitada no raid; 2) composição por onda; 3) escalar com a rodada e o nível da cidade; 4) cura mais cara durante o raid; 5) onda chefe, flanco, ameaça ao armazém. As últimas mudanças de raid (lojas fechadas só durante o combate e abertas entre ondas; bandidos não perseguem civis) **ainda não foram testadas no jogo**.
 - Efeitos do humor nos níveis 0 e −1 ainda são iguais aos do nível 1.
 - Não testado em tempo real: a luta entre as tropas na disputa do portal dourado.
 - Balanceamento da economia (`ECON`) e dos números das facções (`ECON.ally`, `FAC_*`, `REL_REP`) depende de teste jogando.
 
 ## Próximo passo sugerido
-1. Pacotão de correções (`docs/futuras-correcoes.md`), depois a F5.
+1. **F5a (decidir antes de codar):** o que faz as relações entre facções NPC subirem e descerem. Combinado: escopo só F5a, chance de mudança por rodada alta (~35%), 4 pares/guerra entre NPC só chega a "inimiga", sem guerra declarada (isso é Fase 6). Falta decidir os eventos (incidente de fronteira, pacto, disputa por recurso, ajuda em desastre, poder relativo, inimigo comum) e se o jogador pode influenciá-los.
+2. F5b: reuniões das facções (3 propostas, voto ponderado por nº de cidades) e eventos globais.
+3. Raids mais difíceis (ideias na seção de pendências), jogar a rodada 0 e as missões para ajustar números.
+4. Fase 6: guerra.
 
 Roteiro rápido para ver o estado atual: `index.html?cenario=caravanas&mute=1` (caravanas e relações) e `index.html?auto=1&mute=1&seed=11` (modo criativo normal).
 

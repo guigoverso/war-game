@@ -14,7 +14,7 @@ const POL={chance:0.30,dur:1,defs:[],byId:{}};
 const polDurTxt=()=>POL.dur+(POL.dur>1?' rodadas':' rodada');
 const POL_TYPE={buff:{n:'Buff',col:'#9fe89f'},debuff:{n:'Debuff',col:'#ff9a9a'},both:{n:'Buff + Debuff',col:'#ffd23a'},neutral:{n:'Neutro',col:'#c8c8c8'}};
 function definePolicy(d){
-  if(!d.options||d.options.length!==3)console.warn('política '+d.id+': precisa de 3 opções');
+  if(!d.options||(d.options.length!==3&&d.id!=='dourada'))console.warn('política '+d.id+': precisa de 3 opções');
   else if(!d.options.some(o=>!o.cost))console.warn('política '+d.id+': ao menos uma opção deve ser gratuita (ou o jogador pode ficar preso)');
   POL.defs.push(d);POL.byId[d.id]=d;return d;
 }
@@ -375,9 +375,8 @@ definePolicy({id:'dourada',name:'Dungeon dourada',city:true,cool:6,
         if(p)x.toast('✨ Um portal dourado surgiu perto de '+x.city.name+'. Siga a coluna de luz dourada!',5000);
         else{x.gold(150);x.toast('Não havia espaço para o portal dourado: os aventureiros pagaram ◉150 pelo mapa.',5000)}}},
     {k:'B',label:'Contratar mineradores e soldados',type:'both',cost:{gold:150},eff:c=>'−◉150. +◉50 por rodada durante '+polDurTxt()+'. A necessidade de comida de '+c.name+' sobe 100% no mesmo período.',
-      apply:x=>{x.fx({t:'gold',c:-1,p:{add:50},txt:'Mineradores contratados (dungeon dourada)'});x.fx({t:'need',p:{mul:2,sel:'food'},txt:'Necessidade de comida +100% em '+x.city.name+' (mineradores e soldados)'})}},
-    {k:'C',label:'Deixar para depois',type:'neutral',eff:()=>'Nada muda.'}
-  ]});
+      apply:x=>{x.fx({t:'gold',c:-1,p:{add:50},txt:'Mineradores contratados (dungeon dourada)'});x.fx({t:'need',p:{mul:2,sel:'food'},txt:'Necessidade de comida +100% em '+x.city.name+' (mineradores e soldados)'})}}
+  ]});   // só duas opções (sem 'deixar para depois')
 
 // linha curta no HUD: política da rodada e efeitos ativos (com a rodada em que terminam)
 function polHud(){

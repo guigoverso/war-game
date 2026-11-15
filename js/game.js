@@ -26,7 +26,7 @@ function tn(freq,dur,type,vol,to,dest){const o=AC.createOscillator(),g=AC.create
   g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(0.001,t+dur);o.connect(g);g.connect(dest||master);o.start(t);o.stop(t+dur)}
 function sfx(name,dist){
   if(!AC||AC.state==='suspended'&&AC.resume())return;
-  const v=clamp(1-(dist||0)/120,0,1);if(v<0.03)return;
+  const v=Math.pow(clamp(1-(dist||0)/90,0,1),2);if(v<0.03)return;   // queda rápida com a distância: longe quase não se ouve
   if(v>0.35&&typeof AMB!=='undefined'&&/^(pistol|smg|rifle|shotgun|sniper|launcher|boom)$/.test(name))AMB.hush=AMB.clock+14;   // tiros calam pássaros, grilos e conversas
   switch(name){
     case'pistol':nzs(0.12,0.7*v,3500);tn(190,0.08,'square',0.2*v,60);break;
@@ -412,7 +412,7 @@ window.addEventListener('blur',()=>{G.keys={};G.fireHeld=false;G.aiming=false});
 function doInteract(){
   const t=G.target;if(!t)return;
   if(t.c&&raidLocked(t.c))return;
-  if(t.type==='hall')openQuests(t.c);else if(t.type==='barracks')openBarracks(t.c);else if(t.type==='shop')openShop(t.c);else if(t.type==='clinic')openClinic(t.c);else if(t.type==='portal'){if(RAID.active&&!RAID.engaged)toast('Há um ataque em andamento! Defenda a cidade antes.',2500);else enterDungeon(t.p)}else if(t.type==='dgexit')leaveDungeon();else if(t.type==='store')openStore(t.c,'store');else if(t.type==='tavern')openStore(t.c,'tavern');else if(t.type==='stove')openCooking('tavern');else if(t.type==='fire')openCooking('fire');else if(t.type==='npc')npcTalk(t.n);else if(t.type==='chest')openChest(t.ch);else if(t.type==='vein')mineVein();else if(t.type==='cage')openCage(t.c);else if(t.type==='book')openBook();else if(t.type==='leader')hallRoundAction(t.c);else if(t.type==='warehouse')openWarehouse(t.c);else if(t.type==='loot')lootCaravan(t.car);else if(t.type==='msdeliver')msDeliver(t.m);
+  if(t.type==='hall')openQuests(t.c);else if(t.type==='barracks')openBarracks(t.c);else if(t.type==='shop')openShop(t.c);else if(t.type==='clinic')openClinic(t.c);else if(t.type==='portal'){if(RAID.active&&!RAID.engaged)toast('Há um ataque em andamento! Defenda a cidade antes.',2500);else if(t.p.golden&&CONTEST.active)toast('⚔ A batalha pelo portal dourado ainda não terminou!',2500);else enterDungeon(t.p)}else if(t.type==='dgexit')leaveDungeon();else if(t.type==='store')openStore(t.c,'store');else if(t.type==='tavern')openStore(t.c,'tavern');else if(t.type==='stove')openCooking('tavern');else if(t.type==='fire')openCooking('fire');else if(t.type==='npc')npcTalk(t.n);else if(t.type==='chest')openChest(t.ch);else if(t.type==='vein')mineVein();else if(t.type==='cage')openCage(t.c);else if(t.type==='book')openBook();else if(t.type==='leader')hallRoundAction(t.c);else if(t.type==='warehouse')openWarehouse(t.c);else if(t.type==='loot')lootCaravan(t.car);else if(t.type==='msdeliver')msDeliver(t.m);
 }
 function updateInteract(){
   G.target=null;G.attackCity=null;G.curCity=null;const lines=[];
@@ -475,7 +475,7 @@ function updatePlayer(dt){
   const hgt=P.crouch?1.2:1.8;
   if(G.noclip)noclipMove(dt,fw,st);else moveXZ(P,P.vx*dt,P.vz*dt,P.r,hgt,1.05);
   P.speed=Math.hypot(P.vx,P.vz);
-  if(k.Space&&P.ground&&!P.crouch&&!G.noclip){P.vy=7.8;P.ground=false}
+  if(k.Space&&P.ground&&!P.crouch&&!G.noclip){P.vy=7.2;P.ground=false}
   if(!G.noclip)moveY(P,dt,P.r,hgt,1.05);
   const peek=P.crouch&&(G.fireHeld||G.aiming);
   const tgt=P.crouch?(peek?1.52:1.05):1.62;
@@ -544,7 +544,6 @@ function drawMinimap(){
     mmc.strokeStyle='#fff';mmc.lineWidth=2;mmc.beginPath();mmc.rect(x-6,y-6,12,12);mmc.fill();mmc.stroke();
   }
   {const ct=G.dg?null:cvbTarget();if(ct){let x=(ct.x-P.x)*s,y=(ct.z-P.z)*s;const L=Math.hypot(x,y),maxL=62;if(L>maxL){x*=maxL/L;y*=maxL/L}drawStar(mmc,x,y,7)}}   // caravana sendo saqueada
-  if(!G.dg)drawGoldPortals(mmc,s,P.x,P.z,62,false);   // portal dourado (política): losango dourado
   if(!G.dg)for(const a of ALLIES)if(a.alive){mmc.fillStyle='#4aa0ff';mmc.fillRect((a.x-P.x)*s-2,(a.z-P.z)*s-2,4,4)}
   if(!G.dg)for(const e of ENEMIES)if(e.alive&&e.city.state==='attacking'){mmc.fillStyle='#ff2a2a';mmc.fillRect((e.x-P.x)*s-1.5,(e.z-P.z)*s-1.5,3,3)}
   mmc.restore();drawCompassRim(mmc,88,88,77,P.yaw);
@@ -553,6 +552,10 @@ function drawMinimap(){
       for(const ic of cityIcons(c)){const dx=(ic.x-P.x)*s,dz=(ic.z-P.z)*s,rx=dx*cs-dz*sn,ry=dx*sn+dz*cs;if(Math.hypot(rx,ry)>R-16)continue;drawIcon(mmc,R+rx,R+ry,ic,7)}}}
   mmc.fillStyle='#fff';mmc.strokeStyle='#000';mmc.lineWidth=2;mmc.beginPath();mmc.moveTo(R,R-8);mmc.lineTo(R+6,R+6);mmc.lineTo(R,R+3);mmc.lineTo(R-6,R+6);mmc.closePath();mmc.fill();mmc.stroke();
   {const qt=G.dg?null:questTarget();if(qt){const dx=(qt.x-P.x)*s,dz=(qt.z-P.z)*s,cs=Math.cos(P.yaw),sn=Math.sin(P.yaw);let rx=dx*cs-dz*sn,ry=dx*sn+dz*cs;const L=Math.hypot(rx,ry);if(L>77){rx*=77/L;ry*=77/L}drawStar(mmc,R+rx,R+ry,7)}}   // fora do alcance a estrela fica no aro, como a rosa dos ventos; perto, fica no local da missão. Sempre por cima de tudo
+  if(!G.dg)for(const p of goldenPortals()){   // portal dourado: losango que se comporta como a estrela de missão (no aro quando longe, no local quando perto; por cima de tudo)
+    const dx=(p.x-P.x)*s,dz=(p.z-P.z)*s,cs=Math.cos(P.yaw),sn=Math.sin(P.yaw);let rx=dx*cs-dz*sn,ry=dx*sn+dz*cs;const L=Math.hypot(rx,ry);if(L>77){rx*=77/L;ry*=77/L}
+    drawGoldDiamond(mmc,R+rx,R+ry,7);
+  }
 }
 function drawCompassRim(ctx,cx,cy,r,yaw){
   const c=Math.cos(yaw),s=Math.sin(yaw);
@@ -673,6 +676,7 @@ function update(dt){
   for(const cl of clouds){cl.position.x+=dt*1.5;if(cl.position.x>W+80)cl.position.x=-80}
   const cx=camera.position.x,cz=camera.position.z;
   for(const m of WORLD.chunkMeshes){const dx=m.userData.cx-cx,dz=m.userData.cz-cz;m.visible=dx*dx+dz*dz<245*245}
+  updateLeafFade();
   updateHUD(dt);
 }
 function frame(){
@@ -752,6 +756,7 @@ function refreshPolicyCheats(){
 }
 
 // marcador do portal dourado (política Dungeon dourada): losango dourado no minimapa e no mapa grande (com o nome)
+function drawGoldDiamond(ctx,x,y,r){ctx.fillStyle='#ffd23a';ctx.strokeStyle='#000';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,y-r);ctx.lineTo(x+r,y);ctx.lineTo(x,y+r);ctx.lineTo(x-r,y);ctx.closePath();ctx.fill();ctx.stroke()}
 function drawGoldPortals(ctx,s,px,pz,maxL,big){
   for(const p of goldenPortals()){
     let x,y;

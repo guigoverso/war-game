@@ -6,7 +6,7 @@ const DATA={
   // os quatro suprimentos do livro de recursos (o ouro é P.coins)
   resources:{
     food:{name:'Alimentos',icon:'🌾'},
-    ore:{name:'Minérios',icon:'⛏'},
+    ore:{name:'Minérios',icon:'⛏️'},
     wood:{name:'Madeira',icon:'🪵'},
     leather:{name:'Couro',icon:'🟤'},
     gold:{name:'Ouro',icon:'◉'}
@@ -34,7 +34,7 @@ defItems([
   ['carne','Carne crua','🥩','material',20,4,'Carne fresca. Pode ser cozida ou contar como 1 de alimento no estoque.',{supply:{res:'food'},price:6,shop:'store'}],
   ['ervas','Ervas medicinais','🌿','material',20,3,'Folhas de cheiro forte, usadas em remédios. Também conta como 1 de alimento no estoque.',{supply:{res:'food'}}],
   ['tora','Tronco de madeira','🪵','material',20,6,'Madeira para as cidades: conta como 1 de madeira no estoque.',{supply:{res:'wood'},price:8,shop:'store'}],
-  ['minerio','Minério bruto','⛏','material',20,8,'Minério para as cidades: conta como 1 de minério no estoque.',{supply:{res:'ore'},price:10,shop:'store'}],
+  ['minerio','Minério bruto','⛏️','material',20,8,'Minério para as cidades: conta como 1 de minério no estoque.',{supply:{res:'ore'},price:10,shop:'store'}],
   ['pele_lobo','Pele de lobo','🐺','trophy',10,12,'Pele grossa e cinzenta de lobo. Também conta como 1 de couro para as cidades.',{supply:{res:'leather'}}],
   ['presa','Presa de javali','🦷','trophy',10,14,'Presa curva e amarelada.'],
   ['seda','Seda de aranha','🕸','trophy',10,12,'Fios resistentes de aranha gigante.'],

@@ -132,6 +132,7 @@ function spawnPortals(){
       if(WORLD.cities.some(c=>Math.max(Math.abs(c.cx-x),Math.abs(c.cz-z))<c.half+(lax?12:30)))continue;
       if(WORLD.camps.some(c=>Math.hypot(c.cx-x,c.cz-z)<(lax?14:30)))continue;
       if(STATE.portals.some(p=>Math.hypot(p.x-x,p.z-z)<(lax?25:60)))continue;
+      if(treeNear(x,z,lax?4:5))continue;   // área limpa: nunca dentro de árvores
       const d=distHome(x,z),tier=d<150?1:d<270?2:3,r=rng.next();
       let reward;
       if(r<0.45){const res=rng.pick(['food','ore','wood','leather','gold']);reward={type:'resource',res,amt:res==='gold'?3*rng.int(60,100)*tier:rng.int(6,10)*tier}}   // recursos viram itens (1 item = 1 unidade)
@@ -224,6 +225,7 @@ function spawnGoldenPortal(c){
     if(WORLD.cities.some(cc=>Math.max(Math.abs(cc.cx-x),Math.abs(cc.cz-z))<cc.half+(lax?12:30)))continue;
     if(WORLD.camps.some(cc=>Math.hypot(cc.cx-x,cc.cz-z)<(lax?14:30)))continue;
     if(STATE.portals.some(p=>Math.hypot(p.x-x,p.z-z)<(lax?25:60)))continue;
+    if(treeNear(x,z,lax?4:5))continue;
     const clash=STATE.portals.find(p=>p.wing===wing&&!p.golden&&!inUse(p));if(clash)removePortal(clash);   // a ala fica para a dourada
     const d=distHome(x,z),tier=d<150?1:d<270?2:3;
     const p={id:(STATE.portalSeq=(STATE.portalSeq||0)+1),x:x+0.5,z:z+0.5,wing,tier,reward:{type:'resource',res:'gold',amt:GOLD_PORTAL_AMT},claimed:false,golden:true,contested:false,near:c.id};
@@ -313,7 +315,7 @@ function mineVein(){
   const d=G.dg;if(!d||!d.vein||d.vein.mined)return;
   if(d.area.state!=='cleared'){toast('🔒 Elimine todos os inimigos antes de minerar.',2000);return}
   d.vein.mined=true;d.vein.g.scale.set(0.001,0.001,0.001);d.vein.g.visible=false;
-  const p=d.p;if(!p.claimed){p.claimed=true;const got=giveResource(p.reward.res,p.reward.amt);toast('⛏ Você minerou o veio: '+got+'!',5000)}
+  const p=d.p;if(!p.claimed){p.claimed=true;const got=giveResource(p.reward.res,p.reward.amt);toast('⛏️ Você minerou o veio: '+got+'!',5000)}
   sfx('win',0);
 }
 
@@ -349,12 +351,25 @@ function enterDungeon(p){
   }
   toast('🌀 Dungeon '+(p.golden?'dourada ':'')+'nível '+p.tier+' — elimine os inimigos e '+(p.golden?'minere o veio de ouro do fundo (e abra o baú da relíquia)':'abra o baú do fundo')+'. Recompensa: '+rewardText(p),6000);
 }
+// ponto livre dentro da ala: piso (nunca parede) e sem pilares, caixas ou escombros por perto; busca em espiral a partir do ponto pedido
+function dgFreeSpot(w,x,z,r,hgt){
+  const N=w.N,cell=(px,pz)=>{const i=Math.floor(px-w.ox),j=Math.floor(pz-w.oz);return i>=0&&j>=0&&i<N&&j<N&&w.g[j*N+i]===1};
+  for(let rad=0;rad<=12;rad+=0.5){
+    const n=rad===0?1:Math.max(8,Math.round(rad*5));
+    for(let k=0;k<n;k++){
+      const a=k/n*6.283+rad,px=x+Math.cos(a)*rad,pz=z+Math.sin(a)*rad;
+      if(!cell(px,pz)||!cell(px+r,pz)||!cell(px-r,pz)||!cell(px,pz+r)||!cell(px,pz-r))continue;
+      probe(px,pz,r,DG.Y+0.1,hgt,0.5);if(!GR.blocked)return[px,pz];
+    }
+  }
+  return[x,z];
+}
 function populateWing(p,w,area){
   const plan={1:['spider','spider','hound','hound','bot'],2:['spider','spider','scorpion','scorpion','hound','hound','bot','bot'],3:['spider','spider','spider','scorpion','scorpion','scorpion','bot','bot','bot','brute']}[p.tier];
   const pts=w.spawns.slice().sort(()=>Math.random()-0.5),dead=p.dead||[];
   // quem já foi eliminado em visitas anteriores continua morto (a dungeon fica como estava)
-  plan.forEach((t,i)=>{if(dead.includes(i))return;const s=pts[i%pts.length],e=spawnEnemy(area,t,s.x,s.z);e.dgIdx=i;e.y=DG.Y});
-  if(!dead.includes(plan.length)){const e=spawnEnemy(area,p.tier===1?'scorpion':p.tier===2?'brute':'golem',w.boss.x-3,w.boss.z-3);e.dgIdx=plan.length;e.y=DG.Y}   // chefe
+  plan.forEach((t,i)=>{if(dead.includes(i))return;const s=pts[i%pts.length],f=dgFreeSpot(w,s.x,s.z,0.7,1.8),e=spawnEnemy(area,t,f[0],f[1]);e.dgIdx=i;e.y=DG.Y});
+  if(!dead.includes(plan.length)){const bf=dgFreeSpot(w,w.boss.x-3,w.boss.z-3,1.6,3.2),e=spawnEnemy(area,p.tier===1?'scorpion':p.tier===2?'brute':'golem',bf[0],bf[1]);e.dgIdx=plan.length;e.y=DG.Y}   // chefe
   if(area.aliveEnemies<=0)area.state='cleared';
 }
 function leaveDungeon(noTeleport){

@@ -10,8 +10,26 @@ function chunkOf(x,z){const cx=clamp(Math.floor(x/CHK),0,NCH-1),cz=clamp(Math.fl
 let BX_CAP=null;
 function Bx(x0,y0,z0,x1,y1,z1,color,col,o){
   if(BX_CAP){BX_CAP.batch.box(x0,y0,z0,x1,y1,z1,color,o);if(col){const b={x0,y0,z0,x1,y1,z1};Col.add(b);BX_CAP.cols.push(b)}return}
+  if(o&&o.lf){leafOf((x0+x1)/2,(z0+z1)/2).box(x0,y0,z0,x1,y1,z1,color,o);return}   // folhas: malha à parte, que fica translúcida quando o jogador está sob a copa
   chunkOf((x0+x1)/2,(z0+z1)/2).box(x0,y0,z0,x1,y1,z1,color,o);
   if(col)Col.add({x0,y0,z0,x1,y1,z1});
+}
+const LEAVES=[],LZ=new Map(),LEAF_U={uP:{value:new THREE.Vector3()},uOn:{value:0}};   // LZ: copas por célula de 8×8 (para saber se o jogador está sob uma)
+const LEAF_MAT=new THREE.MeshLambertMaterial({vertexColors:true});
+// folhas e neve (malha à parte): só os pedaços acima da cabeça e perto do jogador ficam "vazados" (tela quadriculada), então só a árvore em que ele está some
+LEAF_MAT.onBeforeCompile=sh=>{
+  sh.uniforms.uP=LEAF_U.uP;sh.uniforms.uOn=LEAF_U.uOn;
+  sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;').replace('#include <project_vertex>','#include <project_vertex>\nvWP=(modelMatrix*vec4(transformed,1.0)).xyz;');
+  sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;uniform vec3 uP;uniform float uOn;').replace('void main() {','void main() {\n  if(uOn>0.5){vec2 d=vWP.xz-uP.xz;if(dot(d,d)<11.0&&vWP.y>uP.y+1.0){vec2 q=floor(gl_FragCoord.xy);if(mod(q.x+q.y,2.0)<1.0)discard;}}');
+};
+const TREEC=new Set();   // células com tronco de árvore (portais e outras coisas precisam de área limpa)
+function treeNear(x,z,r){x=Math.floor(x);z=Math.floor(z);for(let dz=-r;dz<=r;dz++)for(let dx=-r;dx<=r;dx++)if(TREEC.has((z+dz)*W+x+dx))return true;return false}
+function leafOf(x,z){const cx=clamp(Math.floor(x/CHK),0,NCH-1),cz=clamp(Math.floor(z/CHK),0,NCH-1);return LEAVES[cz*NCH+cx]}
+function leafZone(cx,cz,r,ty){const k=Math.floor(cx/8)+','+Math.floor(cz/8);let a=LZ.get(k);if(!a)LZ.set(k,a=[]);a.push([cx,cz,r+0.6,ty])}
+function updateLeafFade(){   // liga o efeito quando o jogador está debaixo de uma copa
+  let under=false;const gx=Math.floor(P.x/8),gz=Math.floor(P.z/8);
+  for(let dx=-1;dx<=1&&!under;dx++)for(let dz=-1;dz<=1&&!under;dz++){const a=LZ.get((gx+dx)+','+(gz+dz));if(a)for(const t of a)if(Math.hypot(P.x-t[0],P.z-t[1])<t[2]&&P.y<t[3]+2.5){under=true;break}}
+  LEAF_U.uOn.value=under?1:0;LEAF_U.uP.value.set(P.x,P.y,P.z);
 }
 function setT(x,z,t){if(x>=0&&z>=0&&x<W&&z<W)T[z*W+x]=t}
 function getT(x,z){return(x>=0&&z>=0&&x<W&&z<W)?T[z*W+x]:0}
@@ -48,7 +66,7 @@ async function genWorld(seed,status,dominant){
   const rng=new RNG(seed);
   const nz=new Noise(seed),nt=new Noise(seed+11),nm=new Noise(seed+23),nr=new Noise(seed+37),nd=new Noise(seed+51),nj=new Noise(seed+77);TNOISE=new Noise(seed+303);
   H=new Int16Array(W*W);T=new Uint8Array(W*W);B=new Uint8Array(W*W);
-  CHUNKS.length=0;for(let i=0;i<NCH*NCH;i++)CHUNKS.push(new BoxBatch());
+  TREEC.clear();CHUNKS.length=0;LEAVES.length=0;LZ.clear();for(let i=0;i<NCH*NCH;i++){CHUNKS.push(new BoxBatch());LEAVES.push(new BoxBatch())}
 
   // 1) Relevo, rios e biomas
   // forma do mapa varia por semente
@@ -316,13 +334,15 @@ function canopy(rng,cx,cz,ty,base,n,spread,smin,smax,up){
     const a=rng.range(0,6.283),r=Math.sqrt(rng.next())*spread,ox=Math.cos(a)*r,oz=Math.sin(a)*r;
     const oy=rng.range(-0.9,up)*(1-r/(spread*1.6)),s=rng.range(smin,smax),sy=s*rng.range(0.7,0.95);
     const f=0.82+clamp((oy+0.9)/(up+0.9),0,1)*0.3;
-    Bx(cx+ox-s/2,ty+oy-sy/2,cz+oz-s/2,cx+ox+s/2,ty+oy+sy/2,cz+oz+s/2,shadec(leafCol(rng,base),f),false,{j:0.1,b:true});
+    Bx(cx+ox-s/2,ty+oy-sy/2,cz+oz-s/2,cx+ox+s/2,ty+oy+sy/2,cz+oz+s/2,shadec(leafCol(rng,base),f),false,{j:0.1,b:true,lf:true});
   }
+  leafZone(cx,cz,spread+smax*0.5,ty+up);
   // folhas soltas nas bordas
   for(let k=0;k<3;k++){const a=rng.range(0,6.283),r=spread*rng.range(0.9,1.3),s=rng.range(0.4,0.7);
-    Bx(cx+Math.cos(a)*r-s/2,ty+rng.range(-1.3,0.3),cz+Math.sin(a)*r-s/2,cx+Math.cos(a)*r+s/2,ty+rng.range(-1.3,0.3)+s,cz+Math.sin(a)*r+s/2,leafCol(rng,base),false,{j:0.12,b:true})}
+    Bx(cx+Math.cos(a)*r-s/2,ty+rng.range(-1.3,0.3),cz+Math.sin(a)*r-s/2,cx+Math.cos(a)*r+s/2,ty+rng.range(-1.3,0.3)+s,cz+Math.sin(a)*r+s/2,leafCol(rng,base),false,{j:0.12,b:true,lf:true})}
 }
 function addTree(x,z,y,type,rng){
+  TREEC.add(z*W+x);
   const cx=x+0.5,cz=z+0.5,jw=rng.range(-0.14,0.14);
   if(type==='oak'||type==='birch'){
     const bi=type==='birch',th=bi?rng.int(5,7):rng.int(4,6),tw=bi?0.3:0.4,tc=bi?0xd8d4c8:0x6b4a2a,lc=bi?(rng.chance(0.5)?0x93b83a:0xb5c845):(rng.chance(0.25)?0x3a7a24:0x2a6a24);
@@ -350,11 +370,12 @@ function addTree(x,z,y,type,rng){
     const n=rng.int(5,6);
     for(let k=0;k<n;k++){
       const w=2.5-k*0.38+jw,yy=y+1.2+k*((th+0.6)/n)*0.95;
-      Bx(cx-w,yy,cz-w,cx+w,yy+0.8,cz+w,leafCol(rng,k%2?0x2a5a3a:lc),false,{j:0.08,b:true});
-      Bx(cx-w*0.68,yy+0.8,cz-w*0.68,cx+w*0.68,yy+1.4,cz+w*0.68,leafCol(rng,lc),false,{j:0.08});
-      if(snow)Bx(cx-w*0.95,yy+0.8,cz-w*0.95,cx+w*0.95,yy+0.95,cz+w*0.95,0xf4f8fb,false,{j:0.03});
+      Bx(cx-w,yy,cz-w,cx+w,yy+0.8,cz+w,leafCol(rng,k%2?0x2a5a3a:lc),false,{j:0.08,b:true,lf:true});
+      Bx(cx-w*0.68,yy+0.8,cz-w*0.68,cx+w*0.68,yy+1.4,cz+w*0.68,leafCol(rng,lc),false,{j:0.08,lf:true});
+      if(snow)Bx(cx-w*0.95,yy+0.8,cz-w*0.95,cx+w*0.95,yy+0.95,cz+w*0.95,0xf4f8fb,false,{j:0.03,lf:true});
     }
-    Bx(cx-0.3,t+0.6,cz-0.3,cx+0.3,t+2.0,cz+0.3,0x1f4a2e,false,{b:true});
+    Bx(cx-0.3,t+0.6,cz-0.3,cx+0.3,t+2.0,cz+0.3,0x1f4a2e,false,{b:true,lf:true});
+    leafZone(cx,cz,2.4,t+2);
   }else if(type==='cactus'){
     const th=rng.int(2,4),g=0x3f8a3a,g2=0x2f7030;
     Bx(cx-0.4,y,cz-0.4,cx+0.4,y+th,cz+0.4,g,true,{j:0.08});
@@ -519,6 +540,8 @@ function meshTerrain(){
     }
     const m=bt.toMesh(MAT_TERRAIN);
     if(m){m.userData.cx=(cx+0.5)*CHK;m.userData.cz=(cz+0.5)*CHK;scene.add(m);WORLD.chunkMeshes.push(m)}
+    const lm=LEAVES[cz*NCH+cx].toMesh(LEAF_MAT);
+    if(lm){lm.userData.cx=(cx+0.5)*CHK;lm.userData.cz=(cz+0.5)*CHK;scene.add(lm);WORLD.chunkMeshes.push(lm)}
   }
 }
 function mapColorAt(x,z){
