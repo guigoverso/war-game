@@ -27,6 +27,14 @@ const rebJoinCost=(c,r)=>({gold:REB.join.base+REB.join.perLvl*(c.rank||1)+REB.jo
 const rebNames=ids=>{const n=ids.map(i=>facOf(i).name);return n.length>1?n.slice(0,-1).join(', ')+' e '+n[n.length-1]:n.join('')};
 // os dois lados: apoiam os rebeldes (r.sup) e ficam com a dona (ela mesma e as aliadas/amistosas dela no grafo)
 function rebSides(r){return{pro:r.sup.slice(),con:[r.owner].concat(WORLD.factions.filter(f=>f.id!==r.owner&&!r.sup.includes(f.id)&&facCities(f.id).length&&fgV(r.owner,f.id)>=FG.allyMin).map(f=>f.id))}}
+// tabela dos lados: rebeldes e quem os apoia à esquerda; a dona e quem fica com ela à direita (cada nome com a cor da facção)
+function rebSidesTable(r){
+  const s=rebSides(r),chip=col=>'<i style="color:'+col+';font-style:normal">■</i> ',fac=i=>chip(hex6(facColor(i)))+facOf(i).name;
+  const L=[chip(hex6(FAC_COLORS[r.color].c))+'<b>Rebeldes</b>'].concat(s.pro.map(fac)),R=s.con.map((i,k)=>k?fac(i):'<b>'+fac(i)+'</b>'),n=Math.max(L.length,R.length);
+  let h='<table style="width:100%;margin:8px 0;border-collapse:collapse;font-size:15px"><tr style="color:#c8b890;font-size:13px"><td style="width:45%">Lado dos rebeldes</td><td></td><td>Lado da facção</td></tr>';
+  for(let i=0;i<n;i++)h+='<tr><td style="padding:2px 0">'+(L[i]||'')+'</td><td style="text-align:center;width:10%;color:#ff9a6a"><b>'+(i<Math.min(L.length,R.length)||i===0?'X':'')+'</b></td><td>'+(R[i]||'')+'</td></tr>';
+  return h+'</table>';
+}
 function rebSidesTxt(r){const s=rebSides(r);return 'Apoiam os rebeldes: '+(s.pro.length?rebNames(s.pro):'nenhuma facção')+'. Contra os rebeldes: '+rebNames(s.con)+'.'}
 
 // a capital de uma facção NPC (a cidade de maior nível; empate: a de menor id) nunca se rebela
@@ -152,7 +160,8 @@ const rebOwnerName=()=>facOf(rebCur().owner).name;
 const rebAfter=(x,line)=>{rebCur().stage='wait';x.toast(line,4500);const rd=STATE.rd;if(rd&&rd.report)rd.report.push(line)};
 definePolicy({id:'rebnpc',name:'Rebelião',city:true,noRoll:true,flex:true,cool:0,
   cond:()=>!!rebCur(),
-  text:(c)=>{const r=rebCur();return 'Cansados da escassez, os moradores de '+c.name+' tomaram as ruas contra '+facOf(r.owner).name+'. A guarnição foi expulsa, a cidade arde e uma bandeira nova foi hasteada. '+rebSidesTxt(r)+' Os dois lados esperam a sua palavra.'},
+  text:(c)=>{const r=rebCur();return 'Cansados da escassez, os moradores de '+c.name+' tomaram as ruas contra '+facOf(r.owner).name+'. A guarnição foi expulsa, a cidade arde e uma bandeira nova foi hasteada. Os dois lados esperam a sua palavra.'},
+  extra:(c)=>rebSidesTable(rebCur()),
   options:[
     {k:'A',label:'Apoiar os rebeldes',type:'both',eff:c=>'Você luta ao lado dos rebeldes no turno do Comandante e vira inimigo de '+rebOwnerName()+'. Ganha +1 soldado rebelde por nível da cidade e +1 por facção que apoia.',can:()=>'Batalha ainda não implementada (etapa 2).',apply:()=>{}},
     {k:'B',label:'Combater a rebelião',type:'both',eff:c=>'É uma invasão normal da cidade: os soldados dela viram os rebeldes. Ajuda '+rebOwnerName()+' (relação sobe).',can:()=>'Batalha ainda não implementada (etapa 2).',hide:()=>relStatus(rebCur().owner)==='war',apply:()=>{}},
@@ -171,6 +180,7 @@ const rebDone=()=>{rebEnd()};
 definePolicy({id:'rebresult',name:'Rebelião: resultado',city:true,noRoll:true,flex:true,cool:0,
   cond:()=>!!rebCur(),
   text:(c)=>{const r=rebCur();return 'Os rebeldes de '+c.name+' venceram e expulsaram os homens de '+facOf(r.owner).name+'. '+(rebInvolved()?'Eles lembram do seu apoio e esperam a sua resposta. ':'Eles seguem sozinhos e esperam ver o que você fará. ')+(r.sup.length?'Têm o interesse de '+rebNames(r.sup)+'. ':'')+(rebAtCap()?'Não há espaço no mundo para outra facção: a cidade vai se juntar a alguma delas.':'')},
+  extra:(c)=>rebSidesTable(rebCur()),
   options:[
     {k:'A',label:'Reconhecer a nova facção',type:'buff',hide:()=>!rebInvolved()||rebAtCap(),
       eff:()=>'Nasce uma nova facção na cor dos rebeldes. A relação com ela começa em "Favorável".',

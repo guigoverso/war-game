@@ -64,3 +64,4 @@ Fase 6 (guerra). Gancho: `fsupHit` (facsupply.js) reduz o suprimento de uma fac�
 - O cartão, o aviso, o relatório e o modo criativo dizem quem **apoia os rebeldes** e quem fica **contra** (a dona e as facções aliadas ou amistosas dela no grafo da F3): `rebSides`/`rebSidesTxt`.
 - Enquanto está em rebelião, a facção da cidade aparece só como **"Rebeldes"** (dica do mapa, informação da cidade, lista do livro). O nome real só existe depois do fim da rebelião (facção nova).
 - **Caravanas para cidade em rebelião** não são permitidas (jogador e NPC); no mapa de escolha a cidade aparece com um **círculo vermelho com X**.
+- O cartão mostra os lados numa **tabela** (rebeldes e apoiadoras à esquerda, a dona e quem fica com ela à direita, um "X" no meio de cada linha), com a cor da facção ao lado de cada nome (`rebSidesTable`; cartões ganharam o campo `extra`, um bloco em HTML depois do texto).

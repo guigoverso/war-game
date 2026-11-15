@@ -121,6 +121,7 @@ function showPolicy(){
   polWin.setTitle('📜 '+d.name+(c?' — '+c.name:''));
   const b=polWin.body;b.innerHTML='';
   const nar=document.createElement('p');nar.style.cssText='font-style:italic;line-height:1.5';nar.textContent='“'+d.text(c,pd.data)+'”';b.appendChild(nar);
+  if(d.extra){const ex=document.createElement('div');ex.innerHTML=d.extra(c,pd.data);b.appendChild(ex)}   // bloco em HTML depois do texto (ex.: tabela dos lados da rebelião)
   for(const op of d.options){
     const ty=POL_TYPE[op.type]||POL_TYPE.neutral,ctx=polCtx(d,op,c,pd.data);
     if(op.hide&&op.hide(ctx))continue;   // opção que não se aplica agora (ex.: reconhecer facção no limite de facções)
