@@ -348,7 +348,7 @@ function npcTalk(n){
 // uma cor de uniforme por nível (rank) da cidade
 const RANK_COL=[0x2a6aff,0x6a7a2a,0xc8641e,0x9a2a2a,0x6a3a9a,0x2e2e3a,0xd8b830];
 function buildEnemyModel(type,rng,rank,c,vest){
-  const fcol=c&&!c.kind&&c.fid!==undefined?facColor(c.fid):null,red=fcol||RANK_COL[rank]||0x9a2a2a,dark=shadec(red,0.6),steel=0x9ab0c8,camp=c&&(c.kind==='camp'||c.kind==='raid');   // bandidos de raid usam o visual dos bandidos de acampamento
+  const fcol=c&&c.uniform!==undefined?c.uniform:c&&!c.kind&&c.fid!==undefined?facColor(c.fid):null,red=fcol||RANK_COL[rank]||0x9a2a2a,dark=shadec(red,0.6),steel=0x9ab0c8,camp=c&&(c.kind==='camp'||c.kind==='raid')&&c.uniform===undefined;   // c.uniform: cor de uniforme própria (tropas e rebeldes das rebeliões, rebellion.js)   // bandidos de raid usam o visual dos bandidos de acampamento
   switch(type){
     case'soldier':
       if(camp)return buildHuman({skin:rng.pick(SKINS),shirt:0x6b4a2a,sleeve:0x4a3a2a,pants:0x3a2f24,hairStyle:'bandana',hat:0xb02a2a,hair:0x2a1a10,beard:rng.chance(0.5)?0x2a1a10:undefined,gun:{len:0.7}});
@@ -586,11 +586,11 @@ function damageEnemy(e,amount,head,byAlly,src){   // src: outro bicho/soldado qu
 }
 function checkConquest(c){
   if(c.aliveEnemies>0)return;
-  if(c.kind==='raid'){if(c===RAID.area&&(!RAID.waves||RAID.waves.i>=RAID_WAVES.length))onRaidCleared();return}   // raid repelido (só depois da última onda; as ondas seguintes são tratadas em updateRaids)
+  if(c.kind==='raid'){if(c===RAID.area&&(!RAID.waves||RAID.waves.i>=raidWaveCount()))onRaidCleared();return}   // raid repelido (só depois da última onda; as ondas seguintes são tratadas em updateRaids)
   if(c.kind==='dungeon'){c.state='cleared';toast('✔ A dungeon foi limpa! Abra o baú do fundo.',4000);return}
   if(c.kind==='camp'&&!c.ambush&&!c.gone&&c.state!=='cleared'){clearCamp(c);return}   // acampamento esvaziado (até por animais): baú e refém liberados
   if(c.state!=='attacking')return;
-  if(c.ambush)c.state='cleared';else if(c.kind==='camp')clearCamp(c);else if(c.kind==='cave'||c.kind==='pack')c.state='idle';else if(c.owner==='enemy'){if(c.crime){c.crime=false;c.state='idle';toast('Os guardas caíram, mas a cidade não é sua: você cometeu um crime.',4000);facCityEmptied(c)}else conquerCity(c)}
+  if(c.ambush)c.state='cleared';else if(c.kind==='camp')clearCamp(c);else if(c.kind==='cave'||c.kind==='pack')c.state='idle';else if(c.owner==='enemy'){if(c.rebel&&typeof rebCombatWon==='function'){rebCombatWon(c);return}if(c.crime){c.crime=false;c.state='idle';toast('Os guardas caíram, mas a cidade não é sua: você cometeu um crime.',4000);facCityEmptied(c)}else conquerCity(c)}
 }
 
 function populateCities(){

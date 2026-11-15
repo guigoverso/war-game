@@ -23,7 +23,9 @@ function raidLocked(c){   // serviços fechados só enquanto há combate: onda d
   if(RAID.active&&RAID.city===c)return !!(RAID.area&&RAID.area.enemies.some(e=>e.alive));
   return c.owner==='enemy'&&c.state==='attacking'&&!!c.enemies&&c.enemies.some(e=>e.alive);
 }
+const raidWaveCount=()=>RAID.reb?REB.waves:RAID_WAVES.length;   // a batalha de uma rebelião tem as suas ondas (rebellion.js)
 function spawnRaidWave(){
+  if(RAID.reb){rebSpawnWave();return}
   const W=RAID.waves,c=RAID.city,a=RAID.area,spec=RAID_WAVES[W.i],rank=a.rank;
   for(const d of raidSides(c,spec.sides)){
     const [bx,bz]=raidSidePos(c,d);
@@ -82,11 +84,13 @@ function endRaid(){
 }
 function onRaidCleared(){
   if(!RAID.active)return;
+  if(RAID.reb){rebSupportEnd(true);return}
   const c=RAID.city,r=40+30*Math.max(1,c.rank||1);
   Ledger.add('gold',r);sfx('win',0);toast('🛡 Raid repelido! '+c.name+' está a salvo. +◉'+r,5000);
   endRaid();
 }
-function raidFailed(){
+function raidFailed(why){
+  if(RAID.reb){rebSupportEnd(false,why);return}
   const c=RAID.city,lostGold=Math.max(0,Math.min(P.coins,RAID_LOSS_GOLD));
   Ledger.add('gold',-lostGold);
   const lost=raidLoss(c);   // perde parte dos suprimentos guardados no armazém da cidade
@@ -192,17 +196,18 @@ function updateRaids(dt){
   }
   const W=RAID.waves;
   if(alive===0){
-    if(!W||W.i>=RAID_WAVES.length){onRaidCleared();return}
+    if(!W||W.i>=raidWaveCount()){onRaidCleared();return}
     if(RAID.engaged){   // onda vencida: intervalo para curar e recrutar, depois vem a próxima
       if(W.gapT===null){W.gapT=RAID_GAP;toast('✔ Onda '+W.i+' vencida! A próxima chega em '+RAID_GAP+' s: cure-se e recrute.',4500)}
       W.gapT-=dt;if(W.gapT<=0)spawnRaidWave();
     }
   }
+  if(RAID.reb&&rebSupportWatch(dt))return;   // sair do raio da cidade perde a batalha
   if(!RAID.engaged){RAID.t-=dt;if(RAID.t<=0){raidFailed();return}}
   if(hud){
     hud.style.display='block';
     const d=Math.round(Math.hypot(c.cx-P.x,c.cz-P.z));
-    hud.innerHTML=RAID.engaged?(alive===0&&W&&W.gapT!==null?'⏳ <b>'+c.name+'</b>: próxima onda em <b>'+Math.max(0,Math.ceil(W.gapT))+' s</b> ('+W.i+'/'+RAID_WAVES.length+' vencidas)':'🛡 Defenda <b>'+c.name+'</b>: onda '+(W?W.i:1)+'/'+RAID_WAVES.length+' • '+alive+' bandidos'):'⚠ <b>'+c.name+'</b> sob ataque! Chegue em <b>'+Math.ceil(RAID.t)+' s</b> ('+d+' m)';
+    hud.innerHTML=RAID.engaged?(alive===0&&W&&W.gapT!==null?'⏳ <b>'+c.name+'</b>: próxima onda em <b>'+Math.max(0,Math.ceil(W.gapT))+' s</b> ('+W.i+'/'+raidWaveCount()+' vencidas)':'🛡 Defenda <b>'+c.name+'</b>: onda '+(W?W.i:1)+'/'+raidWaveCount()+' • '+alive+(RAID.reb?' soldados inimigos':' bandidos')):'⚠ <b>'+c.name+'</b> sob ataque! Chegue em <b>'+Math.ceil(RAID.t)+' s</b> ('+d+' m)';
   }
 }
 

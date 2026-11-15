@@ -5,7 +5,7 @@ const VEST_HP=40;
 const ARMY={vest:false,dmg:0,hp:0,weapon:0,owned:[true,false,false,false,false,false],max:5,maxLvl:8,recruitCost:100,city:null};
 const allyMaxHp=()=>45+12*ARMY.hp;
 const allyDmgMul=()=>1+0.25*ARMY.dmg;
-const allyCount=()=>ALLIES.filter(a=>a.alive).length;
+const allyCount=()=>ALLIES.filter(a=>a.alive&&!a.temp).length;   // a.temp: reforços de uma batalha (rebelião): não contam para o limite do exército nem são salvos
 const upCost=l=>120+80*l;
 const bp=(b,k)=>pc(b,ARMY.city,k);   // preço ajustado pela cidade do quartel
 
@@ -63,9 +63,9 @@ function pickTarget(e){
   if(best&&(P.dead||(bd<30&&bd<dp*0.8)))return best;
   return P;
 }
-function spawnAlly(x,z,city){
+function spawnAlly(x,z,city,col){
   const rng=new RNG((Math.random()*1e9)|0);
-  const look={skin:rng.pick(SKINS),shirt:facColor(0)||0x2a4a9a,pants:0x2a2a3a,hairStyle:'helmet',hat:0x8a9ab0,gun:{len:0.75},scarf:0xe0e0e0};   // todos os soldados do jogador usam a cor da facção dele (só a pele varia)
+  const look={skin:rng.pick(SKINS),shirt:col||facColor(0)||0x2a4a9a,pants:0x2a2a3a,hairStyle:'helmet',hat:0x8a9ab0,gun:{len:0.75},scarf:0xe0e0e0};   // todos os soldados do jogador usam a cor da facção dele (só a pele varia)
   const m=buildHuman(look);
   m.arms[1].rotation.x=-1.2;m.arms[0].rotation.x=-1.0;
   const a={kind:'ally',isAlly:true,look,alive:true,x,z,y:tH(x,z),vy:0,ground:true,yaw:rng.range(0,6.28),hp:allyMaxHp(),maxhp:allyMaxHp(),eye:1.6,crouch:false,speed:1,

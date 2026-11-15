@@ -4,7 +4,7 @@ Desenho fechado com o usuário. Código: `js/rebellion.js`. A base (humor das ci
 
 ## Etapas
 1. **Núcleo sem batalha (feito, `js/rebellion.js`):** gatilho, cartões de decisão e de resultado, apoio financeiro, sorteio do resultado, Negociação, nova facção (save v14), anexações, cenário de teste.
-2. **Batalhas (a fazer):** apoiar os rebeldes (raid adaptado) e combater a rebelião (invasão adaptada), com reforços. Hoje as opções A e B aparecem desabilitadas ("etapa 2").
+2. **Batalhas (feito, falta jogar):** apoiar os rebeldes (raid adaptado) e combater a rebelião (invasão adaptada), com reforços (`rebSupportStart`, `rebCombatStart`).
 3. **Visual (a fazer):** buracos, corpos e prédios queimados; uniformes dos rebeldes. Hoje: fumaça (`igniteCity`), bandeira lisa na cor dos rebeldes e cor no mapa.
 
 ## Como testar a etapa 1
@@ -27,8 +27,8 @@ Desenho fechado com o usuário. Código: `js/rebellion.js`. A base (humor das ci
 ## Decisão do cartão (turno X)
 | Opção | Efeito |
 |---|---|
-| **A. Apoiar os rebeldes** | (etapa 2) batalha ao lado deles; vira **inimigo** da dona |
-| **B. Combater a rebelião** | (etapa 2) invasão normal; sai da lista se a dona está em guerra com você |
+| **A. Apoiar os rebeldes** | batalha ao lado deles (ver Batalhas); vira **inimigo** da dona |
+| **B. Combater a rebelião** | invasão da cidade (ver Batalhas); sai da lista se a dona está em guerra com você |
 | **C. Não me envolver** | resultado sorteado |
 | **D. Apoiar financeiramente os rebeldes** | paga ◉(600 + 200 × nível), (6 + 2 × nível) de comida e de minério; relação com a dona −2; rebeldes ganham +20 pontos no sorteio |
 | **E. Apoiar financeiramente a facção** | mesmo custo; relação com ela +2; ela ganha +20 pontos |
@@ -51,7 +51,7 @@ Preço de anexação (`rebJoinCost`): ◉2000 + ◉1000 por nível da cidade + �
 - Relações entre as NPC: rival da dona (valor 2), aliada das rivais da dona (8), neutra com o resto (5). Entra no diagrama de Diplomacia.
 - **Save v14.**
 
-## Batalhas (etapa 2, desenho)
+## Batalhas (etapa 2, implementada)
 - **Apoiar os rebeldes:** no turno do comandante o jogador é teleportado; funciona como o raid de uma cidade sua, mas as ondas são de soldados da cor da facção dona e inimigos variados (soldados, golems, drones...), cada onda mais difícil. Seus reforços: **+1 soldado rebelde por nível da cidade** e **+1 por facção que apoia** (nível de soldado comum); ex.: cidade nível 3, você com 5 soldados e uma facção apoiando = 9 lutando. Os soldados extras funcionam como soldados do jogador. Aviso ao sair do raio da cidade (seguir adiante perde a batalha). Morrer encerra a rodada.
 - **Combater a rebelião:** invasão normal; o jogador começa perto, fora da cidade. Os soldados da cidade viram os rebeldes (a dificuldade é a da invasão). Reforços da facção dona do seu lado; se outra facção apoia os rebeldes, soldados dela do outro lado. Só há dois lados: rebeldes e facção.
 - **Apoio financeiro** (D/E) entra no mesmo cálculo da batalha como "buff" do lado apoiado (não garante vitória), com cidade em chamas e sem serviços no turno do comandante.
@@ -65,3 +65,12 @@ Fase 6 (guerra). Gancho: `fsupHit` (facsupply.js) reduz o suprimento de uma fac�
 - Enquanto está em rebelião, a facção da cidade aparece só como **"Rebeldes"** (dica do mapa, informação da cidade, lista do livro). O nome real só existe depois do fim da rebelião (facção nova).
 - **Caravanas para cidade em rebelião** não são permitidas (jogador e NPC); no mapa de escolha a cidade aparece com um **círculo vermelho com X**.
 - O cartão mostra os lados numa **tabela** (rebeldes e apoiadoras à esquerda, a dona e quem fica com ela à direita, um "X" no meio de cada linha), com a cor da facção ao lado de cada nome (`rebSidesTable`; cartões ganharam o campo `extra`, um bloco em HTML depois do texto).
+
+## Etapa 2 — como ficou
+- **Guarnição:** ao estourar a rebelião os soldados da cidade são expulsos (somem). Voltam como rebeldes na batalha de repressão, como tropa da dona (rebelião esmagada) ou como tropa da facção que ficou com a cidade (`rebGarrisonRemove/Spawn/Restore`; cada soldado usa a cor em `c.uniform`, `entities.js`). Se você anexa a cidade, ela fica sem guarnição inimiga.
+- **Apoiar (A):** no começo do turno do comandante (`onStart` do cartão) você é levado à cidade. São **3 ondas** de soldados da cor da dona, cada uma mais difícil (1: soldados; 2: soldados, drones e brutamontes; 3: soldados, brutamontes, drones e golem; mais inimigos conforme o nível da cidade), com o intervalo de 30 s das raids. Reforço: **soldados rebeldes = nível da cidade + 1 por facção que apoia**, na cor dos rebeldes, soldados comuns, fora do limite do seu exército e removidos no fim. Sair a mais de 25 blocos da muralha dá aviso; a mais de 50, a batalha é perdida. Vencer as 3 ondas = rebeldes vencem; morrer ou fugir = perdem. Reusa o raid (`RAID.reb`, `raidWaveCount`).
+- **Combater (B):** você começa a 30 blocos da muralha, numa entrada. A guarnição vira os rebeldes (cor deles), mais 2 soldados por facção que os apoia (na cor dela). Reforço: soldados da dona = nível da cidade. É uma invasão normal (`startAttack`), mas ao vencer (`checkConquest` → `rebCombatWon`) a cidade **não é conquistada**: a rebelião é esmagada e a relação com a dona sobe (+3, com o multiplicador de temperamento).
+- **Morrer** (nos dois lados) encerra a rodada ao reaparecer (`rebAfterRespawn`): quem você apoiava perde. Combatendo e morrendo, os rebeldes vencem e a Negociação traz Reconhecer (neutro; −2 com a dona), Ignorar e Não reconhecer (sem anexar).
+- Se a batalha não puder começar (outro evento em curso) ou você terminar a rodada sem lutar, o resultado é sorteado.
+- Teste: `index.html?auto=1&mute=1&seed=11&cenario=rebeliao`, encerrar a rodada, escolher A ou B no cartão e passar para o turno do comandante.
+- **Ainda não é visual:** buracos/corpos/prédios queimados (etapa 3). Também falta jogar de verdade: o balanço das ondas e dos reforços só foi testado por script (matando os inimigos e avançando o tempo).
