@@ -171,12 +171,9 @@ function endRound(city){
     }
     for(const c of rebels){rep.push(officers.has(c.id)?'🔥 '+c.name+': dois suprimentos chegaram a 300% e os oficiais se juntaram aos rebeldes! A cidade se rebelou. Reconquiste-a.':'🔥 '+c.name+' SE REBELOU depois de '+ECON.rebelUps+' rodadas sem suprimentos! Reconquiste-a.');rebelCity(c)}
   }
-  // cidades que não são suas: o humor é simulado por números (depende do nível e da sorte)
-  if(!prep)for(const c of WORLD.cities){
-    if(c.owner==='player')continue;const e=ec(c),r=Math.random(),pu=0.18+0.04*Math.max(1,c.rank||1),pr=0.15;
-    e.mood=r<pu?'upset':r>1-pr?'rich':'ok';
-  }
-  for(const c of WORLD.cities)rerollNeeds(c);refreshShops();   // novas necessidades (dado) e Lojas reabastecidas conforme a produção
+  for(const c of WORLD.cities)rerollNeeds(c);
+  fsupRound();   // cidades de facção: sorteia o suprimento de cada facção e daí o humor das cidades (facsupply.js)
+  refreshShops();   // novas necessidades (dado) e Lojas reabastecidas conforme a produção
   rd.debuff=prep?(rd.debuff||{}):debuf;   // debuffs valem na rodada que começa (a necessidade não muda)
   rd.rbuf=Object.assign({},rd.rnext||{});rd.rnext={};   // bônus do que foi entregue vale só na rodada que começa (a rodada 0 também)
   rd.hallCity=(city||WORLD.home).id;rd.report=rep;
@@ -630,7 +627,8 @@ function bookPages(){
     const L='<h3>'+f.name+(f.player?' <small>(você)</small>':'')+'</h3><img class="fe-img" src="'+facFlagURL(f.id,4)+'" width="128" height="80">'
       +(G.creative&&!f.player?'<p>Personalidade: <b>'+facTemperName(f)+'</b> <small>(só no modo criativo)</small></p>':'')
       +relH
-      +'<h4>Cidades</h4>'+(cs.length?'<ul class="ldul">'+cs.map(c=>{const r=rt(c);return '<li>'+(c.home?'🏛 ':'')+c.name+(r?' <span class="cvb" data-ri="'+rd.routes.indexOf(r)+'">🛒</span>':'')+'</li>'}).join('')+'</ul>':'<p>Sem cidades: a facção foi destruída.</p>')
+      +'<h4>Cidades</h4>'+(cs.length?'<ul class="ldul">'+cs.map(c=>{const r=rt(c);const e=ec(c),cr=G.creative&&c.owner!=='player'&&e,px=cr?priceExplain({city:c,kind:'buy'}):[];   // modo criativo: humor e, se o preço varia, o "?" com as variações
+        return '<li>'+(c.home?'🏛 ':'')+c.name+' '+resIcon(focusOf(c))+(cr?' <small>'+MOOD[moodOf(c)].icon+' '+MOOD[moodOf(c)].n+'</small>'+(px.length?' <button class="qmark" data-why="price" data-c="'+c.id+'" data-k="buy" title="Variações de preço dos serviços">?</button>':''):'')+(r?' <span class="cvb" data-ri="'+rd.routes.indexOf(r)+'">🛒</span>':'')+'</li>'}).join('')+'</ul>':'<p>Sem cidades: a facção foi destruída.</p>')
       +(f.player?'<button data-a="editfac">✏ Editar nome, cor e bandeira</button>'+(isLeader()?'':'<p class="ldsm">Fora do turno do líder só o nome pode ser mudado.</p>'):'');
     const R='<h3>Facções</h3>'+fl.map(x=>{const sx=x.player?null:REL_ST[relStatus(x.id)];return '<button class="ldcity'+(x.id===f.id?' sel':'')+'" data-a="fac" data-id="'+x.id+'"><span><i style="color:'+hex6(FAC_COLORS[x.color].c)+';font-style:normal">■</i> '+x.name+(x.player?' (você)':'')+'</span><small>'+facCities(x.id).length+' cidade(s)</small>'+(sx?'<em style="color:'+sx.col+'">'+sx.n+' • '+relOf(x.id).v+'/10</em>':'')+'</button>'}).join('');
     return[R,L];   // a lista de facções à esquerda e os detalhes à direita
@@ -834,7 +832,7 @@ function refreshShops(){
   for(const c of WORLD.cities){
     const e=ec(c);if(!e)continue;
     const base=(ECON.prodBase+ECON.prodRank*Math.max(1,c.rank||1))*ECON.shopMul,f=focusOf(c),s={};
-    for(const r of NEEDS)s[SHOP_ITEM[r]]=f===r?base:f==='gold'?Math.floor(base*0.5):Math.floor(base*0.25);
+    for(const r of NEEDS)s[SHOP_ITEM[r]]=Math.floor((f===r?base:f==='gold'?Math.floor(base*0.5):Math.floor(base*0.25))*fsupStockMul(c,r));   // facção abundante/em falta num recurso: mais/menos estoque
     e.shop=s;
   }
 }

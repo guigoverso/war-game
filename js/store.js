@@ -25,7 +25,8 @@ function updateVendors(){
 // o que muda o preço de venda, em lista (mesmo formato dos preços de compra; os efeitos SOMAM em %, ver priceMulOf)
 function sellEffects(id,c){
   const o=[],st=getVendor(c).stock[id]||0;
-  if(c.owner==='enemy'&&c.fid){const st=relStatus(c.fid),p=REL_ST[st].price;if(p)o.push({txt:'Relação com '+facOf(c.fid).name+': '+REL_ST[st].n+(p<0?' (paga mais)':' (paga menos)'),mul:1-p})}   // espelha o desconto/acréscimo de compra
+  if(c.owner==='enemy'&&c.fid){const st=relStatus(c.fid),p=REL_ST[st].sell;if(p)o.push({txt:'Relação com '+facOf(c.fid).name+': '+REL_ST[st].n+(p>0?' (paga mais)':' (paga menos)'),mul:1+p})}   // o quanto a facção paga a mais/menos pelo que você vende (REL_ST.sell; o acréscimo nos serviços é REL_ST.price)
+  {const fx=typeof fsupSellFx==='function'?fsupSellFx(c,id):null;if(fx)o.push(fx)}   // facção em falta do recurso paga mais; abundante, menos
   if(c.owner==='player'&&typeof debOn==='function'&&debOn('wood'))o.push({txt:'Faltou madeira na rodada passada (a loja compra por 50%)',mul:0.5});
   if(st>0){const m=Math.max(VENDOR_MIN_MUL,1-VENDOR_SAT*st);if(m<1)o.push({txt:'O vendedor já tem '+st+' no estoque (o preço cai com o excesso)',mul:m})}
   return o;

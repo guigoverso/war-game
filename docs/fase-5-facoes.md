@@ -215,3 +215,20 @@ Tudo em `STATE.ms` (salvo; `SAVE_VERSION = 12`; as missões antigas são descart
 - **Ordem das abas do livro:** Resumo, Cidades, Capital, Missões, Caravanas, Facções, Diplomacia.
 - **Como testar:** `?auto=1&mute=1&seed=11`; no console, `relChange(1,1)` e veja `STATE.flog`; `Hooks.emit('round',N)` repetido cria uma caravana NPC por rodada. Save v13.
 
+
+## F5a (base) — suprimento das facções NPC (`js/facsupply.js`)
+Decisões do usuário: o suprimento é **sorteado por rodada** (70% situação, 30% sorte); o humor das cidades NPC serve para **preço/estoque**, **rebelião** (fase própria: `docs/fase-5-rebeliao.md`) e **sabotagem** (Fase 6, só o gancho `fsupHit`).
+- **Estado por facção e recurso** (`STATE.rd.fsup[fid][res]`): `short` (em falta), `ok`, `abund` (abundante), refeito a cada `endRound` (depois de sortear as necessidades). Pontuação = 0,7 × base + 0,3 × sorte. Base = 0,28 (mercado interno) até 0,8 (metade das cidades da facção produz o recurso), +0,25 se uma caravana (sua ou NPC) traz o recurso para uma cidade dela. Abaixo de 0,30 é em falta; acima de 0,62, abundante. Números em `FSUP`.
+- **Humor das cidades NPC:** peso das necessidades em falta (pct/100) ≥ 3 → descontente; sem falta e (algum recurso abundante entre as necessidades ou 10% de sorte) → próspera; senão contente. Na semente 11 (500 rodadas simuladas): ~21% descontente, ~6% próspera. `ups` conta as rodadas seguidas descontente (a rebelião NPC, em fase futura, usa).
+- **Preço de venda:** facção em falta do recurso paga ×1,3 pelo item que conta como esse recurso; abundante paga ×0,85 (entra no "?" da venda, `sellEffects`).
+- **Estoque da loja:** o item de um recurso abundante tem o dobro de unidades, em falta tem metade (`refreshShops`).
+- **Capital:** o humor das cidades das facções não depende da capital; a regra "capital não se rebela" vale na fase da rebelião.
+- **Gancho:** `fsupHit(fid, d, rodadas)` tira `d` da pontuação da facção por algumas rodadas (sabotagem, eventos).
+- **Como testar:** modo criativo, pausa → aba Facções: "Suprimento das facções NPC" e "Humor das cidades NPC". Encerre rodadas e veja os estados mudarem; venda uma carne para uma cidade de facção com comida em falta/abundante e confira o preço e o "?"; compare o estoque da loja.
+- Sem estado novo fora de `rd` (que já é salvo inteiro): `SAVE_VERSION` continua 13.
+
+### Preços das cidades NPC (nova tabela) e livro
+- **Serviços das cidades de facção** (todos os tipos de preço): Aliado +0%, Favorável +10%, Neutro +20%, Desfavorável +30% (`REL_ST.price`; antes eram −20/−10/0/+30). Cidade NPC **descontente**: +20% em todos os serviços (`FSUP.upsetPrice`; as curas continuam com o ×2 próprio), próspera −10% (já existia). Efeitos somam em %.
+- **O que a facção paga pelo que você vende** continua com a tabela antiga, agora separada (`REL_ST.sell`: aliado +20%, favorável +10%, neutro 0, desfavorável −30%), mais o efeito de falta/abundância do recurso.
+- **Abundância** mexe na quantidade à venda (estoque), não no preço.
+- **Livro, aba Facções:** a lista de cidades mostra o ícone do que cada uma produz ao lado do nome. No modo criativo mostra também o humor e, se há variação de preço, um "?" que abre a lista de variações (o mesmo popup das lojas).

@@ -178,5 +178,5 @@ function fgCheatHtml(){
   const fs=WORLD.factions||[];if(fs.length<2)return '';
   const grid=fgPairs().map(([a,b])=>a.name+' × '+b.name+': <b>'+fgV(a.id,b.id)+'/10</b> ('+FG_NAME[fgSt(fgV(a.id,b.id))].toLowerCase()+')').join('<br>');
   const log=(STATE.flog||[]).slice(-12).reverse().map(e=>'r'+e.round+': '+e.txt).join('<br>');
-  return '<h4 style="margin:12px 0 4px">Relações entre as facções NPC</h4><small>'+grid+'</small><h4 style="margin:12px 0 4px">Relatório de propagação</h4><small>'+(log||'Nada ainda.')+'</small>';
+  return '<h4 style="margin:12px 0 4px">Relações entre as facções NPC</h4><small>'+grid+'</small><h4 style="margin:12px 0 4px">Relatório de propagação</h4><small>'+(log||'Nada ainda.')+'</small>'+(typeof fsupCheatHtml==='function'?fsupCheatHtml():'');
 }

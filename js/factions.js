@@ -133,12 +133,12 @@ function facSetIdentity(o){
 //  Aliado (ally, exige v=10 + acordo) • Favorável 8–10 • Neutro 4–7 • Desfavorável 1–3 • Inimiga 0 • Em guerra (war, v=0 por declaração)
 const REL_MAX=10,REL_START=5;
 const REL_ST={
-  ally:{n:'Aliado',col:'#5ad0ff',price:-0.2,txt:'Lojas dela com 20% de desconto. Só existe com relação 10 e acordo; cair abaixo de 10 desfaz a aliança.'},
-  fav:{n:'Favorável',col:'#6ad06a',price:-0.1,txt:'Lojas dela com 10% de desconto. Com relação 10 dá para negociar uma aliança (turno do líder).'},
-  neutral:{n:'Neutro',col:'#e0e0e0',price:0,txt:'Preços normais, caravanas permitidas.'},
-  unfav:{n:'Desfavorável',col:'#ffb060',price:0.3,txt:'Lojas dela com 30% de acréscimo. Caravanas permitidas.'},
-  enemy:{n:'Inimiga',col:'#ff7a7a',price:0,txt:'Você não pode entrar nas cidades dela: os guardas atiram. Sem caravanas. Para melhorar: ouro, relíquias (e missões, em breve).'},
-  war:{n:'Em guerra',col:'#ff3030',price:0,txt:'Você só entra nas cidades dela atacando-as ([F] perto da cidade). Sem caravanas.'}
+  ally:{n:'Aliado',col:'#5ad0ff',price:0,sell:0.2,txt:'Serviços dela sem acréscimo (os outros pagam mais) e ela paga 20% a mais pelo que você vende. Só existe com relação 10 e acordo; cair abaixo de 10 desfaz a aliança.'},
+  fav:{n:'Favorável',col:'#6ad06a',price:0.1,sell:0.1,txt:'Serviços dela com 10% de acréscimo. Paga 10% a mais pelo que você vende. Com relação 10 dá para negociar uma aliança (turno do líder).'},
+  neutral:{n:'Neutro',col:'#e0e0e0',price:0.2,sell:0,txt:'Serviços dela com 20% de acréscimo. Caravanas permitidas.'},
+  unfav:{n:'Desfavorável',col:'#ffb060',price:0.3,sell:-0.3,txt:'Serviços dela com 30% de acréscimo. Paga 30% a menos pelo que você vende. Caravanas permitidas.'},
+  enemy:{n:'Inimiga',col:'#ff7a7a',price:0,sell:0,txt:'Você não pode entrar nas cidades dela: os guardas atiram. Sem caravanas. Para melhorar: ouro, relíquias (e missões, em breve).'},
+  war:{n:'Em guerra',col:'#ff3030',price:0,sell:0,txt:'Você só entra nas cidades dela atacando-as ([F] perto da cidade). Sem caravanas.'}
 };
 Hooks.on('resetState',()=>{STATE.rel={}});
 function relOf(fid){const R=STATE.rel||(STATE.rel={});return R[fid]||(R[fid]={v:REL_START,ally:false,war:false,debt:null,warAt:null,crimeRd:-1})}

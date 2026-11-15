@@ -20,6 +20,7 @@ Decisões e números completos em `docs/fase-5-facoes.md`. Código principal: `j
 - **Rodada 0 (preparação):** começa no turno do líder, sem decisões; cidade contente, sem facções/missões/portais; máx. 5 acampamentos e 5 baús soltos (a rodada 1 devolve tudo). Ver `docs/fase-4-testes.md`.
 - **Missões (passo 2):** `js/missions.js`. Cidade: nível × 2 por rodada na prefeitura, várias aceitas, recompensa em ouro/recursos/mista. Facção: no máx. 2 ofertas a cada 3 rodadas (não em guerra), entregas e relatórios feitos na prefeitura do alvo, aceitar = 1 ação do líder, falha no fim da rodada (−1 relação), +1 relação ao cumprir (máx. +2 por facção por rodada). Tipos: acampamento, refém, pacote, matilha, entregar recurso, entregar relíquia. Aba **📋 Missões** no livro, mapa em popup, uma missão ativa. Detalhes em `docs/fase-5-facoes.md`.
 - **F3 (relações entre as facções NPC, `js/facgraph.js`):** grafo por semente (temperamento + vizinhança), propagação fixa ±1 das suas ações para aliadas/rivais, deriva, caravanas entre NPC (uma por rodada: necessidades → aliança → relações) e aba 🕊 Diplomacia (diagrama de cordas). Relatório da propagação no modo criativo. Detalhes em `docs/fase-5-facoes.md`.
+- **F5a (base, `js/facsupply.js`):** suprimento sorteado por facção e recurso a cada rodada (70% situação, 30% sorte), humor das cidades NPC derivado dele, preço de venda e estoque da loja por falta/abundância, contador `ups`. Rebelião das cidades NPC está desenhada em `docs/fase-5-rebeliao.md` (fase própria, não implementada). Ver `docs/fase-5-facoes.md`.
 - **Modo criativo:** pausa → aba **🏴 Facções** muda o status de cada facção; no livro há botões de relação. **Cenário controlado:** `index.html?cenario=caravanas` (3 rotas: aliada, favorável, neutra; botões "Ir até a caravana" na mesma aba).
 
 ## Pendências e problemas conhecidos
@@ -35,10 +36,11 @@ Decisões e números completos em `docs/fase-5-facoes.md`. Código principal: `j
 - Balanceamento da economia (`ECON`) e dos números das facções (`ECON.ally`, `FAC_*`, `REL_REP`) depende de teste jogando.
 
 ## Próximo passo sugerido
-1. **F5a (decidir antes de codar):** o que faz as relações entre facções NPC subirem e descerem. Combinado: escopo só F5a, chance de mudança por rodada alta (~35%), 4 pares/guerra entre NPC só chega a "inimiga", sem guerra declarada (isso é Fase 6). Falta decidir os eventos (incidente de fronteira, pacto, disputa por recurso, ajuda em desastre, poder relativo, inimigo comum) e se o jogador pode influenciá-los.
-2. F5b: reuniões das facções (3 propostas, voto ponderado por nº de cidades) e eventos globais.
-3. Raids mais difíceis (ideias na seção de pendências), jogar a rodada 0 e as missões para ajustar números.
-4. Fase 6: guerra.
+1. **F5a, o que faz as relações NPC–NPC subirem e descerem** (decidir antes de codar): chance de mudança por rodada alta (~35%), relação NPC só chega a "inimiga" (sem guerra declarada, que é Fase 6). Agora há base para os eventos: disputa por recurso e ajuda em desastre usam o suprimento (`fsupState`). Falta decidir quais eventos ficam e se o jogador pode influenciá-los.
+2. **Rebelião de cidades NPC** (`docs/fase-5-rebeliao.md`), em fase própria. Exige nova facção salva no `STATE` (save v14), raid/invasão de rebelião, evento de Negociação.
+3. F5b: reuniões das facções e eventos globais.
+4. Raids mais difíceis, jogar rodada 0/missões/suprimento NPC para ajustar números (`FSUP`, `ECON`).
+5. Fase 6: guerra (inclui sabotagem, que usa `fsupHit`).
 
 Roteiro rápido para ver o estado atual: `index.html?cenario=caravanas&mute=1` (caravanas e relações) e `index.html?auto=1&mute=1&seed=11` (modo criativo normal).
 
