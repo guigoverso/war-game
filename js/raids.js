@@ -55,7 +55,7 @@ function openRaidPanel(){
   const c=RAID.city,d=Math.round(Math.hypot(c.cx-P.x,c.cz-P.z));
   $('raidtxt').innerHTML='Bandidos estão atacando <b>'+c.name+'</b>, a <b>'+d+' m</b> de você.<br>Se você não chegar em '+RAID_TIME+' segundos, a cidade perde recursos e pega fogo.';
   const box=$('raidbtns');box.innerHTML='';
-  if(QUEST.active)box.appendChild(UI.button('🌀 Abandonar a missão e ir até lá','red',()=>{failQuest('Você abandonou a missão para defender '+c.name+'.');raidTeleport();closePanel()}));
+  if(msActive())box.appendChild(UI.button('🌀 Abandonar a missão ativa e ir até lá','red',()=>{msFail(msActive(),'Você abandonou a missão para defender '+c.name);raidTeleport();closePanel()}));
   box.appendChild(UI.button('Entendido ('+RAID_TIME+' s)','gold',()=>closePanel()));
   openPanel('raid');
 }

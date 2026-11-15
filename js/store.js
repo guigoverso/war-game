@@ -43,6 +43,7 @@ function sellItem(c,id,qty){
     if(invRemove(id,1)<1)break;
     v.gold-=p;v.stock[id]=(v.stock[id]||0)+1;Ledger.add('gold',p);sold++;earned+=p;
   }
+  if(id==='reliquia'&&sold>0&&typeof msRelicSold==='function')msRelicSold();   // vender a relíquia faz falhar as missões de relíquia
   return{sold,earned,broke};
 }
 

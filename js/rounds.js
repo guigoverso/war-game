@@ -17,7 +17,7 @@ const TAX_BASE=ECON.taxBase,TAX_RANK=ECON.taxRank;
 // ações do líder (Fase 4A): quanto cada decisão gasta por rodada. 0 = não gasta (hoje a caravana é só ouro; o porto e, no futuro, paz e guerra são grátis).
 // Para a caravana também gastar ação, troque caravan para 1. cityUp = custo base (× nível atual) de evoluir uma cidade que não é a capital; cityDisc = desconto nas lojas por nível dela.
 ECON.rebelUps=4;   // rodadas seguidas sem suprimentos até a rebelião: Descontente (1), (0), (−1) e então a rebelião
-ECON.act={caravan:1,capital:1,city:1,give:1,relic:1,ally:1};ECON.cityUp=200;ECON.cityDisc=0.05;   // F4: criar caravana, doar ouro, doar relíquia e fechar aliança gastam 1 ação do líder cada (evita subir a relação com várias facções num turno)
+ECON.act={caravan:1,capital:1,city:1,give:1,relic:1,ally:1,mission:1};ECON.cityUp=200;ECON.cityDisc=0.05;   // F4: criar caravana, doar ouro, doar relíquia e fechar aliança gastam 1 ação do líder cada (evita subir a relação com várias facções num turno)
 const CAP_MAX_LVL=4,CITY_MAX_LVL=3;
 const TYPE_NAME={food:'Alimentos',ore:'Minérios',wood:'Madeira',leather:'Couro',gold:'Dinheiro',port:'Porto'};
 const CITY_COLS=[0xe0402a,0x2aa04a,0xe8b820,0x8a3ac8,0x20b0c8,0xe87820,0xd0409a,0x8a8a8a];   // cor de identidade de cada cidade (faixa da bandeira)
@@ -104,7 +104,7 @@ const needOf=(c,res)=>Math.round(pctOf(c,res)*ECON.baseNeed/100*polMul('need',c.
 const abundOf=c=>(focusOf(c)==='gold'?['gold']:[]).concat(NEEDS.slice().sort((a,b)=>pctOf(c,a)-pctOf(c,b)||NEEDS.indexOf(a)-NEEDS.indexOf(b)));
 const abundHtml=c=>abundOf(c).map((r,i)=>'<span title="'+resName(r)+': necessidade '+pctOf(c,r)+'%">'+resIcon(r)+'</span>').join(' › ');
 const gotOf=(c,r)=>ec(c).got[r]||0,carryOf=(c,r)=>ec(c).carry[r]||0;   // got = entregue nesta rodada; carry = o que já estava nos slots no início dela
-const missingOf=(c,r)=>G.alwaysSupplied?0:Math.max(0,needOf(c,r)-storedOf(c,r));   // G.alwaysSupplied: botão do modo criativo "Cidades sempre supridas"
+const missingOf=(c,r)=>G.alwaysSupplied||STATE.round<1?0:Math.max(0,needOf(c,r)-storedOf(c,r));   // G.alwaysSupplied: botão do modo criativo "Cidades sempre supridas"
 const cityMet=c=>NEEDS.every(r=>missingOf(c,r)===0);
 function moodOf(c){const e=STATE.rd&&STATE.rd.cities&&STATE.rd.cities[c.id];return(e&&e.mood)||'ok'}
 const hasRoute=c=>STATE.rd.routes.some(r=>r.a===c.id||r.b===c.id);
@@ -508,6 +508,7 @@ function roadSpot(ax,az,bx,bz,t){
 }
 function rebuildCaravans(){
   clearCaravans();
+  if(STATE.round<1)return;   // rodada 0: sem caravanas
   for(const r of STATE.rd.routes){
     const A=WORLD.cities[r.a],B=WORLD.cities[r.b];if(!A||!B)continue;
     // duas caravanas no meio da estrada: a da cidade A um pouco antes do meio, a da B um pouco depois, cada uma voltada para a outra cidade
@@ -518,7 +519,7 @@ function rebuildCaravans(){
 // ---------- livro: bolsa + livro do prefeito (tecla B) ----------
 const LB={top:'book',tab:'resumo',city:null,ra:null,rb:null,fac:0};
 const mapOpen=()=>G.panel==='ldbook'&&LB.top==='map';   // o mapa agora é uma aba do caderno (tecla M)
-const LSUBS=[['resumo','📜 Resumo'],['cidades','🏘 Cidades'],['facs','🏴 Facções'],['caravanas','🛒 Caravanas'],['capital','🏛 Capital']];
+const LSUBS=[['resumo','📜 Resumo'],['cidades','🏘 Cidades'],['facs','🏴 Facções'],['missoes','📋 Missões'],['caravanas','🛒 Caravanas'],['capital','🏛 Capital']];
 const INV_L='<h3>🎒 Bolsa</h3><div id="invinfo" class="ldsm"></div><b class="st">Armas e vara — teclas 1–6</b><div id="invwbar"></div><b class="st" style="display:block;margin-top:8px">Curas — teclas 7–9</b><div id="invcbar"></div><b class="st" style="display:block;margin-top:8px">Bolsa</b><div id="invgrid"></div>';
 const INV_R='<div id="invdetail"></div><div id="invpending"></div><div id="invdeposit"></div>';
 function openBook(top,tab){
@@ -595,6 +596,7 @@ function bookPages(){
       }
     }    return[L,R];
   }
+  if(LB.tab==='missoes')return msBookPages();   // aba Missões (missions.js)
   if(LB.tab==='facs'){   // lista de facções à direita; resumo da escolhida à esquerda
     const fl=[facOf(0)].concat(WORLD.factions||[]),f=facOf(LB.fac)||fl[0],cs=facCities(f.id);
     const rt=c=>rd.routes.find(r=>r.a===c.id||r.b===c.id);
@@ -669,6 +671,10 @@ function bookClick(e){
   else if(a==='fask'){if(isLeader())facAskPeace(+t.dataset.id)}
   else if(a==='fgive'){facGiveGold(+t.dataset.id,+t.dataset.g)}
   else if(a==='frelic'){facGiveRelic(+t.dataset.id)}
+  else if(a==='msmap'){const m=msById(+t.dataset.id);if(m)msShowMap(m)}
+  else if(a==='msact'){msSetActive(+t.dataset.id)}
+  else if(a==='msdrop'){const m=msById(+t.dataset.id);if(m){if(m.src==='fac')msFail(m,'Você abandonou a missão');else{msDrop(m);toast('Missão abandonada.',2000)}}}
+  else if(a==='mstakef'){msTakeFac(+t.dataset.fid)}
   else if(G.creative&&a==='frel'){relChange(+t.dataset.id,+t.dataset.d)}
   else if(G.creative&&a==='frelset'){relSet(+t.dataset.id,+t.dataset.v)}
   else if(G.creative&&a==='fpeace'){facPeace(+t.dataset.id)}
@@ -825,3 +831,23 @@ function refreshShops(){
 }
 function shopLeft(c,id){const e=ec(c);if(!e)return 99;if(!e.shop)refreshShops();return e.shop[id]===undefined?null:e.shop[id]}   // null = item sem limite
 function shopTake(c,id,n){const e=ec(c);if(e&&e.shop&&e.shop[id]!==undefined)e.shop[id]=Math.max(0,e.shop[id]-n)}
+// ---------- rodada 0 (preparação): mundo mais calmo, sem facções, sem portais, sem missões ----------
+// Nada disso mexe na geração do mundo (a semente e os saves continuam iguais): é um "esconder" em tempo de execução que a rodada 1 desfaz.
+const prepOn=()=>STATE.round<1;
+const PREP={camps:5,chests:5};   // rodada 0: no máximo 5 acampamentos de bandidos e 5 baús soltos (os mais perto da capital)
+function prepThin(){
+  if(!prepOn())return;
+  const hm=WORLD.home,near=(a,b)=>Math.hypot(a.cx-hm.cx,a.cz-hm.cz)-Math.hypot(b.cx-hm.cx,b.cz-hm.cz);
+  const live=WORLD.camps.filter(c=>!c.gone&&!c.questTarget).sort(near);
+  live.slice(PREP.camps).forEach(c=>{despawnCamp(c);c.prepHold=true});   // guardados até a rodada 1 (updateCamps não os recria)
+  for(const c of WORLD.camps)if(c.gone)c.prepHold=true;
+  for(const c of WORLD.packs){if(c.temp||c.prepHold||c.id%2===0)continue;c.prepHold=true;for(const e of c.enemies)if(e.alive){e.alive=false;e.gone=true;scene.remove(e.group)}c.aliveEnemies=0}   // metade dos bandos de animais
+  const loose=WORLD.chests.filter(ch=>!ch.lockedBy&&!ch.dg&&!ch.fixedLoot&&!ch.onOpen).sort((a,b)=>Math.hypot(a.x-hm.cx,a.z-hm.cz)-Math.hypot(b.x-hm.cx,b.z-hm.cz));
+  loose.slice(PREP.chests).forEach(ch=>{if(!ch.opened){ch.hold=true;ch.g.visible=false}});
+}
+function prepRestore(){   // a rodada 1 devolve o que a preparação guardou
+  for(const c of WORLD.camps)if(c.prepHold){c.prepHold=false;if(c.gone)respawnCamp(c)}
+  for(const c of WORLD.packs)if(c.prepHold){c.prepHold=false;populatePack(c)}
+  for(const ch of WORLD.chests)if(ch.hold){ch.hold=false;ch.g.visible=true}
+}
+Hooks.on('round',prepRestore);

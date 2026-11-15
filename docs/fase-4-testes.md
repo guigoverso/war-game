@@ -166,3 +166,11 @@ Arquivo novo: `js/policies.js`. Textos e números aprovados: `docs/politicas-loc
 - **Venda (loja):** ao clicar num item da mochila, o painel mostra "Preço agora ◉X (valor base ◉Y)" com o indicador e o "?". A lista (`sellEffects` em `js/store.js`) traz: cidade inimiga paga metade (−50%), falta de madeira (−50%) e estoque do vendedor (−5% por unidade, até −65%). Também **somam** em %. Sem efeito, o indicador não aparece.
 - **Clínica:** o preço por ponto de vida passa por `priceOf` (kind `healhp`), então a cidade evoluída também dá desconto na cura; o bônus de ouro entregue vale só para a cura de vida.
 - **Como testar:** `?auto=1&mute=1&seed=11`, abra o armeiro e clique em "?". No modo criativo, invoque uma política de preço ou entregue/deixe faltar suprimento e confira que cada efeito aparece com o seu % e que o total é a soma.
+
+## Rodada 0 (preparação) mais calma
+Na rodada 0 o jogo ainda não "começou": a rodada 1 é o jogo de verdade. Código em `rounds.js` (`prepOn`, `prepThin`, `prepRestore`).
+- **Cidades contentes, sem aviso de falta** (`missingOf` = 0); nada é cobrado nem produzido.
+- **Sem facções:** sem caravanas (`rebuildCaravans`), sem missões da cidade nem das facções (`msBoard`, `msFacOffer`; o livro e a prefeitura avisam), sem decisões do líder (já não havia turno do líder nem políticas).
+- **Sem portais de dungeon** até a rodada 1 (o hook `round` os cria).
+- **Menos perigo:** no máximo **5 acampamentos de bandidos** e **5 baús soltos** (os mais perto da capital; cada acampamento mantém seus bandidos), e metade dos bandos de animais. O resto fica guardado: é só um "esconder" em tempo de execução (geração e saves não mudam; ao carregar um save da rodada 0 a redução é refeita). **A rodada 1 devolve tudo** (os acampamentos voltam novos, com outros bandidos e recompensa).
+- **Como testar:** `?auto=1&mute=1&seed=11`: só 5 acampamentos e 5 baús soltos, sem portal. Encerre a rodada 0 e confira que os acampamentos, bandos, baús e portais aparecem.

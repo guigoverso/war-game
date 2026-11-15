@@ -9,7 +9,6 @@ const chestKey=ch=>Math.round(ch.x)+','+Math.round(ch.z);
 
 function collectSave(){
   const army=Object.assign({},ARMY);delete army.city;
-  const qa=QUEST.active?Object.assign({},QUEST.active):null;if(qa)delete qa.camp;
   return {
     v:SAVE_VERSION,savedAt:new Date().toISOString(),seed:WORLD.seed,bio:G.startBio||'',creative:!!G.creative,
     flags:{god:!!G.god,infAmmo:!!G.infAmmo,noReload:!!G.noReload,won:!!G.won},
@@ -20,7 +19,6 @@ function collectSave(){
     cities:WORLD.cities.map(c=>({id:c.id,owner:c.owner})),
     camps:WORLD.camps.map(c=>({id:c.id,gone:!!c.gone,goneAt:c.goneAt,completed:!!c.completed,cleared:c.state==='cleared',cageOpened:!!(c.cage&&c.cage.opened)})),
     chests:WORLD.chests.filter(c=>c.opened).map(chestKey),
-    quests:{counter:QUEST.counter,boards:QUEST.boards,done:QUEST.done,active:qa},
     time:{t:DN.t,days:DN.days},
     state:JSON.parse(JSON.stringify(STATE))
   };
@@ -48,7 +46,8 @@ function migrateSave(d){
   if(d.v<9){d.v=9}   // v9: motor de políticas (state.pol: pending, fx, queue, cool, log); ausente = nenhuma política ativa
   if(d.v<10){d.v=10}   // v10: facções (state.fac = nome, cor e bandeira do jogador); as facções NPC vêm da semente (ausente = padrão)
   if(d.v<11){d.v=11}   // v11: relações com as facções (state.rel: valor, aliança, guerra, reparação); ausente = todas neutras (5)
-  // if(d.v<12){ ...ajustes...; d.v=12 }
+  if(d.v<12){d.v=12}   // v12: missões novas (state.ms: quadro por cidade, ofertas de facção, aceitas e ativa); as missões antigas (quadro e ativa) são descartadas
+  // if(d.v<13){ ...ajustes...; d.v=13 }
   return d;
 }
 
@@ -116,16 +115,8 @@ function applySave(d){
   // baús abertos
   const open=new Set(d.chests||[]);
   for(const ch of WORLD.chests)if(open.has(chestKey(ch))){ch.opened=true;ch.open=1;ch.lid.rotation.x=-1.9}
-  // missões
-  const q=d.quests||{};
-  QUEST.counter=q.counter||{};QUEST.boards=q.boards||{};QUEST.done=q.done||0;QUEST.active=null;
-  if(q.active){
-    const camp=q.active.campId!==undefined?WORLD.camps.find(k=>k.id===q.active.campId&&!k.gone):null;
-    if(q.active.type==='delivery'||camp){
-      QUEST.active=Object.assign({},q.active,{camp:camp||undefined});
-      if(camp){camp.questTarget=true;camp.name='Acampamento dos '+q.active.gang}
-    }
-  }
+  // missões (STATE.ms já veio com o STATE; aqui só religa os acampamentos das missões e recomeça as matilhas)
+  if(s.ms)STATE.ms=s.ms;msAfterLoad();
   // hora do dia
   if(d.time){DN.t=d.time.t;DN.days=d.time.days}
   // jogador

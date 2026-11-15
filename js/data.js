@@ -42,7 +42,7 @@ defItems([
   ['garra','Garra de urso','🐻','trophy',10,30,'Uma garra enorme e afiada.'],
   ['moeda_antiga','Moeda antiga','🪙','trophy',10,40,'Cunhagem de um reino esquecido.'],
   ['joia','Joia lapidada','💎','trophy',5,90,'Brilha mesmo no escuro.'],
-  ['reliquia','Relíquia','🏺','relic',5,150,'Objeto antigo e raro. Guardada para oferecer a facções (em breve).',{noSell:true}],
+  ['reliquia','Relíquia','🏺','relic',5,150,'Objeto antigo e raro. Dá para oferecer a facções ou entregar em missões. Vendê-la faz falhar as missões de relíquia.'],
   ['bandagem','Bandagem','🩹','consumable',10,20,'Estanca os ferimentos. Cura 25 de vida.',{use:{heal:25},price:25,shop:'clinic'}],
   ['kit_medico','Kit médico','🧰','consumable',5,50,'Material completo de primeiros socorros. Cura 60 de vida.',{use:{heal:60},price:65,shop:'clinic'}],
   ['erva_curativa','Erva curativa','🌱','consumable',10,15,'Cura 40 de vida aos poucos, em 8 segundos.',{use:{regen:{total:40,secs:8}}}]

@@ -196,7 +196,7 @@ function openCage(c){
   cg.opened=true;cg.box.y0=-50;cg.box.y1=-49;sfx('coin',0);
   const h=c.hostage,qh=questHostageFreed(c);
   if(h&&h.alive){showSubtitle(qh?'— Obrigado por me libertar! Que Deus lhe pague!':'— Obrigado por me libertar! Vou me juntar às suas tropas.',2600);cg.leaveT=1.8;cg.questReward=qh}
-  else{toast('A grade está aberta, mas o refém não sobreviveu.',3500);if(qh)failQuest('O refém não sobreviveu.');c.completed=true}
+  else{toast('A grade está aberta, mas o refém não sobreviveu.',3500);if(qh)msFail(msById(qh),'O refém não sobreviveu');c.completed=true}
 }
 function clearCamp(c){
   c.state='cleared';c.flagMat.color.setHex(0x2a6aff);sfx('coin',0);
@@ -430,7 +430,7 @@ function updateCamps(dt){
   CAMP_T-=dt;if(CAMP_T>0)return;CAMP_T=1;
   for(const c of WORLD.camps){
     if(!c.gone){if(c.completed&&!c.questTarget&&campOutOfSight(c))despawnCamp(c)}
-    else if(DN.days-c.goneAt>=2&&campOutOfSight(c))respawnCamp(c);
+    else if(!c.prepHold&&DN.days-c.goneAt>=2&&campOutOfSight(c))respawnCamp(c);
   }
 }
 function updateWild(dt){
@@ -441,7 +441,7 @@ function updateWild(dt){
     if(cg&&cg.leaveT>0){cg.leaveT-=dt;if(cg.leaveT<=0){
       const h=c.hostage;if(h&&h.alive){h.alive=false;h.gone=true;scene.remove(h.group);
         const hm=WORLD.home,bk=hm.barracks||{x:hm.cx,z:hm.cz};
-        if(cg.questReward){completeQuest()}else if(allyCount()<ARMY.max){spawnAlly(bk.x,bk.z,hm);toast('🪢 O refém agora é um dos seus soldados, no quartel de '+hm.name+'.',4500)}
+        if(cg.questReward){msObjective(msById(cg.questReward))}else if(allyCount()<ARMY.max){spawnAlly(bk.x,bk.z,hm);toast('🪢 O refém agora é um dos seus soldados, no quartel de '+hm.name+'.',4500)}
         else{addCoins(150);toast('🪢 Refém libertado! Exército cheio: +150 moedas.',4000)}}c.completed=true}}
     if(cg&&cg.opened&&cg.t<1){cg.t=Math.min(1,cg.t+dt*1.6);cg.door.rotation.y=cg.yb+cg.th*cg.t}}
   for(const m of FIRES){const k=0.85+Math.sin(G.t*14+m.position.x)*0.15+Math.random()*0.1;m.scale.set(m.userData.base[0]*k,m.userData.base[1]*(0.8+Math.random()*0.4),m.userData.base[2]*k)}

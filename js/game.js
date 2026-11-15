@@ -412,7 +412,7 @@ window.addEventListener('blur',()=>{G.keys={};G.fireHeld=false;G.aiming=false});
 function doInteract(){
   const t=G.target;if(!t)return;
   if(t.c&&raidLocked(t.c))return;
-  if(t.type==='hall')openQuests(t.c);else if(t.type==='barracks')openBarracks(t.c);else if(t.type==='shop')openShop(t.c);else if(t.type==='clinic')openClinic(t.c);else if(t.type==='portal'){if(RAID.active&&!RAID.engaged)toast('Há um ataque em andamento! Defenda a cidade antes.',2500);else enterDungeon(t.p)}else if(t.type==='dgexit')leaveDungeon();else if(t.type==='store')openStore(t.c,'store');else if(t.type==='tavern')openStore(t.c,'tavern');else if(t.type==='stove')openCooking('tavern');else if(t.type==='fire')openCooking('fire');else if(t.type==='npc')npcTalk(t.n);else if(t.type==='chest')openChest(t.ch);else if(t.type==='vein')mineVein();else if(t.type==='cage')openCage(t.c);else if(t.type==='book')openBook();else if(t.type==='leader')hallRoundAction(t.c);else if(t.type==='warehouse')openWarehouse(t.c);else if(t.type==='loot')lootCaravan(t.car);
+  if(t.type==='hall')openQuests(t.c);else if(t.type==='barracks')openBarracks(t.c);else if(t.type==='shop')openShop(t.c);else if(t.type==='clinic')openClinic(t.c);else if(t.type==='portal'){if(RAID.active&&!RAID.engaged)toast('Há um ataque em andamento! Defenda a cidade antes.',2500);else enterDungeon(t.p)}else if(t.type==='dgexit')leaveDungeon();else if(t.type==='store')openStore(t.c,'store');else if(t.type==='tavern')openStore(t.c,'tavern');else if(t.type==='stove')openCooking('tavern');else if(t.type==='fire')openCooking('fire');else if(t.type==='npc')npcTalk(t.n);else if(t.type==='chest')openChest(t.ch);else if(t.type==='vein')mineVein();else if(t.type==='cage')openCage(t.c);else if(t.type==='book')openBook();else if(t.type==='leader')hallRoundAction(t.c);else if(t.type==='warehouse')openWarehouse(t.c);else if(t.type==='loot')lootCaravan(t.car);else if(t.type==='msdeliver')msDeliver(t.m);
 }
 function updateInteract(){
   G.target=null;G.attackCity=null;G.curCity=null;const lines=[];
@@ -435,7 +435,7 @@ function updateInteract(){
     if(c.tavern){const ds=Math.hypot(P.x-c.tavern.x,P.z-c.tavern.z);if(ds<3.2){G.target={type:'tavern',c};lines.push('[E] Taverneiro: comprar comida pronta')}}
     if(c.stove){const ds=Math.hypot(P.x-c.stove.x,P.z-c.stove.z);if(ds<3.0){G.target={type:'stove',c};lines.push('[E] Fogão: cozinhar')}}
     if(c.warehouse){const ds=Math.hypot(P.x-c.warehouse.x,P.z-c.warehouse.z);if(ds<4.5&&Math.abs(P.y-c.y)<2.6){if(c.owner==='player'){G.target={type:'warehouse',c};lines.push('[E] Armazém: guardar itens, entregar suprimentos e recolher a produção')}else lines.push('🔒 Armazém fechado — conquiste a cidade')}}
-    if(c.hall){const ds=Math.hypot(P.x-c.hall.x,P.z-c.hall.z);if(ds<4.5&&Math.abs(P.y-c.y)<2.6){if(c.owner==='player'){G.target={type:'hall',c};lines.push('[E] Prefeitura: quadro de missões')}else lines.push('🔒 Prefeitura fechada — conquiste a cidade')}}
+    if(c.hall){const ds=Math.hypot(P.x-c.hall.x,P.z-c.hall.z);if(ds<4.5&&Math.abs(P.y-c.y)<2.6){if(c.owner==='player'){G.target={type:'hall',c};lines.push('[E] Prefeitura: quadro de missões'+(msDeliverFor(c)?' • há entrega aqui':''))}else{const dm=msDeliverFor(c);if(dm){G.target={type:'msdeliver',c,m:dm};lines.push('[E] Entregar '+msDeliverTxt(dm)+' (missão)')}else lines.push('🔒 Prefeitura fechada — conquiste a cidade')}}}
     if(c.owner==='enemy'&&c.state==='idle'&&d<c.half+10&&relStatus(c.fid)==='war'){G.attackCity=c;lines.push('[F] ATACAR '+c.name.toUpperCase())}   // invasão só em guerra
   }
   for(const c of WORLD.camps){if(c.gone)continue;const d=Math.max(Math.abs(P.x-c.cx),Math.abs(P.z-c.cz));if(d<c.half+8&&d<bestD){bestD=d;G.curCity=c}
@@ -450,7 +450,7 @@ function updateInteract(){
   {const pp=portalNear();if(pp){G.target={type:'portal',p:pp};lines.push('[E] Entrar no portal — dungeon nível '+pp.tier+' • recompensa: '+rewardText(pp))}}
   if(G.dg&&G.dgPad&&Math.hypot(P.x-G.dgPad.x,P.z-G.dgPad.z)<2.6){G.target={type:'dgexit'};lines.push('[E] Sair da dungeon (volta ao portal)')}
   if(G.dg&&G.dg.vein&&!G.dg.vein.mined&&Math.hypot(G.dg.vein.x-P.x,G.dg.vein.z-P.z)<3.4&&Math.abs(G.dg.vein.y-P.y)<2.5){G.target={type:'vein'};lines.push(G.dg.area.state==='cleared'?'[E] Minerar o veio de ouro':'🔒 Veio de ouro — elimine os inimigos')}
-  for(const ch of WORLD.chests){if(ch.opened)continue;const d=Math.hypot(ch.x-P.x,ch.z-P.z);if(d<2.8&&Math.abs(ch.y-P.y)<2){G.target={type:'chest',ch};lines.push(ch.lockedBy&&ch.lockedBy.state!=='cleared'?'🔒 Baú trancado — elimine os bandidos':'[E] Abrir baú')}}
+  for(const ch of WORLD.chests){if(ch.opened||ch.hold)continue;const d=Math.hypot(ch.x-P.x,ch.z-P.z);if(d<2.8&&Math.abs(ch.y-P.y)<2){G.target={type:'chest',ch};lines.push(ch.lockedBy&&ch.lockedBy.state!=='cleared'?'🔒 Baú trancado — elimine os bandidos':'[E] Abrir baú')}}
   if(!G.target){
     camera.getWorldDirection(_d);let bd=3.4;
     for(const n of NPCS){if(!n.alive||!n.group.visible)continue;const dx=n.x-P.x,dz=n.z-P.z,d=Math.hypot(dx,dz);
@@ -543,7 +543,6 @@ function drawMinimap(){
     mmc.fillStyle=cityCol(c);
     mmc.strokeStyle='#fff';mmc.lineWidth=2;mmc.beginPath();mmc.rect(x-6,y-6,12,12);mmc.fill();mmc.stroke();
   }
-  {const qt=G.dg?null:questTarget();if(qt){let x=(qt.x-P.x)*s,y=(qt.z-P.z)*s;const L=Math.hypot(x,y),maxL=62;if(L>maxL){x*=maxL/L;y*=maxL/L}drawStar(mmc,x,y,7)}}
   {const ct=G.dg?null:cvbTarget();if(ct){let x=(ct.x-P.x)*s,y=(ct.z-P.z)*s;const L=Math.hypot(x,y),maxL=62;if(L>maxL){x*=maxL/L;y*=maxL/L}drawStar(mmc,x,y,7)}}   // caravana sendo saqueada
   if(!G.dg)drawGoldPortals(mmc,s,P.x,P.z,62,false);   // portal dourado (política): losango dourado
   if(!G.dg)for(const a of ALLIES)if(a.alive){mmc.fillStyle='#4aa0ff';mmc.fillRect((a.x-P.x)*s-2,(a.z-P.z)*s-2,4,4)}
@@ -553,6 +552,7 @@ function drawMinimap(){
     for(const c of WORLD.cities){if(Math.max(Math.abs(P.x-c.cx),Math.abs(P.z-c.cz))>c.half+40)continue;
       for(const ic of cityIcons(c)){const dx=(ic.x-P.x)*s,dz=(ic.z-P.z)*s,rx=dx*cs-dz*sn,ry=dx*sn+dz*cs;if(Math.hypot(rx,ry)>R-16)continue;drawIcon(mmc,R+rx,R+ry,ic,7)}}}
   mmc.fillStyle='#fff';mmc.strokeStyle='#000';mmc.lineWidth=2;mmc.beginPath();mmc.moveTo(R,R-8);mmc.lineTo(R+6,R+6);mmc.lineTo(R,R+3);mmc.lineTo(R-6,R+6);mmc.closePath();mmc.fill();mmc.stroke();
+  {const qt=G.dg?null:questTarget();if(qt){const dx=(qt.x-P.x)*s,dz=(qt.z-P.z)*s,cs=Math.cos(P.yaw),sn=Math.sin(P.yaw);let rx=dx*cs-dz*sn,ry=dx*sn+dz*cs;const L=Math.hypot(rx,ry);if(L>77){rx*=77/L;ry*=77/L}drawStar(mmc,R+rx,R+ry,7)}}   // fora do alcance a estrela fica no aro, como a rosa dos ventos; perto, fica no local da missão. Sempre por cima de tudo
 }
 function drawCompassRim(ctx,cx,cy,r,yaw){
   const c=Math.cos(yaw),s=Math.sin(yaw);
@@ -593,8 +593,8 @@ function drawIcon(ctx,x,y,ic,r){
   ctx.strokeStyle=ic.col;ctx.lineWidth=2;ctx.stroke();
   ctx.fillStyle=ic.col;ctx.font='bold '+Math.round(r*1.3)+'px monospace';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(ic.t,x,y+1);
 }
-function drawBigMap(){
-  const cv=$('bigmap');if(!cv)return;
+function drawBigMap(cvArg,mk){   // cvArg: outro canvas (popup de missão); mk: {x,z,label} marca extra
+  const cv=cvArg||$('bigmap');if(!cv)return;
   const g=cv.getContext('2d'),s=cv.width/W,k=Math.max(0.6,Math.min(1,cv.width/640));   // k: o mapa do caderno é menor, então letras e marcas encolhem
   g.imageSmoothingEnabled=false;g.drawImage(WORLD.mapCanvas,0,0,cv.width,cv.height);
   g.font='bold '+Math.round(14*k)+'px monospace';g.textAlign='center';
@@ -607,7 +607,8 @@ function drawBigMap(){
   {const ct=cvbTarget();if(ct){drawStar(g,ct.x*s,ct.z*s,10*k);g.fillStyle='#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText('Caravana',ct.x*s,ct.z*s-16*k);g.fillText('Caravana',ct.x*s,ct.z*s-16*k)}}
   drawRose(g,cv.width-64*k,64*k,30*k);
   drawPickOverlay(g,s);   // modo de escolha de caravana (rounds.js)
-  {const qt=questTarget();if(qt){drawStar(g,qt.x*s,qt.z*s,10*k);g.fillStyle='#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText('Missão',qt.x*s,qt.z*s-16*k);g.fillText('Missão',qt.x*s,qt.z*s-16*k)}}
+  {const qt=questTarget();if(qt){drawStar(g,qt.x*s,qt.z*s,10*k);g.fillStyle='#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText('Missão ativa',qt.x*s,qt.z*s-16*k);g.fillText('Missão ativa',qt.x*s,qt.z*s-16*k)}}
+  if(mk){drawStar(g,mk.x*s,mk.z*s,13*k,mk.col);g.fillStyle=mk.lcol||'#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText(mk.label,mk.x*s,mk.z*s-18*k);g.fillText(mk.label,mk.x*s,mk.z*s-18*k)}
   g.save();g.translate(P.x*s,P.z*s);g.rotate(-P.yaw);g.scale(k,k);g.fillStyle='#fff';g.strokeStyle='#000';g.beginPath();g.moveTo(0,-9);g.lineTo(7,8);g.lineTo(0,4);g.lineTo(-7,8);g.closePath();g.fill();g.stroke();g.restore();
 }
 
@@ -701,9 +702,11 @@ async function startGame(creative,loadData){
     msg('Calculando rotas...');await tick();buildNav();initWeapons();buildViewmodels(camera);initFx();initSky();initDayNight();populateCities();populateWild();placePlayerHome();
     syncOwned();ensureEquipped();genFishSpots();
     if(loadData){applySave(loadData);applyFishGone();rebuildPortals();rebuildSmoke()}
-    else{spawnPortals();RAID.active=false;RAID.area=null;STATE.rd.hallCity=WORLD.home.id;G.introBook=true}   // partida nova: começa dentro da prefeitura (rodada 0) com o livro aberto no resumo
-    refreshHotbar();refreshBuffs();fishClean();
-    G.running=true;$('hud').classList.remove('hidden');initEconomy();scenarioApply();rebuildCaravans();refreshRoundHud();   // scenarioApply: só com ?cenario=caravanas (scenario.js)if(STATE.phase==='leader'||G.introBook){if(OFFICE.ok)enterOffice(true);else if(G.introBook)placeAtHall()}
+    else{RAID.active=false;RAID.area=null;STATE.rd.hallCity=WORLD.home.id;G.introBook=true}   // partida nova: começa dentro da prefeitura (rodada 0) com o livro aberto no resumo
+    prepThin();refreshHotbar();refreshBuffs();fishClean();
+    G.running=true;$('hud').classList.remove('hidden');initEconomy();scenarioApply();rebuildCaravans();refreshRoundHud();   // scenarioApply: só com ?cenario=caravanas (scenario.js)
+    if(!loadData&&G.introBook){STATE.phase='leader';STATE.rd.actions=maxActions();refreshRoundHud()}   // partida nova: começa no turno do líder (rodada 0, sem decisões)
+    if(STATE.phase==='leader'||G.introBook){if(OFFICE.ok)enterOffice(true);else if(G.introBook)placeAtHall()}
     refreshCheats();scenarioAfter();
     $('seed').value=String(seed);
     document.querySelector('#pause h2').textContent=(loadData?'✔ JOGO CARREGADO — semente ':'✔ MUNDO PRONTO — semente ')+seed;

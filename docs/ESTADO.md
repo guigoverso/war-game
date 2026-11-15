@@ -4,10 +4,10 @@ Arquivo de passagem entre sessões e entre computadores. **Leia no início de ca
 Mantenha curto: o histórico detalhado das regras fica em `docs/fase-4-testes.md` (rodadas, economia, políticas, raids) e `docs/fase-5-facoes.md` (facções).
 
 ## Resumo
-- **Branch de trabalho:** `factions-update` (commitada; **ainda sem push** nesta sessão).
+- **Branch de trabalho:** `factions-update` (commitada e enviada).
 - **Fase atual:** 5 (facções). A Fase 4 (rodadas, prefeitura, livro, caravanas, 10 políticas locais) está pronta. A guerra é a Fase 6 (`docs/fase-6-guerra.md`).
-- **Save:** `SAVE_VERSION = 11`.
-- **Última atualização:** 2026-11-14.
+- **Save:** `SAVE_VERSION = 12`.
+- **Última atualização:** 2026-11-15.
 
 ## Facções (Fase 5): o que existe
 Decisões e números completos em `docs/fase-5-facoes.md`. Código principal: `js/factions.js`, `js/flageditor.js`, `js/scenario.js`.
@@ -17,10 +17,12 @@ Decisões e números completos em `docs/fase-5-facoes.md`. Código principal: `j
 - **F4:** doação de ouro (◉500 +1, ◉1000 +2; só a mais cara aparece se o ganho for igual) e de relíquia (+3) e rota comercial (+1) sobem a relação, cada uma gasta 1 ação do líder, 1 vez por rodada por facção; multiplicador de temperamento. Decaimento de 1 ponto em direção a 5 (2 rodadas; agressiva 3).
 - **Caderno:** abas Bolsa, Livro (inclui **🏴 Facções**) e Mapa. Atalhos **B** (bolsa), **L** (livro), **M** (mapa); sem pedido explícito abre no Livro. O mapa ocupa as duas páginas.
 - **Caravanas:** guardas são NPCs reais com ronda num círculo de 7 m, reagem a tiros (hostis até 38 m), não ressurgem se mortos pelo jogador, carroça com colisão, **saque** quando não sobra guarda (item do produto + ◉), carroças de rotas desfeitas ficam até o fim do turno do comandante. Uma caravana por cidade (vale para NPC). Caravanas de Desfavorável para cima.
+- **Rodada 0 (preparação):** começa no turno do líder, sem decisões; cidade contente, sem facções/missões/portais; máx. 5 acampamentos e 5 baús soltos (a rodada 1 devolve tudo). Ver `docs/fase-4-testes.md`.
+- **Missões (passo 2):** `js/missions.js`. Cidade: nível × 2 por rodada na prefeitura, várias aceitas, recompensa em ouro/recursos/mista. Facção: no máx. 2 ofertas a cada 3 rodadas (não em guerra), entregas e relatórios feitos na prefeitura do alvo, aceitar = 1 ação do líder, falha no fim da rodada (−1 relação), +1 relação ao cumprir (máx. +2 por facção por rodada). Tipos: acampamento, refém, pacote, matilha, entregar recurso, entregar relíquia. Aba **📋 Missões** no livro, mapa em popup, uma missão ativa. Detalhes em `docs/fase-5-facoes.md`.
 - **Modo criativo:** pausa → aba **🏴 Facções** muda o status de cada facção; no livro há botões de relação. **Cenário controlado:** `index.html?cenario=caravanas` (3 rotas: aliada, favorável, neutra; botões "Ir até a caravana" na mesma aba).
 
 ## Pendências e problemas conhecidos
-- **Missões do líder (próximo grande passo):** as ações de campo que sobem relação (eliminar bandidos e animais perto da cidade, proteger caravanas, resgatar cidadãos) virão como missões que o líder escolhe; escolher missão será uma ação. Ainda não existe.
+- **Missões:** falta jogar de verdade (só testado por script) e ajustar números (`MS` em `missions.js`). Proteger caravanas e resgatar cidadãos ainda não são tipos de missão.
 - **F3 (relações entre as facções NPC):** quem é inimiga ou aliada de quem e a propagação de relação. **F5:** NPC mudam de relação entre si por rodada; depois eventos globais e reuniões. **Fase 6:** guerra completa (frente, ondas, economia, paz por andamento, recusa de paz da agressiva).
 - **Facção destruída:** a cor volta a ficar livre, mas não está tratado de ponta a ponta; falta a nova facção criada por rebelião.
 - **Aliado que sofre crime** vira neutro com reparação pendente e nenhuma política cobre esse caso.
@@ -32,8 +34,7 @@ Decisões e números completos em `docs/fase-5-facoes.md`. Código principal: `j
 - Balanceamento da economia (`ECON`) e dos números das facções (`ECON.ally`, `FAC_*`, `REL_REP`) depende de teste jogando.
 
 ## Próximo passo sugerido
-1. `git push` da `factions-update` (para levar o trabalho a outro PC).
-2. **Missões do líder** (fecha o caminho de subir relação), depois o pacotão de correções, depois a F3.
+1. Pacotão de correções (`docs/futuras-correcoes.md`), depois a F3.
 
 Roteiro rápido para ver o estado atual: `index.html?cenario=caravanas&mute=1` (caravanas e relações) e `index.html?auto=1&mute=1&seed=11` (modo criativo normal).
 
