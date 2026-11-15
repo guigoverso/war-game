@@ -32,7 +32,7 @@ function rebSidesTable(r){
   const s=rebSides(r),chip=col=>'<i style="color:'+col+';font-style:normal">■</i> ',fac=i=>chip(hex6(facColor(i)))+facOf(i).name;
   const L=[chip(hex6(FAC_COLORS[r.color].c))+'<b>Rebeldes</b>'].concat(s.pro.map(fac)),R=s.con.map((i,k)=>k?fac(i):'<b>'+fac(i)+'</b>'),n=Math.max(L.length,R.length);
   let h='<table style="width:100%;margin:8px 0;border-collapse:collapse;font-size:15px"><tr style="color:#c8b890;font-size:13px"><td style="width:45%">Lado dos rebeldes</td><td></td><td>Lado da facção</td></tr>';
-  for(let i=0;i<n;i++)h+='<tr><td style="padding:2px 0">'+(L[i]||'')+'</td><td style="text-align:center;width:10%;color:#ff9a6a"><b>'+(i<Math.min(L.length,R.length)||i===0?'X':'')+'</b></td><td>'+(R[i]||'')+'</td></tr>';
+  for(let i=0;i<n;i++)h+='<tr><td style="padding:2px 0">'+(L[i]||'')+'</td><td style="text-align:center;width:10%;color:#ff9a6a"><b>X</b></td><td>'+(R[i]||'')+'</td></tr>';
   return h+'</table>';
 }
 function rebSidesTxt(r){const s=rebSides(r);return 'Apoiam os rebeldes: '+(s.pro.length?rebNames(s.pro):'nenhuma facção')+'. Contra os rebeldes: '+rebNames(s.con)+'.'}
