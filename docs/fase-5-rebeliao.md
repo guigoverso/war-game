@@ -59,3 +59,8 @@ Preço de anexação (`rebJoinCost`): ◉2000 + ◉1000 por nível da cidade + �
 
 ## Sabotagem
 Fase 6 (guerra). Gancho: `fsupHit` (facsupply.js) reduz o suprimento de uma facção por algumas rodadas; o limite de rebelião e o preço de anexação sobem com ela.
+
+## Ajustes após o primeiro teste
+- O cartão, o aviso, o relatório e o modo criativo dizem quem **apoia os rebeldes** e quem fica **contra** (a dona e as facções aliadas ou amistosas dela no grafo da F3): `rebSides`/`rebSidesTxt`.
+- Enquanto está em rebelião, a facção da cidade aparece só como **"Rebeldes"** (dica do mapa, informação da cidade, lista do livro). O nome real só existe depois do fim da rebelião (facção nova).
+- **Caravanas para cidade em rebelião** não são permitidas (jogador e NPC); no mapa de escolha a cidade aparece com um **círculo vermelho com X**.

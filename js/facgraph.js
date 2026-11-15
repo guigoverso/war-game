@@ -77,7 +77,7 @@ const fgTrade=(A,B)=>A.fid===B.fid||fgV(A.fid,B.fid)>=1;   // facções inimigas
 // uma caravana NPC nova por rodada. Pesos, nesta ordem: necessidades -> aliança -> relações
 const fgGt=(a,b)=>{for(let k=0;k<a.length;k++)if(a[k]!==b[k])return a[k]>b[k];return false};   // comparação em ordem de prioridade
 function fgPickRoute(){
-  const npc=WORLD.cities.filter(c=>c.owner!=='player'&&c.fid&&!hasRoute(c)&&ec(c)),res=c=>NEEDS.includes(focusOf(c))?focusOf(c):null;
+  const npc=WORLD.cities.filter(c=>c.owner!=='player'&&c.fid&&!c.rebel&&!hasRoute(c)&&ec(c)),res=c=>NEEDS.includes(focusOf(c))?focusOf(c):null;
   let best=null,bk=null;
   for(let i=0;i<npc.length;i++)for(let j=i+1;j<npc.length;j++){
     const A=npc[i],B=npc[j];

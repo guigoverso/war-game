@@ -629,7 +629,7 @@ function bookPages(){
       +(G.creative&&!f.player?'<p>Personalidade: <b>'+facTemperName(f)+'</b> <small>(só no modo criativo)</small></p>':'')
       +relH
       +'<h4>Cidades</h4>'+(cs.length?'<ul class="ldul">'+cs.map(c=>{const r=rt(c);const e=ec(c),cr=G.creative&&c.owner!=='player'&&e,px=cr?priceExplain({city:c,kind:'buy'}):[];   // modo criativo: humor e, se o preço varia, o "?" com as variações
-        return '<li>'+(c.home?'🏛 ':'')+c.name+' '+resIcon(focusOf(c))+(cr?' <small>'+MOOD[moodOf(c)].icon+' '+MOOD[moodOf(c)].n+'</small>'+(px.length?' <button class="qmark" data-why="price" data-c="'+c.id+'" data-k="buy" title="Variações de preço dos serviços">?</button>':''):'')+(r?' <span class="cvb" data-ri="'+rd.routes.indexOf(r)+'">🛒</span>':'')+'</li>'}).join('')+'</ul>':'<p>Sem cidades: a facção foi destruída.</p>')
+        return '<li>'+(c.home?'🏛 ':'')+c.name+' '+resIcon(focusOf(c))+(c.rebel?' <b style="color:#b02a2a">🔥 Rebeldes</b>':'')+(cr?' <small>'+MOOD[moodOf(c)].icon+' '+MOOD[moodOf(c)].n+'</small>'+(px.length?' <button class="qmark" data-why="price" data-c="'+c.id+'" data-k="buy" title="Variações de preço dos serviços">?</button>':''):'')+(r?' <span class="cvb" data-ri="'+rd.routes.indexOf(r)+'">🛒</span>':'')+'</li>'}).join('')+'</ul>':'<p>Sem cidades: a facção foi destruída.</p>')
       +(f.player?'<button data-a="editfac">✏ Editar nome, cor e bandeira</button>'+(isLeader()?'':'<p class="ldsm">Fora do turno do líder só o nome pode ser mudado.</p>'):'');
     const R='<h3>Facções</h3>'+fl.map(x=>{const sx=x.player?null:REL_ST[relStatus(x.id)];return '<button class="ldcity'+(x.id===f.id?' sel':'')+'" data-a="fac" data-id="'+x.id+'"><span><i style="color:'+hex6(FAC_COLORS[x.color].c)+';font-style:normal">■</i> '+x.name+(x.player?' (você)':'')+'</span><small>'+facCities(x.id).length+' cidade(s)</small>'+(sx?'<em style="color:'+sx.col+'">'+sx.n+' • '+relOf(x.id).v+'/10</em>':'')+'</button>'}).join('');
     return[R,L];   // a lista de facções à esquerda e os detalhes à direita
@@ -737,9 +737,10 @@ function mapPages(){
 function drawPickOverlay(g,s){
   if(!MP.on)return;
   for(const c of WORLD.cities){
-    const ok=MP.step===1?(c.owner==='player'&&!hasRoute(c)):(c.id!==MP.a&&!hasRoute(c)&&(c.owner==='player'||facTradeOK(c.fid)));
+    const ok=!c.rebel&&(MP.step===1?(c.owner==='player'&&!hasRoute(c)):(c.id!==MP.a&&!hasRoute(c)&&(c.owner==='player'||facTradeOK(c.fid))));
     g.strokeStyle=c.id===MP.a?'#5aff7a':ok?'#ffd23a':'#555';g.lineWidth=c.id===MP.a?5:3;
     g.beginPath();g.arc(c.cx*s,c.cz*s,16,0,6.283);g.stroke();
+    if(c.rebel){const x=c.cx*s,y=c.cz*s;g.strokeStyle='#ff2a2a';g.lineWidth=4;g.beginPath();g.arc(x,y,16,0,6.283);g.moveTo(x-8,y-8);g.lineTo(x+8,y+8);g.moveTo(x+8,y-8);g.lineTo(x-8,y+8);g.stroke()}   // cidade em rebelião: círculo vermelho com X (sem caravana)
   }
   if(MP.a!==null){const A=WORLD.cities[MP.a];g.strokeStyle='#5aff7a';g.setLineDash([6,5]);g.lineWidth=2;g.beginPath();g.moveTo(A.cx*s,A.cz*s);if(MP.hover!==undefined){const B=WORLD.cities[MP.hover];g.lineTo(B.cx*s,B.cz*s)}g.stroke();g.setLineDash([])}
 }
@@ -750,7 +751,7 @@ function drawPickOverlay(g,s){
     const c=mapOpen()&&e.target&&e.target.id==='bigmap'?pickCityAt(e):null;
     if(!c){hide();return}
     const f=facOf(c.fid);if(!tip){tip=document.createElement('div');tip.className='uitip';document.body.appendChild(tip)}
-    tip.textContent=c.name+'\nProdução: '+typeLabel(c)+'\nFacção: '+(f?f.name:'—')+(G.creative&&f&&f.temper?' ('+facTemperName(f)+')':'')+(f&&!f.player?'\nRelação: '+REL_ST[relStatus(c.fid)].n+' ('+relOf(c.fid).v+'/10)':'');
+    tip.textContent=c.rebel?c.name+'\nProdução: '+typeLabel(c)+'\nFacção: Rebeldes (em rebelião)'+(G.creative?'\n'+rebSidesTxt(rebS().cur):''):c.name+'\nProdução: '+typeLabel(c)+'\nFacção: '+(f?f.name:'—')+(G.creative&&f&&f.temper?' ('+facTemperName(f)+')':'')+(f&&!f.player?'\nRelação: '+REL_ST[relStatus(c.fid)].n+' ('+relOf(c.fid).v+'/10)':'');
     tip.style.display='block';tip.style.left=(e.clientX+14)+'px';tip.style.top=(e.clientY+14)+'px';
   });
   document.addEventListener('keydown',hide);document.addEventListener('click',hide);
@@ -766,6 +767,7 @@ function buyCaravan(A,B){
   if(!isLeader())toast('Caravanas só no turno do líder.',2000);
   else if(!A||!B||A===B)toast('Escolha duas cidades diferentes.',2000);
   else if(rd.routes.some(r=>(r.a===A.id&&r.b===B.id)||(r.a===B.id&&r.b===A.id)))toast('Já existe uma caravana entre elas.',2500);
+  else if(A.rebel||B.rebel)toast((A.rebel?A.name:B.name)+' está em rebelião: não há caravana para lá.',3000);
   else if(focusOf(A)===focusOf(B))toast('As duas cidades produzem o mesmo recurso: a caravana seria inútil.',3000);
   else if(hasRoute(A)||hasRoute(B))toast('Cada cidade só pode ter uma caravana ativa por vez: '+(hasRoute(A)?A.name:B.name)+' já tem uma.',3500);
   else if(polFlag('noRoute',A.id)||polFlag('noRoute',B.id))toast('Uma epidemia impede novas caravanas para essa cidade.',3000);
@@ -785,6 +787,7 @@ document.addEventListener('click',e=>{
   if(c.id===MP.a){MP.a=null;MP.step=1;drawBigMap();updatePickBanner();return}
   const A=WORLD.cities[MP.a];
   if(hasRoute(c)){toast(c.name+' já tem uma caravana ativa (uma por cidade).',2500);return}
+  if(c.rebel){toast(c.name+' está em rebelião: não há caravana para lá.',3000);return}
   if(c.owner!=='player'&&!facTradeOK(c.fid)){toast('Sem comércio com '+facOf(c.fid).name+': ela é inimiga ou está em guerra com você.',3000);return}
   dealSummary(A,c,()=>{MP.on=false;updatePickBanner();buyCaravan(A,c);openBook('book','caravanas')});
 });

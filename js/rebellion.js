@@ -24,7 +24,10 @@ const rebInvolved=()=>{const r=rebS().cur;return !!r&&(r.choice==='finR'||r.choi
 const rebFinCost=c=>({gold:REB.fin.gold+REB.fin.goldRank*(c.rank||1),food:REB.fin.res+REB.fin.resRank*(c.rank||1),ore:REB.fin.res+REB.fin.resRank*(c.rank||1)});
 const rebCostTxt=k=>'◉'+k.gold+', '+k.food+' de comida e '+k.ore+' de minério';
 const rebJoinCost=(c,r)=>({gold:REB.join.base+REB.join.perLvl*(c.rank||1)+REB.join.perFac*r.sup.length+(rebInvolved()?0:REB.join.stay)});
-const rebNames=ids=>ids.map(i=>facOf(i).name).join(' e ');
+const rebNames=ids=>{const n=ids.map(i=>facOf(i).name);return n.length>1?n.slice(0,-1).join(', ')+' e '+n[n.length-1]:n.join('')};
+// os dois lados: apoiam os rebeldes (r.sup) e ficam com a dona (ela mesma e as aliadas/amistosas dela no grafo)
+function rebSides(r){return{pro:r.sup.slice(),con:[r.owner].concat(WORLD.factions.filter(f=>f.id!==r.owner&&!r.sup.includes(f.id)&&facCities(f.id).length&&fgV(r.owner,f.id)>=FG.allyMin).map(f=>f.id))}}
+function rebSidesTxt(r){const s=rebSides(r);return 'Apoiam os rebeldes: '+(s.pro.length?rebNames(s.pro):'nenhuma facção')+'. Contra os rebeldes: '+rebNames(s.con)+'.'}
 
 // a capital de uma facção NPC (a cidade de maior nível; empate: a de menor id) nunca se rebela
 function rebCapital(fid){let b=null;for(const c of facCities(fid))if(!b||(c.rank||1)>(b.rank||1))b=c;return b}
@@ -85,7 +88,7 @@ function rebAnnounce(){
   }
   for(const m of STATE.ms.taken.slice())if(m.cityId===c.id||m.destId===c.id){msDrop(m);msLine('❌ A cidade '+c.name+' se rebelou: missão cancelada ('+msTitle(m)+').')}
   for(const k in STATE.ms.fac){const o=STATE.ms.fac[k];if(o&&o.m&&(o.m.cityId===c.id||o.m.destId===c.id))o.m=null}
-  facNote('🔥 '+c.name+' SE REBELOU contra '+facOf(r.owner).name+'!'+(r.sup.length?' Apoiam os rebeldes: '+rebNames(r.sup)+'.':''),6000);
+  facNote('🔥 '+c.name+' SE REBELOU contra '+facOf(r.owner).name+'! '+rebSidesTxt(r),6000);
   return rebCard();
 }
 // o cartão da rebelião (ou do resultado) que está devido; 'q' = na fila; null = nada
@@ -149,7 +152,7 @@ const rebOwnerName=()=>facOf(rebCur().owner).name;
 const rebAfter=(x,line)=>{rebCur().stage='wait';x.toast(line,4500);const rd=STATE.rd;if(rd&&rd.report)rd.report.push(line)};
 definePolicy({id:'rebnpc',name:'Rebelião',city:true,noRoll:true,flex:true,cool:0,
   cond:()=>!!rebCur(),
-  text:(c)=>{const r=rebCur();return 'Cansados da escassez, os moradores de '+c.name+' tomaram as ruas contra '+facOf(r.owner).name+'. A guarnição foi expulsa, a cidade arde e uma bandeira nova foi hasteada. '+(r.sup.length?'Os rebeldes já contam com o apoio de '+rebNames(r.sup)+'. ':'')+'Os dois lados esperam a sua palavra.'},
+  text:(c)=>{const r=rebCur();return 'Cansados da escassez, os moradores de '+c.name+' tomaram as ruas contra '+facOf(r.owner).name+'. A guarnição foi expulsa, a cidade arde e uma bandeira nova foi hasteada. '+rebSidesTxt(r)+' Os dois lados esperam a sua palavra.'},
   options:[
     {k:'A',label:'Apoiar os rebeldes',type:'both',eff:c=>'Você luta ao lado dos rebeldes no turno do Comandante e vira inimigo de '+rebOwnerName()+'. Ganha +1 soldado rebelde por nível da cidade e +1 por facção que apoia.',can:()=>'Batalha ainda não implementada (etapa 2).',apply:()=>{}},
     {k:'B',label:'Combater a rebelião',type:'both',eff:c=>'É uma invasão normal da cidade: os soldados dela viram os rebeldes. Ajuda '+rebOwnerName()+' (relação sobe).',can:()=>'Batalha ainda não implementada (etapa 2).',hide:()=>relStatus(rebCur().owner)==='war',apply:()=>{}},
@@ -206,7 +209,7 @@ function rebCheatHtml(){
   const r=rebS().cur,c=r?WORLD.cities[r.cid]:null;
   const st=r?{queued:'na fila (vem no próximo turno do líder)',decide:'aguardando a sua decisão',wait:'decidida; resolve no fim da rodada',result:'aguardando o resultado'}[r.stage]:'nenhuma';
   const lim=rebEligible().slice(0,6).map(x=>x.name+' ('+(ec(x).ups||0)+'/'+rebLimit(x)+')').join(', ')||'—';
-  return '<h4 style="margin:12px 0 4px">Rebelião de cidades NPC</h4><small>Em andamento: <b>'+(r?c.name+' — '+st:st)+'</b><br>Descontentes seguidas (limite): '+lim+'</small><br><button class="alt" data-reb="force">🔥 Forçar uma rebelião</button>';
+  return '<h4 style="margin:12px 0 4px">Rebelião de cidades NPC</h4><small>Em andamento: <b>'+(r?c.name+' — '+st:st)+'</b><br>'+(r?rebSidesTxt(r)+'<br>':'')+'Descontentes seguidas (limite): '+lim+'</small><br><button class="alt" data-reb="force">🔥 Forçar uma rebelião</button>';
 }
 document.addEventListener('click',e=>{
   const b=e.target.closest&&e.target.closest('[data-reb]');if(!b)return;

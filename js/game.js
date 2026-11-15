@@ -518,7 +518,7 @@ function updateHUD(dt){
   const c=G.curCity;
   if(c){
     if(c.state==='attacking')$('cityinfo').innerHTML='⚔ '+c.name+' — inimigos: <b style="color:#ff8a8a">'+c.aliveEnemies+'</b>/'+c.totalEnemies;
-    else $('cityinfo').innerHTML=c.name+' <small>'+(c.home?'(sua cidade)':c.owner==='player'?'(conquistada)':(c.kind==='camp'?(c.state==='cleared'?'(limpo)':'(bandidos)'):(c.type==='fortaleza'?'(fortaleza ':'(cidade ')+'— '+(facOf(c.fid)||{name:'inimiga'}).name+' · '+REL_ST[relStatus(c.fid)].n+')'))+'</small>';
+    else $('cityinfo').innerHTML=c.name+' <small>'+(c.home?'(sua cidade)':c.owner==='player'?'(conquistada)':(c.kind==='camp'?(c.state==='cleared'?'(limpo)':'(bandidos)'):(c.type==='fortaleza'?'(fortaleza ':'(cidade ')+'— '+(c.rebel?'Rebeldes · em rebelião':(facOf(c.fid)||{name:'inimiga'}).name+' · '+REL_ST[relStatus(c.fid)].n)+')'))+'</small>';
   }else $('cityinfo').textContent='';
   // objetivo
   const n=WORLD.cities.filter(x=>x.owner==='player').length;
