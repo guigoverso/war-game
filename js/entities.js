@@ -206,8 +206,8 @@ function makeBubble(text){
 }
 function npcSay(n,text){showSubtitle('— '+text,2000)}
 // ---------- anti-prisão: acha um ponto livre e resgata quem ficar preso dentro de estruturas ----------
-function freeSpot(x,z,r,hgt,boxStep){
-  for(let rad=0;rad<=10;rad+=0.75){
+function freeSpot(x,z,r,hgt,boxStep,minRad){   // minRad: começa a procurar longe do ponto (para tirar quem está encostado numa parede)
+  for(let rad=minRad||0;rad<=10;rad+=0.75){
     const n=rad===0?1:Math.max(8,Math.round(rad*5));
     for(let k=0;k<n;k++){
       const a=k/n*6.283+rad,px=x+Math.cos(a)*rad,pz=z+Math.sin(a)*rad;
@@ -219,7 +219,21 @@ function freeSpot(x,z,r,hgt,boxStep){
   }
   return[x,z];
 }
-function rescueStuck(e,dt,r,hgt){
+// vigia de movimento: quem quer andar (wants) e fica ~4 s sem sair do lugar (menos de 1,2 bloco) está preso numa parede ou pedra
+function stuckWatch(e,dt,wants){
+  if(!wants||!e.alive||e.stunT>0||e.lunge>0){e.wdT=0;e.wdX=e.x;e.wdZ=e.z;return false}
+  if(e.wdT===undefined){e.wdT=0;e.wdX=e.x;e.wdZ=e.z}
+  e.wdT+=dt;
+  if(Math.hypot(e.x-e.wdX,e.z-e.wdZ)>=1.2){e.wdT=0;e.wdX=e.x;e.wdZ=e.z;return false}
+  if(e.wdT>=4){e.wdT=0;e.wdX=e.x;e.wdZ=e.z;return true}
+  return false;
+}
+function rescueStuck(e,dt,r,hgt,wants){
+  if(stuckWatch(e,dt,wants)){   // sem sair do lugar por muito tempo: vai para o lugar livre mais próximo (a pelo menos 1,5 bloco)
+    if(e.y<UNDER_Y){const w=G.dg&&G.dg.wing;if(w){const f=dgFreeSpot(w,e.x,e.z,clamp(r,0.5,1.6),hgt,1.5);e.x=f[0];e.z=f[1];e.y=DG.Y}}
+    else{const f=freeSpot(e.x,e.z,r,hgt,e.boxStep,1.5);e.x=f[0];e.z=f[1];e.y=tH(f[0],f[1])}
+    e.vy=0;e.path=null;e.stuckIn=0;e.walking=false;if(e.state==='walk'){e.state='idle';e.timer=1+Math.random()*2}
+  }
   e.chkT=(e.chkT||0)-dt;if(e.chkT>0)return;e.chkT=0.3;
   if(e.y<UNDER_Y){   // dungeon: o resgate usa o piso da ala (nunca o terreno de cima); preso num bloco ou fora do piso volta para o ponto livre mais próximo
     const w=typeof G!=='undefined'&&G.dg&&G.dg.wing;if(!w||!e.alive)return;
@@ -309,7 +323,7 @@ function updateNpc(n,dt){
     if(dd<0.8||n.walkT<=0){n.state='idle';n.timer=1+Math.random()*5}
   }
   moveY(n,dt,n.r,1.8,1.05);
-  rescueStuck(n,dt,n.r,1.8);
+  rescueStuck(n,dt,n.r,1.8,n.state==='walk'&&!n.sit);
   if(!n.stationary||n.fear>0){separate(n,c.npcs,dt);for(const o of c.enemies)if(o.alive&&!o.gone&&Math.abs(o.x-n.x)<2&&Math.abs(o.z-n.z)<2)separate(n,[o],dt)}
   n.group.position.set(n.x,n.y-(n.sit?0.42:0),n.z);n.group.rotation.y=n.yaw;
   if(moving)animWalk(n.model,n.phase,0.7);else if(!n.sit){n.model.legs.forEach(l=>l.rotation.x*=0.8)}
@@ -539,7 +553,7 @@ function updateEnemy(e,dt){  const def=e.def,m=e.model;
     }
   }
   if(!e.sentry&&!def.climb&&!def.bomb&&!def.lift){e.sepT=(e.sepT||0)-dt;if(e.sepT<=0){e.sepT=0.05;separate(e,c.enemies,0.1)}}
-  if(!e.sentry&&!def.climb)rescueStuck(e,dt,def.r,Math.min(def.h,1.9));
+  if(!e.sentry&&!def.climb)rescueStuck(e,dt,def.r,Math.min(def.h,1.9),moving&&!def.bomb&&!def.lift);
   if(def.climb){
     probe(e.x,e.z,def.r,e.y,1.2,7);const gg=GR.g;
     if(e.y<gg-0.01){e.y=Math.min(gg,e.y+dt*6.5);e.climbing=true}else{e.climbing=false;if(e.y>gg)e.y=Math.max(gg,e.y-dt*14)}

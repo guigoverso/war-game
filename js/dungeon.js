@@ -352,9 +352,9 @@ function enterDungeon(p){
   toast('🌀 Dungeon '+(p.golden?'dourada ':'')+'nível '+p.tier+' — elimine os inimigos e '+(p.golden?'minere o veio de ouro do fundo (e abra o baú da relíquia)':'abra o baú do fundo')+'. Recompensa: '+rewardText(p),6000);
 }
 // ponto livre dentro da ala: piso (nunca parede) e sem pilares, caixas ou escombros por perto; busca em espiral a partir do ponto pedido
-function dgFreeSpot(w,x,z,r,hgt){
+function dgFreeSpot(w,x,z,r,hgt,minRad){
   const N=w.N,cell=(px,pz)=>{const i=Math.floor(px-w.ox),j=Math.floor(pz-w.oz);return i>=0&&j>=0&&i<N&&j<N&&w.g[j*N+i]===1};
-  for(let rad=0;rad<=12;rad+=0.5){
+  for(let rad=minRad||0;rad<=12;rad+=0.5){
     const n=rad===0?1:Math.max(8,Math.round(rad*5));
     for(let k=0;k<n;k++){
       const a=k/n*6.283+rad,px=x+Math.cos(a)*rad,pz=z+Math.sin(a)*rad;
