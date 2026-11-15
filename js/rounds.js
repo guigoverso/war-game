@@ -107,7 +107,7 @@ const gotOf=(c,r)=>ec(c).got[r]||0,carryOf=(c,r)=>ec(c).carry[r]||0;   // got = 
 const missingOf=(c,r)=>G.alwaysSupplied||STATE.round<1?0:Math.max(0,needOf(c,r)-storedOf(c,r));   // G.alwaysSupplied: botão do modo criativo "Cidades sempre supridas"
 const cityMet=c=>NEEDS.every(r=>missingOf(c,r)===0);
 function moodOf(c){const e=STATE.rd&&STATE.rd.cities&&STATE.rd.cities[c.id];return(e&&e.mood)||'ok'}
-const hasRoute=c=>STATE.rd.routes.some(r=>r.a===c.id||r.b===c.id);
+const hasRoute=c=>STATE.rd.routes.some(r=>r.a===c.id||r.b===c.id)||(STATE.rd.nroutes||[]).some(r=>r.a===c.id||r.b===c.id);   // inclui as caravanas entre NPC (facgraph.js): uma por cidade
 const prodOf=c=>polFlag('noProd',c.id)?0:(ECON.prodBase+ECON.prodRank*Math.max(1,c.rank||1)+(moodOf(c)==='rich'?1:0))*(focusOf(c)==='gold'?ECON.goldMul:1);   // cidade próspera: +1 de produção
 const goldTradeOf=c=>{   // ouro extra por rodada de quem negocia com cidades que produzem ouro
   let g=0;for(const r of STATE.rd.routes){if(r.a!==c.id&&r.b!==c.id)continue;const o=WORLD.cities[r.a===c.id?r.b:r.a];if(focusOf(o)==='gold'&&o!==c)g+=Math.round(prodOf(o)*ECON.tradeGold)}
@@ -391,6 +391,7 @@ function updateCaravanGuards(dt){
 ECON.loot={items:6,coins:40,perRank:15};   // saque: unidades de um dos produtos da rota + ◉ (base + por nível da cidade dona)
 function destroyRoute(r){   // a rota acaba na hora; as carroças ficam na estrada até o turno acabar
   const rd=STATE.rd,i=rd.routes.indexOf(r);if(i>=0)rd.routes.splice(i,1);
+  const j=(rd.nroutes||[]).indexOf(r);if(j>=0)rd.nroutes.splice(j,1);   // rota entre NPC saqueada
   for(const c of CARAVANS)if(c.r===r)c.doomed=true;
   computeBuffs();
 }
@@ -509,7 +510,7 @@ function roadSpot(ax,az,bx,bz,t){
 function rebuildCaravans(){
   clearCaravans();
   if(STATE.round<1)return;   // rodada 0: sem caravanas
-  for(const r of STATE.rd.routes){
+  for(const r of STATE.rd.routes.concat(STATE.rd.nroutes||[])){
     const A=WORLD.cities[r.a],B=WORLD.cities[r.b];if(!A||!B)continue;
     // duas caravanas no meio da estrada: a da cidade A um pouco antes do meio, a da B um pouco depois, cada uma voltada para a outra cidade
     const s1=roadSpot(A.cx,A.cz,B.cx,B.cz,0.40),s2=roadSpot(B.cx,B.cz,A.cx,A.cz,0.40);
@@ -519,7 +520,7 @@ function rebuildCaravans(){
 // ---------- livro: bolsa + livro do prefeito (tecla B) ----------
 const LB={top:'book',tab:'resumo',city:null,ra:null,rb:null,fac:0};
 const mapOpen=()=>G.panel==='ldbook'&&LB.top==='map';   // o mapa agora é uma aba do caderno (tecla M)
-const LSUBS=[['resumo','📜 Resumo'],['cidades','🏘 Cidades'],['facs','🏴 Facções'],['missoes','📋 Missões'],['caravanas','🛒 Caravanas'],['capital','🏛 Capital']];
+const LSUBS=[['resumo','📜 Resumo'],['cidades','🏘 Cidades'],['capital','🏛 Capital'],['missoes','📋 Missões'],['caravanas','🛒 Caravanas'],['facs','🏴 Facções'],['diplo','🕊 Diplomacia']];
 const INV_L='<h3>🎒 Bolsa</h3><div id="invinfo" class="ldsm"></div><b class="st">Armas e vara — teclas 1–6</b><div id="invwbar"></div><b class="st" style="display:block;margin-top:8px">Curas — teclas 7–9</b><div id="invcbar"></div><b class="st" style="display:block;margin-top:8px">Bolsa</b><div id="invgrid"></div>';
 const INV_R='<div id="invdetail"></div><div id="invpending"></div><div id="invdeposit"></div>';
 function openBook(top,tab){
@@ -596,6 +597,7 @@ function bookPages(){
       }
     }    return[L,R];
   }
+  if(LB.tab==='diplo')return fgBookPages();   // aba Diplomacia (facgraph.js)
   if(LB.tab==='missoes')return msBookPages();   // aba Missões (missions.js)
   if(LB.tab==='facs'){   // lista de facções à direita; resumo da escolhida à esquerda
     const fl=[facOf(0)].concat(WORLD.factions||[]),f=facOf(LB.fac)||fl[0],cs=facCities(f.id);
@@ -649,6 +651,7 @@ function renderBook(){
   if(inv){$('ldL').innerHTML=INV_L;$('ldR').innerHTML=INV_R;renderInventory()}
   else if(mp){const [L,R]=mapPages();$('ldL').innerHTML=L;$('ldR').innerHTML=R;drawBigMap()}
   else{const [L,R]=bookPages();$('ldL').innerHTML=(isLeader()&&LB.tab!=='resumo'?'<p class="ldsm">Ações do líder: '+actionsHtml()+'</p>':'')+L;$('ldR').innerHTML=R}   // as ações restantes aparecem em todas as abas
+  if(!inv&&!mp&&LB.tab==='diplo')fgSetup();   // diagrama de cordas (facgraph.js)
   if(!inv&&!mp&&LB.tab==='facs')$('ldL').querySelectorAll('.cvb').forEach(el=>UI.tip(el,()=>routeTip(STATE.rd.routes[+el.dataset.ri])));   // o mouse sobre o 🛒 mostra a caravana
   $('ldtabs').innerHTML=[['inv','🎒','Bolsa'],['book','📖','Livro'],['map','🗺','Mapa']].filter(t=>!(G.office&&t[0]==='inv')).map(t=>'<button class="'+((inv?'inv':mp?'map':'book')===t[0]?'sel':'')+'" data-top="'+t[0]+'">'+t[1]+'<br><small>'+t[2]+'</small></button>').join('');
   $('ldL').parentNode.classList.toggle('ldmap',mp);   // no mapa o livro vira uma página só, mais alta

@@ -47,7 +47,8 @@ function migrateSave(d){
   if(d.v<10){d.v=10}   // v10: facções (state.fac = nome, cor e bandeira do jogador); as facções NPC vêm da semente (ausente = padrão)
   if(d.v<11){d.v=11}   // v11: relações com as facções (state.rel: valor, aliança, guerra, reparação); ausente = todas neutras (5)
   if(d.v<12){d.v=12}   // v12: missões novas (state.ms: quadro por cidade, ofertas de facção, aceitas e ativa); as missões antigas (quadro e ativa) são descartadas
-  // if(d.v<13){ ...ajustes...; d.v=13 }
+  if(d.v<13){d.v=13}   // v13: relações entre facções NPC (state.frel: só o que mudou; ausente = valor da semente), registro de propagação (state.flog) e rotas NPC (state.rd.nroutes)
+  // if(d.v<14){ ...ajustes...; d.v=14 }
   return d;
 }
 
@@ -85,6 +86,7 @@ function applySave(d){
   STATE.portals=s.portals||[];STATE.portalSeq=s.portalSeq||0;STATE.portalDay=s.portalDay;STATE.legend=s.legend||{};STATE.burnt=s.burnt||{};STATE.raidDay=s.raidDay||0;STATE.raidLast=s.raidLast===undefined?-9:s.raidLast;
   if(!(s.portals&&s.portals.length)&&s.portalDay===undefined)STATE.portalDay=undefined;   // salvamento antigo: os portais nascem na hora
   if(s.pol)STATE.pol=s.pol;normalizePol();   // políticas: carta pendente, efeitos ativos, fila do turno do Comandante, recargas
+  if(s.frel)STATE.frel=s.frel;if(s.flog)STATE.flog=s.flog;
   if(s.rel)STATE.rel=s.rel;   // relações com as facções NPC
   if(s.fac)STATE.fac=Object.assign(STATE.fac||{},s.fac);   // identidade do jogador (nome, cor, bandeira)
   if(s.rd)STATE.rd=s.rd;   // rodadas: tipos de cidade, entregas, rotas, nível da capital (o que faltar é completado por initEconomy)

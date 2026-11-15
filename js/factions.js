@@ -174,7 +174,9 @@ function relChange(fid,delta){
   const r=relOf(fid),f=facOf(fid);if(!f||r.war)return 0;
   const T=FAC_TEMPER[f.temper||'neutra'],m=delta>0?T.gain:T.loss,d=Math.sign(delta)*Math.max(1,Math.round(Math.abs(delta)*m));
   const before=relStatus(fid);r.v=Math.max(0,Math.min(REL_MAX,r.v+d));if(r.ally&&r.v<REL_MAX)r.ally=false;
-  relEffects(fid,before,relStatus(fid));return d;
+  relEffects(fid,before,relStatus(fid));
+  if(d&&typeof fgPropagate==='function')fgPropagate(fid,d,'ação');   // aliadas e rivais dela reagem (facgraph.js)
+  return d;
 }
 function relSet(fid,v){const r=relOf(fid),before=relStatus(fid);r.v=Math.max(0,Math.min(REL_MAX,v));if(r.ally&&r.v<REL_MAX)r.ally=false;if(r.war&&v>0)r.war=false;relEffects(fid,before,relStatus(fid))}
 // aliança (acordo; exige relação 10) e guerra (declaração)
@@ -234,6 +236,7 @@ function facCrime(c){
   }else r.v=0;
   if(st!=='enemy')facNote('🚨 Crime em '+c.name+': '+f.name+' agora é '+REL_ST[relStatus(fid)].n.toLowerCase()+'. Reparação: ◉'+r.debt.amt+'.',5000);
   facCutCaravans(fid);if(st==='ally')facNote('🤝 A aliança com '+f.name+' acabou.');
+  if(typeof fgPropagate==='function')fgPropagate(fid,-1,'crime');
 }
 // o jogador acabou com os soldados de uma cidade que não estava em guerra: a facção (exceto a pacífica) declara guerra na rodada seguinte
 function facCityEmptied(c){
@@ -302,7 +305,7 @@ function renderFacCheats(){
     return '<div style="margin:6px 0"><i style="color:'+hex6(FAC_COLORS[f.color].c)+';font-style:normal">■</i> <b>'+f.name+'</b> <small>('+facTemperName(f)+', '+facCities(f.id).length+' cidade(s))</small><br>'
       +'<select data-fid="'+f.id+'" style="font-family:inherit;font-size:15px;padding:5px;margin-top:3px">'+Object.keys(REL_ST).map(k=>'<option value="'+k+'"'+(k===st?' selected':'')+'>'+REL_ST[k].n+'</option>').join('')+'</select> '
       +'<small>relação '+r.v+'/10'+(r.debt?' • reparação ◉'+r.debt.amt:'')+(r.warAt!=null?' • guerra na rodada '+r.warAt:'')+'</small></div>';
-  }).join('');
+  }).join('')+(typeof fgCheatHtml==='function'?fgCheatHtml():'');
 }
 document.addEventListener('change',e=>{
   const s=e.target.closest&&e.target.closest('#facscheat select');if(!s)return;
