@@ -99,6 +99,7 @@ const facTouch=()=>{facPVer++};
 // aplica a bandeira da facção atual da cidade (material branco + textura)
 function facSetFlag(c){
   if(!c.flagMat)return;
+  if(c.rebel){c.flagMat.map=null;c.flagMat.color.setHex(FAC_COLORS[c.rebel.color].c);c.flagMat.needsUpdate=true;return}   // rebelião: bandeira lisa dos rebeldes
   c.flagMat.map=facFlagTex(c.fid);c.flagMat.color.setHex(0xffffff);c.flagMat.needsUpdate=true;
 }
 // recolore todas as bandeiras (depois de carregar um save ou de o jogador mudar a identidade)
@@ -271,7 +272,7 @@ addPriceFx('rel',ctx=>{const c=ctx.city;if(!c||c.owner==='player'||!c.fid)return
 // ---------- território: entrar, atacar e cometer crime ----------
 const facInCrime=()=>WORLD.cities.some(c=>c.crime&&c.state==='attacking'&&c.aliveEnemies>0);   // enquanto dura, o jogador leva 3× de dano
 // serviços fechados: cidade hostil (inimiga, em guerra ou em crime)
-const facClosed=c=>c.owner==='enemy'&&!c.kind&&((c.crime&&c.state==='attacking')||['enemy','war'].includes(relStatus(c.fid)));
+const facClosed=c=>c.owner==='enemy'&&!c.kind&&(!!c.rebel||(c.crime&&c.state==='attacking')||['enemy','war'].includes(relStatus(c.fid)));
 // o jogador feriu alguém da cidade: em guerra é ataque normal; senão é crime (relação cai, a cidade reage, sem conquista nem soldados seus)
 function facHostileAct(c){
   if(c.kind||c.owner!=='enemy'||c.fid===undefined)return;

@@ -173,6 +173,7 @@ function endRound(city){
   }
   for(const c of WORLD.cities)rerollNeeds(c);
   fsupRound();   // cidades de facção: sorteia o suprimento de cada facção e daí o humor das cidades (facsupply.js)
+  rebRound(rep); // rebelião de cidade NPC: resolve a decidida e vê se outra começa (rebellion.js)
   refreshShops();   // novas necessidades (dado) e Lojas reabastecidas conforme a produção
   rd.debuff=prep?(rd.debuff||{}):debuf;   // debuffs valem na rodada que começa (a necessidade não muda)
   rd.rbuf=Object.assign({},rd.rnext||{});rd.rnext={};   // bônus do que foi entregue vale só na rodada que começa (a rodada 0 também)

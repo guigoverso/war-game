@@ -14,7 +14,7 @@ const POL={chance:0.30,dur:1,defs:[],byId:{}};
 const polDurTxt=()=>POL.dur+(POL.dur>1?' rodadas':' rodada');
 const POL_TYPE={buff:{n:'Buff',col:'#9fe89f'},debuff:{n:'Debuff',col:'#ff9a9a'},both:{n:'Buff + Debuff',col:'#ffd23a'},neutral:{n:'Neutro',col:'#c8c8c8'}};
 function definePolicy(d){
-  if(!d.options||(d.options.length!==3&&d.id!=='dourada'))console.warn('política '+d.id+': precisa de 3 opções');
+  if(!d.options||(d.options.length!==3&&d.id!=='dourada'&&!d.flex))console.warn('política '+d.id+': precisa de 3 opções');
   else if(!d.options.some(o=>!o.cost))console.warn('política '+d.id+': ao menos uma opção deve ser gratuita (ou o jogador pode ficar preso)');
   POL.defs.push(d);POL.byId[d.id]=d;return d;
 }
@@ -59,18 +59,28 @@ function polCandidates(){
 }
 // sorteio determinístico pela semente e pela rodada (recarregar o jogo não "rerrola" a política)
 // a política NÃO abre sozinha: surge uma notificação no canto superior direito e o jogador abre o cartão quando quiser (livro, na mesa)
+function polDraw(force){   // o sorteio da rodada (sem efeitos): {d,city} ou null
+  const P=STATE.pol,rng=new RNG((WORLD.seed*131+STATE.round*7919+17)>>>0);
+  if(!force&&!rng.chance(POL.chance))return null;
+  let cand=polCandidates();if(!cand.length)return null;
+  const last=P.log.length?P.log[P.log.length-1].pid:null,alt=cand.filter(x=>x.d.id!==last);if(alt.length)cand=alt;   // evita repetir a política da rodada anterior
+  const tot=cand.reduce((a,x)=>a+(x.d.weight||1),0);let r=rng.next()*tot,pick=cand[0];
+  for(const x of cand){r-=(x.d.weight||1);if(r<=0){pick=x;break}}
+  return pick;
+}
 function rollPolicy(force){
   normalizePol();
   const P=STATE.pol;if(P.pending){polNoteUpdate();return}
   {const due=typeof facDueList==='function'?facDueList():[];   // declarações de guerra e pedidos de reparação devidos: SÃO as políticas da rodada (sem sorteio); se houver mais de uma, uma de cada vez
    if(due.length){P.pending=due[0];P.extra=due.slice(1);toast('📜 Há '+(due.length>1?due.length+' políticas':'uma política')+' a decidir ('+due.map(x=>POL.byId[x.pid].name.toLowerCase()).join(' e ')+'). Abra o livro na mesa (E).',5500);polNoteUpdate();return}}
   if(!force&&STATE.round<1)return;
-  const rng=new RNG((WORLD.seed*131+STATE.round*7919+17)>>>0);
-  if(!force&&!rng.chance(POL.chance))return;
-  let cand=polCandidates();if(!cand.length)return;
-  const last=P.log.length?P.log[P.log.length-1].pid:null,alt=cand.filter(x=>x.d.id!==last);if(alt.length)cand=alt;   // evita repetir a política da rodada anterior
-  const tot=cand.reduce((a,x)=>a+(x.d.weight||1),0);let r=rng.next()*tot,pick=cand[0];
-  for(const x of cand){r-=(x.d.weight||1);if(r<=0){pick=x;break}}
+  // rebelião de cidade NPC (rebellion.js): o resultado ou a decisão já devidos viram o cartão da rodada; uma rebelião na fila só passa na frente
+  // das políticas sorteadas, exceto do raid de bandidos (ordem dos eventos: raid > rebelião > emboscada de caravana > dungeon dourada)
+  const rc=typeof rebCard==='function'?rebCard():null;
+  if(rc&&rc!=='q'){P.pending=rc;toast('📜 Há uma rebelião a decidir. Abra o livro na mesa (E).',5500);polNoteUpdate();return}
+  const pick=polDraw(force);
+  if(rc==='q'&&!(pick&&pick.d.id==='raid')){P.pending=rebAnnounce();toast('🔥 Uma cidade se rebelou! Abra o livro na mesa (E).',5500);polNoteUpdate();return}
+  if(!pick)return;
   P.pending={pid:pick.d.id,city:pick.city?pick.city.id:-1,round:STATE.round};
   if(pick.d.data)P.pending.data=pick.d.data(rng);   // dados extras sorteados (ex.: qual rota de caravana)
   toast('📜 Há uma política a decidir. Abra o livro na mesa (E).',4500);polNoteUpdate();
@@ -113,6 +123,7 @@ function showPolicy(){
   const nar=document.createElement('p');nar.style.cssText='font-style:italic;line-height:1.5';nar.textContent='“'+d.text(c,pd.data)+'”';b.appendChild(nar);
   for(const op of d.options){
     const ty=POL_TYPE[op.type]||POL_TYPE.neutral,ctx=polCtx(d,op,c,pd.data);
+    if(op.hide&&op.hide(ctx))continue;   // opção que não se aplica agora (ex.: reconhecer facção no limite de facções)
     const why=op.can?op.can(ctx):null;   // pagar sem ter o ouro é permitido: gera dívida (ver polChoose)
     const oc=polCost(op,ctx),debt=oc&&!Ledger.canAfford(oc);
     const row=document.createElement('div');row.className='card';row.style.cssText='margin:6px 0;padding:8px 10px';

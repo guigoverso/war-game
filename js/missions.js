@@ -69,14 +69,14 @@ function msGenCity(c){
   return out;
 }
 function msBoard(c){
-  if(prepOn())return [];   // rodada 0: sem missões
+  if(prepOn()||c.rebel)return [];   // rodada 0: sem missões
   const s=STATE.ms;let b=s.city[c.id];
   if(!b||b.round!==STATE.round)b=s.city[c.id]={round:STATE.round,list:msGenCity(c)};   // renova só na rodada seguinte
   return b.list;
 }
 function msGenFac(f){
   if(relStatus(f.id)==='war'||!facCities(f.id).length)return null;
-  const rng=new RNG((WORLD.seed*57+f.id*211+STATE.round*17+3)>>>0),st=relStatus(f.id),cs=facCities(f.id);
+  const rng=new RNG((WORLD.seed*57+f.id*211+STATE.round*17+3)>>>0),st=relStatus(f.id),cs=facCities(f.id).filter(x=>!x.rebel);if(!cs.length)return null;   // cidade em rebelião não tem missões
   const outdoor=['camp','hostage','pack'],indoor=['delivery','resource'].concat(typeof DG!=='undefined'&&DG.ok?['relic']:[]);
   const type=rng.pick(st==='enemy'?outdoor:outdoor.concat(indoor));   // inimiga não deixa entrar nas cidades: só missões ao ar livre
   const c=rng.pick(cs),m=msBase('fac',{type,fid:f.id,cityId:c.id,tier:rng.int(1,2),gang:rng.pick(GANGS),cargo:rng.pick(CARGO)});

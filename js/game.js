@@ -530,7 +530,7 @@ function updateHUD(dt){
   }else $('obj').innerHTML='Cidades: <b>'+n+'/7</b><br>Todas conquistadas!';
   $('obj').innerHTML+=questLine();drawMinimap();
 }
-function cityCol(c){if(RAID.active&&RAID.city===c)return Math.floor(G.t*4)%2?'#ff3030':'#ffffff';return(c.state==='attacking'&&c.owner!=='player'&&Math.floor(G.t*4)%2)?'#ffffff':'#'+(facColor(c.fid)||0x888888).toString(16).padStart(6,'0')}   // cor da facção dona (piscando em ataque)
+function cityCol(c){if(RAID.active&&RAID.city===c)return Math.floor(G.t*4)%2?'#ff3030':'#ffffff';return(c.state==='attacking'&&c.owner!=='player'&&Math.floor(G.t*4)%2)?'#ffffff':'#'+((c.rebel?FAC_COLORS[c.rebel.color].c:facColor(c.fid))||0x888888).toString(16).padStart(6,'0')}   // cor da facção dona (piscando em ataque)
 const mm=$('mm'),mmc=mm.getContext('2d');
 function drawMinimap(){
   const s=1.5,R=88;
