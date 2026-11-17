@@ -7,6 +7,15 @@ Desenho fechado com o usuário. Código: `js/rebellion.js`. A base (humor das ci
 2. **Batalhas (feito, falta jogar):** apoiar os rebeldes (raid adaptado) e combater a rebelião (invasão adaptada), com reforços (`rebSupportStart`, `rebCombatStart`).
 3. **Visual (a fazer):** buracos, corpos e prédios queimados; uniformes dos rebeldes. Hoje: fumaça (`igniteCity`), bandeira lisa na cor dos rebeldes e cor no mapa.
 
+## Cenário de teste (`?cenario=rebeliao`)
+`index.html?auto=1&mute=1&seed=11&cenario=rebeliao`: rodada 3, ◉20000, comida e minério 40, 5 soldados, você de frente para a cidade que vai se rebelar (Vila Cume na semente 11) e uma rebelião já na fila. Pausa (Tab) → aba **Facções** tem o painel 🧪 (`rebScenarioHtml`):
+- 📍 Ir até a cidade • ⏭ Encerrar a rodada • 🔥 Nova rebelião • ↻ Recomeçar.
+- Apoiadoras: 0, 1 ou 2 facções do lado dos rebeldes (muda a tabela, os reforços e o sorteio).
+- Sorteio forçado (rebeldes vencem, perdem ou aleatório): vale para as escolhas sem batalha (C, D, E).
+- Batalha: ☠ matar os inimigos (acelera ondas e invasão), ♥ curar tudo, +5 soldados.
+- Ouro 0 (testa dívida e "Anexar a crédito"), ouro 20000, e **Limite de facções (8)** para testar o caminho sem reconhecer.
+Roteiro: encerrar a rodada → cartão A–E → turno do comandante (A e B levam à batalha) → encerrar a rodada → resultado. Repita com A (vencer, fugir a 50 blocos, morrer), B (vencer, morrer), C/D/E e as opções de Negociação.
+
 ## Como testar a etapa 1
 - `index.html?auto=1&mute=1&seed=11&cenario=rebeliao`: rodada 3, ◉20000, comida e minério 40, uma rebelião já na fila. Encerre a rodada (prefeitura ou pausa → Rodadas): no turno do líder o cartão aparece (livro na mesa, tecla E).
 - Pausa → aba Facções (modo criativo): estado da rebelião, cidades descontentes e o botão **🔥 Forçar uma rebelião**.

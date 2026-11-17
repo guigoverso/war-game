@@ -234,16 +234,57 @@ document.addEventListener('click',e=>{
 });
 
 // ---------- cenário controlado (?cenario=rebeliao) ----------
-// Mundo da semente 11, rodada 3 no turno do comandante, ◉20000 e 40 de comida e de minério. Uma rebelião já está na fila: encerre a rodada
-// (prefeitura, ou pausa → Rodadas) e o cartão aparece no turno do líder. Pausa → Facções tem o botão "Forçar uma rebelião" e o estado dela.
+// Mundo da semente 11, rodada 3 no turno do comandante, ◉20000, comida e minério 40, 5 soldados e modo criativo. Uma rebelião já está na fila:
+// encerre a rodada e o cartão aparece no turno do líder. Pausa (Tab) → aba Facções tem o painel do cenário (REBSCN): ir até a cidade, encerrar a rodada,
+// escolher quantas facções apoiam os rebeldes, forçar o sorteio, limpar inimigos, zerar o ouro, simular o limite de facções, nova rebelião.
+const REBSCN={on:false};
 function rebScenario(){
+  REBSCN.on=true;
   STATE.phase='commander';STATE.round=3;P.coins=20000;STATE.res.food=40;STATE.res.ore=40;G.introBook=false;
   facSetIdentity({name:'Cenário de rebelião'});
   STATE.rd.lvl=2;STATE.rd.actions=maxActions();
+  for(let i=0;i<5;i++)spawnAlly(P.x+(i-2)*2,P.z+2,WORLD.home);   // exército para ver que os reforços temporários não entram no limite
   const c=rebEligible().sort((a,b)=>(b.rank||1)-(a.rank||1))[0];
   if(c){ec(c).ups=rebLimit(c);rebStart(c)}
-  toast('🧪 Cenário de rebelião: '+(c?c.name+' vai se rebelar quando você encerrar a rodada.':'nenhuma cidade elegível.'),8000);
+  // outras cidades NPC descontentes, para ver humor e preço (livro → lista de cidades)
+  for(const x of rebEligible())if(x!==c)ec(x).ups=1;
 }
+function rebScenarioAfter(){
+  const c=rebCity();if(c)rebScnGo(c);
+  toast('🧪 Cenário de rebelião: '+(c?c.name+' vai se rebelar quando você encerrar a rodada.':'nenhuma cidade elegível.')+' Pausa (Tab) → Facções tem o painel de testes.',9000);
+}
+function rebScnGo(c){   // você, fora da muralha, de frente para a cidade
+  const f=freeSpot(c.cx,c.cz+c.half+25,0.5,1.8,0.45);
+  P.x=f[0];P.z=f[1];P.y=tH(P.x,P.z)+0.1;P.vx=P.vz=P.vy=0;P.camY=P.y;P.yaw=Math.atan2(-(c.cx-P.x),-(c.cz-P.z));P.pitch=-0.05;
+}
+function rebScenarioHtml(){
+  const r=rebS().cur,c=r?WORLD.cities[r.cid]:null,B=(k,t)=>'<button class="alt" data-rbs="'+k+'" style="margin:2px">'+t+'</button>';
+  const st=r?c.name+' — '+{queued:'na fila',decide:'cartão aberto',wait:'decidida',result:'resultado pendente'}[r.stage]+(r.choice?' ('+r.choice+')':'')+(r.sup.length?' • apoiam: '+rebNames(r.sup):' • sem apoiadoras'):'nenhuma';
+  return '<p class="ptitle">🧪 Cenário de rebelião</p><p class="ldsm" style="margin:2px 0 4px">Rebelião: <b>'+st+'</b>. Fluxo: Encerrar a rodada → cartão no turno do líder (livro na mesa, E) → escolha A–E → turno do comandante (batalha) → Encerrar a rodada → resultado no turno do líder.</p>'
+   +B('go','📍 Ir até a cidade')+B('end','⏭ Encerrar a rodada')+B('new','🔥 Nova rebelião')
+   +'<br><small>Facções que apoiam os rebeldes (rebelião atual):</small> '+B('sup0','0')+B('sup1','1')+B('sup2','2')
+   +'<br><small>Sorteio (escolha C/D/E, sem batalha):</small> '+B('win1','Rebeldes vencem')+B('win0','Rebeldes perdem')+B('winN','Aleatório')
+   +'<br><small>Batalha:</small> '+B('kill','☠ Matar os inimigos')+B('heal','♥ Curar tudo')+B('sold','+5 soldados')
+   +'<br><small>Ouro e limites:</small> '+B('gold0','Ouro 0 (dívida)')+B('gold1','Ouro 20000')+B('cap','Limite de facções (8)')+B('uncap','Tirar o limite')
+   +'<br><button class="alt" data-scn="reload">↻ Recomeçar o cenário</button><hr style="border-color:#444">';
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest&&e.target.closest('[data-rbs]');if(!b)return;
+  const k=b.dataset.rbs,r=rebS().cur,c=rebCity(),say=m=>toast(m,3500);
+  if(k==='go'){const x=c||rebEligible()[0];if(!x)return say('Nenhuma cidade.');closePanel();rebScnGo(x)}
+  else if(k==='end'){closePanel();endRound(WORLD.home)}
+  else if(k==='new'){const m=rebForce();say(m||'🔥 Rebelião preparada.')}
+  else if(k.startsWith('sup')){if(!r)return say('Sem rebelião.');const ids=WORLD.factions.filter(f=>f.id!==r.owner&&facCities(f.id).length).map(f=>f.id);r.sup=ids.slice(0,+k[3]);say('Apoiam os rebeldes: '+(r.sup.length?rebNames(r.sup):'ninguém'))}
+  else if(k.startsWith('win')){if(!r)return say('Sem rebelião.');r.win=k==='win1'?true:k==='win0'?false:null;say('Sorteio: '+(r.win===null?'aleatório':r.win?'rebeldes vencem':'rebeldes perdem')+'. Vale só sem batalha.')}
+  else if(k==='kill'){const L=RAID.active?RAID.area.enemies:c?c.enemies:[];let n=0;for(const x of L.slice())if(x.alive){damageEnemy(x,99999,false,true);n++}say('☠ '+n+' inimigos eliminados.')}
+  else if(k==='heal'){P.hp=P.maxhp;say('♥ Vida cheia.')}
+  else if(k==='sold'){for(let i=0;i<5;i++)spawnAlly(P.x+(i-2)*2,P.z+2,WORLD.home);say('+5 soldados.')}
+  else if(k==='gold0'){P.coins=0;say('Ouro: 0.')}
+  else if(k==='gold1'){P.coins=20000;STATE.res.food=40;STATE.res.ore=40;say('Ouro 20000, comida e minério 40.')}
+  else if(k==='cap'){REB.maxFacs=rebTotalFacs();say('Limite de facções: '+REB.maxFacs+' (já cheio).')}
+  else if(k==='uncap'){REB.maxFacs=8;say('Limite de facções: 8.')}
+  if(typeof renderFacCheats==='function')renderFacCheats();
+});
 
 // ---------- etapa 2: batalhas ----------
 // Guarnição: ao estourar a rebelião os soldados da cidade somem (expulsos); voltam como rebeldes (batalha de repressão), como tropa da dona (rebelião esmagada)

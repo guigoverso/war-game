@@ -275,7 +275,7 @@ const facInCrime=()=>WORLD.cities.some(c=>c.crime&&c.state==='attacking'&&c.aliv
 const facClosed=c=>c.owner==='enemy'&&!c.kind&&(!!c.rebel||(c.crime&&c.state==='attacking')||['enemy','war'].includes(relStatus(c.fid)));
 // o jogador feriu alguém da cidade: em guerra é ataque normal; senão é crime (relação cai, a cidade reage, sem conquista nem soldados seus)
 function facHostileAct(c){
-  if(c.kind||c.owner!=='enemy'||c.fid===undefined)return;
+  if(c.kind||c.owner!=='enemy'||c.fid===undefined||c.rebel)return;   // cidade em rebelião: ferir alguém na batalha não é crime
   if(relStatus(c.fid)==='war'){if(c.state==='idle')startAttack(c);return}
   facCrime(c);if(c.state==='idle'&&c.aliveEnemies>0)startAttack(c,true);   // sem soldados vivos não há quem reaja
 }
@@ -283,7 +283,7 @@ function facHostileAct(c){
 function facPatrol(){
   if(P.dead||G.invis||G.dg||G.office)return;
   for(const c of WORLD.cities){
-    if(c.owner!=='enemy'||c.state!=='idle'||(typeof raidLocked==='function'&&raidLocked(c)))continue;
+    if(c.owner!=='enemy'||c.rebel||c.state!=='idle'||(typeof raidLocked==='function'&&raidLocked(c)))continue;
     if(c.aliveEnemies<=0||Math.max(Math.abs(P.x-c.cx),Math.abs(P.z-c.cz))>=c.half-2)continue;   // sem soldados vivos ninguém atira (e o alarme não repete)
     const st=relStatus(c.fid);
     if(st==='enemy')startAttack(c,true);
