@@ -436,7 +436,7 @@ function updateCamps(dt){
   CAMP_T-=dt;if(CAMP_T>0)return;CAMP_T=1;
   for(const c of WORLD.camps){
     if(!c.gone){if(c.completed&&!c.questTarget&&campOutOfSight(c))despawnCamp(c)}
-    else if(!c.prepHold&&DN.days-c.goneAt>=2&&campOutOfSight(c))respawnCamp(c);
+    else if(!c.prepHold&&DN.days-c.goneAt>=2&&!meetNoCamps()&&campOutOfSight(c))respawnCamp(c);
   }
   for(const c of WORLD.caves)if(c.renew&&!(STATE.round<1)&&campOutOfSight(c))renewCave(c);
 }

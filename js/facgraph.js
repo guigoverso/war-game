@@ -57,8 +57,9 @@ function fgPropagate(fid,d,why){
       const r=relOf(o.id);if(r.war)continue;
       const g=r.prop&&r.prop.round===STATE.round?r.prop:(r.prop={round:STATE.round,n:0});
       if(Math.abs(g.n+delta)>FG.propCap){parts.push(o.name+' (limite da rodada)');continue}
-      const before=relStatus(o.id);r.v=Math.max(0,Math.min(REL_MAX,r.v+delta));if(r.ally&&r.v<REL_MAX)r.ally=false;g.n+=delta;
+      const before=relStatus(o.id),v0=r.v;r.v=Math.max(0,Math.min(REL_MAX,r.v+delta));if(r.ally&&r.v<REL_MAX)r.ally=false;g.n+=delta;
       relEffects(o.id,before,relStatus(o.id));
+      relLog(o.id,v0,r.v,'você '+(d>0?'melhorou':'piorou')+' a relação com '+facOf(fid).name+' ('+(why||'ação')+'), e ela é '+(v>=FG.allyMin?'aliada':'rival')+' de '+facOf(fid).name);
       parts.push(o.name+' ('+(v>=FG.allyMin?'aliada':'rival')+' de '+facOf(fid).name+') '+(delta>0?'+':'')+delta+' → '+r.v+'/10');
     }
   }finally{FGP.busy=false}

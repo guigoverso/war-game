@@ -64,8 +64,9 @@ function polDraw(force){   // o sorteio da rodada (sem efeitos): {d,city} ou nul
   if(!force&&!rng.chance(POL.chance))return null;
   let cand=polCandidates();if(!cand.length)return null;
   const last=P.log.length?P.log[P.log.length-1].pid:null,alt=cand.filter(x=>x.d.id!==last);if(alt.length)cand=alt;   // evita repetir a política da rodada anterior
-  const tot=cand.reduce((a,x)=>a+(x.d.weight||1),0);let r=rng.next()*tot,pick=cand[0];
-  for(const x of cand){r-=(x.d.weight||1);if(r<=0){pick=x;break}}
+  const pw=x=>(x.d.weight||1)*(x.d.id==='caravanas'&&typeof meetAmbushMul==='function'?meetAmbushMul():1);   // reunião: mais/menos ataques às caravanas
+  const tot=cand.reduce((a,x)=>a+pw(x),0);let r=rng.next()*tot,pick=cand[0];
+  for(const x of cand){r-=pw(x);if(r<=0){pick=x;break}}
   return pick;
 }
 function rollPolicy(force){
@@ -80,6 +81,7 @@ function rollPolicy(force){
   if(rc&&rc!=='q'){P.pending=rc;polNoteUpdate();return}   // cartão devido: a notificação do canto já avisa
   const pick=polDraw(force);
   if(rc==='q'&&!(pick&&pick.d.id==='raid')){P.pending=rebAnnounce();polNoteUpdate();return}   // o aviso (um só) já saiu em rebAnnounce
+  if(typeof meetPending==='function'&&meetPending()){P.pending=meetCard();polNoteUpdate();return}   // reunião das facções (meeting.js): vem antes das outras, só o raid passa na frente
   const mc=typeof fevMedCard==='function'?fevMedCard():null;   // mediação entre facções NPC rivais (facevents.js): só o raid de bandidos passa na frente
   if(mc&&!(pick&&pick.d.id==='raid')){P.pending=mc;polNoteUpdate();return}
   if(!pick)return;
@@ -220,6 +222,7 @@ function polBookHtml(){
   normalizePol();const P=STATE.pol;let h=polInfoHtml();
   if(P.pending)h+='<p class="ldwarn"><button data-a="polopen">Abrir a política a decidir</button></p>';
   else{const lg=P.log.length?P.log[P.log.length-1]:null;if(lg&&lg.round===STATE.round&&POL.byId[lg.pid])h+='<p><button data-a="polview">Ver a política decidida</button></p>'}
+  h+=typeof meetBookHtml==='function'?meetBookHtml():'';
   const pr=playerCities().filter(c=>ec(c).press);
   if(pr.length)h+='<h4>Cidades sob repressão</h4><ul class="ldul">'+pr.map(c=>'<li>'+c.name+': necessidades +'+50*ec(c).press.n+'% (máx. 300%). Supra tudo numa rodada para acabar.</li>').join('')+'</ul>';
   if(P.fx.length)h+='<h4>Efeitos ativos</h4><ul class="ldul">'+P.fx.map(f=>'<li>'+f.txt+'<br><small>até o fim da rodada '+(STATE.round+f.left-1)+' (mais '+f.left+' rodada'+(f.left>1?'s':'')+')</small></li>').join('')+'</ul>';

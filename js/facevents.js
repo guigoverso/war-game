@@ -5,10 +5,10 @@
 // Cada evento vira uma linha no relatório da rodada atual (Resumo do livro, STATE.rd.now), sem notificação na tela. A mediação é a exceção: vira um cartão de política no turno do líder.
 // Regras: relação NPC–NPC vai de 0 a 9 (10 = aliança formal, que os eventos não criam); o mesmo par só muda de novo depois de FEV.pairCool rodadas;
 // casamento trava a relação do par (sem quedas) por FEV.lock rodadas. Desenho em docs/fase-5-eventos.md.
-const FEV={chance:0.35,pairCool:3,max:9,lock:4,crisis:0.5,
+const FEV={chance:0.2,gap:2,pairCool:3,max:9,lock:4,crisis:0.5,
   hit:{sab:0.25,crisis:0.35,left:2},   // sabotagem e crise tiram suprimento da vítima por 2 rodadas (fsupHit)
   campR:170,                           // expedição: acampamento de bandidos a até 170 blocos das facções
-  medChance:0.2,med:{gold:600,up:3,rel:1,side:1}};   // mediação: chance por rodada de aparecer, custo, ganho do par, ganho/perda sua com cada lado
+  medChance:0.1,medGap:6,med:{gold:600,up:3,rel:1,side:1}};   // mediação: chance por rodada, intervalo mínimo entre pedidos, custo e ganhos   // mediação: chance por rodada de aparecer, custo, ganho do par, ganho/perda sua com cada lado
 Hooks.on('resetState',()=>{STATE.fev={pair:{},lock:{},med:null}});
 const fevS=()=>STATE.fev||(STATE.fev={pair:{},lock:{},med:null});
 const fevOk=(a,b)=>{const r=fevS().pair[fgKey(a,b)];return r===undefined||STATE.round-r>=FEV.pairCool};
@@ -106,9 +106,10 @@ const FEV_DEFS=[
 // ---------- por rodada ----------
 function fevRound(){
   if(STATE.round<1||!WORLD.factions||WORLD.factions.length<2)return;
-  if(Math.random()<FEV.chance){
+  const S0=fevS();
+  if(STATE.round-(S0.lastEv===undefined?-99:S0.lastEv)>FEV.gap&&Math.random()<FEV.chance){   // no máximo um evento a cada FEV.gap+1 rodadas, com chance FEV.chance
     const opts=FEV_DEFS.map(d=>({d,c:d.cand()})).filter(x=>x.c.length);
-    if(opts.length){const tot=opts.reduce((s,x)=>s+x.d.w,0);let r=Math.random()*tot,pick=opts[0];for(const x of opts){r-=x.d.w;if(r<=0){pick=x;break}}pick.d.run(fevPick(pick.c))}
+    if(opts.length){const tot=opts.reduce((s,x)=>s+x.d.w,0);let r=Math.random()*tot,pick=opts[0];for(const x of opts){r-=x.d.w;if(r<=0){pick=x;break}}pick.d.run(fevPick(pick.c));S0.lastEv=STATE.round}
   }
   fevMedRoll();
 }
@@ -126,9 +127,9 @@ function fevForce(id){
 // ---------- mediação: cartão do líder ----------
 // Duas facções NPC rivais (relação ≤ 3) podem pedir a sua mediação. O cartão aparece no turno do líder (rollPolicy → fevMedCard) e precisa ser decidido.
 function fevMedRoll(){
-  const S=fevS();if(S.med||Math.random()>=FEV.medChance)return;
+  const S=fevS();if(S.med||STATE.round-(S.lastMed===undefined?-99:S.lastMed)<FEV.medGap||Math.random()>=FEV.medChance)return;
   const rv=fevPairs((a,b)=>fgV(a,b)<=FG.rivalMax&&fgV(a,b)>=1?{a,b}:null);   // rivais, mas ainda sem guerra
-  if(rv.length){const p=fevPick(rv);S.med={a:p.a,b:p.b,round:STATE.round}}
+  if(rv.length){const p=fevPick(rv);S.med={a:p.a,b:p.b,round:STATE.round};S.lastMed=STATE.round}
 }
 function fevMedCard(){
   const m=fevS().med;if(!m)return null;
@@ -136,20 +137,22 @@ function fevMedCard(){
   return{pid:'mediacao',city:-1,round:STATE.round,data:{a:m.a,b:m.b}};
 }
 const fevMedDone=(x,line)=>{fevS().med=null;fevNews(line);};   // sem toast extra: o cartão já mostra a notificação padrão de política
-definePolicy({id:'mediacao',name:'Mediação',city:false,noRoll:true,flex:true,cool:0,cond:()=>false,
+// modo criativo (Invocar evento): fixCond monta um par rival e `data` leva o par para o cartão
+function fevForceMed(){const rv=fevPairs((a,b)=>({a,b}));if(!rv.length)return null;const p=fevPick(rv);if(fgV(p.a,p.b)>FG.rivalMax)fgSet(p.a,p.b,2,'criativo');fevS().med={a:p.a,b:p.b,round:STATE.round};return 'criei um par rival para a mediação'}
+definePolicy({id:'mediacao',name:'Mediação',city:false,noRoll:true,flex:true,cool:0,cond:()=>!!fevS().med,fixCond:fevForceMed,data:()=>({a:fevS().med.a,b:fevS().med.b}),
   text:(c,d)=>facOf(d.a).name+' e '+facOf(d.b).name+' estão à beira de romper de vez. Embaixadores dos dois lados pedem que você interfira antes que a briga vire guerra.',
   options:[
     {k:'A',label:'Mediar o conflito',type:'buff',cost:{gold:FEV.med.gold},
       eff:(c,d)=>'Paga ◉'+FEV.med.gold+'. A relação entre as duas sobe +'+FEV.med.up+' e a sua relação com cada uma sobe +'+FEV.med.rel+'.',
-      apply:x=>{const d=x.data;fevRel(d.a,d.b,FEV.med.up,'mediação sua');relChange(d.a,FEV.med.rel);relChange(d.b,FEV.med.rel);
+      apply:x=>{const d=x.data;fevRel(d.a,d.b,FEV.med.up,'mediação sua');relChange(d.a,FEV.med.rel,'você mediou o conflito com '+facOf(d.b).name);relChange(d.b,FEV.med.rel,'você mediou o conflito com '+facOf(d.a).name);
         fevMedDone(x,'Você mediou o conflito entre '+fevName(d.a)+' e '+fevName(d.b)+': as duas voltaram a conversar.')}},
     {k:'B',label:(c,d)=>'Tomar o partido de '+facOf(d.a).name,type:'both',
       eff:(c,d)=>'Sua relação com '+facOf(d.a).name+' sobe +'+FEV.med.side+' e com '+facOf(d.b).name+' cai '+FEV.med.side+'. A rivalidade das duas aumenta (−1).',
-      apply:x=>{const d=x.data;relChange(d.a,FEV.med.side);relChange(d.b,-FEV.med.side);fevRel(d.a,d.b,-1,'você apoiou '+facOf(d.a).name);
+      apply:x=>{const d=x.data;relChange(d.a,FEV.med.side,'você tomou o partido dela contra '+facOf(d.b).name);relChange(d.b,-FEV.med.side,'você tomou o partido de '+facOf(d.a).name+' contra ela');fevRel(d.a,d.b,-1,'você apoiou '+facOf(d.a).name);
         fevMedDone(x,'Você tomou o partido de '+fevName(d.a)+' contra '+fevName(d.b)+'.')}},
     {k:'C',label:(c,d)=>'Tomar o partido de '+facOf(d.b).name,type:'both',
       eff:(c,d)=>'Sua relação com '+facOf(d.b).name+' sobe +'+FEV.med.side+' e com '+facOf(d.a).name+' cai '+FEV.med.side+'. A rivalidade das duas aumenta (−1).',
-      apply:x=>{const d=x.data;relChange(d.b,FEV.med.side);relChange(d.a,-FEV.med.side);fevRel(d.a,d.b,-1,'você apoiou '+facOf(d.b).name);
+      apply:x=>{const d=x.data;relChange(d.b,FEV.med.side,'você tomou o partido dela contra '+facOf(d.a).name);relChange(d.a,-FEV.med.side,'você tomou o partido de '+facOf(d.b).name+' contra ela');fevRel(d.a,d.b,-1,'você apoiou '+facOf(d.b).name);
         fevMedDone(x,'Você tomou o partido de '+fevName(d.b)+' contra '+fevName(d.a)+'.')}},
     {k:'D',label:'Não me meter',type:'neutral',eff:()=>'Nada muda: o conflito segue o rumo natural.',
       apply:x=>{fevS().med=null}},
@@ -165,8 +168,8 @@ function fevCheatHtml(){
 document.addEventListener('click',e=>{
   const b=e.target.closest&&e.target.closest('[data-fev]');if(!b)return;
   const k=b.dataset.fev;let msg=null;
-  if(k==='_roll'){const n=(STATE.rd.now||[]).length,ch=FEV.chance;FEV.chance=1;fevRound();FEV.chance=ch;msg=(STATE.rd.now||[]).length>n?null:'Nenhum evento possível agora.'}
-  else if(k==='_med'){const rv=fevPairs((a,b)=>({a,b}));if(!rv.length)msg='Sem par disponível.';else{const p=fevPick(rv);if(fgV(p.a,p.b)>FG.rivalMax)fgSet(p.a,p.b,2,'criativo');fevS().med={a:p.a,b:p.b,round:STATE.round};msg=null;toast('🤝 Mediação na fila: aparece no turno do líder.',3500)}}
+  if(k==='_roll'){const n=(STATE.rd.now||[]).length,ch=FEV.chance;FEV.chance=1;fevS().lastEv=-99;fevRound();FEV.chance=ch;msg=(STATE.rd.now||[]).length>n?null:'Nenhum evento possível agora.'}
+  else if(k==='_med'){if(!fevForceMed())msg='Sem par disponível.';else{msg=null;toast('🤝 Mediação na fila: aparece no turno do líder.',3500)}}
   else msg=fevForce(k);
   if(msg)toast(msg,3500);   // sem notificação de evento: o resultado aparece no relatório (livro, Resumo) e no painel
   if(typeof renderFacCheats==='function')renderFacCheats();

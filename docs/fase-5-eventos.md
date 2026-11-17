@@ -3,7 +3,7 @@
 Código: `js/facevents.js` (carregado depois de `rebellion.js`). Desenho fechado com o usuário. Salvo em `STATE.fev` e `STATE.rd.now` (save v16).
 
 ## Como funciona
-- **Sorteio:** ao fim de cada rodada (gancho `round`, a partir da rodada 1) há **35%** (`FEV.chance`) de acontecer **um** evento. Entre os eventos possíveis naquela hora o sorteio é por peso (`w`). Na simulação (300 rodadas na semente 11): ~32% das rodadas têm evento.
+- **Sorteio:** ao fim de cada rodada (gancho `round`, a partir da rodada 1) há **20%** (`FEV.chance`) de acontecer **um** evento, e depois de um evento há `FEV.gap`=2 rodadas sem outro (no máximo 1 a cada 3 rodadas). Entre os eventos possíveis naquela hora o sorteio é por peso (`w`). Na simulação (400 rodadas na semente 11): ~14% das rodadas têm evento e nunca dois seguidos.
 - **Independente do jogador:** os eventos acontecem sozinhos entre facções NPC. O jogador só os sente pelas consequências (quem apoia rebeldes, quem comercia, quem é rival de quem) e lê a **notícia**.
 - **Sem notificação na tela.** Cada evento vira uma linha narrada em **"Relatório da rodada" → "Rodada atual"** (Resumo do livro; `STATE.rd.now`, via `rdNow`). Os nomes das facções saem com a cor.
 - **Regras de relação (grafo da F3):** 0 a 9 entre NPC (10 = aliança formal, que os eventos não criam; sem guerra entre NPC, isso é da Fase 6). O mesmo par só muda de novo depois de **3 rodadas** (`FEV.pairCool`). **Casamento trava o par** (sem quedas) por 4 rodadas (`FEV.lock`).
@@ -25,7 +25,7 @@ Código: `js/facevents.js` (carregado depois de `rebellion.js`). Desenho fechado
 Não entraram (propostos e não aprovados): roubo de caravana e pacto de defesa.
 
 ## Mediação (evento do jogador)
-- Com 20% por rodada (`FEV.medChance`), se há duas NPC rivais (relação 1 a 3, ainda sem guerra), entra na fila. No turno do líder vira um **cartão** (`fevMedCard` em `rollPolicy`; só o raid passa na frente) e precisa ser decidido antes de encerrar o turno.
+- Com 10% por rodada (`FEV.medChance`) e no mínimo `FEV.medGap`=6 rodadas entre pedidos, se há duas NPC rivais (relação 1 a 3, ainda sem guerra), entra na fila. No turno do líder vira um **cartão** (`fevMedCard` em `rollPolicy`; só o raid passa na frente) e precisa ser decidido antes de encerrar o turno.
 - **A. Mediar** (◉600): o par sobe +3 e a sua relação com cada uma sobe +1. **B/C. Tomar o partido de uma:** sobe +1 com ela, cai 1 com a outra, a rivalidade delas aumenta (−1). **D. Não me meter.**
 - Os rótulos das opções podem ser funções (`polLab`).
 
@@ -44,3 +44,6 @@ Duas partes: **Rodada anterior** (`STATE.rd.report`: o que fechou a rodada: cobr
 - Mediação: a notificação padrão de política no canto ("Política a decidir") e o aviso padrão ao decidir ("📜 Mediação: A. Mediar o conflito."). Sem avisos extras.
 - Modo criativo: só avisos de erro ("Não há acampamento...", "Mediação na fila"); o resultado aparece no relatório e no painel ("último evento").
 
+
+## Motivo das mudanças de relação (relatório)
+Toda mudança da **sua** relação com uma facção vira uma linha em "Rodada atual" com o motivo: `📈/📉 Relação com X: 5 → 8/10 (favorável) — você doou ◉1000.` (`relLog`, `factions.js`; `relChange(fid,delta,motivo)` e `relSet(fid,v,motivo)`; `false` = quem chama já escreveu a linha). Entram doações, relíquia, rota comercial, missões, rebelião (apoio, financiamento, reconhecimento), reunião (voto de cada facção, Festival, Pacto), mediação, o modo criativo e a **propagação** (a relação das aliadas e rivais de quem você mudou: "você melhorou a relação com X, e ela é aliada de X"; antes a propagação só aparecia no modo criativo). Quedas por crime, guerra, paz, reparação e o esfriamento por tempo já tinham linha própria. Sem notificação na tela.

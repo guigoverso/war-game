@@ -26,7 +26,7 @@ function fsupRound(){
     const hit=rd.fmod&&rd.fmod[f.id],pen=hit?hit.d:0,st={};
     for(const r of NEEDS){
       const prod=cs.filter(c=>focusOf(c)===r).length,base=clamp(FSUP.floor+(1-FSUP.floor-FSUP.ceil)*clamp(2*prod/cs.length,0,1)+((rel[f.id]||{})[r]||0),0,1);   // sem produtor: base baixa (mercado interno); metade das cidades produzindo já é o teto
-      const score=(1-FSUP.luck)*base+FSUP.luck*Math.random()-pen;
+      const score=(1-FSUP.luck)*base+FSUP.luck*Math.random()-pen+meetNpc(f.id,r);   // reunião das facções: efeito para todas
       st[r]=score<FSUP.short?'short':score>FSUP.abund?'abund':'ok';
     }
     rd.fsup[f.id]=st;

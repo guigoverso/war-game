@@ -173,15 +173,23 @@ function relEffects(fid,before,after){
   if(after!=='ally'&&after!=='war')facNote(f.name+': agora '+REL_ST[after].n.toLowerCase()+'.',3000);
 }
 // muda a relação por ações (ganho/perda pesam pelo temperamento; mínimo de 1 ponto)
-function relChange(fid,delta){
+// registra no relatório da rodada (Rodada atual) uma mudança da SUA relação com uma facção, com o motivo
+function relLog(fid,v0,v1,why){
+  if(v0===v1||!facOf(fid))return;
+  rdNow((v1>v0?'📈':'📉')+' Relação com '+facOf(fid).name+': '+v0+' → '+v1+'/10 ('+REL_ST[relStatus(fid)].n.toLowerCase()+') — '+(why||'ação sua')+'.');
+}
+// Decisões mexem na relação em NO MÁXIMO 1 ponto (sempre ±1, sem multiplicador de temperamento). `fixed` = efeito que mexe nas relações (ex.: Festival,
+// votos da reunião): vale o valor exato, soma com o resto e não depende da relação nem da personalidade.
+function relChange(fid,delta,why,fixed){   // why: o motivo que vai para o relatório (false = já registrado por quem chama)
   const r=relOf(fid),f=facOf(fid);if(!f||r.war)return 0;
-  const T=FAC_TEMPER[f.temper||'neutra'],m=delta>0?T.gain:T.loss,d=Math.sign(delta)*Math.max(1,Math.round(Math.abs(delta)*m));
-  const before=relStatus(fid);r.v=Math.max(0,Math.min(REL_MAX,r.v+d));if(r.ally&&r.v<REL_MAX)r.ally=false;
+  const d=fixed?Math.round(delta):Math.sign(delta);
+  const before=relStatus(fid),v0=r.v;r.v=Math.max(0,Math.min(REL_MAX,r.v+d));if(r.ally&&r.v<REL_MAX)r.ally=false;
   relEffects(fid,before,relStatus(fid));
-  if(d&&typeof fgPropagate==='function')fgPropagate(fid,d,'ação');   // aliadas e rivais dela reagem (facgraph.js)
+  if(why!==false)relLog(fid,v0,r.v,why);
+  if(d&&typeof fgPropagate==='function')fgPropagate(fid,d,typeof why==='string'?why:'ação sua');   // aliadas e rivais dela reagem (facgraph.js)
   return d;
 }
-function relSet(fid,v){const r=relOf(fid),before=relStatus(fid);r.v=Math.max(0,Math.min(REL_MAX,v));if(r.ally&&r.v<REL_MAX)r.ally=false;if(r.war&&v>0)r.war=false;relEffects(fid,before,relStatus(fid))}
+function relSet(fid,v,why){const r=relOf(fid),before=relStatus(fid),v0=r.v;r.v=Math.max(0,Math.min(REL_MAX,v));if(r.ally&&r.v<REL_MAX)r.ally=false;if(r.war&&v>0)r.war=false;relEffects(fid,before,relStatus(fid));if(why!==false)relLog(fid,v0,r.v,why||'ajuste')}
 // aliança (acordo; exige relação 10) e guerra (declaração)
 // poder de uma facção = soma de (1 + nível) das cidades dela; o jogador usa o nível da capital/cidades evoluídas, as NPC o nível pelo rank (1–6 → 1–3)
 ECON.ally={base:1500,min:0.4,max:3};   // aliança: custo base ◉1500 quando os poderes se igualam; vai de 0,4× (você muito mais forte) a 3× (muito mais fraco)
@@ -221,6 +229,7 @@ function facPeace(fid){const r=relOf(fid);r.war=false;r.v=REL_START;r.warAt=null
 const REL_REP={ally:1000,fav:1500,neutral:2000,unfav:2000,enemy:4000};
 // declaração de guerra prevista (crime/massacre): devolve o id da facção com a data mais antiga já vencida, ou null
 function facWarDue(){
+  if(typeof meetPact==='function'&&meetPact())return null;   // Pacto de Não Agressão aprovado na reunião: ninguém declara guerra a você
   const R=STATE.rel||{};let best=null,at=1e9;
   for(const id in R){const r=R[id];if(r.warAt!=null&&!r.war&&STATE.round>=r.warAt&&r.warAt<at){at=r.warAt;best=+id}}
   return best;
@@ -397,7 +406,7 @@ definePolicy({id:'reparacao',name:'Pedido de reparação',city:false,noRoll:true
 //  rota comercial (caravana com uma cidade dela) +1 • doação de ouro ◉500 +1 / ◉1000 +2 • doação de relíquia +3
 const FAC_GOLD={500:1,1000:2},FAC_RELIC_GAIN=3,FAC_ROUTE_GAIN=1;
 const FAC_DECAY={pacifica:2,neutra:2,agressiva:3};   // rodadas sem mudança para a relação esfriar 1 ponto em direção a 5
-const relPreview=(fid,delta)=>{const f=facOf(fid),T=FAC_TEMPER[(f&&f.temper)||'neutra'],m=delta>0?T.gain:T.loss;return Math.sign(delta)*Math.max(1,Math.round(Math.abs(delta)*m))};
+const relPreview=(fid,delta)=>Math.sign(delta);   // uma decisão muda a relação em 1 ponto, qualquer que seja o valor ou o temperamento
 function facMarkAct(fid,t){const r=relOf(fid);(r.acts||(r.acts={}))[t]=STATE.round;r.lastRd=STATE.round}
 const facActUsed=(fid,t)=>{const r=relOf(fid);return !!(r.acts&&r.acts[t]===STATE.round)};
 // relíquias: na bolsa do comandante ou no armazém (armazenamento compartilhado)
@@ -411,7 +420,7 @@ function facRelicTake(){
 // com o mesmo ganho (já contando o teto 10 e o temperamento), só a doação MAIS CARA existe: a mais barata nem aparece
 function facGoldHidden(fid,amt){
   const r=relOf(fid),eff=a=>Math.min(relPreview(fid,FAC_GOLD[a]),REL_MAX-r.v);
-  return Object.keys(FAC_GOLD).map(Number).some(a=>a>amt&&eff(a)===eff(amt));
+  return Object.keys(FAC_GOLD).map(Number).some(a=>a<amt&&eff(a)===eff(amt));   // se uma doação mais barata dá o mesmo ganho, a mais cara não aparece
 }
 // por que uma ação não pode ser feita agora (ou null)
 function facActBlock(fid,type,amt){
@@ -431,20 +440,20 @@ function facActBlock(fid,type,amt){
 function facGiveGold(fid,amt){
   if(facActBlock(fid,'gold',amt)||!FAC_GOLD[amt])return false;
   if(!Ledger.spend({gold:amt}))return false;spendAct('give');
-  const d=relChange(fid,FAC_GOLD[amt]);facMarkAct(fid,'gold');
+  const d=relChange(fid,FAC_GOLD[amt],'você doou ◉'+amt);facMarkAct(fid,'gold');
   facNote('💰 Você doou ◉'+amt+' a '+facOf(fid).name+': relação +'+d+' ('+relOf(fid).v+'/10).');return true;
 }
 function facGiveRelic(fid){
   if(facActBlock(fid,'relic'))return false;
   if(!facRelicTake())return false;spendAct('relic');
-  const d=relChange(fid,FAC_RELIC_GAIN);facMarkAct(fid,'relic');
+  const d=relChange(fid,FAC_RELIC_GAIN,'você doou uma relíquia');facMarkAct(fid,'relic');
   facNote('🏺 Você ofereceu uma relíquia a '+facOf(fid).name+': relação +'+d+' ('+relOf(fid).v+'/10).');return true;
 }
 // rota comercial: chamada quando a caravana com uma cidade de outra facção é fechada
 function facRouteGain(B){
   if(!B||B.owner==='player'||!B.fid)return;
   const r=relOf(B.fid);if(r.war||facActUsed(B.fid,'route'))return;
-  const d=relChange(B.fid,FAC_ROUTE_GAIN);facMarkAct(B.fid,'route');
+  const d=relChange(B.fid,FAC_ROUTE_GAIN,'você criou uma rota comercial com '+B.name);facMarkAct(B.fid,'route');
   facNote('🛒 A rota comercial aproximou você de '+facOf(B.fid).name+': relação +'+d+' ('+relOf(B.fid).v+'/10).');
 }
 // decaimento: a relação esfria 1 ponto em direção a 5 depois de FAC_DECAY rodadas sem mudar (agressiva: 3, as outras: 2).

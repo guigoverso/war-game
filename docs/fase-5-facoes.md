@@ -232,3 +232,6 @@ Decisões do usuário: o suprimento é **sorteado por rodada** (70% situação, 
 - **O que a facção paga pelo que você vende** continua com a tabela antiga, agora separada (`REL_ST.sell`: aliado +20%, favorável +10%, neutro 0, desfavorável −30%), mais o efeito de falta/abundância do recurso.
 - **Abundância** mexe na quantidade à venda (estoque), não no preço.
 - **Livro, aba Facções:** a lista de cidades mostra o ícone do que cada uma produz ao lado do nome. No modo criativo mostra também o humor e, se há variação de preço, um "?" que abre a lista de variações (o mesmo popup das lojas).
+
+## Relação: no máximo ±1 por decisão
+Uma **decisão** sua (doação de ouro, relíquia, rota, missão, apoio na rebelião, mediação...) muda a relação com a facção em **1 ponto** (sempre ±1): sem multiplicador de temperamento e sem depender do valor da relação (`relChange`, `factions.js`; `relPreview` mostra +1/−1). A doação de ◉1000 deixou de aparecer enquanto der o mesmo ganho que a de ◉500. Exceção: **efeitos que mexem nas relações** (Festival Continental, Pacto reprovado, votos da reunião) passam `fixed=true` e valem o valor exato, **somam** com o resto e não dependem da relação nem da personalidade. A propagação (±1 para aliadas e rivais) e o esfriamento por tempo não mudaram. `FAC_TEMPER.gain/loss` ficou sem uso.

@@ -127,7 +127,7 @@ function rebRound(rep){
     if(typeof igniteCity==='function')igniteCity(c);
     if(r.win){r.stage='result';rep.push('🔥 Os rebeldes de '+c.name+' venceram. Há uma decisão no turno do líder.')}
     else{rep.push('🛡 A rebelião de '+c.name+' foi esmagada: a cidade voltou a '+facOf(r.owner).name+'.');
-      if(r.choice==='support'&&r.prevRel!==undefined){const v=r.prevRel>=REL_START-1?REL_UNF:r.prevRel;relSet(r.owner,v);rep.push('🕊 '+facOf(r.owner).name+' deixou de ser inimiga: a relação ficou "'+REL_ST[relStatus(r.owner)].n+'".')}   // apoiou e perdeu: neutra ou melhor antes → Desfavorável; pior antes → como estava
+      if(r.choice==='support'&&r.prevRel!==undefined){const v=r.prevRel>=REL_START-1?REL_UNF:r.prevRel;relSet(r.owner,v,false);rep.push('🕊 '+facOf(r.owner).name+' deixou de ser inimiga: a relação ficou "'+REL_ST[relStatus(r.owner)].n+'".')}   // apoiou e perdeu: neutra ou melhor antes → Desfavorável; pior antes → como estava
       rebClear(c);rebGarrisonRestore(c,r);ec(c).ups=0;S.cur=null;S.last=STATE.round}
   }
   rebCheck();
@@ -176,18 +176,18 @@ definePolicy({id:'rebnpc',name:'Rebelião',city:true,noRoll:true,flex:true,cool:
   text:(c)=>{const r=rebCur();return 'Cansados da escassez, os moradores de '+c.name+' tomaram as ruas contra '+facOf(r.owner).name+'. A guarnição foi expulsa, a cidade arde e uma bandeira nova foi hasteada. Os dois lados esperam a sua palavra.'},
   extra:(c)=>rebSidesTable(rebCur()),
   options:[
-    {k:'A',label:'Apoiar os rebeldes',type:'both',eff:c=>'No turno do Comandante, vá até o centro da cidade (marcado no mapa): a batalha começa quando você chegar. Você luta ao lado dos rebeldes contra '+REB.waves+' ondas de '+rebOwnerName()+' (soldados, brutamontes, drones e golems; cada onda é mais difícil). Você vira inimigo de '+rebOwnerName()+'. Ganha '+rebReinf(c)+' soldados rebeldes ('+REB.extra+' fixos + '+(c.rank||1)+' pelo nível da cidade'+(rebCur().sup.length?' + '+rebCur().sup.length+' por facção que apoia':'')+'). Se você cair ou fugir, os rebeldes perdem.',
-      apply:x=>{const r=rebCur();r.choice='support';r.prevRel=relOf(r.owner).v;relSet(r.owner,0);rebAfter(x,'⚔ Você apoia os rebeldes de '+x.city.name+': '+rebOwnerName()+' é sua inimiga.')}},
+    {k:'A',label:'Apoiar os rebeldes',type:'both',hide:()=>meetPact(),eff:c=>'No turno do Comandante, vá até o centro da cidade (marcado no mapa): a batalha começa quando você chegar. Você luta ao lado dos rebeldes contra '+REB.waves+' ondas de '+rebOwnerName()+' (soldados, brutamontes, drones e golems; cada onda é mais difícil). Você vira inimigo de '+rebOwnerName()+'. Ganha '+rebReinf(c)+' soldados rebeldes ('+REB.extra+' fixos + '+(c.rank||1)+' pelo nível da cidade'+(rebCur().sup.length?' + '+rebCur().sup.length+' por facção que apoia':'')+'). Se você cair ou fugir, os rebeldes perdem.',
+      apply:x=>{const r=rebCur();r.choice='support';r.prevRel=relOf(r.owner).v;relSet(r.owner,0,'você apoiou os rebeldes de '+x.city.name+' contra ela');rebAfter(x,'⚔ Você apoia os rebeldes de '+x.city.name+': '+rebOwnerName()+' é sua inimiga.')}},
     {k:'B',label:'Combater a rebelião',type:'both',hide:()=>relStatus(rebCur().owner)==='war',eff:c=>'No turno do Comandante, vá até a cidade (marcada no mapa): a invasão começa quando você chegar perto. Os soldados dela são os rebeldes'+(rebCur().sup.length?' (mais soldados de '+rebNames(rebCur().sup)+')':'')+'. A facção envia '+(REB.troop+REB.troopAlly*(rebSides(rebCur()).con.length-1))+' soldados de vários tipos (normal, pesado, atirador, metralhador): '+REB.troop+' dela e '+REB.troopAlly+' de cada aliada, em torno da cidade. Seus soldados seguem com você. Vencendo, a relação com ela sobe (+'+REB.rel.combat+'). Se você cair, os rebeldes vencem.',
       apply:x=>{rebCur().choice='combat';rebAfter(x,'⚔ Você vai combater a rebelião de '+x.city.name+'.')}},
     {k:'C',label:'Não me envolver',type:'neutral',eff:c=>'A cidade fica em chamas e sem serviços durante o turno do Comandante. O resultado é sorteado no fim da rodada ('+Math.round(100*(1-Math.min(0.9,REB.base+REB.buffSup*rebCur().sup.length)))+'% de a rebelião ser esmagada).',
       apply:x=>{rebCur().choice='stay';rebAfter(x,'🔥 Você não se envolveu na rebelião de '+x.city.name+'.')}},
-    {k:'D',label:'Apoiar financeiramente os rebeldes',type:'both',cost:x=>rebFinCost(x.city),
+    {k:'D',label:'Apoiar financeiramente os rebeldes',type:'both',hide:()=>meetPact(),cost:x=>rebFinCost(x.city),
       eff:c=>'Paga '+rebCostTxt(rebFinCost(c))+'. Os rebeldes ganham um bônus no sorteio (+'+Math.round(REB.buffFin*100)+' pontos), mas ainda podem perder. A relação com '+rebOwnerName()+' cai ('+REB.rel.finR+'). A cidade fica em chamas e sem serviços.',
-      apply:x=>{rebCur().choice='finR';relChange(rebCur().owner,REB.rel.finR);rebAfter(x,'💰 Você financiou os rebeldes de '+x.city.name+'.')}},
+      apply:x=>{rebCur().choice='finR';relChange(rebCur().owner,REB.rel.finR,'você financiou os rebeldes de '+x.city.name);rebAfter(x,'💰 Você financiou os rebeldes de '+x.city.name+'.')}},
     {k:'E',label:'Apoiar financeiramente a facção',type:'both',cost:x=>rebFinCost(x.city),
       eff:c=>'Paga '+rebCostTxt(rebFinCost(c))+' a '+rebOwnerName()+'. Ela ganha um bônus no sorteio (+'+Math.round(REB.buffFin*100)+' pontos), mas os rebeldes ainda podem vencer. A relação com ela sobe (+'+REB.rel.finO+'). A cidade fica em chamas e sem serviços.',
-      apply:x=>{rebCur().choice='finO';relChange(rebCur().owner,REB.rel.finO);rebAfter(x,'💰 Você financiou '+rebOwnerName()+' contra os rebeldes de '+x.city.name+'.')}}
+      apply:x=>{rebCur().choice='finO';relChange(rebCur().owner,REB.rel.finO,'você a financiou contra os rebeldes de '+x.city.name);rebAfter(x,'💰 Você financiou '+rebOwnerName()+' contra os rebeldes de '+x.city.name+'.')}}
   ]});
 
 // ---------- cartão 2: o resultado (rebeldes venceram) ----------
@@ -199,7 +199,7 @@ definePolicy({id:'rebresult',name:'Rebelião: resultado',city:true,noRoll:true,f
   options:[
     {k:'A',label:'Reconhecer a nova facção',type:'buff',hide:()=>!(rebInvolved()||rebDied())||rebAtCap(),
       eff:()=>rebDied()?'Nasce uma nova facção na cor dos rebeldes. A relação com ela começa em "Neutro" e você perde relação com '+rebOwnerName()+' (−'+Math.abs(REB.rel.finR)+').':'Nasce uma nova facção na cor dos rebeldes. A relação com ela começa em "Favorável".',
-      apply:x=>{if(rebDied()){rebNewFaction(x.city,5,'reconhecida por você');relChange(rebCur().owner,REB.rel.finR)}else rebNewFaction(x.city,8,'reconhecida por você');rebDone()}},
+      apply:x=>{if(rebDied()){rebNewFaction(x.city,5,'reconhecida por você');relChange(rebCur().owner,REB.rel.finR,'você reconheceu os rebeldes de '+x.city.name+', que a derrubaram')}else rebNewFaction(x.city,8,'reconhecida por você');rebDone()}},
     {k:'B',label:'Propor que se junte à sua facção',type:'buff',hide:()=>rebDied(),
       eff:c=>'Paga '+rebCostTxt2(rebJoinCost(c,rebCur()))+' e a cidade passa a ser sua. Sem esse ouro, a proposta é recusada: sorteia-se se nasce uma facção neutra ou se uma facção interessada anexa a cidade.',
       apply:x=>{const k=rebJoinCost(x.city,rebCur());
@@ -566,7 +566,7 @@ function rebWatch(){
 function rebCombatWon(c){   // chamado por checkConquest: os rebeldes foram eliminados
   const r=rebCur();if(!r||!REBB.active||REBB.mode!=='combat')return;
   c.state='idle';REBB.active=false;REBB.mode=null;rebTempClear();r.win=false;
-  const d=relChange(r.owner,REB.rel.combat);
+  const d=relChange(r.owner,REB.rel.combat,false);
   sfx('win',0);facNote('🛡 Você esmagou a rebelião de '+c.name+'! '+rebOwnerName()+' agradece (relação '+(d>=0?'+':'')+d+').',5000);
 }
 function rebCombatDied(){   // chamado por die()

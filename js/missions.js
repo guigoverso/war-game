@@ -188,7 +188,7 @@ function msComplete(m){
   }else{
     addCoins(r.gold);t.push('◉'+r.gold);
     const g=STATE.ms.gain[m.fid]&&STATE.ms.gain[m.fid].round===STATE.round?STATE.ms.gain[m.fid]:(STATE.ms.gain[m.fid]={round:STATE.round,n:0});
-    if(g.n<MS.relCap){const d=relChange(m.fid,MS.relGain);g.n+=Math.max(0,d);t.push('relação +'+d+' com '+facOf(m.fid).name)}
+    if(g.n<MS.relCap){const d=relChange(m.fid,MS.relGain,'você cumpriu uma missão dela');g.n+=Math.max(0,d);t.push('relação +'+d+' com '+facOf(m.fid).name)}
     else t.push('limite de relação da rodada com '+facOf(m.fid).name)
   }
   const line='✅ Missão cumprida: '+msTitle(m)+' ('+t.join(', ')+')';toast(line,5000);msLine(line);sfx('win',0);
@@ -196,7 +196,7 @@ function msComplete(m){
 function msFail(m,msg){
   if(!m||STATE.ms.taken.indexOf(m)<0)return;
   msDrop(m);let extra='';
-  if(m.src==='fac'&&relStatus(m.fid)!=='war'){const d=relChange(m.fid,-MS.relFail);extra=' Relação '+d+' com '+facOf(m.fid).name+'.'}
+  if(m.src==='fac'&&relStatus(m.fid)!=='war'){const d=relChange(m.fid,-MS.relFail,'você não cumpriu a missão a tempo');extra=' Relação '+d+' com '+facOf(m.fid).name+'.'}
   const line='❌ '+(msg||'Missão falhou')+': '+msTitle(m)+'.'+extra;toast(line,4500);msLine(line);
 }
 function msFailByCamp(c,msg){for(const m of STATE.ms.taken.slice())if((m.type==='hostage'||m.type==='camp')&&m.campId===c.id&&!m.ready)msFail(m,msg)}

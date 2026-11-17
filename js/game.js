@@ -77,7 +77,8 @@ function updateMusic(dt){
   const battle=G.running&&inBattle();
   MUS.mix+=((battle?1:0)-MUS.mix)*Math.min(1,dt*(battle?1.4:0.35));
   const t=AC.currentTime;
-  MUS.calm.gain.setTargetAtTime(0.9*(1-MUS.mix),t,0.4);MUS.comb.gain.setTargetAtTime(0.9*MUS.mix,t,0.4);
+  MUS.fade=Math.min(1,(MUS.fade||0)+(G.running?dt/6:0));   // o som entra devagar (6 s) quando o jogo começa, em vez de abrir de uma vez
+  MUS.calm.gain.setTargetAtTime(0.9*(1-MUS.mix)*MUS.fade,t,0.4);MUS.comb.gain.setTargetAtTime(0.9*MUS.mix*MUS.fade,t,0.4);
   if(G.panel&&G.panel!=='freeze')return;
   MUS.clock+=dt;
   if(G.running)updateAmbient(dt);
@@ -347,7 +348,7 @@ document.addEventListener('pointerlockchange',()=>{
 canvas.addEventListener('mousedown',e=>{
   if(!G.running)return;
   if(!G.locked&&!G.panel){try{canvas.requestPointerLock()}catch(_){}return}
-  if(G.office){if(e.button===0&&!G.panel&&nearBook())openBook();return}   // no escritório, clicar diante da mesa abre o livro
+  if(G.office){if(e.button===0&&!G.panel){if(G.office.meet)meetInteract();else if(nearBook())openBook()}return}   // no escritório, clicar diante da mesa abre o livro
   if(G.panel||G.frozen)return;
   if(e.button===0){if(WS.rod)fishLeft(true);else{G.fireHeld=true;G.firePressed=true}}   // com a vara, o botão esquerdo é o minigame
   else if(e.button===2){if(WS.rod)fishRight(true);else G.aiming=true}                  // e o botão direito lança/recolhe a linha
@@ -393,7 +394,7 @@ window.addEventListener('keydown',e=>{
   if(G.panel==='uiwin'){if(e.code==='Escape'||e.code==='KeyE')UI.closeTop();return}   // janela de confirmação sobre o jogo
   if(G.panel==='ldbook'){if(e.code==='KeyE'||e.code==='Escape'||e.code==='KeyB'){if(!UI.closeTop())closePanel()}return}   // livro: bolsa + decisões
   if(G.panel)return;
-  if(G.office){if(e.code==='KeyE'&&!e.repeat)doInteract();return}   // no escritório só se anda e se abre o livro
+  if(G.office){if(e.code==='KeyE'&&!e.repeat){if(G.office.meet)meetInteract();else doInteract()}return}   // no escritório só se anda e se abre o livro
   if(e.repeat)return;
   if(e.code==='KeyC')P.crouch=!P.crouch;
   else if(e.code==='KeyR')startReload();
@@ -425,7 +426,7 @@ function updateInteract(){
     if(d>c.half+25)continue;
     if(raidLocked(c)||facClosed(c)){   // cidade em combate de raid ou hostil (inimiga, em guerra, em crime): sem serviços (nem a opção aparece)
       const st=c.owner==='enemy'?relStatus(c.fid):'';
-      if(st==='war'&&c.state==='idle'&&d<c.half+10){G.attackCity=c;lines.push('[F] ATACAR '+c.name.toUpperCase())}
+      if(st==='war'&&c.state==='idle'&&d<c.half+10&&!meetPact()){G.attackCity=c;lines.push('[F] ATACAR '+c.name.toUpperCase())}
       else if(st==='enemy'&&!c.rebel&&c.state==='idle'&&d<c.half+14)lines.push('🚫 Território de '+facOf(c.fid).name+': não entre ou os guardas atiram');
       else if(c.crime&&c.state==='attacking'&&d<c.half+8)lines.push('🔒 Serviços fechados: cidade hostil');
       continue;
@@ -466,7 +467,8 @@ function updateInteract(){
 // ---------- Atualização do jogador ----------
 function updatePlayer(dt){
   const k=G.keys;
-  const fw=(k.KeyW?1:0)-(k.KeyS?1:0),st=(k.KeyD?1:0)-(k.KeyA?1:0);
+  const seated=!!(G.office&&G.office.meet&&MEETA.seated);   // sentado na reunião: não anda
+  const fw=seated?0:(k.KeyW?1:0)-(k.KeyS?1:0),st=seated?0:(k.KeyD?1:0)-(k.KeyA?1:0);
   const sprint=k.ShiftLeft&&fw>0&&!P.crouch&&!G.aiming;
   let spd=P.crouch?2.4:sprint?8.2:5;if(G.aiming)spd*=0.65;spd*=buffMul('speed');
   const water=P.y<SEA-0.3&&tH(P.x,P.z)<SEA&&!inDungeonRegion();if(water)spd*=0.6;
@@ -477,7 +479,7 @@ function updatePlayer(dt){
   const hgt=P.crouch?1.2:1.8;
   if(G.noclip)noclipMove(dt,fw,st);else moveXZ(P,P.vx*dt,P.vz*dt,P.r,hgt,1.05);
   P.speed=Math.hypot(P.vx,P.vz);
-  if(k.Space&&P.ground&&!P.crouch&&!G.noclip){P.vy=7.2;P.ground=false}
+  if(k.Space&&P.ground&&!P.crouch&&!G.noclip&&!seated){P.vy=7.2;P.ground=false}
   if(!G.noclip)moveY(P,dt,P.r,hgt,1.05);
   const peek=P.crouch&&(G.fireHeld||G.aiming);
   const tgt=P.crouch?(peek?1.52:1.05):1.62;
