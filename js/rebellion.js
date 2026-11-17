@@ -96,6 +96,7 @@ function rebAnnounce(){
   const r=rebS().cur,c=WORLD.cities[r.cid];r.stage='decide';
   c.rebel={color:r.color,flag:r.flag};facSetFlag(c);rebGarrisonRemove(c);   // a guarnição foi expulsa (volta como rebelde, tropa da dona ou da facção nova)
   if(typeof igniteCity==='function')igniteCity(c);
+  rebRuinsEnsure(c);   // prédios queimados, crateras e corpos (etapa 3)
   const cut=x=>x.a===c.id||x.b===c.id,rd=STATE.rd,gone=rd.routes.filter(cut).concat((rd.nroutes||[]).filter(cut));
   if(gone.length){
     rd.routes=rd.routes.filter(x=>!cut(x));rd.nroutes=(rd.nroutes||[]).filter(x=>!cut(x));
@@ -131,7 +132,7 @@ function rebRound(rep){
   }
   rebCheck();
 }
-function rebClear(c){c.rebel=null;delete STATE.burnt[c.id];if(typeof clearSmoke==='function')clearSmoke(c);facSetFlag(c)}
+function rebClear(c){rebRuinsClear(c);c.rebel=null;delete STATE.burnt[c.id];if(typeof clearSmoke==='function')clearSmoke(c);facSetFlag(c)}
 
 // ---------- facção nova e anexações ----------
 function rebNewFaction(c,v,why){
@@ -162,7 +163,7 @@ function rebApply(){   // depois de gerar o mundo/carregar um save: devolve as f
   const S=rebS();
   for(const nf of S.nfacs)if(!WORLD.factions.find(f=>f.id===nf.id))WORLD.factions.push(Object.assign({},nf));
   for(const id in S.cfid){const c=WORLD.cities[id];if(c)c.ofid=S.cfid[id]}
-  const r=S.cur;if(r&&r.stage!=='queued'){const c=WORLD.cities[r.cid];if(c){c.rebel={color:r.color,flag:r.flag};rebGarrisonRemove(c);if(typeof ensureSmoke==='function')ensureSmoke(c)}}
+  const r=S.cur;if(r&&r.stage!=='queued'){const c=WORLD.cities[r.cid];if(c){c.rebel={color:r.color,flag:r.flag};rebGarrisonRemove(c);if(typeof ensureSmoke==='function')ensureSmoke(c);rebRuinsEnsure(c)}}
 }
 
 // ---------- cartão 1: a decisão ----------
@@ -294,6 +295,113 @@ document.addEventListener('click',e=>{
   else if(k==='uncap'){REB.maxFacs=8;say('Limite de facções: 8.')}
   if(typeof renderFacCheats==='function')renderFacCheats();
 });
+
+// ---------- etapa 3: a cidade destruída (só visual; nada disso tem colisão) ----------
+// Enquanto a cidade está em rebelião: prédios chamuscados com telhado quebrado e brasas, crateras no chão e corpos de soldados e civis nas ruas.
+// Tudo sai da id da cidade (hash2), então volta igual ao carregar um save; some quando a rebelião acaba (rebClear). Números em RUIN.
+const RUIN={burn:0.75,craters:[3,1],bodies:[7,3],fires:2};   // casas queimadas (fração); crateras e corpos: [base, por nível]
+const RUINS=[];
+// topo de um ponto: a caixa de colisão mais alta (telhado, parede) sobre ele, perto da cidade; null se não há nada
+function rebTopAt(x,z,y0){
+  const l=Col.map.get(Math.floor(x/8)*4096+Math.floor(z/8));let t=-1e9;
+  if(l)for(const b of l)if(x>=b.x0&&x<=b.x1&&z>=b.z0&&z<=b.z1&&b.y1>t&&b.y1<y0+24&&b.y1>y0)t=b.y1;
+  return t>-1e8?t:null;
+}
+// buraco DE VERDADE no chão: baixa a altura do terreno (a física e os tiros usam essa altura) e ajusta a malha do chunk: a face de cima de cada ladrilho desce
+// e entram paredes de terra em volta. Forma irregular (5 a ~20 ladrilhos): o miolo desce PIT.core e a borda PIT.ring (blocos inteiros: dá para sair andando, o degrau é 1).
+// Guarda o que mudou para desfazer (rebPitUndo) quando a rebelião acaba.
+const PIT={core:2,ring:1};
+function rebTerrainMesh(x,z){
+  const ccx=(Math.floor(x/CHK)+0.5)*CHK,ccz=(Math.floor(z/CHK)+0.5)*CHK;
+  return WORLD.chunkMeshes.find(m=>m.material===MAT_TERRAIN&&m.userData.cx===ccx&&m.userData.cz===ccz)||null;
+}
+function rebPitDig(tx,tz){
+  // forma irregular: parte do ladrilho central e vai crescendo para os vizinhos (mais perto = mais provável), sempre ligada; só em rua ou praça plana e livre
+  const h0=H[tz*W+tx],ok=(x,z)=>{const i=z*W+x,ty=T[i];if(H[i]!==h0||!(ty===T_STREET||ty===T_PLAZA||ty===T_ROAD))return false;probe(x+0.5,z+0.5,0.45,H[i],1.8,1.05);return !GR.blocked};
+  if(!ok(tx,tz))return null;
+  const inS=new Set([tx+','+tz]),tiles=[{x:tx,z:tz}],cand=[];
+  for(let dz=-3;dz<=3;dz++)for(let dx=-3;dx<=3;dx++){const d=Math.hypot(dx,dz);if(d>0&&d<=3.1)cand.push({dx,dz,d})}
+  cand.sort((a,b)=>a.d-b.d);
+  for(let pass=0;pass<2;pass++)for(const q of cand){   // duas passadas: a segunda pega o que ficou sem vizinho na primeira
+    const x=tx+q.dx,z=tz+q.dz,k=x+','+z;if(inS.has(k))continue;
+    const near=inS.has((x+1)+','+z)||inS.has((x-1)+','+z)||inS.has(x+','+(z+1))||inS.has(x+','+(z-1));
+    if(near&&hash2(x*7+tz,z*5+tx,41+pass)<1.05-q.d*0.3&&ok(x,z)){inS.add(k);tiles.push({x,z})}
+  }
+  for(const t of tiles){   // profundo (PIT.core) só onde os 8 vizinhos também estão no buraco; senão rasa (PIT.ring): nunca há degrau maior que 1
+    let full=true;for(let dz=-1;dz<=1&&full;dz++)for(let dx=-1;dx<=1;dx++)if(!inS.has((t.x+dx)+','+(t.z+dz))){full=false;break}
+    t.d=full?PIT.core:PIT.ring;
+  }
+  const rec={tiles,quads:[],wall:null},idx=new Map();
+  for(const t of tiles){const i=t.z*W+t.x;t.old=H[i];t.nh=t.old-t.d;idx.set(t.x+','+t.z,t)}
+  for(const t of tiles){   // a face de cima do ladrilho, na malha do chunk
+    const m=rebTerrainMesh(t.x,t.z);if(!m)continue;
+    const a=m.geometry.attributes.position.array,col=m.geometry.attributes.color;
+    for(let q=0;q<a.length;q+=12){
+      if(a[q]!==t.x||a[q+2]!==t.z+1||a[q+3]!==t.x+1||a[q+5]!==t.z+1||a[q+6]!==t.x+1||a[q+8]!==t.z||a[q+9]!==t.x||a[q+11]!==t.z)continue;
+      if(a[q+1]!==t.old||a[q+4]!==t.old||a[q+7]!==t.old||a[q+10]!==t.old)continue;
+      const c0=(q/3)*3,old=[];for(let k=0;k<12;k++)old.push(col.array[c0+k]);
+      rec.quads.push({m,q,c0,old});
+      for(const k of[1,4,7,10])a[q+k]=t.nh;
+      const sh=t.d===PIT.core?0.16:0.3;for(let k=0;k<4;k++){col.array[c0+k*3]=0.36*sh*3;col.array[c0+k*3+1]=0.27*sh*3;col.array[c0+k*3+2]=0.2*sh*3}   // terra queimada
+      m.geometry.attributes.position.needsUpdate=true;col.needsUpdate=true;
+    }
+  }
+  // paredes de terra: para cada vizinho mais alto, a face do lado dele voltada para o buraco
+  const bt=new BoxBatch(),NB=[[1,0,0],[-1,0,1],[0,1,4],[0,-1,5]];
+  for(const t of tiles)for(const [ox,oz] of[[1,0],[-1,0],[0,1],[0,-1]]){
+    const nx=t.x+ox,nz=t.z+oz,nt=idx.get(nx+','+nz),hn=nt?nt.nh:H[nz*W+nx];if(hn<=t.nh)continue;
+    const d=ox===1?1:ox===-1?0:oz===1?5:4,sh=0.34;   // face do vizinho que olha para este ladrilho
+    bt.face(d,nx,t.nh,nz,nx+1,hn,nz+1,0.34*sh*2.2,0.25*sh*2.2,0.18*sh*2.2);
+  }
+  rec.wall=bt.toMesh(MAT_TERRAIN);if(rec.wall)scene.add(rec.wall);
+  for(const t of tiles)H[t.z*W+t.x]=t.nh;
+  return rec;
+}
+function rebPitUndo(rec){
+  for(const t of rec.tiles)H[t.z*W+t.x]=t.old;
+  for(const q of rec.quads){const a=q.m.geometry.attributes.position.array,col=q.m.geometry.attributes.color;const y=rec.tiles.find(t=>a[q.q]===t.x&&a[q.q+2]===t.z+1).old;for(const k of[1,4,7,10])a[q.q+k]=y;for(let k=0;k<12;k++)col.array[q.c0+k]=q.old[k];q.m.geometry.attributes.position.needsUpdate=true;col.needsUpdate=true}
+  if(rec.wall){scene.remove(rec.wall);rec.wall.geometry.dispose()}
+}
+function rebRuinsEnsure(c){
+  if(!c||RUINS.find(x=>x.c===c))return;
+  const g=new THREE.Group(),fires=[],rk=Math.max(1,c.rank||1),rn=(a,b,k)=>hash2(c.id*131+a,b,k);
+  const dark=op=>new THREE.MeshLambertMaterial({color:0x17110d,transparent:true,opacity:op,depthWrite:false});
+  const box=(w,h,d,x,y,z,mt)=>{const m=new THREE.Mesh(GEO_BOX,mt);m.scale.set(w,h,d);m.position.set(x,y,z);g.add(m);return m};
+  // prédios queimados: fuligem sobre as paredes, telhado chamuscado e entulho/brasas sobre o telhado de verdade (a altura vem das caixas de colisão)
+  (c.houses||[]).forEach((h,i)=>{
+    if(rn(i,1,3)>RUIN.burn)return;
+    const w=h.x1-h.x0+1,d=h.z1-h.z0+1,x=c.cx+h.x0+w/2,z=c.cz+h.z0+d/2,hb=h.bh||4,hh=hb+0.3;
+    box(w+1.1,hh,d+1.1,x,c.y+hh/2,z,dark(0.5));   // fuligem nas paredes (maior que o prédio por causa do beiral)
+    const at=(u,v)=>{const px=x+(u-0.5)*(w-1),pz=z+(v-0.5)*(d-1);return{px,pz,y:rebTopAt(px,pz,c.y+hb-0.5)}};   // ponto sobre o telhado, ou null se não há telhado ali
+    const mid=at(0.5,0.5);if(mid.y!==null)box(w*0.55,0.12,d*0.55,mid.px,mid.y+0.07,mid.pz,dark(0.7));   // telhado chamuscado
+    for(let k=0;k<4;k++){const q=at(rn(i,k,8),rn(i,k,9));if(q.y===null)continue;const s1=0.6+rn(i,k,5)*0.9,s2=0.4+rn(i,k,6)*0.7;box(s1,s2,s1,q.px,q.y+s2/2,q.pz,new THREE.MeshLambertMaterial({color:0x241a14}))}
+    if(rn(i,2,4)<0.7)for(let f=0;f<RUIN.fires;f++){const q=at(rn(i,f,11),rn(i,f,12));if(q.y===null)continue;const m=box(0.7,0.7,0.7,q.px,q.y+0.35,q.pz,new THREE.MeshBasicMaterial({color:0xff7a1a}));fires.push({m,ph:rn(i,f,13)*6.28,y:q.y})}
+  });
+  const pts=(c.walk||[]).filter(p=>Math.hypot(p.x-c.cx,p.z-c.cz)>3),pick=(n,seed)=>{const o=[];for(let i=0;i<n&&pts.length;i++)o.push(pts[Math.floor(rn(i,seed,13)*pts.length)]);return o};
+  // buracos de verdade (3×3 ladrilhos) em ruas e praças livres, com entulho em volta
+  const pits=[],want=RUIN.craters[0]+RUIN.craters[1]*rk;
+  for(let t=0,ok=0;t<want*8&&ok<want&&pts.length;t++){
+    const p=pts[Math.floor(rn(t,20,13)*pts.length)],rec=rebPitDig(Math.floor(p.x),Math.floor(p.z));if(!rec)continue;
+    ok++;pits.push(rec);const px=Math.floor(p.x)+0.5,pz=Math.floor(p.z)+0.5;
+    for(let k=0;k<8;k++){const a=k/8*6.28+rn(t,k,15),rr=2.2+rn(t,k,16)*1.2,qx=px+Math.cos(a)*rr,qz=pz+Math.sin(a)*rr,sz=0.3+rn(t,k,17)*0.4;box(sz,sz*0.8,sz,qx,tH(qx,qz)+sz*0.4,qz,new THREE.MeshLambertMaterial({color:rn(t,k,22)<0.5?0x6a5a4a:0x4a4038}))}
+  }
+  // corpos: soldados dos dois lados e civis, caídos com uma poça de sangue
+  const r=rebS().cur,rc=r?FAC_COLORS[r.color].c:0xb02a2a,oc=r&&facColor(r.owner)||0x2a4a9a,civ=[0x8a6a4a,0x6a7a8a,0x9a8a5a,0x7a4a4a];
+  pick(RUIN.bodies[0]+RUIN.bodies[1]*rk,30).forEach((p,i)=>{
+    const kind=rn(i,31,23),shirt=kind<0.35?rc:kind<0.7?oc:civ[i%civ.length],soldier=kind<0.7;
+    const look={skin:SKINS[i%SKINS.length],shirt,pants:0x2a2a3a,hairStyle:soldier?'helmet':'none',hat:0x8a9ab0,gun:{len:0.75},scarf:0xe0e0e0};
+    const m=buildHuman(look);m.group.position.set(p.x,tH(p.x,p.z)+0.25,p.z);m.group.rotation.set(0,rn(i,32,24)*6.28,1.5);g.add(m.group);
+    box(1.5,0.03,1.0,p.x,tH(p.x,p.z)+0.04,p.z,new THREE.MeshLambertMaterial({color:0x5a0f0f}));
+  });
+  scene.add(g);RUINS.push({c,g,fires,pits});
+}
+function rebRuinsClear(c){const i=RUINS.findIndex(x=>x.c===c);if(i>=0){scene.remove(RUINS[i].g);for(const r of RUINS[i].pits)rebPitUndo(r);RUINS.splice(i,1)}}
+function rebRuinsUpdate(){
+  for(const R of RUINS){
+    const near=Math.hypot(R.c.cx-P.x,R.c.cz-P.z)<R.c.half+120;R.g.visible=near;if(!near)continue;
+    for(const f of R.fires){const k=0.7+0.5*Math.sin(G.t*9+f.ph)*Math.sin(G.t*5.3+f.ph*2);f.m.scale.set(0.7*k,0.9*k,0.7*k);f.m.position.y=f.y+0.45*k}
+  }
+}
 
 // ---------- etapa 2: batalhas ----------
 // Guarnição: ao estourar a rebelião os soldados da cidade somem (expulsos); voltam como rebeldes (batalha de repressão), como tropa da dona (rebelião esmagada)
@@ -449,7 +557,7 @@ function rebHud(){   // combater: o contador de rebeldes e aliados no HUD do rai
   else if(REBB.hudOn){REBB.hudOn=false;el.style.display='none'}
 }
 function rebWatch(){
-  rebHud();
+  rebHud();rebRuinsUpdate();
   if(!rebPending()||REBB.active||STATE.phase!=='commander'||rebBusy())return;
   const r=rebS().cur,c=rebCity(),dx=P.x-c.cx,dz=P.z-c.cz;
   if(r.choice==='support'){if(Math.hypot(dx,dz)<REB.centerR)rebSupportStart()}

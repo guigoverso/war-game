@@ -202,7 +202,7 @@ function makeBuilding(c,r,D,doorU,o,rng){
   const f=frameOf(r,D);
   o.floors=o.floors||1;
   if(o.floors>1)o.h=o.floors*SH;
-  const h=o.h;
+  const h=o.h;r.bh=h;   // altura da parede guardada no retângulo (c.houses), para o visual das ruínas (rebellion.js)
   const doorP=(D==='N'||D==='S')?f.X0+doorU:f.Z0+doorU;
   o.base=o.base||c.pal.base;o.trim=o.trim||c.pal.trim;
   wallRun(c,'x',f.Z0,f.X0,f.X1,h,D==='N'?doorP:null,o,-1);

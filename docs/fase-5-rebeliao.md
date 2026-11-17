@@ -5,7 +5,7 @@ Desenho fechado com o usuário. Código: `js/rebellion.js`. A base (humor das ci
 ## Etapas
 1. **Núcleo sem batalha (feito, `js/rebellion.js`):** gatilho, cartões de decisão e de resultado, apoio financeiro, sorteio do resultado, Negociação, nova facção (save v14), anexações, cenário de teste.
 2. **Batalhas (feito, falta jogar):** apoiar os rebeldes (raid adaptado) e combater a rebelião (invasão adaptada), com reforços (`rebSupportStart`, `rebCombatStart`).
-3. **Visual (a fazer):** buracos, corpos e prédios queimados; uniformes dos rebeldes. Hoje: fumaça (`igniteCity`), bandeira lisa na cor dos rebeldes e cor no mapa.
+3. **Visual (feito, só aparência):** cidade destruída enquanto dura a rebelião (ver "Etapa 3" abaixo).
 
 ## Cenário de teste (`?cenario=rebeliao`)
 `index.html?auto=1&mute=1&seed=11&cenario=rebeliao`: rodada 3, ◉20000, comida e minério 40, 5 soldados, você de frente para a cidade que vai se rebelar (Vila Cume na semente 11) e uma rebelião já na fila. Pausa (Tab) → aba **Facções** tem o painel 🧪 (`rebScenarioHtml`):
@@ -104,3 +104,11 @@ Fase 6 (guerra). Gancho: `fsupHit` (facsupply.js) reduz o suprimento de uma fac�
 - **Aliados nos postos lutam:** parados no posto (olhando para fora), eles vão atrás de qualquer inimigo a menos de 45 blocos (sem passar de 45 do posto) e voltam depois (`updateAlly`, `a.post`). Lobos, bandidos e outros que entrem no meio da batalha e ataquem você ou os soldados passam a ser alvo deles (`allyFindTarget`, "intruder"). Os inimigos da facção e dos rebeldes já reagem a animais por conta própria (`wildFoe`, quando o jogador está vendo).
 - **Seus soldados na batalha de apoio:** durante a contagem de 10 s eles continuam em casa; quando a 1ª onda começa aparecem atrás de você e entram na luta, como na invasão de cidades (`armyAssault` com filtro, em `rebSpawnWave`). Só os rebeldes (reforços temporários) ficam nos postos desde o começo.
 - **Aliados atirando se mexem:** em batalha de rebelião, quem está atirando anda de lado a intervalos e recua se o alvo chega perto (como os inimigos), em vez de ficar plantado.
+
+## Etapa 3 — a cidade destruída (`rebRuinsEnsure`, `rebellion.js`)
+- **Buracos de verdade, o resto só visual.** Os buracos mudam a altura do terreno (`H`), então a física, os tiros e o chão de quem anda os enxergam; o resto (fuligem, entulho, corpos) não tem colisão. Aparece quando a rebelião é anunciada (`rebAnnounce`) e some, desfazendo tudo, quando ela acaba (`rebClear`); volta igual ao carregar um save (tudo vem da id da cidade, `hash2`).
+- **Prédios queimados:** ~75% das casas ganham fuligem nas paredes, telhado chamuscado, entulho e, em alguns, brasas que tremem (`RUIN.burn`, `RUIN.fires`). O entulho e as brasas ficam sobre o telhado de verdade: a altura sai das caixas de colisão (`rebTopAt`), e a altura da parede vem de `c.houses[i].bh` (gravada em `makeBuilding`, `city.js`).
+- **Buracos (`rebPitDig`):** forma irregular (de ~6 a ~20 ladrilhos) que cresce a partir de um ladrilho central de rua ou praça plano e livre de prédio e objetos: o miolo (ladrilhos com os 8 vizinhos no buraco) desce 2 blocos e a borda 1 (`PIT`), então nunca há degrau maior que 1 e dá para sair andando. A malha do chunk é ajustada: a face de cima de cada ladrilho desce e escurece, e entram paredes de terra em volta. Entulho em volta (`RUIN.craters` = 3 + 1 por nível). O mapa e o minimapa não mostram os buracos.
+- **Corpos:** soldados dos rebeldes e da facção dona (na cor de cada um) e civis caídos, com poça de sangue (`RUIN.bodies` = 7 + 3 por nível).
+- Os números ficam juntos em `RUIN`. Teste: `?cenario=rebeliao`, encerrar a rodada, ir até a cidade (painel do cenário).
+
