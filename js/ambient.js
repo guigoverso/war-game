@@ -230,7 +230,7 @@ function updateAmbient(dt){
   }
   if(e.cave){if(!(nx.drip>0))fire('drip',1);if(AMB.clock>nx.drip){drip(0.8);fire('drip',1.2+Math.random()*3.5)}}
   // cidade: conversas conforme a quantidade de gente por perto, martelo do armeiro, sino da capela
-  const c=e.city;
+  const c=e.city&&!e.city.rebel?e.city:null;   // cidade em rebelião: sem conversas, martelo nem sino
   if(c&&!e.cave){
     let near=0,pick=null,pd=1e9;
     for(const n of NPCS){if(!n.alive||!n.group.visible)continue;const d=Math.hypot(n.x-P.x,n.z-P.z);if(d<28){near++;if(d<pd&&d>2){pd=d;pick=n}}}
@@ -246,7 +246,7 @@ function updateAmbient(dt){
       if(hh!==AMB.lastHour){AMB.lastHour=hh;if((hh===8||hh===12||hh===18)&&Math.hypot(c.chapel.x-P.x,c.chapel.z-P.z)<80){AMB.bellQ=hh===12?3:2;AMB.bellT=0}}   // o sino toca de manhã, ao meio-dia e ao entardecer
     }
   }
-  if(AMB.bellQ>0){AMB.bellT-=dt;if(AMB.bellT<=0){const cc=e.city||G.curCity,d=cc&&cc.chapel?Math.hypot(cc.chapel.x-P.x,cc.chapel.z-P.z):40;bell(clamp(1-d/90,0.2,1),cc&&cc.chapel?panTo(cc.chapel.x,cc.chapel.z):0);AMB.bellQ--;AMB.bellT=2.2}}
+  if(AMB.bellQ>0){AMB.bellT-=dt;if(AMB.bellT<=0){const cc=e.city||G.curCity,d=cc&&cc.chapel?Math.hypot(cc.chapel.x-P.x,cc.chapel.z-P.z):40;if(!(cc&&cc.rebel))bell(clamp(1-d/90,0.2,1),cc&&cc.chapel?panTo(cc.chapel.x,cc.chapel.z):0);AMB.bellQ--;AMB.bellT=2.2}}
   // bichos de fazenda
   if(e.nearCr&&calm&&!e.indoor){
     if(!(nx.farm>0))fire('farm',3+Math.random()*6);

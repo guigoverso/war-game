@@ -191,14 +191,14 @@ function updateRaids(dt){
     if(RAID.seeT<=0){
       RAID.seeT=0.3;
       const seen=RAID.area.enemies.some(e=>e.alive&&Math.hypot(e.x-P.x,e.z-P.z)<46&&playerVisibleFrom(e.x,e.y+e.def.eye,e.z,P));
-      if(seen){RAID.alliesCalled=true;armyAssault(RAID.area,'★ Os bandidos te viram! Seus soldados chegaram atrás de você!')}
+      if(seen){RAID.alliesCalled=true;armyAssault(RAID.area,RAID.reb?'':'★ Os bandidos te viram! Seus soldados chegaram atrás de você!')}
     }
   }
   const W=RAID.waves;
   if(alive===0){
     if(!W||W.i>=raidWaveCount()){onRaidCleared();return}
     if(RAID.engaged){   // onda vencida: intervalo para curar e recrutar, depois vem a próxima
-      if(W.gapT===null){W.gapT=RAID_GAP;toast('✔ Onda '+W.i+' vencida! A próxima chega em '+RAID_GAP+' s: cure-se e recrute.',4500)}
+      if(W.gapT===null){W.gapT=RAID_GAP;if(!RAID.reb)toast('✔ Onda '+W.i+' vencida! A próxima chega em '+RAID_GAP+' s: cure-se e recrute.',4500)}
       W.gapT-=dt;if(W.gapT<=0)spawnRaidWave();
     }
   }
@@ -207,7 +207,7 @@ function updateRaids(dt){
   if(hud){
     hud.style.display='block';
     const d=Math.round(Math.hypot(c.cx-P.x,c.cz-P.z));
-    hud.innerHTML=RAID.engaged?(alive===0&&W&&W.gapT!==null?'⏳ <b>'+c.name+'</b>: próxima onda em <b>'+Math.max(0,Math.ceil(W.gapT))+' s</b> ('+W.i+'/'+raidWaveCount()+' vencidas)':'🛡 Defenda <b>'+c.name+'</b>: onda '+(W?W.i:1)+'/'+raidWaveCount()+' • '+alive+(RAID.reb?' soldados inimigos':' bandidos')):'⚠ <b>'+c.name+'</b> sob ataque! Chegue em <b>'+Math.ceil(RAID.t)+' s</b> ('+d+' m)';
+    hud.innerHTML=RAID.engaged?(RAID.reb&&alive===0&&W&&W.i===0&&W.gapT!==null?'⏳ <b>'+c.name+'</b>: a batalha começa em <b>'+Math.max(0,Math.ceil(W.gapT))+' s</b>':alive===0&&W&&W.gapT!==null?'⏳ <b>'+c.name+'</b>: próxima onda em <b>'+Math.max(0,Math.ceil(W.gapT))+' s</b> ('+W.i+'/'+raidWaveCount()+' vencidas)':'🛡 Defenda <b>'+c.name+'</b>: onda '+(W?W.i:1)+'/'+raidWaveCount()+' • '+alive+(RAID.reb?' soldados inimigos':' bandidos')):'⚠ <b>'+c.name+'</b> sob ataque! Chegue em <b>'+Math.ceil(RAID.t)+' s</b> ('+d+' m)';
   }
 }
 

@@ -147,7 +147,7 @@ function explode(x,y,z,radius,dmg,byPlayer,noSelf){
   burst(x,y,z,[0xff9a1a,0xffd84a,0xff5a1a,0x555555],45,12,0.3,6);
   const fl=new THREE.Mesh(GEO_BOX,new THREE.MeshBasicMaterial({color:0xffcc66,transparent:true,opacity:0.8}));fl.position.set(x,y,z);fl.scale.set(radius,radius,radius);scene.add(fl);
   let life=0.18;const tk=()=>{life-=0.016;fl.material.opacity=Math.max(0,life*4);fl.scale.multiplyScalar(0.96);if(life>0)requestAnimationFrame(tk);else{scene.remove(fl);fl.material.dispose()}};tk();
-  sfx('boom',Math.hypot(x-P.x,z-P.z));
+  sfx('boom',Math.hypot(x-P.x,z-P.z),x,z);
   for(const e of ENEMIES.slice())if(e.alive&&byPlayer){const d=Math.hypot(e.x-x,e.y+e.def.h/2-y,e.z-z)-e.def.r;if(d<radius)damageEnemy(e,dmg*(1-clamp(d/radius,0,1)*0.7),false)}
   for(const n of NPCS)if(n.alive){const d=Math.hypot(n.x-x,n.y+1-y,n.z-z);if(d<radius)damageNpc(n,dmg*(1-d/radius))}
   if(!byPlayer)for(const a of ALLIES)if(a.alive){const d=Math.hypot(a.x-x,a.y+1-y,a.z-z);if(d<radius)damageAlly(a,dmg*(1-d/radius))}
@@ -409,7 +409,7 @@ function enemyShoot(e){
     if(hit){hurtTarget(tg,def.dmg,e.x,e.z,e);any=true}
     else if(RAY.kind)burst(ox+ddx*t,oy+ddy*t,oz+ddz*t,[0xdddddd,0x999999],3,3,0.08);
   }
-  sfx(def.sfx||'rifle',d);
+  sfx(def.sfx||'rifle',Math.hypot(e.x-P.x,e.z-P.z),e.x,e.z);   // o volume vem da distância até VOCÊ (não até o alvo do tiro)
 }
 let EUID=0;
 // animais e bandidos: só atacam se te virem perto da área deles; o bando/matilha avisa os vizinhos
@@ -525,7 +525,7 @@ function updateEnemy(e,dt){  const def=e.def,m=e.model;
       else if(e.stunT>0){e.stunT-=dt}
       else if(e.wind>0){
         e.wind-=dt;m.arms.forEach(a=>a.rotation.x=-2.6);
-        if(e.wind<=0){m.arms.forEach(a=>a.rotation.x=0.4);if(d<def.reach+1&&Math.abs(tg.y-e.y)<2.5){hurtTarget(tg,def.dmg,e.x,e.z,e);burst(e.x+Math.sin(e.yaw)*2,e.y+0.2,e.z+Math.cos(e.yaw)*2,[0x777777,0x555555],14,6,0.25);sfx('slam',d)}e.cool=def.cd}
+        if(e.wind<=0){m.arms.forEach(a=>a.rotation.x=0.4);if(d<def.reach+1&&Math.abs(tg.y-e.y)<2.5){hurtTarget(tg,def.dmg,e.x,e.z,e);burst(e.x+Math.sin(e.yaw)*2,e.y+0.2,e.z+Math.cos(e.yaw)*2,[0x777777,0x555555],14,6,0.25);sfx('slam',Math.hypot(e.x-P.x,e.z-P.z),e.x,e.z)}e.cool=def.cd}
       }else{
         if(def.bomb){
           // drone: ao chegar perto, apita 1x por segundo; no 3º bip explode
@@ -533,7 +533,7 @@ function updateEnemy(e,dt){  const def=e.def,m=e.model;
           if(e.fuse>=0){
             e.fuse+=dt;
             while(e.beeps<3&&e.fuse>=e.beeps){
-              e.beeps++;e.beepFlash=1;sfx('beep'+e.beeps,d*0.35);
+              e.beeps++;e.beepFlash=1;sfx('beep'+e.beeps,Math.hypot(e.x-P.x,e.z-P.z)*0.6,e.x,e.z);   // some com a distância até VOCÊ e sai do lado em que o drone está
               if(e.beeps===3){e.alive=false;e.deadT=0;c.aliveEnemies--;explode(e.x,e.y+1,e.z,4.8,def.dmg,false);e.group.visible=false;e.gone=true;scene.remove(e.group);checkConquest(c);return}
             }
           }

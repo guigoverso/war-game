@@ -128,6 +128,7 @@ function playerPort(){return playerCities().find(c=>ec(c).type==='port')}
 // ---------- fim da rodada ----------
 function endRound(city){
   if(STATE.phase==='leader'||G.office||P.dead)return false;
+  if(typeof rebPending==='function'&&rebPending()){rebEndPopup();return false}   // rebelião a resolver: popup com 'Ok' e 'Ir para o local'
   const rd=STATE.rd,rep=[];
   computeBuffs();   // fecha os bônus do que foi entregue nesta rodada
   const pcs=playerCities(),debuf={};
@@ -369,7 +370,7 @@ function updateCaravanGuards(dt){
         guardFace(g,foe.x,foe.z,dt,12);
         if(g.cool<=0){g.cool=0.7+Math.random()*0.5;
           const ox=g.x+Math.sin(g.yaw)*0.5,oy=g.y+1.35,oz=g.z+Math.cos(g.yaw)*0.5;
-          tracer(ox,oy,oz,foe.x,foe.y+(foe.def.h||1.6)*0.6,foe.z,0x88ccff);sfx('rifle',bd);
+          tracer(ox,oy,oz,foe.x,foe.y+(foe.def.h||1.6)*0.6,foe.z,0x88ccff);sfx('rifle',dpl);
           if(Math.random()<0.75)damageEnemy(foe,GUARD_DMG,false,true,g);
         }
       }else if(g.lookT>0){g.lookT-=dt;guardFace(g,P.x,P.z,dt,8)}   // o jogador está falando com ele: olha para o jogador e para
@@ -672,6 +673,7 @@ function bookClick(e){
   if(LB.top==='inv'||LB.top==='map')return;   // botões da bolsa têm seus próprios tratadores; o mapa só tem o canvas
   const c=WORLD.cities[LB.city];
   if(a==='polopen'){showPolicy();return}
+  if(a==='polview'){const lg=STATE.pol.log[STATE.pol.log.length-1];if(lg)showPolicy(lg);return}
   else if(a==='city'){LB.city=+t.dataset.id}
   else if(a==='fac'){LB.fac=+t.dataset.id}
   else if(a==='fally'){if(isLeader())facAlly(+t.dataset.id)}

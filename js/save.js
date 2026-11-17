@@ -49,7 +49,8 @@ function migrateSave(d){
   if(d.v<12){d.v=12}   // v12: missões novas (state.ms: quadro por cidade, ofertas de facção, aceitas e ativa); as missões antigas (quadro e ativa) são descartadas
   if(d.v<13){d.v=13}   // v13: relações entre facções NPC (state.frel: só o que mudou; ausente = valor da semente), registro de propagação (state.flog) e rotas NPC (state.rd.nroutes)
   if(d.v<14){d.v=14}   // v14: rebelião de cidades NPC (state.reb: rebelião em andamento, facções novas e cidades que mudaram de facção); ausente = nenhuma
-  // if(d.v<15){ ...ajustes...; d.v=15 }
+  if(d.v<15){d.v=15}   // v15: o log de políticas guarda 'data' (para rever a política decidida); ausente = sem dados
+  // if(d.v<16){ ...ajustes...; d.v=16 }
   return d;
 }
 

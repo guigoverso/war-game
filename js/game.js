@@ -24,18 +24,19 @@ function nzs(dur,vol,freq,dest,ftype){if(!noiseBuf){noiseBuf=AC.createBuffer(1,A
   g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(0.001,t+dur);s.connect(f);f.connect(g);g.connect(dest||master);s.start(t);s.stop(t+dur)}
 function tn(freq,dur,type,vol,to,dest){const o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime;o.type=type;o.frequency.setValueAtTime(freq,t);if(to)o.frequency.exponentialRampToValueAtTime(to,t+dur);
   g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(0.001,t+dur);o.connect(g);g.connect(dest||master);o.start(t);o.stop(t+dur)}
-function sfx(name,dist){
+function sfx(name,dist,x,z){   // x,z (opcionais): onde o som nasce; o som sai mais para o lado em que está (estéreo)
   if(!AC||AC.state==='suspended'&&AC.resume())return;
-  const v=Math.pow(clamp(1-(dist||0)/90,0,1),2);if(v<0.03)return;   // queda rápida com a distância: longe quase não se ouve
+  const v=Math.pow(clamp(1-(dist||0)/90,0,1),2);if(v<0.03)return;
+  let D=master;if(x!==undefined&&AC.createStereoPanner){D=AC.createStereoPanner();D.pan.value=panTo(x,z);D.connect(master)}   // queda rápida com a distância: longe quase não se ouve
   if(v>0.35&&typeof AMB!=='undefined'&&/^(pistol|smg|rifle|shotgun|sniper|launcher|boom)$/.test(name))AMB.hush=AMB.clock+14;   // tiros calam pássaros, grilos e conversas
   switch(name){
-    case'pistol':nzs(0.12,0.7*v,3500);tn(190,0.08,'square',0.2*v,60);break;
-    case'smg':nzs(0.07,0.5*v,4500);tn(150,0.05,'square',0.12*v,70);break;
-    case'rifle':nzs(0.1,0.7*v,2800);tn(120,0.1,'sawtooth',0.2*v,50);break;
-    case'shotgun':nzs(0.3,1*v,1800);tn(90,0.2,'square',0.3*v,40);break;
-    case'sniper':nzs(0.45,1*v,1400);tn(70,0.35,'sawtooth',0.4*v,30);break;
-    case'launcher':nzs(0.35,0.8*v,900);tn(110,0.3,'sawtooth',0.3*v,40);break;
-    case'boom':nzs(1.0,1*v,700);tn(60,0.8,'sine',0.7*v,22);break;
+    case'pistol':nzs(0.12,0.7*v,3500,D);tn(190,0.08,'square',0.2*v,60,D);break;
+    case'smg':nzs(0.07,0.5*v,4500,D);tn(150,0.05,'square',0.12*v,70,D);break;
+    case'rifle':nzs(0.1,0.7*v,2800,D);tn(120,0.1,'sawtooth',0.2*v,50,D);break;
+    case'shotgun':nzs(0.3,1*v,1800,D);tn(90,0.2,'square',0.3*v,40,D);break;
+    case'sniper':nzs(0.45,1*v,1400,D);tn(70,0.35,'sawtooth',0.4*v,30,D);break;
+    case'launcher':nzs(0.35,0.8*v,900,D);tn(110,0.3,'sawtooth',0.3*v,40,D);break;
+    case'boom':nzs(1.0,1*v,700,D);tn(60,0.8,'sine',0.7*v,22,D);break;
     case'kill':tn(660,0.08,'square',0.12,0);setTimeout(()=>AC&&tn(990,0.1,'square',0.12),70);break;
     case'hit':tn(1300,0.04,'square',0.1);break;
     case'coin':tn(1200,0.07,'square',0.15);setTimeout(()=>AC&&tn(1700,0.12,'square',0.15),70);break;
@@ -43,10 +44,10 @@ function sfx(name,dist){
     case'empty':tn(220,0.05,'square',0.1);break;
     case'alarm':tn(520,0.35,'sawtooth',0.2,330);setTimeout(()=>AC&&tn(520,0.35,'sawtooth',0.2,330),400);break;
     case'beep':tn(1500,0.06,'square',0.15);break;
-    case'beep1':tn(1100,0.14,'square',0.3);break;
-    case'beep2':tn(1400,0.14,'square',0.34);break;
-    case'beep3':tn(1800,0.18,'square',0.38);break;
-    case'slam':nzs(0.3,0.8*v,500);break;
+    case'beep1':tn(1100,0.14,'square',0.3*v,0,D);break;
+    case'beep2':tn(1400,0.14,'square',0.34*v,0,D);break;
+    case'beep3':tn(1800,0.18,'square',0.38*v,0,D);break;
+    case'slam':nzs(0.3,0.8*v,500,D);break;
     case'hurt':tn(160,0.15,'sawtooth',0.3,70);break;
     case'win':[523,659,784,1046].forEach((f,i)=>setTimeout(()=>AC&&tn(f,0.25,'square',0.18),i*160));break;
   }
@@ -425,7 +426,7 @@ function updateInteract(){
     if(raidLocked(c)||facClosed(c)){   // cidade em combate de raid ou hostil (inimiga, em guerra, em crime): sem serviços (nem a opção aparece)
       const st=c.owner==='enemy'?relStatus(c.fid):'';
       if(st==='war'&&c.state==='idle'&&d<c.half+10){G.attackCity=c;lines.push('[F] ATACAR '+c.name.toUpperCase())}
-      else if(st==='enemy'&&c.state==='idle'&&d<c.half+14)lines.push('🚫 Território de '+facOf(c.fid).name+': não entre ou os guardas atiram');
+      else if(st==='enemy'&&!c.rebel&&c.state==='idle'&&d<c.half+14)lines.push('🚫 Território de '+facOf(c.fid).name+': não entre ou os guardas atiram');
       else if(c.crime&&c.state==='attacking'&&d<c.half+8)lines.push('🔒 Serviços fechados: cidade hostil');
       continue;
     }
@@ -527,7 +528,7 @@ function updateHUD(dt){
   if(best){
     const dx=best.cx-P.x,dz=best.cz-P.z,s=Math.sin(P.yaw),cy=Math.cos(P.yaw);
     const ang=Math.atan2(dx*cy-dz*s,dx*(-s)+dz*(-cy));
-    $('obj').innerHTML='Soldados: <b>'+allyCount()+'/'+ARMY.max+'</b><br>Cidades: <b>'+n+'/7</b><br>Alvo: '+best.name+'<br><span id="arrow" style="transform:rotate('+ang+'rad)">▲</span> '+Math.round(bd)+' m';
+    $('obj').innerHTML='Soldados: <b>'+allyCount()+'/'+ARMY.max+'</b>'+rebAlliesLine()+'<br>Cidades: <b>'+n+'/7</b><br>Alvo: '+best.name+'<br><span id="arrow" style="transform:rotate('+ang+'rad)">▲</span> '+Math.round(bd)+' m';
   }else $('obj').innerHTML='Cidades: <b>'+n+'/7</b><br>Todas conquistadas!';
   $('obj').innerHTML+=questLine();drawMinimap();
 }
@@ -552,6 +553,7 @@ function drawMinimap(){
     for(const c of WORLD.cities){if(Math.max(Math.abs(P.x-c.cx),Math.abs(P.z-c.cz))>c.half+40)continue;
       for(const ic of cityIcons(c)){const dx=(ic.x-P.x)*s,dz=(ic.z-P.z)*s,rx=dx*cs-dz*sn,ry=dx*sn+dz*cs;if(Math.hypot(rx,ry)>R-16)continue;drawIcon(mmc,R+rx,R+ry,ic,7)}}}
   mmc.fillStyle='#fff';mmc.strokeStyle='#000';mmc.lineWidth=2;mmc.beginPath();mmc.moveTo(R,R-8);mmc.lineTo(R+6,R+6);mmc.lineTo(R,R+3);mmc.lineTo(R-6,R+6);mmc.closePath();mmc.fill();mmc.stroke();
+  {const rm=G.dg?null:rebMarker();if(rm){const dx=(rm.x-P.x)*s,dz=(rm.z-P.z)*s,cs=Math.cos(P.yaw),sn=Math.sin(P.yaw);let rx=dx*cs-dz*sn,ry=dx*sn+dz*cs;const L=Math.hypot(rx,ry);if(L>77){rx*=77/L;ry*=77/L}drawStar(mmc,R+rx,R+ry,8,'#ff3a2a')}}   // marcador da rebelião a resolver (vermelho; no aro quando longe)
   {const qt=G.dg?null:questTarget();if(qt){const dx=(qt.x-P.x)*s,dz=(qt.z-P.z)*s,cs=Math.cos(P.yaw),sn=Math.sin(P.yaw);let rx=dx*cs-dz*sn,ry=dx*sn+dz*cs;const L=Math.hypot(rx,ry);if(L>77){rx*=77/L;ry*=77/L}drawStar(mmc,R+rx,R+ry,7)}}   // fora do alcance a estrela fica no aro, como a rosa dos ventos; perto, fica no local da missão. Sempre por cima de tudo
   if(!G.dg)for(const p of goldenPortals()){   // portal dourado: losango que se comporta como a estrela de missão (no aro quando longe, no local quando perto; por cima de tudo)
     const dx=(p.x-P.x)*s,dz=(p.z-P.z)*s,cs=Math.cos(P.yaw),sn=Math.sin(P.yaw);let rx=dx*cs-dz*sn,ry=dx*sn+dz*cs;const L=Math.hypot(rx,ry);if(L>77){rx*=77/L;ry*=77/L}
@@ -611,6 +613,7 @@ function drawBigMap(cvArg,mk){   // cvArg: outro canvas (popup de missão); mk: 
   {const ct=cvbTarget();if(ct){drawStar(g,ct.x*s,ct.z*s,10*k);g.fillStyle='#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText('Caravana',ct.x*s,ct.z*s-16*k);g.fillText('Caravana',ct.x*s,ct.z*s-16*k)}}
   drawRose(g,cv.width-64*k,64*k,30*k);
   drawPickOverlay(g,s);   // modo de escolha de caravana (rounds.js)
+  {const rm=rebMarker();if(rm){drawStar(g,rm.x*s,rm.z*s,13*k,'#ff3a2a');g.fillStyle='#ff9a8a';g.strokeStyle='#000';g.lineWidth=3;g.strokeText(rm.label,rm.x*s,rm.z*s-18*k);g.fillText(rm.label,rm.x*s,rm.z*s-18*k)}}
   {const qt=questTarget();if(qt){drawStar(g,qt.x*s,qt.z*s,10*k);g.fillStyle='#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText('Missão ativa',qt.x*s,qt.z*s-16*k);g.fillText('Missão ativa',qt.x*s,qt.z*s-16*k)}}
   if(mk){drawStar(g,mk.x*s,mk.z*s,13*k,mk.col);g.fillStyle=mk.lcol||'#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText(mk.label,mk.x*s,mk.z*s-18*k);g.fillText(mk.label,mk.x*s,mk.z*s-18*k)}
   g.save();g.translate(P.x*s,P.z*s);g.rotate(-P.yaw);g.scale(k,k);g.fillStyle='#fff';g.strokeStyle='#000';g.beginPath();g.moveTo(0,-9);g.lineTo(7,8);g.lineTo(0,4);g.lineTo(-7,8);g.closePath();g.fill();g.stroke();g.restore();
@@ -669,7 +672,7 @@ function update(dt){
   updateWeapons(dt);
   updateActors(dt);updateAllies(dt);updateCritters(dt);updateWild(dt);updateChests(dt);updateDayNight(dt);updateQuests(dt);
   updateFx(dt);checkStuck(dt);updateInventory(dt);updateFishing(dt);updateVendors();updatePortals(dt);updateRaids(dt);updateRounds(dt);
-  updateInteract();facPatrol();
+  updateInteract();facPatrol();rebWatch();
   // recuo: cidade em ataque se o jogador se afastou demais
   for(const c of WORLD.cities)if(c.state==='attacking'&&Math.hypot(c.cx-P.x,c.cz-P.z)>170){c.state='idle';c.crime=false;toast('Você recuou. Os inimigos voltam aos postos.',2500);for(const e of c.enemies)if(e.alive){e.hp=e.maxhp}}
   for(const w of WORLD.windmills)w.rotation.z+=dt*0.9;

@@ -63,9 +63,11 @@ function pickTarget(e){
   if(best&&(P.dead||(bd<30&&bd<dp*0.8)))return best;
   return P;
 }
-function spawnAlly(x,z,city,col){
-  const rng=new RNG((Math.random()*1e9)|0);
-  const look={skin:rng.pick(SKINS),shirt:col||facColor(0)||0x2a4a9a,pants:0x2a2a3a,hairStyle:'helmet',hat:0x8a9ab0,gun:{len:0.75},scarf:0xe0e0e0};   // todos os soldados do jogador usam a cor da facção dele (só a pele varia)
+// tipos de soldado das tropas de batalha (rebelião): o normal, o pesado (mais vida e colete), o atirador (tiro forte e lento, de longe) e o metralhador (tiro fraco e rápido)
+const ALLY_KINDS={soldier:{},heavy:{hp:2.2,armor:40,scale:1.12,hat:0x3a3a44},sniper:{dmg:2,cd:1.6,hold:1.9,gun:1.1,scarf:0x2a8a3a},gunner:{dmg:0.7,cd:0.5,hat:0x8a5a2a}};
+function spawnAlly(x,z,city,col,kind){
+  const rng=new RNG((Math.random()*1e9)|0),K=ALLY_KINDS[kind]||{};
+  const look={skin:rng.pick(SKINS),shirt:col||facColor(0)||0x2a4a9a,pants:0x2a2a3a,hairStyle:'helmet',hat:K.hat||0x8a9ab0,gun:{len:K.gun||0.75},scarf:K.scarf||0xe0e0e0};if(K.scale)look.scale=K.scale;   // todos os soldados do jogador usam a cor da facção dele (só a pele varia)
   const m=buildHuman(look);
   m.arms[1].rotation.x=-1.2;m.arms[0].rotation.x=-1.0;
   const a={kind:'ally',isAlly:true,look,alive:true,x,z,y:tH(x,z),vy:0,ground:true,yaw:rng.range(0,6.28),hp:allyMaxHp(),maxhp:allyMaxHp(),eye:1.6,crouch:false,speed:1,
@@ -73,6 +75,8 @@ function spawnAlly(x,z,city,col){
     state:'patrol',patrolCity:city,assaultCity:null,ang:0,slot:0,holdMul:0.75+rng.range(0,0.6),form:null,deadT:0,gone:false};
   const used=new Set(ALLIES.filter(q=>q.alive).map(q=>q.slot));let sl=0;while(used.has(sl))sl++;a.slot=sl;a.ang=sl*6.283/5+rng.range(0,0.4);
   a.armor=0;if(ARMY.vest)giveAllyVest(a);
+  a.kindT=kind||'soldier';a.dmgM=K.dmg||1;a.cdM=K.cd||1;a.holdM=K.hold||1;a.hpM=K.hp||1;   // fatores do tipo (usados em updateAlly e applyArmyStats)
+  if(K.hp){a.maxhp*=K.hp;a.hp=a.maxhp}if(K.armor)giveAllyVest(a);
   scene.add(a.group);ALLIES.push(a);return a;
 }
 function recruitAlly(c){
@@ -86,11 +90,11 @@ function recruitAlly(c){
 function damageAlly(a,dmg){
   if(!a.alive)return;if(a.armor>0){const ab=Math.min(a.armor,dmg*0.6);a.armor-=ab;dmg-=ab}
   a.hp-=dmg;burst(a.x,a.y+1,a.z,0x2a5ac0,6,4,0.1);
-  if(a.hp<=0){a.alive=false;a.deadT=0;toast('☠ Um soldado seu caiu! Recrute outro no Quartel.',3000)}
+  if(a.hp<=0){a.alive=false;a.deadT=0;if(!a.temp&&!(typeof REBB!=='undefined'&&REBB.active))toast('☠ Um soldado seu caiu! Recrute outro no Quartel.',3000)}   // sem aviso nas batalhas de rebelião (o contador de aliados mostra)
 }
-function armyAssault(c,msg){
+function armyAssault(c,msg,only){   // only: filtro opcional (quais soldados)
   let n=0;const sy=Math.sin(P.yaw),cy=Math.cos(P.yaw),tot=allyCount();
-  for(const a of ALLIES){if(!a.alive)continue;
+  for(const a of ALLIES){if(!a.alive||(only&&!only(a)))continue;
     // aparecem atrás do jogador, em formação escalonada
     let back=5+Math.floor(n/2)*2.4+Math.random(),x=0,z=0;const side=(n%2?1:-1)*(1.8+(n>>1)*1.7);
     for(let k=0;k<6;k++){
@@ -105,7 +109,11 @@ function armyConquered(c){for(const a of ALLIES)if(a.alive){a.state='patrol';a.p
 function allyFindTarget(a,w){
   const ey=a.y+1.6;let best=null,bd=1e9,seek=null,sd=1e9;
   for(const e of ENEMIES){
-    if(!e.alive||e.city.state!=='attacking'||(e.city.kind&&e.city.kind!=='raid'&&e.city.kind!=='contest'))continue;   // aliados também combatem os bandidos de raid
+    if(!e.alive)continue;
+    const raidish=e.city.state==='attacking'&&(!e.city.kind||e.city.kind==='raid'||e.city.kind==='contest');   // aliados também combatem os bandidos de raid
+    // numa batalha de rebelião, lobos, bandidos e outros que entrem no meio e ataquem você ou seus soldados também são alvo
+    const intruder=!raidish&&typeof REBB!=='undefined'&&REBB.active&&e.tg&&(e.tg.isAlly||e.tg===P)&&Math.hypot(e.x-a.x,e.z-a.z)<40;
+    if(!raidish&&!intruder)continue;
     const d=Math.hypot(e.x-a.x,e.z-a.z);
     if(d<sd){sd=d;seek=e}
     if(d<Math.min(w.range,60)&&d<bd&&losClear(a.x,ey,a.z,e.x,e.y+e.lift+e.def.h*0.6,e.z)){bd=d;best=e}
@@ -123,17 +131,23 @@ function updateAlly(a,dt){
   if(t){
     const dx=t.x-a.x,dz=t.z-a.z,d=Math.hypot(dx,dz),face=Math.atan2(dx,dz);
     a.yaw+=((face-a.yaw+Math.PI*3)%(Math.PI*2)-Math.PI)*Math.min(1,dt*10);
-    const hold=(w.range>100?35:w.id==='shotgun'?8:18)*(a.holdMul||1);
+    const hold=(w.range>100?35:w.id==='shotgun'?8:18)*(a.holdMul||1)*(a.holdM||1);
     if(d>hold){navMove(a,t.x,t.z,3.8,dt,a.r,1.8,1.05);moving=true}
+    else if(typeof REBB!=='undefined'&&REBB.active){   // batalha de rebelião: não fica plantado ao atirar; anda de lado (como os inimigos) e recua se o alvo chega perto demais
+      a.strafeT=(a.strafeT||0)-dt;if(a.strafeT<=0){a.strafe=(a.strafe||1)*-1;a.strafeT=0.8+Math.random()*2}
+      moveXZ(a,-dz/(d||1)*a.strafe*2.4*dt,dx/(d||1)*a.strafe*2.4*dt,a.r,1.8,1.05);
+      if(d<hold*0.45)moveXZ(a,-dx/(d||1)*2*dt,-dz/(d||1)*2*dt,a.r,1.8,1.05);
+      moving=true;
+    }
     if(a.cool<=0){
-      a.cool=clamp(60/w.rpm*6,0.5,2.2)*(1+Math.random()*0.4);
+      a.cool=clamp(60/w.rpm*6,0.5,2.2)*(1+Math.random()*0.4)*(a.cdM||1);
       const ox=a.x,oy=a.y+1.4,oz=a.z,ty=t.y+t.lift+t.def.h*0.6;
       const hit=Math.random()<clamp(0.38-d/(w.range*2),0.12,0.3);
       const ex=t.x+(hit?0:(Math.random()-0.5)*3),ez=t.z+(hit?0:(Math.random()-0.5)*3);
-      tracer(ox,oy,oz,ex,ty+(hit?0:(Math.random()-0.5)),ez,0x9ad0ff);sfx(w.sfx,Math.hypot(a.x-P.x,a.z-P.z)*1.2);
+      tracer(ox,oy,oz,ex,ty+(hit?0:(Math.random()-0.5)),ez,0x9ad0ff);sfx(w.sfx,Math.hypot(a.x-P.x,a.z-P.z)*1.2,a.x,a.z);
       if(hit){
-        if(w.rocket)explode(t.x,ty,t.z,5,w.dmg*allyDmgMul()*0.22,true,true);
-        else damageEnemy(t,w.dmg*(w.pellets>1?w.pellets*0.55:1)*allyDmgMul()*0.22,false,true);
+        if(w.rocket)explode(t.x,ty,t.z,5,w.dmg*allyDmgMul()*(a.dmgM||1)*0.22,true,true);
+        else damageEnemy(t,w.dmg*(w.pellets>1?w.pellets*0.55:1)*allyDmgMul()*(a.dmgM||1)*0.22,false,true);
       }
     }
   }else if(a.state==='assault'){
@@ -142,11 +156,20 @@ function updateAlly(a,dt){
     if(dc<7&&a.seekE){tx=a.seekE.x;tz=a.seekE.z}
     const d=navMove(a,tx,tz,dc>40?6:4,dt,a.r,1.8,1.05);a.yaw=Math.atan2(tx-a.x,tz-a.z);moving=true;
   }else{
-    const c=a.patrolCity||WORLD.home,R=c.half+5+(a.slot%3)*2;
+    const c=a.patrolCity||WORLD.home;
+    if(a.post){   // posto fixo dentro da cidade (batalha de rebelião): anda até ele, para e olha para fora (sem rodar em volta)
+      const dp=Math.hypot(a.post.x-a.x,a.post.z-a.z);
+      const sk=a.seekE&&a.seekE.alive?a.seekE:null,ds=sk?Math.hypot(sk.x-a.x,sk.z-a.z):1e9;
+      if(sk&&ds<45&&Math.hypot(sk.x-a.post.x,sk.z-a.post.z)<45){navMove(a,sk.x,sk.z,4.2,dt,a.r,1.8,1.05);a.yaw=Math.atan2(sk.x-a.x,sk.z-a.z);moving=true}   // inimigo por perto: vai atrás dele (sem se afastar muito do posto)
+      else if(dp>2.2){navMove(a,a.post.x,a.post.z,dp>25?6:2.4,dt,a.r,1.8,1.05);a.yaw=Math.atan2(a.post.x-a.x,a.post.z-a.z);moving=true}
+      else{const fy=Math.atan2(a.post.x-c.cx,a.post.z-c.cz);a.yaw+=((fy-a.yaw+Math.PI*3)%(Math.PI*2)-Math.PI)*Math.min(1,dt*4)}
+    }else{
+    const R=c.half+5+(a.slot%3)*2;
     const tx=c.cx+Math.cos(a.ang)*R,tz=c.cz+Math.sin(a.ang)*R;
     const d=navMove(a,tx,tz,Math.hypot(tx-a.x,tz-a.z)>25?6:2.4,dt,a.r,1.8,1.05);
     a.yaw=Math.atan2(tx-a.x,tz-a.z);moving=true;
     if(d<2.5||a.stuck>0.3&&Math.random()<0.02)a.ang+=0.4;
+    }
   }
   for(const o of ALLIES){if(o===a||!o.alive)continue;const dx=a.x-o.x,dz=a.z-o.z,d=Math.hypot(dx,dz);if(d<2.6&&d>0.01)moveXZ(a,dx/d*2.6*dt,dz/d*2.6*dt,a.r,1.8,1.05)}
   if(moving)a.phase+=dt*9;
@@ -158,7 +181,7 @@ function updateAllies(dt){
   for(let i=ALLIES.length-1;i>=0;i--){const a=ALLIES[i];if(a.gone){ALLIES.splice(i,1);continue}updateAlly(a,dt)}
 }
 function applyArmyStats(){
-  for(const a of ALLIES)if(a.alive){const f=a.hp/a.maxhp;a.maxhp=allyMaxHp();a.hp=Math.min(a.maxhp,Math.max(a.hp,a.maxhp*f)+10)}
+  for(const a of ALLIES)if(a.alive){const f=a.hp/a.maxhp;a.maxhp=allyMaxHp()*(a.hpM||1);a.hp=Math.min(a.maxhp,Math.max(a.hp,a.maxhp*f)+10)}
 }
 
 // ---------- Interface do Quartel ----------
