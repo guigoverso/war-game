@@ -6,7 +6,7 @@ Mantenha curto: o histórico detalhado das regras fica em `docs/fase-4-testes.md
 ## Resumo
 - **Branch de trabalho:** `factions-update` (commitada e enviada).
 - **Fase atual:** 5 (facções). A Fase 4 (rodadas, prefeitura, livro, caravanas, 10 políticas locais) está pronta. A guerra é a Fase 6 (`docs/fase-6-guerra.md`).
-- **Save:** `SAVE_VERSION = 14`.
+- **Save:** `SAVE_VERSION = 16`.
 - **Última atualização:** 2026-11-15 (pacote de correções).
 
 ## Facções (Fase 5): o que existe
@@ -21,7 +21,8 @@ Decisões e números completos em `docs/fase-5-facoes.md`. Código principal: `j
 - **Missões (passo 2):** `js/missions.js`. Cidade: nível × 2 por rodada na prefeitura, várias aceitas, recompensa em ouro/recursos/mista. Facção: no máx. 2 ofertas a cada 3 rodadas (não em guerra), entregas e relatórios feitos na prefeitura do alvo, aceitar = 1 ação do líder, falha no fim da rodada (−1 relação), +1 relação ao cumprir (máx. +2 por facção por rodada). Tipos: acampamento, refém, pacote, matilha, entregar recurso, entregar relíquia. Aba **📋 Missões** no livro, mapa em popup, uma missão ativa. Detalhes em `docs/fase-5-facoes.md`.
 - **F3 (relações entre as facções NPC, `js/facgraph.js`):** grafo por semente (temperamento + vizinhança), propagação fixa ±1 das suas ações para aliadas/rivais, deriva, caravanas entre NPC (uma por rodada: necessidades → aliança → relações) e aba 🕊 Diplomacia (diagrama de cordas). Relatório da propagação no modo criativo. Detalhes em `docs/fase-5-facoes.md`.
 - **F5a (base, `js/facsupply.js`):** suprimento sorteado por facção e recurso a cada rodada (70% situação, 30% sorte), humor das cidades NPC derivado dele, preço de venda e estoque da loja por falta/abundância, contador `ups`. Rebelião das cidades NPC está desenhada em `docs/fase-5-rebeliao.md` (fase própria, não implementada). Ver `docs/fase-5-facoes.md`.
-- **Rebelião de cidades NPC (`js/rebellion.js`, etapas 1 e 2 de 3 feitas):** gatilho por `ups`, cartões, apoio financeiro, sorteio, Negociação, nova facção (save v14) e as batalhas de apoio (raid adaptado) e de repressão (invasão adaptada). Falta o visual (etapa 3) e jogar para balancear. Desenho e como testar (`?cenario=rebeliao`) em `docs/fase-5-rebeliao.md`.
+- **Rebelião de cidades NPC (`js/rebellion.js`, 3 etapas feitas):** gatilho por `ups`, cartões, apoio financeiro, sorteio, Negociação, nova facção (save v14), batalhas (marcador no mapa, gatilho por chegada, tropas, aliados em postos) e a cidade destruída (prédios queimados, buracos de verdade, corpos). Falta jogar para balancear. Desenho e como testar (`?cenario=rebeliao`) em `docs/fase-5-rebeliao.md`.
+- **F5a eventos entre facções NPC (`js/facevents.js`, save v16):** 35% por rodada, 10 eventos independentes (disputa, ajuda, incidente, acordo, festival, casamento, espião/crise, sabotagem, expedição, suborno de caravana) com notícia no Resumo, e a **mediação** como cartão do líder. Desenho, números e como testar em `docs/fase-5-eventos.md`. Falta jogar para balancear.
 - **Modo criativo:** pausa → aba **🏴 Facções** muda o status de cada facção; no livro há botões de relação. **Cenário controlado:** `index.html?cenario=caravanas` (3 rotas: aliada, favorável, neutra; botões "Ir até a caravana" na mesma aba).
 
 ## Pendências e problemas conhecidos
@@ -37,9 +38,9 @@ Decisões e números completos em `docs/fase-5-facoes.md`. Código principal: `j
 - Balanceamento da economia (`ECON`) e dos números das facções (`ECON.ally`, `FAC_*`, `REL_REP`) depende de teste jogando.
 
 ## Próximo passo sugerido
-1. **Rebelião, etapa 3:** visual da cidade destruída (buracos, corpos, prédios queimados) e jogar as batalhas para balancear (`REB`, `rebWaveSpec`).
-2. **F5a, o que faz as relações NPC–NPC subirem e descerem** (decidir antes de codar): chance alta por rodada (~35%), relação NPC só chega a "inimiga". O suprimento (`fsupState`) já serve de base para disputa por recurso e ajuda em desastre.
-3. F5b: reuniões das facções e eventos globais.
+1. **Jogar** a rebelião e os eventos NPC para balancear (`REB`, `rebWaveSpec`, `FEV`).
+2. **F5b:** reuniões das facções e eventos globais.
+3. Eventos propostos e não aprovados, se quiser: roubo de caravana e pacto de defesa (ver `docs/fase-5-eventos.md`).
 4. Raids mais difíceis, jogar rodada 0/missões/suprimento NPC/rebelião para ajustar números (`FSUP`, `REB`, `ECON`).
 5. Fase 6: guerra (inclui sabotagem, que usa `fsupHit`).
 

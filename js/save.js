@@ -50,7 +50,8 @@ function migrateSave(d){
   if(d.v<13){d.v=13}   // v13: relações entre facções NPC (state.frel: só o que mudou; ausente = valor da semente), registro de propagação (state.flog) e rotas NPC (state.rd.nroutes)
   if(d.v<14){d.v=14}   // v14: rebelião de cidades NPC (state.reb: rebelião em andamento, facções novas e cidades que mudaram de facção); ausente = nenhuma
   if(d.v<15){d.v=15}   // v15: o log de políticas guarda 'data' (para rever a política decidida); ausente = sem dados
-  // if(d.v<16){ ...ajustes...; d.v=16 }
+  if(d.v<16){d.v=16}   // v16: eventos entre facções NPC (state.fev: intervalos por par, travas de casamento e mediação na fila) e relatório da rodada atual (state.rd.now); ausente = nada
+  // if(d.v<17){ ...ajustes...; d.v=17 }
   return d;
 }
 
@@ -89,6 +90,7 @@ function applySave(d){
   if(!(s.portals&&s.portals.length)&&s.portalDay===undefined)STATE.portalDay=undefined;   // salvamento antigo: os portais nascem na hora
   if(s.pol)STATE.pol=s.pol;normalizePol();   // políticas: carta pendente, efeitos ativos, fila do turno do Comandante, recargas
   if(s.frel)STATE.frel=s.frel;if(s.flog)STATE.flog=s.flog;
+  if(s.fev)STATE.fev=s.fev;   // eventos entre facções NPC (facevents.js)
   if(s.reb)STATE.reb=s.reb;rebApply();   // facções novas e cidades trocadas (rebellion.js)
   if(s.rel)STATE.rel=s.rel;   // relações com as facções NPC
   if(s.fac)STATE.fac=Object.assign(STATE.fac||{},s.fac);   // identidade do jogador (nome, cor, bandeira)

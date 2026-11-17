@@ -24,7 +24,7 @@ const CITY_COLS=[0xe0402a,0x2aa04a,0xe8b820,0x8a3ac8,0x20b0c8,0xe87820,0xd0409a,
 const resIcon=k=>DATA.resources[k].icon,resName=k=>DATA.resources[k].name;
 
 Hooks.on('round',()=>{for(const c of WORLD.caves)if(!(c.nextRenew>STATE.round)){c.renew=true;c.nextRenew=STATE.round+3+Math.floor(Math.random()*3)}});   // cada gruta renova no máximo a cada 3–5 rodadas (cada uma no seu ritmo)   // grutas renovam baú e animais (poi.js, renewCave)
-Hooks.on('resetState',()=>{STATE.phase='commander';STATE.rd={lvl:1,actions:1,cities:{},routes:[],rbuf:{},debuff:{},report:[],hallCity:0,clv:{}}});
+Hooks.on('resetState',()=>{STATE.phase='commander';STATE.rd={lvl:1,actions:1,cities:{},routes:[],rbuf:{},debuff:{},report:[],now:[],hallCity:0,clv:{}}});
 // ---------- ações do líder: um só lugar para gastar e conferir ----------
 const actCost=kind=>ECON.act[kind]||0;
 const canAct=kind=>isLeader()&&STATE.rd.actions>=actCost(kind);
@@ -90,7 +90,7 @@ function portPct(pf,ps){   // porto: o jogador escolhe o que produz (0%) e o que
   }
   for(const c of WORLD.cities){const e=rd.cities[c.id];if(e&&e.type!=='port'&&NEEDS.some(r=>r!==e.type&&e.pct[r]===undefined))rerollNeeds(c)}   // salvamentos antigos: sorteia as necessidades que faltam (couro)
   for(const c of WORLD.cities)whOf(c);   // cada cidade tem o seu armazém (salvamentos antigos ganham um vazio)
-  if(!rd.routes)rd.routes=[];if(!rd.rbuf)rd.rbuf={};if(!rd.report)rd.report=[];if(!rd.lvl)rd.lvl=1;if(rd.actions===undefined)rd.actions=maxActions();if(!rd.clv)rd.clv={};
+  if(!rd.routes)rd.routes=[];if(!rd.rbuf)rd.rbuf={};if(!rd.report)rd.report=[];if(!rd.now)rd.now=[];if(!rd.lvl)rd.lvl=1;if(rd.actions===undefined)rd.actions=maxActions();if(!rd.clv)rd.clv={};
 }
 // necessidade (em unidades) de um recurso numa cidade; uma caravana que traz o foco do parceiro zera a necessidade dele
 const tradePct=p=>p===100?0:p===150?100:p===200?150:p;   // caravana: 100% some, 150% cai para 100%, 200% cai para 150%
@@ -178,7 +178,7 @@ function endRound(city){
   refreshShops();   // novas necessidades (dado) e Lojas reabastecidas conforme a produção
   rd.debuff=prep?(rd.debuff||{}):debuf;   // debuffs valem na rodada que começa (a necessidade não muda)
   rd.rbuf=Object.assign({},rd.rnext||{});rd.rnext={};   // bônus do que foi entregue vale só na rodada que começa (a rodada 0 também)
-  rd.hallCity=(city||WORLD.home).id;rd.report=rep;
+  rd.hallCity=(city||WORLD.home).id;rd.report=rep;rd.now=[];   // o que fechou esta rodada vira o relatório da ANTERIOR; a nova começa vazia
   STATE.round++;Hooks.emit('round',STATE.round);
   beginLeaderTurn();
   return true;
@@ -569,7 +569,8 @@ function bookPages(){
       +'<h4>Cidades dominadas</h4>'+pcs.map(c=>'<p style="margin:3px 0"><b>'+(c.home?'🏛 ':'')+c.name+'</b> — '+typeLabel(c)+'<br><small>abundância: '+abundHtml(c)+'<br>precisa: '+needsLine(c)+'<br>humor: '+moodHtml(c)+' • no armazém: '+NEEDS.map(r=>resIcon(r)+storedOf(c,r)).join(' ')+' • '+(cityMet(c)?'<span class="ldok">✔ suprida</span>':'<span class="ldbad">⚠ faltam recursos</span>')+'</small></p>').join('');
     const R='<h3>Caravanas ativas</h3>'+(rd.routes.length?'<ul class="ldul">'+rd.routes.map(r=>'<li>'+routeName(r)+'</li>').join('')+'</ul>':'<p>Nenhuma caravana.</p>')
       +(STATE.round<1?'<h4>Rodada 0</h4><p class="ldsm">Não há decisões agora e nada é cobrado: a contagem começa na rodada 1. Veja de que suprimentos cada cidade precisa (aba <b>Cidades</b>) e comece a juntá-los: compre na loja ou ache na natureza (caça, pesca, baús) e entregue no <b>armazém</b> de cada cidade. Quando estiver pronto, encerre a rodada no quadro da prefeitura.</p>'
-        :'<h4>Relatório da rodada anterior</h4>'+(rd.report.length?'<ul class="ldul">'+rd.report.map(t=>'<li>'+t+'</li>').join('')+'</ul>':'<p>Nada a relatar.</p>'))
+        :'<h4>Relatório da rodada</h4><h5>Rodada anterior</h5>'+(rd.report.length?'<ul class="ldul">'+rd.report.map(t=>'<li>'+t+'</li>').join('')+'</ul>':'<p class="ldsm">Nada a relatar.</p>')
+          +'<h5>Rodada atual</h5>'+((rd.now||[]).length?'<ul class="ldul">'+rd.now.map(t=>'<li>'+t+'</li>').join('')+'</ul>':'<p class="ldsm">Nada a relatar até agora.</p>'))
       +'<h4>Humor das outras cidades</h4><p class="ldsm">'+WORLD.cities.filter(c=>c.owner!=='player').map(c=>c.name+': '+MOOD[moodOf(c)].icon+' '+MOOD[moodOf(c)].n).join('<br>')+'</p>'
       +(port||!hasWorldPort?'':'<p class="ldwarn">⚓ Você ainda não tem um porto. Ele fica na cidade litorânea mais forte do mapa.</p>');
     return[L,R];

@@ -36,7 +36,7 @@ addPriceFx('pol',ctx=>polAll('price',ctx.city?ctx.city.id:undefined).filter(f=>p
 // ---------- fim de rodada: rendas por rodada e duração ----------
 Hooks.on('round',()=>{
   const P=STATE.pol;if(!P||!STATE.rd)return;
-  const rep=STATE.rd.report||(STATE.rd.report=[]);
+  const rep={push:rdNow};   // rendas dos efeitos ativos: acontecem na rodada que começa
   for(const f of P.fx){
     if(f.t==='routeProd')for(const id of[f.p.a,f.p.b]){const c=WORLD.cities[id];if(c&&c.owner==='player'&&!polFlag('noProd',id)){const g=prodAdd(c,focusOf(c),f.p.add);rep.push('📜 '+f.txt+': +'+g+' em '+c.name+'.')}}
     if(f.t==='gold'&&f.p.add){shOf().vault+=f.p.add;rep.push('📜 '+f.txt+': +◉'+f.p.add+' no cofre.')}
@@ -80,6 +80,8 @@ function rollPolicy(force){
   if(rc&&rc!=='q'){P.pending=rc;polNoteUpdate();return}   // cartão devido: a notificação do canto já avisa
   const pick=polDraw(force);
   if(rc==='q'&&!(pick&&pick.d.id==='raid')){P.pending=rebAnnounce();polNoteUpdate();return}   // o aviso (um só) já saiu em rebAnnounce
+  const mc=typeof fevMedCard==='function'?fevMedCard():null;   // mediação entre facções NPC rivais (facevents.js): só o raid de bandidos passa na frente
+  if(mc&&!(pick&&pick.d.id==='raid')){P.pending=mc;polNoteUpdate();return}
   if(!pick)return;
   P.pending={pid:pick.d.id,city:pick.city?pick.city.id:-1,round:STATE.round};
   if(pick.d.data)P.pending.data=pick.d.data(rng);   // dados extras sorteados (ex.: qual rota de caravana)
@@ -105,6 +107,7 @@ function polNoteUpdate(){
 
 // ---------- janela do cartão ----------
 let polWin=null;
+const polLab=(op,c,data)=>typeof op.label==='function'?op.label(c,data):op.label;   // rótulo fixo ou calculado (ex.: nome da facção)
 const polCityOf=pd=>pd&&pd.city>=0?WORLD.cities[pd.city]:null;
 const polSafe=(f,d='')=>{try{return f()}catch(e){return d}};   // texto de política já resolvida (ex.: rebelião encerrada) pode depender de estado que não existe mais: nunca derruba o livro
 const polCost=(op,ctx)=>typeof op.cost==='function'?op.cost(ctx):op.cost;   // custo fixo ou calculado na hora (ex.: reparação da declaração de guerra)
@@ -130,7 +133,7 @@ function showPolicy(rev){
     const why=rev?null:op.can?op.can(ctx):null;   // pagar sem ter o ouro é permitido: gera dívida (ver polChoose)
     const oc=polSafe(()=>polCost(op,ctx),null),debt=!rev&&oc&&!Ledger.canAfford(oc);
     const row=document.createElement('div');row.className='card';row.style.cssText='margin:6px 0;padding:8px 10px';
-    row.innerHTML='<b>'+op.k+'. '+op.label+'</b> <span style="color:'+ty.col+';font-size:13px">['+ty.n+']</span><div style="font-size:14px;line-height:1.5;margin-top:3px">'+polSafe(()=>op.eff(c,pd.data))+(op.onStart?' <b>⏱</b>':'')+'</div>';
+    row.innerHTML='<b>'+op.k+'. '+polLab(op,c,pd.data)+'</b> <span style="color:'+ty.col+';font-size:13px">['+ty.n+']</span><div style="font-size:14px;line-height:1.5;margin-top:3px">'+polSafe(()=>op.eff(c,pd.data))+(op.onStart?' <b>⏱</b>':'')+'</div>';
     const btn=UI.button('Escolher',why?'alt':'gold',()=>polChoose(op.k));btn.style.cssText='display:block;margin:8px 0 0';
     if(rev){const me=op.k===rev.k;btn.textContent=me?'✔ Escolhida':'Não escolhida';btn.disabled=true;if(me)row.style.cssText+=';border:3px solid #ffd24a;background:rgba(255,210,74,.12)';else row.style.opacity='0.45';row.appendChild(btn)}
     else if(why){btn.disabled=true;const w=document.createElement('small');w.style.cssText='display:block;color:#ff9a9a';w.textContent=why;row.append(btn,w)}
@@ -154,8 +157,8 @@ function polChoose(k){
     if(cd)STATE.pol.cool[d.id+(c?':'+c.id:'')]=STATE.round+cd;
     STATE.pol.log.push({round:STATE.round,pid:d.id,k,city:pd.city,data:pd.data,snap:ref?JSON.parse(JSON.stringify(ref)):undefined});if(STATE.pol.log.length>20)STATE.pol.log.shift();
     STATE.pol.pending=(STATE.pol.extra&&STATE.pol.extra.shift())||null;   // a próxima política devida no mesmo turno
-    const line='📜 '+d.name+(c?' ('+c.name+')':'')+': '+op.k+'. '+op.label+'.';
-    (STATE.rd.report||(STATE.rd.report=[])).push(line);
+    const line='📜 '+d.name+(c?' ('+c.name+')':'')+': '+op.k+'. '+polLab(op,c,pd.data)+'.';
+    rdNow(line);
     polWin.close();sfx('win',0);toast(line,3500);polNoteUpdate();
     if(typeof renderBook==='function'&&G.panel==='ldbook')renderBook();
     refreshRoundHud();
@@ -209,7 +212,7 @@ function polInfoHtml(){
   const last=P.log.length?P.log[P.log.length-1]:null;
   if(P.pending){const d=POL.byId[P.pending.pid],c=polCityOf(P.pending);h+='<p><b>📜 Política desta rodada:</b> '+(d?d.name:'?')+(c?' ('+c.name+')':'')+' — <i>a decidir</i>'+(P.extra&&P.extra.length?' <small>(+'+P.extra.length+' depois: '+P.extra.map(x=>POL.byId[x.pid].name.toLowerCase()).join(', ')+')</small>':'')+'</p>'}
   else if(last&&last.round===STATE.round){const d=POL.byId[last.pid],op=d&&d.options.find(o=>o.k===last.k),c=last.city>=0?WORLD.cities[last.city]:null;
-    h+='<p><b>📜 Política desta rodada:</b> '+(d?d.name:'?')+(c?' ('+c.name+')':'')+'<br><small>Escolha: '+last.k+'. '+(op?op.label:'')+(op?' — '+polSafe(()=>op.eff(c,last.data)):'')+'</small></p>'}
+    h+='<p><b>📜 Política desta rodada:</b> '+(d?d.name:'?')+(c?' ('+c.name+')':'')+'<br><small>Escolha: '+last.k+'. '+(op?polLab(op,c,last.data):'')+(op?' — '+polSafe(()=>op.eff(c,last.data)):'')+'</small></p>'}
   else h+='<p><b>📜 Política desta rodada:</b> nenhuma.</p>';
   return h;
 }
@@ -299,7 +302,7 @@ definePolicy({id:'epidemia',name:'Epidemia',city:true,
         for(const t of['noRoute','noHeal','noRecruit','noProd','noTax'])x.fx({t,txt:c.name+': '+({noRoute:'sem caravanas',noHeal:'sem cura nem remédios',noRecruit:'sem recrutamento',noProd:'sem produção'+(e.type==='port'?' (porto parado)':''),noTax:'sem imposto'})[t]+' (epidemia)'});
         e.mood='upset';e.ups=(e.ups||0)+1;
         if(dead)x.toast('☠ '+dead+' soldado(s) seu(s) morreram na epidemia.',4500);
-        if(e.ups>=ECON.rebelUps&&!c.home){STATE.rd.report.push('🔥 '+c.name+' SE REBELOU por causa da epidemia!');rebelCity(c)}
+        if(e.ups>=ECON.rebelUps&&!c.home){rdNow('🔥 '+c.name+' SE REBELOU por causa da epidemia!');rebelCity(c)}
       }}
   ]});
 

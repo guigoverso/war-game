@@ -177,7 +177,7 @@ function msShowMap(m){   // o mapa aparece num popup (não abre a aba Mapa do ca
 }
 
 // ---------- concluir e falhar ----------
-const msLine=t=>{(STATE.rd&&STATE.rd.report||[]).push(t)};
+const msLine=t=>{rdNow(t)};
 function msDrop(m){const s=STATE.ms,i=s.taken.indexOf(m);if(i>=0)s.taken.splice(i,1);if(m.campId!==undefined){const k=WORLD.camps.find(x=>x.id===m.campId);if(k)k.questTarget=false}msFixActive()}
 function msComplete(m){
   if(!m||STATE.ms.taken.indexOf(m)<0)return;

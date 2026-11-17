@@ -151,7 +151,7 @@ function relStatus(fid){
   return r.v>=8?'fav':r.v>=4?'neutral':r.v>=1?'unfav':'enemy';
 }
 const facTradeOK=fid=>!fid||['unfav','neutral','fav','ally'].includes(relStatus(fid));   // caravanas: de Desfavorável para cima
-function facNote(msg,ms){if(typeof toast==='function')toast(msg,ms||4000);const rd=STATE.rd;if(rd&&rd.report)rd.report.push(msg)}
+function facNote(msg,ms){if(typeof toast==='function')toast(msg,ms||4000);rdNow(msg)}
 
 // as caravanas com uma facção acabam quando ela vira inimiga, em guerra, ou quando a aliança/comércio se perde
 function facCutCaravans(fid){
@@ -457,7 +457,7 @@ Hooks.on('round',()=>{
     if(r.v===REL_START||(relStatus(+id)==='enemy'&&r.debt))continue;
     if(STATE.round-(r.lastRd||0)>=FAC_DECAY[f.temper||'neutra']){
       const before=r.v;r.v+=Math.sign(REL_START-r.v);r.seenV=r.v;r.lastRd=STATE.round;
-      const rd=STATE.rd;if(rd&&rd.report)rd.report.push('⏳ A relação com '+f.name+' '+(before>REL_START?'esfriou':'melhorou com o tempo')+': '+r.v+'/10 ('+REL_ST[relStatus(+id)].n.toLowerCase()+').');
+      rdNow('⏳ A relação com '+f.name+' '+(before>REL_START?'esfriou':'melhorou com o tempo')+': '+r.v+'/10 ('+REL_ST[relStatus(+id)].n.toLowerCase()+').');
     }
   }
 });

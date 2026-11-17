@@ -169,7 +169,7 @@ function rebApply(){   // depois de gerar o mundo/carregar um save: devolve as f
 // ---------- cartão 1: a decisão ----------
 const rebCur=()=>rebS().cur;
 const rebOwnerName=()=>facOf(rebCur().owner).name;
-const rebAfter=(x,line)=>{rebCur().stage='wait';x.toast(line,4500);const rd=STATE.rd;if(rd&&rd.report)rd.report.push(line)};
+const rebAfter=(x,line)=>{rebCur().stage='wait';x.toast(line,4500);rdNow(line)};
 const rebWithSnap=(s,f)=>{const S=rebS(),old=S.cur;S.cur=s;try{return f()}finally{S.cur=old}};   // rever o cartão depois de a rebelião sumir do estado
 definePolicy({id:'rebnpc',name:'Rebelião',city:true,noRoll:true,flex:true,cool:0,snapRef:()=>rebS().cur,withSnap:rebWithSnap,
   cond:()=>!!rebCur(),
