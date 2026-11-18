@@ -773,7 +773,33 @@ function pauseTab(name){
   document.querySelectorAll('#ptabs button').forEach(b=>b.classList.toggle('sel',b.dataset.pt===name));
   if(name==='rod')refreshPolicyCheats();
   if(name==='facs')renderFacCheats();
+  if(name==='locs')renderLocs();
 }
+// aba Locais (modo criativo): botões de teleporte para os edifícios de tipo das cidades, as cidades e os POIs do mapa
+function renderLocs(){
+  const box=$('locscheat');if(!box)return;
+  if(!WORLD.cities){box.textContent='Gere o mundo primeiro.';return}
+  const b=(k,t)=>'<button class="alt" data-loc="'+k+'">'+t+'</button> ',h=t=>'<p class="ldsm" style="margin:10px 0 4px"><b>'+t+'</b></p>';
+  const nm=c=>c.name+(c.home?' (capital)':'');
+  let s=h('🏭 Edifício de tipo (por dentro)');
+  for(const c of WORLD.cities)if(c.works)s+=b('w'+c.id,(WORKS[c.works.type]||{n:c.works.type}).n+' — '+nm(c));
+  s+=h('🏘 Cidades')+WORLD.cities.map(c=>b('c'+c.id,nm(c))).join('');
+  s+=h('⛺ Acampamentos de bandidos')+WORLD.camps.filter(k=>!k.gone).map((k,i)=>b('k'+k.id,'#'+(i+1)+(k.state==='cleared'?' (limpo)':''))).join('');
+  s+=h('🕳 Grutas')+WORLD.caves.map((k,i)=>b('g'+k.id,'#'+(i+1))).join('');
+  s+=h('🌀 Portais')+(STATE.portals&&STATE.portals.length?STATE.portals.map((p,i)=>b('p'+i,'#'+(i+1))).join(''):'<small>Nenhum ativo (aba Mundo → "Criar portais agora").</small>');
+  s+='<p class="ldsm" style="margin-top:10px">Os POIs novos da guerra (fazenda, mina, ponte, forte...) ainda não existem no jogo.</p>';
+  box.innerHTML=s;
+}
+document.addEventListener('click',e=>{
+  const bt=e.target.closest('#locscheat button');if(!bt||!bt.dataset.loc)return;
+  const k=bt.dataset.loc,t=k[0],id=+k.slice(1);let x,z,y;
+  if(t==='w'){const c=WORLD.cities.find(q=>q.id===id);if(!c||!c.works)return;x=c.works.x;z=c.works.z;y=c.y+0.3}
+  else if(t==='c'){const c=WORLD.cities.find(q=>q.id===id);if(!c)return;x=c.cx+c.S+2.5;z=c.cz+c.P-2;y=c.y+0.3}
+  else if(t==='p'){const p=STATE.portals[id];if(!p)return;x=p.x+4;z=p.z;y=tH(x,z)+0.3}
+  else{const a=(t==='k'?WORLD.camps:WORLD.caves).find(q=>q.id===id);if(!a)return;x=a.cx+6;z=a.cz;y=tH(x,z)+0.3}
+  if(G.office)leaveOffice();   // no turno do Líder o jogador está no escritório: sai primeiro (o mundo só aparece fora dele)
+  P.x=x;P.z=z;P.y=y;P.vx=P.vz=P.vy=0;P.camY=P.y;closePanel();
+});
 document.addEventListener('click',e=>{const b=e.target.closest('#ptabs button');if(b&&b.dataset.pt)pauseTab(b.dataset.pt)});
 // aba Rodadas: lista de eventos para invocar (só no turno do Líder) e o resumo da política atual
 function refreshPolicyCheats(){

@@ -65,20 +65,28 @@ const focusOf=c=>{const e=ec(c);return e.type==='port'?e.pf:e.type};
 const maxActions=()=>STATE.rd.lvl;
 function portPct(pf,ps){   // porto: o jogador escolhe o que produz (0%) e o que falta (200%); o resto fica em 150% / 100% (só recursos físicos são necessidades)
   const p={},rest=NEEDS.filter(r=>r!==pf&&r!==ps);if(NEEDS.includes(pf))p[pf]=0;p[ps]=200;rest.forEach((r,i)=>p[r]=[150,100,100][i]);return p;
-}function initEconomy(){
-  const rd=STATE.rd;if(!rd.cities)rd.cities={};
-  const hasPort=Object.values(rd.cities).some(e=>e.type==='port');
-  // o porto é uma cidade forte que não é a capital e fica no litoral: a mais forte entre as litorâneas; sem litoral, a mais forte de todas
-  const strong=WORLD.cities.filter(c=>!c.home).sort((a,b)=>(b.rank||0)-(a.rank||0)||a.id-b.id);
-  const cand=strong.find(c=>c.coastal);   // sem cidade litorânea, o mundo não tem porto
+}
+// tipo de cada cidade (food/ore/wood/leather/gold/port) por semente: o mundo usa já na geração (edifício do tipo, city.js) e a economia na rodada 0.
+// done = cidades que já têm economia (salvamento); só as que faltam são sorteadas.
+function cityTypePlan(cities,seed,done){
+  done=done||{};
+  const hasPort=Object.values(done).some(e=>e.type==='port');
+  // o porto é uma cidade forte que não é a capital e fica no litoral: a mais forte entre as litorâneas; sem litoral, o mundo não tem porto
+  const strong=cities.filter(c=>!c.home).sort((a,b)=>(b.rank||0)-(a.rank||0)||a.id-b.id);
+  const cand=strong.find(c=>c.coastal);
   // tipos distribuídos por rodízio (embaralhado pela semente): nenhum tipo some nem domina, mesmo com poucas cidades
-  const gr=new RNG((WORLD.seed*7919+13)>>>0),kinds=gr.shuffle(['food','ore','wood','leather','gold']),ord=gr.shuffle(WORLD.cities.filter(c=>!rd.cities[c.id]&&!(!hasPort&&cand&&cand.id===c.id))),assign={};
+  const gr=new RNG((seed*7919+13)>>>0),kinds=gr.shuffle(['food','ore','wood','leather','gold']),ord=gr.shuffle(cities.filter(c=>!done[c.id]&&!(!hasPort&&cand&&cand.id===c.id))),assign={};
   ord.forEach((c,i)=>assign[c.id]=kinds[i%kinds.length]);
+  if(!hasPort&&cand&&!done[cand.id])assign[cand.id]='port';
+  return assign;
+}
+function initEconomy(){
+  const rd=STATE.rd;if(!rd.cities)rd.cities={};
+  const assign=cityTypePlan(WORLD.cities,WORLD.seed,rd.cities);
   for(const c of WORLD.cities){
     if(rd.cities[c.id])continue;
     const rng=new RNG((WORLD.seed*31+c.id*977+5)>>>0);
-    const isPort=!hasPort&&cand&&cand.id===c.id;
-    const type=isPort?'port':assign[c.id];
+    const type=assign[c.id];
     const e={type,pct:{},pf:type==='port'?rng.pick(RES4):type,ps:'',got:{},carry:{}};
     if(type==='port'){do{e.ps=rng.pick(NEEDS)}while(e.ps===e.pf);e.pct=portPct(e.pf,e.ps)}
     else{   // foco = 0%; as outras três necessidades sorteiam 200/150/100

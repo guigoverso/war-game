@@ -153,24 +153,31 @@ async function genWorld(seed,status,dominant){
       if(ok&&mx-mn<=28*relax)cand.push({x,z,b:B[z*W+x],rough:mx-mn});
     }
   }
-  const sites=[];
+  // O número de cidades depende da área útil: uma cidade tem até 90 blocos de lado, mais a faixa de terreno aplainado em volta. Se a terra (ilha pequena, faixa
+  // estreita, deserto recortado) não comporta 7 cidades afastadas, o mundo ganha MENOS cidades em vez de cidades coladas (a construção e o aplainamento se atropelavam).
+  const sites=[],MIND=104,MINC=4;   // MIND: distância mínima entre os centros; só desce (de 10 em 10) se não couberem ao menos MINC cidades
   if(cand.length)sites.push(cand[rng.int(0,cand.length-1)]);
-  while(sites.length<7&&cand.length){
-    let bestC=null,bs=-1e9;
-    for(const c of cand){
-      let md=1e9;for(const s of sites){const d=Math.hypot(s.x-c.x,s.z-c.z);if(d<md)md=d}
-      const same=sites.filter(s=>s.b===c.b).length;
-      const sc=md-(same>=3?10:0)-c.rough*0.35+rng.range(0,3);
-      if(sc>bs){bs=sc;bestC=c}
+  const pickSites=floorD=>{
+    while(sites.length<7&&cand.length){
+      let bestC=null,bs=-1e9,bmd=0;
+      for(const c of cand){
+        let md=1e9;for(const s of sites){const d=Math.hypot(s.x-c.x,s.z-c.z);if(d<md)md=d}
+        const same=sites.filter(s=>s.b===c.b).length;
+        const sc=md-(same>=3?10:0)-c.rough*0.35+rng.range(0,3);
+        if(sc>bs){bs=sc;bestC=c;bmd=md}
+      }
+      if(bmd<floorD)break;   // o melhor lugar que sobrou já é perto demais: não cabe mais cidade
+      sites.push(bestC);
     }
-    sites.push(bestC);
-  }
-  // último recurso (poucos candidatos): sempre em terra firme, afastado das outras; relaxa a distância se não achar
-  for(let tries=0,minD=90;sites.length<7&&tries<20000;tries++){
-    if(tries&&tries%2000===0)minD=Math.max(40,minD-12);
-    const x=rng.int(76,W-76),z=rng.int(76,W-76);
-    if(H[z*W+x]>=SEA+1&&sites.every(s=>Math.hypot(s.x-x,s.z-z)>minD))sites.push({x,z,b:B[z*W+x]});
-  }
+    // último recurso (poucos candidatos): sempre em terra firme, afastado das outras; relaxa a distância até o piso se não achar
+    for(let tries=0,minD=Math.max(floorD,120);sites.length<7&&tries<20000;tries++){
+      if(tries&&tries%2000===0)minD=Math.max(floorD,minD-12);
+      const x=rng.int(76,W-76),z=rng.int(76,W-76);
+      if(H[z*W+x]>=SEA+1&&sites.every(s=>Math.hypot(s.x-x,s.z-z)>minD))sites.push({x,z,b:B[z*W+x]});
+    }
+  };
+  pickSites(MIND);
+  for(let fl=MIND-10;sites.length<MINC&&fl>=64;fl-=10)pickSites(fl);
   const used=new Set();
   const cities=sites.map((s,i)=>{
     const bio=B[s.z*W+s.x];
@@ -250,6 +257,7 @@ async function genWorld(seed,status,dominant){
     c.coast=wet;c.coastal=wet>=12;
   }
 
+  WORLD.ctype=cityTypePlan(cities,seed,{});   // tipo (economia) de cada cidade, decidido já aqui: a cidade ganha o edifício do tipo (city.js)
   // 4) Cidades
   for(const c of cities){
     status('Construindo '+c.name+'...');await tick();

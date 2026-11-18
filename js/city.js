@@ -270,7 +270,82 @@ function buildWarehouse(c,f,D,doorU,rng){
   const p=wx(mid,V-4.4);c.warehouse={x:p[0],z:p[1]};
   const sp=wx(doorU+1,-0.22);makeSign('ARMAZÉM',3.4,0.85,0x5a4a2a,0xf0e0b0,sp[0],c.y+3.3,sp[1],D);
 }
-// loja: balcão// loja: balcão, prateleiras com mercadorias, caixotes e o mercador atrás do balcão
+// edifício do tipo da cidade (c.works): sem placa; o formato e as cores é que chamam atenção (tipo em c.ctype, vindo de cityTypePlan).
+// n: nome (aba Locais); sz: tamanhos de lote tentados; o: opções do corpo (altura, parede, telhado...)
+const WORKS={
+  food:{n:'Moinho',sz:[[7,7],[8,8]],o:{h:9,wall:0xefe8d8,roof:0x8b3a2b,roofT:'hip',chimney:false,timber:false,shut:null}},
+  ore:{n:'Forja',sz:[[10,7],[7,10],[9,7],[7,9]],o:{h:3.6,wall:0x7a7a82,roof:0x33333a,roofT:'gable',chimney:false,timber:false,shut:null}},
+  wood:{n:'Serraria',sz:[[10,7],[7,10],[9,7],[7,9]],o:{h:4,roof:0xc09050,roofT:'gable'}},
+  leather:{n:'Curtume',sz:[[9,7],[7,9],[8,7],[7,8]],o:{h:4,wall:0xc4703a,roof:0x4a2a1a,roofT:'gable',chimney:false,timber:true,shut:0x4a3a2a}},
+  gold:{n:'Casa da Moeda',sz:[[9,8],[8,9],[9,7],[7,9]],o:{h:5,wall:0xefe6cc,roof:0xb8962a,roofT:'hip',trim:0xc8b070,chimney:false,timber:false,shut:null}},
+  port:{n:'Alfândega',sz:[[10,7],[7,10],[9,7],[7,9]],o:{h:4.5,wall:0xdfe6ee,roof:0x2f5a85,trim:0x7a9ab8,roofT:'gable',chimney:false,timber:false,shut:null}}
+};
+// serraria: galpão aberto (só pilares, parede do fundo e telhado), em vez de uma casa fechada
+function makeShed(c,r,D,o,rng){
+  const f=frameOf(r,D),h=o.h;r.bh=h;const pc=0x5a3d22;
+  for(const [px,pz] of[[f.X0,f.Z0],[f.X1-1,f.Z0],[f.X0,f.Z1-1],[f.X1-1,f.Z1-1]])Bc(c,px,0,pz,px+1,h,pz+1,pc,true,{j:0.03});
+  for(let u=3;u<f.U-2;u+=3)FB(c,f,u,0,u+0.8,0.8,0,h-0.2,pc,true,{j:0.03});   // pilares da frente
+  FB(c,f,0,f.V-1,f.U,f.V,0,h,0xa87a4a,true,{j:0.04});   // parede do fundo (tábuas)
+  FB(c,f,0,0,f.U,0.8,h-0.5,h,0x4a2f1a,false,{j:0});FB(c,f,0,f.V-1,f.U,f.V,h-0.5,h,0x4a2f1a,false,{j:0});   // vigas
+  fillT(c,r,T_FLOOR);
+  f.layers=roofOn(c,f.X0,f.Z0,f.X1,f.Z1,h,'gable',o.roof,{trim:0x4a2f1a});
+  return f;
+}
+function buildWorks(c,f,D,doorU,rng,type){
+  const wx=(u,v)=>{const m=f.map(u,v);return[c.cx+m[0],c.cz+m[1]]},U=f.U,V=f.V,mid=U/2,far=doorU<U/2?U-2.6:1.0;   // far: lado da frente oposto à porta (a entrada fica livre)
+  const WOOD=0x7a5632,lay=f.layers||2,top=WORKS[type].o.h+lay;
+  if(type==='food'){   // moinho de vento: torre alta com cúpula, galeria e pás giratórias (WORLD.windmills) na parede da porta
+    FB(c,f,-0.3,-0.3,U+0.3,0.1,6,6.4,0x6b4a2a,false,{j:0});FB(c,f,-0.3,V-0.1,U+0.3,V+0.3,6,6.4,0x6b4a2a,false,{j:0});FB(c,f,-0.3,-0.3,0.1,V+0.3,6,6.4,0x6b4a2a,false,{j:0});FB(c,f,U-0.1,-0.3,U+0.3,V+0.3,6,6.4,0x6b4a2a,false,{j:0});   // galeria
+    FB(c,f,mid-0.2,-1.3,mid+0.2,0,7.2,7.6,0x4a2f1a,false,{j:0});   // eixo
+    const nrm={N:[0,-1],S:[0,1],W:[-1,0],E:[1,0]}[D],hp=wx(mid,-1.4),g=new THREE.Group();g.position.set(hp[0],c.y+7.4,hp[1]);g.rotation.y=Math.atan2(nrm[0],nrm[1]);
+    part(g,GEO_BOX,0.6,0.6,0.5,0x4a2f1a,0,0,0);
+    for(let b=0;b<4;b++){const arm=new THREE.Group();arm.rotation.z=b*Math.PI/2;part(arm,GEO_BOX,0.4,4.6,0.12,0x6b4a2a,0,2.6,0);part(arm,GEO_BOX,1.2,3.2,0.06,0xf0e8d0,0.8,3.0,0);g.add(arm)}
+    scene.add(g);WORLD.windmills.push(g);
+    // por dentro: mó com funil, sacos de farinha e fardos de trigo
+    FB(c,f,mid-1.5,V-4.0,mid+1.5,V-2.5,0,0.7,0x8a8a8a,true);FB(c,f,mid-1.3,V-3.8,mid+1.3,V-2.7,0.7,1.0,0xb4b4b4,false,{j:0.02});
+    FB(c,f,mid-0.15,V-3.35,mid+0.15,V-3.15,1.0,6,WOOD,false,{j:0});FB(c,f,mid-0.8,V-3.7,mid+0.8,V-2.8,6,6.8,0x8a6a3a,false,{j:0.02});
+    for(let u=1.0;u<U-1.6;u+=1.0)FB(c,f,u,V-1.5,u+0.8,V-0.9,0,0.9+0.15*((u*3)%2),0xe8dcc0,false,{j:0.04});
+    FB(c,f,far,1.5,far+1.6,3.0,0,1.0,0xd8b040,true,{j:0.04});FB(c,f,far+0.2,1.7,far+1.4,2.8,1.0,1.7,0xe0c050,false,{j:0.05});
+  }else if(type==='ore'){   // forja: casa baixa e escura com uma chaminé de pedra enorme, fumaça e brasa na boca da fornalha
+    FB(c,f,1.0,V-3.6,3.6,V-1.0,0,12,0x6a6a70,true,{j:0.04});FB(c,f,0.8,V-3.8,3.8,V-0.8,11.4,12.2,0x55555c,false,{j:0.03});   // chaminé
+    FB(c,f,1.4,V-3.7,3.2,V-3.6,0.3,1.3,0xff7a20,false,{j:0});FB(c,f,1.8,V-3.7,2.8,V-3.6,0.4,0.8,0xffd060,false,{j:0});   // boca da fornalha
+    for(let k=0;k<3;k++)FB(c,f,1.0-k*0.2,V-3.6-k*0.2,3.6+k*0.3,V-1.0+k*0.2,12.2+k*1.1,13.3+k*1.1,[0x9a9a9e,0xb4b4b8,0xcfcfd2][k],false,{j:0.08});   // fumaça
+    FB(c,f,mid-0.4,V-3.2,mid+0.6,V-2.3,0,0.5,0x3a3a3a,true);FB(c,f,mid-0.5,V-3.3,mid+0.7,V-2.2,0.5,0.8,0x2a2a2a,false,{j:0});   // bigorna
+    FB(c,f,far,1.5,far+1.6,3.0,0,0.9,0x7a6a5a,true,{j:0.06});FB(c,f,far+0.2,1.7,far+1.0,2.5,0.9,1.4,0x5a5a6a,false,{j:0.06});FB(c,f,far+0.9,1.8,far+1.5,2.6,0.9,1.2,0x8a5a3a,false,{j:0.06});
+    for(let k=0;k<3;k++)FB(c,f,U-1.6,V-3.2+k*0.8,U-1.0,V-2.6+k*0.8,0,0.4+0.25*k,0xc0c8d0,false,{j:0.02});
+    FB(c,f,-1.3,2,-0.2,3.4,0,0.9,0x7a6a5a,true,{j:0.06});FB(c,f,-1.2,2.1,-0.4,3.2,0.9,1.3,0x5a5a6a,false,{j:0.06});   // minério empilhado do lado de fora
+  }else if(type==='wood'){   // serraria: galpão aberto com toras, bancada com serra e tábuas
+    for(let r=0;r<3;r++)for(let k=0;k<3-r;k++)FB(c,f,1.0+k*0.9+r*0.45,V-2.9,1.8+k*0.9+r*0.45,V-1.1,r*0.55,r*0.55+0.55,r%2?0x8a5a2a:0x6a4220,false,{j:0.05});
+    FB(c,f,U-4.4,V-4.2,U-1.2,V-3.2,0,0.9,0x8a6a3a,true);FB(c,f,U-3.1,V-4.3,U-2.9,V-3.1,0.9,1.9,0xc0c8d0,false,{j:0});
+    FB(c,f,far,1.5,far+1.6,3.0,0,0.8,0xd0a868,true,{j:0.04});FB(c,f,far+0.1,1.6,far+1.5,2.9,0.8,1.1,0xe0b878,false,{j:0.03});
+    for(let r=0;r<3;r++)for(let k=0;k<4-r;k++)FB(c,f,-1.4,1.5+k*1.0+r*0.5,-0.2,2.4+k*1.0+r*0.5,r*0.6,r*0.6+0.6,r%2?0x8a5a2a:0x6a4220,false,{j:0.05});   // pilha de toras do lado de fora
+  }else if(type==='leather'){   // curtume: tinas de curtir por dentro e varais de couro pendurados do lado de fora
+    for(let k=0;k<2;k++){const u=1.0+k*2.4;FB(c,f,u,V-3.2,u+1.8,V-1.4,0,0.9,0x6a4a2a,true);FB(c,f,u+0.15,V-3.05,u+1.65,V-1.55,0.9,0.97,k?0x5a7a3a:0x7a5a2a,false,{j:0})}
+    for(const v of[1.6,V-1.8])FB(c,f,-1.4,v,-1.28,v+0.12,0,3.6,WOOD,false,{j:0});FB(c,f,-1.4,1.6,-1.28,V-1.68,3.5,3.6,WOOD,false,{j:0});   // varal na parede da esquerda
+    for(let v=2.0,k=0;v<V-2.4;v+=0.8,k++)FB(c,f,-1.36,v,-1.2,v+0.6,1.2,3.5,[0xe0b888,0xd0a070,0xc89860,0xe8c898][k%4],false,{j:0.03});
+    for(const v of[1.6,V-1.8])FB(c,f,U+0.2,v,U+0.32,v+0.12,0,3.6,WOOD,false,{j:0});FB(c,f,U+0.2,1.6,U+0.32,V-1.68,3.5,3.6,WOOD,false,{j:0});   // e na da direita
+    for(let v=2.0,k=0;v<V-2.4;v+=0.8,k++)FB(c,f,U+0.2,v,U+0.36,v+0.6,1.2,3.5,[0xc89860,0xe8c898,0xe0b888,0xd0a070][k%4],false,{j:0.03});
+    FB(c,f,far,1.6,far+1.6,3.0,0,0.5,0xc09060,false,{j:0.05});
+  }else if(type==='gold'){   // casa da moeda: pórtico de colunas, frontão e cúpula dourada; por dentro, balcão, moedas e cofre
+    for(const u of[doorU-3.4,doorU-1.4,doorU+3.1,doorU+5.1])if(u>-0.6&&u<U+0.1)FB(c,f,u,-1.5,u+0.5,-1.0,0,3.6,0xf0ead8,true);
+    FB(c,f,Math.max(-0.8,doorU-3.7),-1.7,Math.min(U+0.8,doorU+5.7),-0.3,3.6,4.1,0xe8e0c8,false,{j:0.01});FB(c,f,Math.max(-0.4,doorU-3.0),-1.5,Math.min(U+0.4,doorU+5.0),-0.5,4.1,4.6,0xe0d8b8,false,{j:0.01});
+    for(let k=0;k<3;k++)FB(c,f,mid-1.8+k*0.5,V/2-1.8+k*0.5,mid+1.8-k*0.5,V/2+1.8-k*0.5,top-0.6+k*0.8,top-0.6+(k+1)*0.8,0xd8b030,false,{j:0.02});
+    FB(c,f,mid-0.12,V/2-0.12,mid+0.12,V/2+0.12,top+1.8,top+3.2,0xe0b030,false,{j:0});
+    FB(c,f,mid-2.4,V-3.4,mid+2.4,V-2.5,0,1.1,0x5a3d22,true);FB(c,f,mid-2.4,V-3.3,mid+2.4,V-3.2,1.1,2.4,0x2a2a2a,false,{j:0});
+    for(let k=0;k<4;k++)FB(c,f,mid-2.0+k*1.1,V-3.0,mid-1.6+k*1.1,V-2.7,1.1,1.1+0.15*(k+1),0xe8b830,false,{j:0.02});
+    FB(c,f,mid-1.4,V-1.5,mid+1.4,V-0.9,0,2.3,0x5a5a62,true);FB(c,f,mid-0.35,V-1.6,mid+0.35,V-1.5,1.0,1.7,0xe0b030,false,{j:0});
+    FB(c,f,far,1.6,far+1.3,2.6,0,0.8,0x6b4a2a,true);FB(c,f,far+0.55,1.55,far+0.75,2.65,0,0.8,0xe0b030,false,{j:0});
+  }else{   // alfândega (porto): mastro com vela e bandeira no telhado, caixas por dentro e por fora, mesa com carta marítima
+    FB(c,f,U-1.7,V-1.7,U-1.2,V-1.2,0,11.5,0x6b4a2a,true);FB(c,f,U-3.9,V-1.6,U+0.3,V-1.3,8.6,8.9,0x6b4a2a,false,{j:0});FB(c,f,U-3.7,V-1.55,U+0.1,V-1.35,5.6,8.6,0xf0ecdc,false,{j:0.02});
+    FB(c,f,U-1.2,V-1.6,U+0.7,V-1.3,10.4,11.3,0x2a6aff,false,{j:0});   // bandeirola
+    for(let k=0;k<(U>=9?3:2);k++){const u=1.0+k*1.3;FB(c,f,u,V-2.0,u+1.1,V-0.9,0,1.0,0x8a6a3a,true,{j:0.04});if(k!==1)FB(c,f,u+0.1,V-1.9,u+1.0,V-1.0,1.0,1.8,0xa08050,false,{j:0.04})}
+    FB(c,f,mid-1.5,V-3.8,mid+1.5,V-2.8,0,1.0,WOOD,true);FB(c,f,mid-1.3,V-3.6,mid+1.3,V-3.0,1.0,1.04,0xe8dcb8,false,{j:0});FB(c,f,mid-0.6,V-3.5,mid+0.3,V-3.1,1.04,1.06,0x4a8ac0,false,{j:0});
+    FB(c,f,far,1.6,far+0.9,2.5,0,0.9,0x6b3a22,false,{j:0.03});
+    FB(c,f,-1.3,1.5,-0.2,2.7,0,1.0,0x8a6a3a,true,{j:0.04});FB(c,f,-1.2,1.6,-0.4,2.6,1.0,1.8,0xa08050,false,{j:0.04});FB(c,f,-1.3,3.0,-0.2,4.2,0,1.0,0x7a5a32,true,{j:0.04});   // caixas do lado de fora
+  }
+  const p=wx(mid,V-4.4);c.works={x:p[0],z:p[1],type};
+}
+// loja: balcão, prateleiras com mercadorias, caixotes e o mercador atrás do balcão
 function buildStore(c,f,D,doorU,rng){
   const wx=(u,v)=>{const m=f.map(u,v);return[c.cx+m[0],c.cz+m[1]]},mid=f.U/2;
   FB(c,f,mid-3,f.V-3.4,mid+3,f.V-2.4,0,1.1,0x5a3d22,true);
@@ -338,6 +413,7 @@ function buildTavern(c,f,D,doorU,rng){
 
 function buildCity(c,rng){  const Hc=c.half;
   const ps=PAL[c.biome===BIO_ROCK?1:c.biome];
+  c.ctype=(WORLD.ctype&&WORLD.ctype[c.id])||null;   // tipo da cidade (ver cityTypePlan, rounds.js)
   c.pal={walls:[rng.pick(ps.walls),rng.pick(ps.walls),rng.pick(ps.walls)],roofs:[rng.pick(ps.roofs),rng.pick(ps.roofs)],base:ps.base,trim:ps.trim,all:ps.walls};
   const ord=c.style==='ordenada',cha=c.style==='caotica';
   if(ord){c.pal.walls=rng.shuffle(ps.walls.slice()).slice(0,4);c.pal.roofs=rng.shuffle(ps.roofs.slice()).slice(0,3)}
@@ -592,9 +668,10 @@ function buildCity(c,rng){  const Hc=c.half;
     if(hallTurn){o.h=5;o.wall=0xe6dcc0;o.roof=0x3f5a8a;o.roofT='hip';o.chimney=false;if(Uu>=9&&Vv>=9){o.floors=2;floors=2;o.hall=true}}   // prefeitura grande: 2 andares (térreo com o quadro, 2º com a sala do líder)
     if(sk==='store'){o.h=4;o.wall=0xe8d8b0;o.roof=0x8a3a2a;o.roofT='gable';o.chimney=false;o.timber=false;o.shut=0x3a5a3a}
     if(sk==='warehouse'){o.h=4;o.wall=0xb8a078;o.roof=0x5a4a3a;o.roofT='gable';o.chimney=false;o.timber=true;o.shut=0x4a3a2a}
+    if(sk==='works')Object.assign(o,WORKS[c.ctype].o);   // formato próprio de cada tipo (ver WORKS)
     if(sk==='tavern'){o.h=5;o.wall=0xc89a62;o.roof=0x5a3a24;o.roofT='gable';o.chimney=true;o.timber=true;o.shut=0x5a3d22}
-    const f=makeBuilding(c,r,D,p-(ns?r.x0:r.z0),o,rng);(c.doors=c.doors||[]).push(f.map(p-(ns?r.x0:r.z0)+1,-0.5));if(floors>1)(c.multi=c.multi||[]).push({r,floors,D,f});
-    if(hallTurn)buildHall(c,f,D,p-(ns?r.x0:r.z0),rng,o);else if(sk==='store')buildStore(c,f,D,p-(ns?r.x0:r.z0),rng);else if(sk==='tavern')buildTavern(c,f,D,p-(ns?r.x0:r.z0),rng);else if(sk==='warehouse')buildWarehouse(c,f,D,p-(ns?r.x0:r.z0),rng);else if(floors>1){const ub=rng.int(1,Math.max(1,f.U-5));FB(c,f,ub,1,ub+1.6,2,0,0.85,0x8a6a3a,true);FB(c,f,ub+0.1,1.1,ub+0.5,1.5,0.85,1.1,0xd8d0c0,false)}else furnishHouse(c,f,rng,D);
+    const f=(sk==='works'&&c.ctype==='wood')?makeShed(c,r,D,o,rng):makeBuilding(c,r,D,p-(ns?r.x0:r.z0),o,rng);(c.doors=c.doors||[]).push(f.map(p-(ns?r.x0:r.z0)+1,-0.5));if(floors>1)(c.multi=c.multi||[]).push({r,floors,D,f});
+    if(hallTurn)buildHall(c,f,D,p-(ns?r.x0:r.z0),rng,o);else if(sk==='store')buildStore(c,f,D,p-(ns?r.x0:r.z0),rng);else if(sk==='tavern')buildTavern(c,f,D,p-(ns?r.x0:r.z0),rng);else if(sk==='warehouse')buildWarehouse(c,f,D,p-(ns?r.x0:r.z0),rng);else if(sk==='works')buildWorks(c,f,D,p-(ns?r.x0:r.z0),rng,c.ctype);else if(floors>1){const ub=rng.int(1,Math.max(1,f.U-5));FB(c,f,ub,1,ub+1.6,2,0,0.85,0x8a6a3a,true);FB(c,f,ub+0.1,1.1,ub+0.5,1.5,0.85,1.1,0xd8d0c0,false)}else furnishHouse(c,f,rng,D);
     houses.push(r);path.forEach(q=>setTL(c,q.x0,q.z0,T_STREET));
     res.push({x0:r.x0-1,x1:r.x1+1,z0:r.z0-1,z1:r.z1+1});
     if(rng.chance(ord?0.6:0.4)){
@@ -616,9 +693,10 @@ function buildCity(c,rng){  const Hc=c.half;
     if(c.hall)break;
   }
   // a loja (compra e venda de itens) e a taverna (cozinha) também são procuradas antes das casas comuns
-  for(const sp of['store','warehouse','tavern']){
+  for(const sp of['store','warehouse','tavern','works']){
+    if(sp==='works'&&!c.ctype)continue;   // (só o edifício do tipo: precisa do tipo decidido)
     // a taverna é maior (mesas, balcão e fogão): tenta os tamanhos maiores primeiro
-    const sizes=sp==='tavern'?[[12,9],[9,12],[11,8],[8,11],[10,8],[8,10]]:[[8,6],[6,8],[7,6],[6,7]];
+    const sizes=sp==='tavern'?[[12,9],[9,12],[11,8],[8,11],[10,8],[8,10]]:sp==='works'?WORKS[c.ctype].sz:[[8,6],[6,8],[7,6],[6,7]];
     for(const [hw,hd] of sizes){
       if(c[sp])break;
       const cands=[];
