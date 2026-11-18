@@ -6,8 +6,8 @@ Mantenha curto: o histórico detalhado das regras fica em `docs/fase-4-testes.md
 ## Resumo
 - **Branch de trabalho:** `factions-update` (commitada e enviada).
 - **Fase atual:** 5 (facções). A Fase 4 (rodadas, prefeitura, livro, caravanas, 10 políticas locais) está pronta. A guerra é a Fase 6 (`docs/fase-6-guerra.md`).
-- **Save:** `SAVE_VERSION = 18`.
-- **Última atualização:** 2026-11-17 (F5b reuniões, relatório com motivos, relação ±1 por decisão).
+- **Save:** `SAVE_VERSION = 19`.
+- **Última atualização:** 2026-11-18, sessão local (F5d: facção destruída, rebelião em cidade do jogador, stamina/queda, ajustes).
 
 ## Facções (Fase 5): o que existe
 Decisões e números completos em `docs/fase-5-facoes.md`. Código principal: `js/factions.js`, `js/flageditor.js`, `js/scenario.js`.
@@ -28,14 +28,18 @@ Decisões e números completos em `docs/fase-5-facoes.md`. Código principal: `j
 - **Relatório da rodada:** duas partes (anterior/atual; `rdNow`), e toda mudança da sua relação com uma facção entra com o motivo (`relLog`). **Relação:** uma decisão muda no máximo ±1 (`relChange`; `fixed` para efeitos que mexem nas relações).
 - **Modo criativo:** pausa → aba **🏴 Facções** muda o status de cada facção; no livro há botões de relação. **Cenário controlado:** `index.html?cenario=caravanas` (3 rotas: aliada, favorável, neutra; botões "Ir até a caravana" na mesma aba).
 
-## F5d (feita, não commitada)
-Facção destruída, aliada ofendida, reparação única, mina dourada 5 rodadas, eventos em andamento, stamina, pulo/queda, NPCs imortais. Ver `docs/fase-5-facoes.md` (F5d). Testada só por console; falta jogar. Depois: dungeon dourada só no turno, morte encerra turno, sala do líder na cor da facção, rebelião em cidade do jogador (`js/rebmine.js`).
+## F5d (feita e enviada, commit 3f3cd95; testada só por console)
+Detalhes e como testar em `docs/fase-5-facoes.md` (seções F5d).
+- **Facção destruída:** NPC sem cidades some (`facDestroy`/`facReap`, `STATE.deadFacs`); `facOf` devolve "Facção extinta" para ids sem facção; id de facção nova nunca reaproveita o de uma destruída; `rebSweep` corrige cidade órfã.
+- **Rebelião em cidade sua (`js/rebmine.js`):** usa `STATE.reb.cur` com `owner:0`; começa no fim da rodada (fogo, ruínas, bandeira rebelde); lutar (5 rodadas sem se rebelar, sem pós-rebelião) ou reconhecer a independência (facção nova ou anexada; +1 descontentamento nas outras). Apoio por relação em `REBM.sup`.
+- **Aliada ofendida** (cartão `reparaliada`), reparação única, mina dourada 5 rodadas, "Eventos em andamento" no Resumo, stamina, pulo 1 bloco, dano de queda, NPCs de serviço imortais.
+- **Dungeon dourada** só no turno do comandante (`expireGolden`), custo ◉100; **morrer encerra o turno**; **sala do líder** com cor e bandeira da facção (`officeLook`); aba Efeitos só com o que afeta o jogador; sem seta do jogador no mapa grande fora do mundo; pausa não abre ao entrar na sala do líder.
 
 ## Pendências e problemas conhecidos
 - **Missões:** falta jogar de verdade (só testado por script) e ajustar números (`MS` em `missions.js`). Proteger caravanas e resgatar cidadãos ainda não são tipos de missão.
 - **F5:** NPC mudam de relação entre si por rodada; depois eventos globais e reuniões. **Fase 6:** guerra completa (frente, ondas, economia, paz por andamento, recusa de paz da agressiva).
-- **Facção destruída:** a cor volta a ficar livre, mas não está tratado de ponta a ponta; falta a nova facção criada por rebelião.
-- **Aliado que sofre crime** vira neutro com reparação pendente e nenhuma política cobre esse caso.
+- **F5d não jogada de verdade:** tudo foi checado por console (o laço do jogo não roda no painel de teste); falta ver na tela a destruição, as bandeiras da sala do líder, a stamina, o dano de queda e o pulo. O contador "16/36" visto numa batalha de rebelião não teve causa achada. Missões e temperamento ficaram como estavam (missões ficam para a guerra).
+- Dica de teste: o navegador guarda scripts antigos; recarregue com Ctrl+F5.
 - **Não visto na tela, só por script:** guardas de caravana patrulhando e atirando; mastro da prefeitura (só confirmado por teste); o jogo normal sem criativo. Vale jogar e conferir.
 - **Pacotão de correções (feito, falta jogar):** ver `docs/futuras-correcoes.md`. Ainda abertos: balanceamento das raids e NPCs presos nas folhas (não reproduzido; as folhas não têm colisão). Confirmar jogando: qual botão de política ainda aparece depois de decidir; efeito das copas vazadas (shader em `world.js`); resgate de inimigos presos na dungeon durante a luta.
 - **Raid fácil demais:** o jogador venceu as 3 ondas com a arma inicial e ◉100 de cura nos intervalos. Ideias (nada implementado): 1) cura limitada no raid; 2) composição por onda; 3) escalar com a rodada e o nível da cidade; 4) cura mais cara durante o raid; 5) onda chefe, flanco, ameaça ao armazém. As últimas mudanças de raid (lojas fechadas só durante o combate e abertas entre ondas; bandidos não perseguem civis) **ainda não foram testadas no jogo**.
