@@ -181,7 +181,7 @@ function fireWeapon(){
     rayWorld(_o.x,_o.y,_o.z,dx,dy,dz,w.range);
     let best=RAY.t,kind=RAY.kind,tgt=null;
     for(const e of ENEMIES){if(!e.alive||!e.group.visible)continue;const t=actorHit(e,_o.x,_o.y,_o.z,dx,dy,dz,best);if(t>=0&&t<best){best=t;tgt=e}}
-    for(const n of NPCS){if(!n.alive||!n.group.visible)continue;const t=actorHit(n,_o.x,_o.y,_o.z,dx,dy,dz,best);if(t>=0&&t<best){best=t;tgt=n}}
+    for(const n of NPCS){if(!n.alive||!n.group.visible||NPC_FIXED.has(n.role))continue;const t=actorHit(n,_o.x,_o.y,_o.z,dx,dy,dz,best);if(t>=0&&t<best){best=t;tgt=n}}
     const hx=_o.x+dx*best,hy=_o.y+dy*best,hz=_o.z+dz*best;
     tracer(mx,my,mz,hx,hy,hz,0xfff2a0);
     if(tgt){

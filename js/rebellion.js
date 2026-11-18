@@ -31,13 +31,14 @@ const rebCostTxt=k=>'◉'+k.gold+', '+k.food+' de comida e '+k.ore+' de minério
 const rebJoinCost=(c,r)=>({gold:REB.join.base+REB.join.perLvl*(c.rank||1)+REB.join.perFac*r.sup.length+(rebInvolved()?0:REB.join.stay)});
 const rebNames=ids=>{const n=ids.map(i=>facOf(i).name);return n.length>1?n.slice(0,-1).join(', ')+' e '+n[n.length-1]:n.join('')};
 // os dois lados: apoiam os rebeldes (r.sup) e ficam com a dona (ela mesma e as aliadas/amistosas dela no grafo)
-function rebSides(r){return{pro:r.sup.slice(),con:[r.owner].concat(WORLD.factions.filter(f=>f.id!==r.owner&&!r.sup.includes(f.id)&&facCities(f.id).length&&fgV(r.owner,f.id)>=FG.allyMin).map(f=>f.id))}}
+function rebSides(r){if(r.owner===0)return{pro:r.sup.slice(),con:[0].concat(WORLD.factions.filter(f=>!r.sup.includes(f.id)&&facCities(f.id).length&&relStatus(f.id)==='ally').map(f=>f.id))};   // cidade sua: do seu lado você e as suas aliadas
+  return{pro:r.sup.slice(),con:[r.owner].concat(WORLD.factions.filter(f=>f.id!==r.owner&&!r.sup.includes(f.id)&&facCities(f.id).length&&fgV(r.owner,f.id)>=FG.allyMin).map(f=>f.id))}}
 // tabela dos lados: rebeldes e quem os apoia à esquerda; a dona e quem fica com ela à direita (cada nome com a cor da facção)
 function rebSidesTable(r){
   const s=rebSides(r),chip=col=>'<i style="color:'+col+';font-style:normal">■</i> ',fac=i=>chip(hex6(facColor(i)))+facOf(i).name;
   const L=[chip(hex6(FAC_COLORS[r.color].c))+'<b>Rebeldes</b>'].concat(s.pro.map(fac)),R=s.con.map((i,k)=>k?fac(i):'<b>'+fac(i)+'</b>');
   const me=chip(hex6(facColor(0)||0xffffff))+'<b>'+facOf(0).name+'</b> (você)';   // depois de escolher, a facção do jogador entra no lado em que ele ficou
-  if(r.choice==='support'||r.choice==='finR')L.push(me);else if(r.choice==='combat'||r.choice==='finO')R.push(me);
+  if(r.owner!==0){if(r.choice==='support'||r.choice==='finR')L.push(me);else if(r.choice==='combat'||r.choice==='finO')R.push(me)}
   const n=Math.max(L.length,R.length);
   let h='<table style="width:100%;margin:8px 0;border-collapse:collapse;font-size:15px"><tr style="color:#c8b890;font-size:13px"><td style="width:45%">Lado dos rebeldes</td><td></td><td>Lado da facção</td></tr>';
   for(let i=0;i<n;i++)h+='<tr><td style="padding:2px 0">'+(L[i]||'')+'</td><td style="text-align:center;width:10%;color:#ff9a6a"><b>X</b></td><td>'+(R[i]||'')+'</td></tr>';
@@ -106,14 +107,14 @@ function rebAnnounce(){
   }
   for(const m of STATE.ms.taken.slice())if(m.cityId===c.id||m.destId===c.id){msDrop(m);msLine('❌ A cidade '+c.name+' se rebelou: missão cancelada ('+msTitle(m)+').')}
   for(const k in STATE.ms.fac){const o=STATE.ms.fac[k];if(o&&o.m&&(o.m.cityId===c.id||o.m.destId===c.id))o.m=null}
-  facNote('🔥 '+c.name+' se rebelou contra '+facOf(r.owner).name+'.',6000);   // um só aviso, curto (os lados estão na tabela do cartão)
+  facNote('🔥 '+c.name+' se rebelou contra '+(r.owner===0?'você':facOf(r.owner).name)+'.',6000);   // um só aviso, curto (os lados estão na tabela do cartão)
   return rebCard();
 }
 // o cartão da rebelião (ou do resultado) que está devido; 'q' = na fila; null = nada
 function rebCard(){
   const r=rebS().cur;if(!r)return null;
   if(r.stage==='queued')return 'q';
-  if(r.stage==='decide')return{pid:'rebnpc',city:r.cid,round:STATE.round,data:{}};
+  if(r.stage==='decide')return{pid:r.owner===0?'rebmine':'rebnpc',city:r.cid,round:STATE.round,data:{}};
   if(r.stage==='result')return{pid:'rebresult',city:r.cid,round:STATE.round,data:{}};
   return null;
 }
@@ -126,7 +127,8 @@ function rebRound(rep){
     rebBattleReset();
     if(r.win===null||r.win===undefined)r.win=Math.random()<p;   // com batalha, o resultado veio dela; sem batalha (ou sem lutar), sorteio
     if(typeof igniteCity==='function')igniteCity(c);
-    if(r.win){r.stage='result';rep.push('🔥 Os rebeldes de '+c.name+' venceram. Há uma decisão no turno do líder.')}
+    if(r.win&&r.owner===0)rebmLost(c,rep);   // cidade sua: os rebeldes venceram, a cidade fica independente (sem cartão de pós-rebelião)
+    else if(r.win){r.stage='result';rep.push('🔥 Os rebeldes de '+c.name+' venceram. Há uma decisão no turno do líder.')}
     else{rep.push('🛡 A rebelião de '+c.name+' foi esmagada: a cidade voltou a '+facOf(r.owner).name+'.');
       if(r.choice==='support'&&r.prevRel!==undefined){const v=r.prevRel>=REL_START-1?REL_UNF:r.prevRel;relSet(r.owner,v,false);rep.push('🕊 '+facOf(r.owner).name+' deixou de ser inimiga: a relação ficou "'+REL_ST[relStatus(r.owner)].n+'".')}   // apoiou e perdeu: neutra ou melhor antes → Desfavorável; pior antes → como estava
       rebClear(c);rebGarrisonRestore(c,r);ec(c).ups=0;S.cur=null;S.last=STATE.round}
@@ -137,13 +139,13 @@ function rebClear(c){rebRuinsClear(c);c.rebel=null;delete STATE.burnt[c.id];if(t
 
 // ---------- facção nova e anexações ----------
 function rebNewFaction(c,v,why){
-  const S=rebS(),r=S.cur,id=Math.max(0,...WORLD.factions.map(f=>f.id))+1;
+  const S=rebS(),r=S.cur,id=Math.max(0,...WORLD.factions.map(f=>f.id),...(STATE.deadFacs||[]))+1;   // nunca reaproveita o id de uma facção destruída (deadFacs apagaria a nova ao carregar)
   const temps=['pacifica','neutra','neutra','agressiva'],f={id,name:rebName(),color:r.color,flag:r.flag,temper:temps[Math.floor(Math.random()*temps.length)],seed:c.id,rebel:true};
   S.nfacs.push(Object.assign({},f));WORLD.factions.push(f);S.cfid[c.id]=id;c.ofid=id;
   relOf(id).v=v;
   // relações com as outras NPC: rival da dona; aliada das rivais da dona; neutra com o resto
-  fgSet(r.owner,id,2,'rebelião');
-  for(const g of WORLD.factions){if(g.id===id||g.id===r.owner)continue;fgSet(g.id,id,fgV(r.owner,g.id)<=FG.rivalMax?8:5,'rebelião')}
+  if(r.owner)fgSet(r.owner,id,2,'rebelião');   // (owner 0 = cidade do jogador que ficou independente: sem rival NPC)
+  for(const g of WORLD.factions){if(g.id===id||g.id===r.owner)continue;fgSet(g.id,id,r.owner&&fgV(r.owner,g.id)<=FG.rivalMax?8:5,'rebelião')}
   rebClear(c);rebGarrisonRestore(c,r);const e=ec(c);e.ups=0;e.mood='ok';refreshFactionLook();
   facNote('🏴 Nasce uma nova facção: '+f.name+' ('+why+').',5000);
   return f;
@@ -157,12 +159,13 @@ function rebJoinPlayer(c){
   const e=ec(c);e.ups=0;e.mood='ok';e.got={};e.carry={};
   facNote('🏴 '+c.name+' se juntou à sua facção!',5000);
 }
-function rebEnd(){const S=rebS();S.cur=null;S.last=STATE.round}
+function rebEnd(){const S=rebS();S.cur=null;S.last=STATE.round;if(typeof facReap==='function')facReap()}
 
 // ---------- carregar ----------
 function rebApply(){   // depois de gerar o mundo/carregar um save: devolve as facções novas, as cidades trocadas e a cidade em rebelião
   const S=rebS();
   for(const nf of S.nfacs)if(!WORLD.factions.find(f=>f.id===nf.id))WORLD.factions.push(Object.assign({},nf));
+  facDeadApply();
   for(const id in S.cfid){const c=WORLD.cities[id];if(c)c.ofid=S.cfid[id]}
   const r=S.cur;if(r&&r.stage!=='queued'){const c=WORLD.cities[r.cid];if(c){c.rebel={color:r.color,flag:r.flag};rebGarrisonRemove(c);if(typeof ensureSmoke==='function')ensureSmoke(c);rebRuinsEnsure(c)}}
 }
@@ -410,7 +413,7 @@ function rebRuinsUpdate(){
 const REBB={active:false,mode:null,c:null,allies:[],total:0};
 // contador de aliados durante a batalha da rebelião, apoiando os rebeldes ou combatendo (os seus soldados e os reforços/tropas)
 const rebAlliesNow=()=>ALLIES.filter(a=>a.alive).length;
-const rebAlliesLine=()=>REBB.active?'<br>Aliados: <b style="color:#8ac8ff">'+rebAlliesNow()+'/'+Math.max(REBB.total,rebAlliesNow())+'</b>':'';   // linha sob 'Soldados' (game.js), nas duas batalhas da rebelião
+const rebAlliesLine=()=>REBB.active&&!(rebCur()&&rebCur().owner===0)?'<br>Aliados: <b style="color:#8ac8ff">'+rebAlliesNow()+'/'+Math.max(REBB.total,rebAlliesNow())+'</b>':'';   // linha sob 'Soldados' (game.js), nas duas batalhas da rebelião
 function rebGarrisonRemove(c){
   const r=rebS().cur,n=c.enemies.filter(e=>e.alive).length;
   if(r&&!r.garrison)r.garrison=Math.max(n,6+2*(c.rank||1));
@@ -512,8 +515,8 @@ function rebCombatStart(){
   const r=rebCur(),c=rebCity();if(!r||!c)return;
   rebGarrisonSpawn(c,r.garrison||(6+2*(c.rank||1)),FAC_COLORS[r.color].c,undefined,true);   // rebeldes, dentro da cidade, perto das entradas
   for(const g of r.sup){const col=facColor(g);rebGarrisonSpawn(c,2,col,['soldier'],true)}   // soldados das facções que apoiam os rebeldes
-  REBB.active=true;REBB.mode='combat';REBB.c=c;
-  startAttack(c);rebArmyAround();rebTroops(c,r);   // seus soldados em volta de você; a tropa da facção em torno da cidade
+  REBB.active=true;REBB.mode='combat';REBB.c=c;r.started=true;
+  startAttack(c);rebArmyAround();if(r.owner)rebTroops(c,r);   // (cidade sua: só os seus soldados contra os rebeldes)   // seus soldados em volta de você; a tropa da facção em torno da cidade
   REBB.total=rebAlliesNow();
 }
 // combater a rebelião: seus soldados aparecem em volta de você e seguem para a cidade; a tropa da facção (e a das aliadas dela) cerca a cidade por fora
@@ -558,8 +561,23 @@ function rebHud(){   // combater: o contador de rebeldes e aliados no HUD do rai
   if(REBB.active&&REBB.mode==='combat'&&REBB.c){el.style.display='block';el.innerHTML='⚔ Rebelião em <b>'+REBB.c.name+'</b> • rebeldes: <b>'+REBB.c.aliveEnemies+'</b>';REBB.hudOn=true}
   else if(REBB.hudOn){REBB.hudOn=false;el.style.display='none'}
 }
+// rede de segurança (a cada ~1 s): cidade marcada como rebelde sem rebelião em andamento volta ao normal; cidade inimiga cuja facção não existe mais é anexada pela facção mais próxima
+let rebSweepT=0;
+function rebSweep(){
+  if(--rebSweepT>0)return;rebSweepT=60;
+  const S=rebS(),cur=S.cur;
+  for(const c of WORLD.cities){
+    if(c.rebel&&!(cur&&cur.cid===c.id))rebClear(c);
+    if(c.owner==='enemy'&&c.fid&&!c.rebel&&c.kind!=='camp'&&c.kind!=='raid'&&!(WORLD.factions||[]).some(f=>f.id===c.fid)&&!(cur&&cur.cid===c.id)){
+      const ids=(WORLD.factions||[]).filter(f=>facCities(f.id).length).map(f=>f.id);
+      if(ids.length){const g=rebNearest(c,ids);if(g!==null)rebAnnexBy(c,g)}
+    }
+  }
+}
 function rebWatch(){
-  rebHud();rebRuinsUpdate();
+  rebHud();rebRuinsUpdate();rebSweep();
+  {const r=rebS().cur,c=r&&rebCity();   // rede de segurança: a batalha começou e os rebeldes acabaram, mas a vitória não foi registrada
+   if(r&&c&&r.started&&r.win==null&&r.stage==='wait'&&r.choice==='combat'&&!rebBusy()&&c.aliveEnemies<=0){REBB.active=true;REBB.mode='combat';REBB.c=c;rebCombatWon(c)}}
   if(!rebPending()||REBB.active||STATE.phase!=='commander'||rebBusy())return;
   const r=rebS().cur,c=rebCity(),dx=P.x-c.cx,dz=P.z-c.cz;
   if(r.choice==='support'){if(Math.hypot(dx,dz)<REB.centerR)rebSupportStart()}
@@ -567,6 +585,7 @@ function rebWatch(){
 }
 function rebCombatWon(c){   // chamado por checkConquest: os rebeldes foram eliminados
   const r=rebCur();if(!r||!REBB.active||REBB.mode!=='combat')return;
+  if(r.owner===0){rebmWon(c);return}   // cidade sua: volta a ser sua na hora
   c.state='idle';REBB.active=false;REBB.mode=null;rebTempClear();r.win=false;
   const d=relChange(r.owner,REB.rel.combat,false);
   sfx('win',0);facNote('🛡 Você esmagou a rebelião de '+c.name+'! '+rebOwnerName()+' agradece (relação '+(d>=0?'+':'')+d+').',5000);

@@ -239,10 +239,11 @@ function spawnGoldenPortal(c){
 function startContest(p){
   if(CONTEST.active)return;
   p.contested=true;
-  const rng=new RNG((Math.random()*1e9)|0),cs=rng.shuffle(WORLD.cities.filter(c=>!c.home).slice()).slice(0,2);
+  // tropas de até 2 facções NPC DIFERENTES que ainda existem (cidade do jogador não manda tropa; facção extinta não luta)
+  const rng=new RNG((Math.random()*1e9)|0),seen=new Set(),cs=rng.shuffle(WORLD.cities.filter(c=>!c.home&&c.owner!=='player'&&c.fid&&facOf(c.fid)&&facCities(c.fid).length).slice()).filter(c=>!seen.has(c.fid)&&seen.add(c.fid)).slice(0,2);
   const mk=(name,kind,rank,city)=>({kind,id:800+(STATE.raidSeq=(STATE.raidSeq||0)+1),name,cx:p.x,cz:p.z,y:tH(p.x,p.z),half:30,biome:(city||WORLD.home).biome,rank,hpMul:1,state:'attacking',owner:'enemy',home:false,
     enemies:[],npcs:[],walk:[],flags:[],aliveEnemies:0,totalEnemies:0,leash:999,city:city||WORLD.home});
-  const teams=[[mk('Bandidos','raid',1),4],[mk('Tropas de '+cs[0].name,'contest',cs[0].rank,cs[0]),3],[mk('Tropas de '+(cs[1]||cs[0]).name,'contest',(cs[1]||cs[0]).rank,cs[1]||cs[0]),3]];
+  const teams=[[mk('Bandidos','raid',1),4],...cs.map(c=>[mk('Tropas de '+facOf(c.fid).name,'contest',c.rank,c),3])];
   const base=rng.range(0,6.283);
   teams.forEach(([a,n],k)=>{
     WORLD.areas.push(a);CONTEST.areas.push(a);
@@ -252,8 +253,14 @@ function startContest(p){
     }
   });
   CONTEST.active=true;sfx('alarm',0);
-  toast('⚔ Bandidos e tropas de '+cs[0].name+(cs[1]?' e '+cs[1].name:'')+' disputam o portal dourado! (Não é guerra.)',6000);
+  toast('⚔ Bandidos'+(cs.length?' e tropas de '+cs.map(c=>facOf(c.fid).name).join(' e '):'')+' disputam o portal dourado! (Não é guerra.)',6000);
 }
+// a dourada só vale no turno do comandante em que apareceu: ao fim dele o portal some (com o marcador no mapa/minimapa) e a disputa é desfeita
+function expireGolden(){
+  for(const p of(STATE.portals||[]).filter(q=>q.golden&&!(G.dg&&G.dg.p===q)))removePortal(p);
+  if(CONTEST.active||CONTEST.areas.length){for(const a of CONTEST.areas){for(const e of a.enemies){e.gone=true;e.alive=false;scene.remove(e.group)}a.enemies=[];a.aliveEnemies=0;const i=WORLD.areas.indexOf(a);if(i>=0)WORLD.areas.splice(i,1)}CONTEST.areas=[];CONTEST.active=false}
+}
+Hooks.on('round',()=>expireGolden());
 function updateContest(){
   if(!CONTEST.active){
     if(G.dg||P.dead)return;

@@ -41,10 +41,10 @@ Hooks.on('resetState',()=>{STATE.fac={name:FAC_NAME_DEFAULT,color:0,flag:0,px:nu
 // identidade de uma facção por id: 0 = jogador (vem do STATE), 1.. = NPC (vem de WORLD.factions)
 function facOf(id){
   if(id===0||id===undefined){const f=STATE.fac||{};return{id:0,player:true,name:f.name||FAC_NAME_DEFAULT,color:f.color||0,flag:f.flag||0,temper:null}}
-  return(WORLD.factions||[]).find(f=>f.id===id)||null;
+  return(WORLD.factions||[]).find(f=>f.id===id)||{id,name:'Facção extinta',color:0,flag:0,temper:null,dead:true};   // id sem facção (destruída): um substituto, para nada quebrar por ler .name
 }
 const facColor=id=>{const f=facOf(id);return f?FAC_COLORS[f.color].c:null};
-const facCities=id=>WORLD.cities.filter(c=>c.fid===id);
+const facCities=id=>WORLD.cities.filter(c=>c.fid===id&&!c.rebel);   // cidade em rebelião não conta para nenhuma facção (é dos "Rebeldes")
 const facTemperName=f=>f&&f.temper?FAC_TEMPER[f.temper].n:'';
 
 // gera as facções NPC e reparte as cidades (chamado pelo gerador do mundo, logo depois de criar as cidades)
@@ -103,7 +103,7 @@ function facSetFlag(c){
   c.flagMat.map=facFlagTex(c.fid);c.flagMat.color.setHex(0xffffff);c.flagMat.needsUpdate=true;
 }
 // recolore todas as bandeiras (depois de carregar um save ou de o jogador mudar a identidade)
-function refreshFactionLook(){facTouch();for(const c of WORLD.cities)facSetFlag(c);facReskin()}
+function refreshFactionLook(){facTouch();if(typeof officeLook==='function')officeLook();for(const c of WORLD.cities)facSetFlag(c);facReskin()}
 // troca o uniforme dos guardas (portão e quartel) e dos soldados do jogador para a cor da facção atual (conquista, rebelião, nova cor)
 function facReskin(){
   const swap=(n,col)=>{
@@ -241,14 +241,14 @@ function facCrime(c){
   const r=relOf(fid),f=facOf(fid);
   if(r.crimeRd===STATE.round)return;r.crimeRd=STATE.round;r.crimeCity=c.name;
   const amt=REL_REP[st];
-  r.debt=r.debt?{amt:Math.max(r.debt.amt,amt),from:r.debt.from}:{amt,from:st};
-  if(st==='ally'){r.ally=false;r.v=REL_START}
+  r.debt=r.debt?{amt:Math.max(r.debt.amt,amt),from:r.debt.from}:{amt,from:st};r.repDone=false;   // novo crime: um novo pedido de reparação (uma vez só por crime)
+  if(st==='ally'){r.allyHit=true}   // aliada ofendida: exige reparação no turno do líder (política 'reparaliada'); a aliança só cai depois da decisão
   else if(st==='enemy'){
     if(f.temper!=='pacifica'){r.warAt=STATE.round+1;r.warWhy='crimes';r.warCity=c.name;facNote('🚨 Crime em '+c.name+': '+f.name+' vai declarar guerra na próxima rodada. Reparação: ◉'+r.debt.amt+'.',5000)}
     else facNote('🚨 Crime em '+c.name+': '+f.name+' é pacífica e não declara guerra, mas exige reparação (◉'+r.debt.amt+').',5000);
   }else r.v=0;
-  if(st!=='enemy')facNote('🚨 Crime em '+c.name+': '+f.name+' agora é '+REL_ST[relStatus(fid)].n.toLowerCase()+'. Reparação: ◉'+r.debt.amt+'.',5000);
-  facCutCaravans(fid);if(st==='ally')facNote('🤝 A aliança com '+f.name+' acabou.');
+  if(st==='ally')facNote('🚨 Crime em '+c.name+': '+f.name+', sua aliada, exige uma reparação (◉'+r.debt.amt+'). Ela cobra no próximo turno do líder.',5000);
+  else{if(st!=='enemy')facNote('🚨 Crime em '+c.name+': '+f.name+' agora é '+REL_ST[relStatus(fid)].n.toLowerCase()+'. Reparação: ◉'+r.debt.amt+'.',5000);facCutCaravans(fid)}
   if(typeof fgPropagate==='function')fgPropagate(fid,-1,'crime');
 }
 // o jogador acabou com os soldados de uma cidade que não estava em guerra: a facção (exceto a pacífica) declara guerra na rodada seguinte
@@ -362,7 +362,7 @@ definePolicy({id:'declguerra',name:'Declaração de guerra',city:false,noRoll:tr
 // Igual à declaração de guerra, mas para sair do estado de INIMIGA: aparece no turno do líder quando uma facção está inimiga por causa de um crime
 // (guardas feridos, mas nem todos os soldados mortos), sem guerra a caminho. Se o jogador recusar, ela volta a pedir depois de FAC_REP_COOL rodadas.
 const FAC_REP_COOL=3;
-function facRepOk(id){const r=relOf(id);return !r.war&&r.warAt==null&&!!r.debt&&relStatus(id)==='enemy'&&(r.repCool||0)<=STATE.round&&facCities(id).length>0}
+function facRepOk(id){const r=relOf(id);return !r.war&&r.warAt==null&&!!r.debt&&relStatus(id)==='enemy'&&!r.repDone&&facCities(id).length>0}   // o pedido vem uma vez só por crime (repDone)
 function facRepDue(){
   const R=STATE.rel||{};
   for(const id in R)if(facRepOk(+id))return +id;
@@ -374,6 +374,7 @@ function facDueList(){
   ids.filter(id=>R[id].warAt!=null&&!R[id].war&&STATE.round>=R[id].warAt).sort((a,b)=>R[a].warAt-R[b].warAt)
     .forEach(id=>out.push({pid:'declguerra',city:-1,round:STATE.round,data:{fid:id}}));
   ids.filter(id=>facRepOk(id)).forEach(id=>out.push({pid:'reparacao',city:-1,round:STATE.round,data:{fid:id}}));
+  ids.filter(id=>R[id].allyHit&&!R[id].war&&facCities(id).length>0).forEach(id=>out.push({pid:'reparaliada',city:-1,round:STATE.round,data:{fid:id}}));
   return out;
 }
 definePolicy({id:'reparacao',name:'Pedido de reparação',city:false,noRoll:true,cool:0,
@@ -393,13 +394,28 @@ definePolicy({id:'reparacao',name:'Pedido de reparação',city:false,noRoll:true
   options:[
     {k:'A',label:'Pagar reparação',type:'neutral',cost:x=>({gold:facWarBase(x.data.fid)}),
       eff:(c,data)=>'Paga ◉'+facWarBase(data.fid)+'. '+facOf(data.fid).name+' deixa de ser inimiga: a relação vai para "Desfavorável" (descontente).',
-      apply:x=>{const f=x.data.fid,r=relOf(f);r.debt=null;r.repCool=null;r.v=2;x.toast('💰 Reparação paga: '+facOf(f).name+' agora é desfavorável.')}},
+      apply:x=>{const f=x.data.fid,r=relOf(f);r.debt=null;r.repDone=true;relSet(f,2,'você pagou a reparação');x.toast('💰 Reparação paga: '+facOf(f).name+' agora é desfavorável.')}},
     {k:'B',label:'Pagar reparação e pedido público de desculpas',type:'neutral',cost:x=>({gold:facWarBase(x.data.fid)*2}),
       eff:(c,data)=>'Paga o dobro (◉'+facWarBase(data.fid)*2+') e se desculpa em público. '+facOf(data.fid).name+' deixa de ser inimiga: a relação vai para "Neutro".',
-      apply:x=>{const f=x.data.fid,r=relOf(f);r.debt=null;r.repCool=null;r.v=REL_START;x.toast('🕊 Desculpas aceitas: '+facOf(f).name+' agora é neutra.')}},
+      apply:x=>{const f=x.data.fid,r=relOf(f);r.debt=null;r.repDone=true;relSet(f,REL_START,'você pagou a reparação e pediu desculpas em público');x.toast('🕊 Desculpas aceitas: '+facOf(f).name+' agora é neutra.')}},
     {k:'C',label:'Recusar a reparação',type:'debuff',
-      eff:(c,data)=>'Nada é pago: '+facOf(data.fid).name+' continua inimiga e volta a pedir daqui a '+FAC_REP_COOL+' rodadas. Se você cometer outro crime, a guerra vem.',
-      apply:x=>{relOf(x.data.fid).repCool=STATE.round+FAC_REP_COOL}}
+      eff:(c,data)=>'Nada é pago: '+facOf(data.fid).name+' continua inimiga e não pede de novo (o pedido é uma vez só). Se você cometer outro crime, a guerra vem.',
+      apply:x=>{relOf(x.data.fid).repDone=true}}
+  ]});
+// ---------- política: Reparação de uma ALIADA ofendida (crime contra ela; nunca sorteada, uma vez só por crime) ----------
+function facAllyHitDue(){const R=STATE.rel||{};for(const id in R)if(R[id].allyHit&&!R[id].war&&facCities(+id).length>0)return +id;return null}
+definePolicy({id:'reparaliada',name:'Aliada ofendida',city:false,noRoll:true,cool:0,
+  cond:()=>facAllyHitDue()!==null,
+  fixCond:()=>{const f=(WORLD.factions||[]).find(x=>facCities(x.id).length);if(!f)return null;const r=relOf(f.id);r.war=false;r.ally=true;r.v=10;r.allyHit=true;r.crimeCity=(facCities(f.id)[0]||{}).name;r.debt=r.debt||{amt:REL_REP.ally,from:'ally'};return 'deixei '+f.name+' como aliada ofendida'},
+  data:()=>({fid:facAllyHitDue()}),
+  text:(c,data)=>{const r=relOf(data.fid),f=facOf(data.fid);return 'Um emissário de '+f.name+', sua aliada, pede audiência. Os tiros trocados em '+(r.crimeCity||'uma das cidades dela')+' ofenderam o conselho: ela exige uma reparação para manter a amizade.'},
+  options:[
+    {k:'A',label:'Pagar reparação',type:'neutral',cost:x=>({gold:facWarBase(x.data.fid)}),eff:(c,d)=>'Paga ◉'+facWarBase(d.fid)+'. A aliança acaba e '+facOf(d.fid).name+' fica "Neutra".',
+      apply:x=>{const f=x.data.fid,r=relOf(f);r.debt=null;r.allyHit=false;relSet(f,REL_START,'você pagou a reparação pelo crime contra ela');x.toast('💰 Reparação paga: '+facOf(f).name+' agora é neutra.')}},
+    {k:'B',label:'Pagar reparação e pedido público de desculpas',type:'neutral',cost:x=>({gold:facWarBase(x.data.fid)*2}),eff:(c,d)=>'Paga o dobro (◉'+facWarBase(d.fid)*2+') e se desculpa em público. A aliança acaba, mas '+facOf(d.fid).name+' fica "Favorável".',
+      apply:x=>{const f=x.data.fid,r=relOf(f);r.debt=null;r.allyHit=false;relSet(f,8,'você pagou a reparação e pediu desculpas em público');x.toast('🕊 Desculpas aceitas: '+facOf(f).name+' agora é favorável.')}},
+    {k:'C',label:'Ignorar',type:'debuff',eff:(c,d)=>'Nada é pago: a aliança acaba e '+facOf(d.fid).name+' fica "Desfavorável" (descontente).',
+      apply:x=>{const f=x.data.fid,r=relOf(f);r.debt=null;r.allyHit=false;relSet(f,2,'você ignorou a reparação pelo crime contra ela');x.toast('😠 '+facOf(f).name+' agora é desfavorável.')}}
   ]});
 
 // ---------- F4: ações do líder que sobem a relação, e decaimento ----------
@@ -484,3 +500,24 @@ function facCaravanCrime(car){
     if(wasAlly){const r=relOf(fid);r.ally=false;r.v=0;facNote('🤝 A aliança com '+facOf(fid).name+' caiu: ela agora é inimiga.')}   // aliança cai e a facção fica inimiga (pede reparação)
   }},0);   // adiado: desfazer as caravanas no meio do tiro mexeria nas listas que o disparo ainda está percorrendo
 }
+// ---------- facção destruída (F5d): sem nenhuma cidade, a facção NPC é apagada do mapa ----------
+// Some de WORLD.factions (e das listas de votação, relações, grafo, missões, suprimentos). Quem nasce depois (rebelião) começa do zero.
+Hooks.on('resetState',()=>{STATE.deadFacs=[]});
+function facDestroy(fid){
+  const f=facOf(fid);if(!f||f.player||facCities(fid).length)return false;
+  const S=STATE;(S.deadFacs=S.deadFacs||[]);if(!S.deadFacs.includes(fid))S.deadFacs.push(fid);
+  WORLD.factions=WORLD.factions.filter(x=>x.id!==fid);
+  if(S.reb&&S.reb.nfacs)S.reb.nfacs=S.reb.nfacs.filter(x=>x.id!==fid);   // senão a rebelião a devolveria ao carregar
+  if(S.rel)delete S.rel[fid];
+  if(S.frel)for(const k of Object.keys(S.frel))if(k.split(/[-_:,|]/).includes(String(fid)))delete S.frel[k];
+  const rd=S.rd||{};
+  if(rd.fsup)delete rd.fsup[fid];if(rd.fmods)rd.fmods=rd.fmods.filter(m=>m.f!==fid);
+  if(S.ms&&S.ms.fac)delete S.ms.fac[fid];
+  if(S.meet&&S.meet.cur&&S.meet.cur.fid===fid)S.meet.cur=null;
+  if(typeof FG_CACHE!=='undefined')FG_CACHE=null;
+  if(typeof rdNow==='function')rdNow('💀 '+f.name+' foi destruída: perdeu todas as cidades e sumiu do mapa.');
+  return true;
+}
+function facReap(){for(const f of(WORLD.factions||[]).slice())if(facCities(f.id).length===0)facDestroy(f.id)}
+function facDeadApply(){const d=STATE.deadFacs||[];if(d.length&&WORLD.factions)WORLD.factions=WORLD.factions.filter(f=>!d.includes(f.id))}   // depois de gerar/carregar: tira de novo as destruídas (o mundo é refeito pela semente)
+Hooks.on('round',()=>{if(STATE.round>=1)facReap()});

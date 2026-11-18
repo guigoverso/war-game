@@ -27,7 +27,7 @@ const polSel=(f,sel)=>f.p===undefined||f.p.sel===undefined||sel===undefined||f.p
 const polMul=(t,cid,sel)=>polAll(t,cid).filter(f=>polSel(f,sel)).reduce((m,f)=>m*((f.p&&f.p.mul)||1),1);
 const polFlag=(t,cid)=>polAll(t,cid).length>0;
 function polAddFx(spec){
-  const f={pid:spec.pid||'',t:spec.t,c:spec.c===undefined?-1:spec.c,p:spec.p||{},left:spec.left||POL.dur,txt:spec.txt||spec.t};
+  const f={pid:spec.pid||'',t:spec.t,c:spec.c===undefined?-1:spec.c,p:spec.p||{},left:spec.left||POL.dur,txt:spec.txt||spec.t};f.dur=f.left;   // dur: duração total (o resumo lista os efeitos de mais de uma rodada)
   STATE.pol.fx.push(f);return f;
 }
 // preço: efeitos 'price' (ex.: lojas mais baratas). sel = tipo de preço (weapon, ammo, vest, upgrade, heal, buy, tavern, recruit, soldierup, repair) ou todos
@@ -196,7 +196,8 @@ function polSummon(id){
   const d=POL.byId[id];if(!d)return 'Política desconhecida.';
   if(d.cond&&!d.cond()){if(d.fixCond)fixes.push(d.fixCond());if(!d.cond())return 'Não foi possível ajustar o jogo para esta política (ex.: o mapa não tem espaço para a dungeon).'}
   let city=null;
-  if(d.city){
+  if(d.pickCity)city=d.pickCity();   // política ligada a uma cidade específica (ex.: a cidade em rebelião, que já não é sua)
+  else if(d.city){
     const cs=playerCities().filter(c=>!d.cityOk||d.cityOk(c));
     if(cs.length)city=cs[Math.floor(Math.random()*cs.length)];
     else{   // nenhuma cidade atende: usa uma cidade sua que não seja a capital (ou toma uma cidade inimiga) e ajusta os valores dela
@@ -226,8 +227,9 @@ function polBookHtml(){
   h+=typeof meetBookHtml==='function'?meetBookHtml():'';
   const pr=playerCities().filter(c=>ec(c).press);
   if(pr.length)h+='<h4>Cidades sob repressão</h4><ul class="ldul">'+pr.map(c=>'<li>'+c.name+': necessidades +'+50*ec(c).press.n+'% (máx. 300%). Supra tudo numa rodada para acabar.</li>').join('')+'</ul>';
-  if(P.fx.length)h+='<h4>Efeitos ativos</h4><ul class="ldul">'+P.fx.map(f=>'<li>'+f.txt+'<br><small>até o fim da rodada '+(STATE.round+f.left-1)+' (mais '+f.left+' rodada'+(f.left>1?'s':'')+')</small></li>').join('')+'</ul>';
-  else h+='<p class="ldsm">Nenhum efeito temporário ativo.</p>';
+  const one=P.fx.filter(f=>(f.dur||f.left)<=1);   // os de mais de uma rodada ficam em "Eventos em andamento" (com a contagem)
+  if(one.length)h+='<h4>Efeitos desta rodada</h4><ul class="ldul">'+one.map(f=>'<li>'+f.txt+'</li>').join('')+'</ul>';
+  h+=typeof ongoingHtml==='function'?ongoingHtml():'';
   return h;
 }
 
@@ -306,7 +308,7 @@ definePolicy({id:'epidemia',name:'Epidemia',city:true,
         for(const t of['noRoute','noHeal','noRecruit','noProd','noTax'])x.fx({t,txt:c.name+': '+({noRoute:'sem caravanas',noHeal:'sem cura nem remédios',noRecruit:'sem recrutamento',noProd:'sem produção'+(e.type==='port'?' (porto parado)':''),noTax:'sem imposto'})[t]+' (epidemia)'});
         e.mood='upset';e.ups=(e.ups||0)+1;
         if(dead)x.toast('☠ '+dead+' soldado(s) seu(s) morreram na epidemia.',4500);
-        if(e.ups>=ECON.rebelUps&&!c.home){rdNow('🔥 '+c.name+' SE REBELOU por causa da epidemia!');rebelCity(c)}
+        if(e.ups>=ECON.rebelUps&&!c.home&&!(e.noReb>STATE.round)&&!rebS().cur){rdNow('🔥 '+c.name+' SE REBELOU por causa da epidemia!');rebelCity(c)}
       }}
   ]});
 
@@ -394,12 +396,12 @@ definePolicy({id:'dourada',name:'Dungeon dourada',city:true,cool:6,
   fixCond:()=>{for(const p of goldenPortals())removePortal(p);return 'removeu o portal dourado anterior'},
   text:c=>'Um brilho dourado surgiu num portal de pedra perto de '+c.name+'. Dizem que lá dentro o chão sangra ouro. A notícia correu mais rápido que o vento, e tropas de várias cidades e bandos de bandidos já se encaminham para disputar a entrada.',
   options:[
-    {k:'A',label:'Explorar a dungeon',type:'buff',eff:c=>'Um portal dourado aparece no mapa perto de '+c.name+' e fica lá até você minerar o veio de ouro do fundo (+◉'+GOLD_PORTAL_AMT+'); perto do veio há um baú com uma relíquia. O portal aparece no minimapa e no mapa. Vá quando quiser no turno do Comandante. Ao chegar perto, 10 tropas (bandidos e soldados de duas cidades) lutam pelo portal contra você e entre si; isso não é guerra.',
+    {k:'A',label:'Explorar a dungeon',type:'buff',eff:c=>'Um portal dourado aparece no mapa perto de '+c.name+' e fica lá só neste turno do comandante (se você acabar o turno sem explorá-lo, ele some) — minere o veio de ouro do fundo (+◉'+GOLD_PORTAL_AMT+'); perto do veio há um baú com uma relíquia. O portal aparece no minimapa e no mapa. Vá quando quiser no turno do Comandante. Ao chegar perto, 10 tropas (bandidos e soldados de duas cidades) lutam pelo portal contra você e entre si; isso não é guerra.',
       apply:x=>{const p=spawnGoldenPortal(x.city);
         if(p)x.toast('✨ Um portal dourado surgiu perto de '+x.city.name+'. Siga a coluna de luz dourada!',5000);
-        else{x.gold(150);x.toast('Não havia espaço para o portal dourado: os aventureiros pagaram ◉150 pelo mapa.',5000)}}},
-    {k:'B',label:'Contratar mineradores e soldados',type:'both',cost:{gold:150},eff:c=>'−◉150. +◉50 por rodada durante '+polDurTxt()+'. A necessidade de comida de '+c.name+' sobe 100% no mesmo período.',
-      apply:x=>{x.fx({t:'gold',c:-1,p:{add:50},txt:'Mineradores contratados (dungeon dourada)'});x.fx({t:'need',p:{mul:2,sel:'food'},txt:'Necessidade de comida +100% em '+x.city.name+' (mineradores e soldados)'})}}
+        else{x.gold(100);x.toast('Não havia espaço para o portal dourado: os aventureiros pagaram ◉100 pelo mapa.',5000)}}},
+    {k:'B',label:'Contratar mineradores e soldados',type:'both',cost:{gold:100},eff:c=>'−◉100. +◉50 por rodada durante 5 rodadas. A necessidade de comida de '+c.name+' sobe 100% no mesmo período.',
+      apply:x=>{x.fx({t:'gold',c:-1,p:{add:50},left:5,txt:'Mineradores contratados (dungeon dourada): +◉50 por rodada'});x.fx({t:'need',p:{mul:2,sel:'food'},left:5,txt:'Necessidade de comida +100% em '+x.city.name+' (mineradores e soldados)'})}}
   ]});   // só duas opções (sem 'deixar para depois')
 
 // linha curta no HUD: política da rodada e efeitos ativos (com a rodada em que terminam)

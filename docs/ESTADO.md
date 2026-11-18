@@ -28,6 +28,9 @@ Decisões e números completos em `docs/fase-5-facoes.md`. Código principal: `j
 - **Relatório da rodada:** duas partes (anterior/atual; `rdNow`), e toda mudança da sua relação com uma facção entra com o motivo (`relLog`). **Relação:** uma decisão muda no máximo ±1 (`relChange`; `fixed` para efeitos que mexem nas relações).
 - **Modo criativo:** pausa → aba **🏴 Facções** muda o status de cada facção; no livro há botões de relação. **Cenário controlado:** `index.html?cenario=caravanas` (3 rotas: aliada, favorável, neutra; botões "Ir até a caravana" na mesma aba).
 
+## F5d (feita, não commitada)
+Facção destruída, aliada ofendida, reparação única, mina dourada 5 rodadas, eventos em andamento, stamina, pulo/queda, NPCs imortais. Ver `docs/fase-5-facoes.md` (F5d). Testada só por console; falta jogar. Depois: dungeon dourada só no turno, morte encerra turno, sala do líder na cor da facção, rebelião em cidade do jogador (`js/rebmine.js`).
+
 ## Pendências e problemas conhecidos
 - **Missões:** falta jogar de verdade (só testado por script) e ajustar números (`MS` em `missions.js`). Proteger caravanas e resgatar cidadãos ainda não são tipos de missão.
 - **F5:** NPC mudam de relação entre si por rodada; depois eventos globais e reuniões. **Fase 6:** guerra completa (frente, ondas, economia, paz por andamento, recusa de paz da agressiva).

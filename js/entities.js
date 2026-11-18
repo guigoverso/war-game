@@ -308,6 +308,7 @@ function updateNpc(n,dt){
     for(const pk of WORLD.packs)for(const a of pk.enemies)scare(a);
     if(RAID.active)for(const a of RAID.area.enemies)scare(a);
   }
+  if(n.fear>0&&NPC_FIXED.has(n.role))n.fear=0;   // quem é de serviço nunca sai correndo
   if(n.fear>0){
     n.fear-=dt;const ax=n.x-n.fx,az=n.z-n.fz,al=Math.hypot(ax,az)||1;
     steer(n,n.x+ax/al*5,n.z+az/al*5,4.6,dt,n.r,1.8,1.05);faceMove(n,px0,pz0,dt);moving=true;n.phase+=dt*12;
@@ -330,8 +331,10 @@ function updateNpc(n,dt){
   if(moving)animWalk(n.model,n.phase,0.7);else if(!n.sit){n.model.legs.forEach(l=>l.rotation.x*=0.8)}
   if(n.model.sway)n.model.sway(n.phase,moving,G.t)
 }
+// NPCs de serviço (armeiro, taverneiro, cozinheiro, enfermeira, escriturário) e o líder: não tomam tiro, não fogem e ficam sempre no posto (a cadeira, no caso do líder)
+const NPC_FIXED=new Set(['shop','merchant','cook','nurse','clerk','leader']);
 function damageNpc(n,amount,src){   // src: bicho que atacou (não envolve o jogador)
-  if(!n.alive)return;n.hp-=amount;burst(n.x,n.y+1,n.z,0xaa1111,8,5,0.1);
+  if(!n.alive||NPC_FIXED.has(n.role))return;n.hp-=amount;burst(n.x,n.y+1,n.z,0xaa1111,8,5,0.1);
   if(!src){if(n.caravan)caravanAttacked(n);else facHostileAct(n.city)}   // ferir um cidadão: ataque (em guerra) ou crime; ferir guarda de caravana de outra facção: crime contra as facções da rota (factions.js)
   n.fear=5;n.fx=src?src.x:P.x;n.fz=src?src.z:P.z;
   if(n.hp<=0){n.alive=false;n.deadT=0;if(n.bubble){n.group.remove(n.bubble);n.bubble=null}}

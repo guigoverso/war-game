@@ -53,7 +53,8 @@ function migrateSave(d){
   if(d.v<16){d.v=16}   // v16: eventos entre facções NPC (state.fev: intervalos por par, travas de casamento e mediação na fila) e relatório da rodada atual (state.rd.now); ausente = nada
   if(d.v<17){d.v=17}   // v17: reuniões das facções (state.meet: última reunião, efeito ativo, visuais dos líderes, proposta e votos comprados); ausente = nenhuma
   if(d.v<18){d.v=18}   // v18: eventos globais (state.gev: última rodada, embargos e resgate em andamento), reserva de soldados (army.reserve) e modificadores de suprimento (rd.fmods); ausente = nada
-  // if(d.v<19){ ...ajustes...; d.v=19 }
+  if(d.v<19){d.v=19}   // v19: facções destruídas (state.deadFacs), r.allyHit/r.repDone nas relações; ausente = nada
+  // if(d.v<20){ ...ajustes...; d.v=20 }
   return d;
 }
 
@@ -93,7 +94,7 @@ function applySave(d){
   if(s.pol)STATE.pol=s.pol;normalizePol();   // políticas: carta pendente, efeitos ativos, fila do turno do Comandante, recargas
   if(s.frel)STATE.frel=s.frel;if(s.flog)STATE.flog=s.flog;
   if(s.fev)STATE.fev=s.fev;if(s.meet)STATE.meet=s.meet;if(s.gev)STATE.gev=s.gev;   // eventos entre facções NPC e reuniões   // eventos entre facções NPC (facevents.js)
-  if(s.reb)STATE.reb=s.reb;rebApply();   // facções novas e cidades trocadas (rebellion.js)
+  STATE.deadFacs=s.deadFacs||[];if(s.reb)STATE.reb=s.reb;rebApply();   // facções novas e cidades trocadas (rebellion.js)
   if(s.rel)STATE.rel=s.rel;   // relações com as facções NPC
   if(s.fac)STATE.fac=Object.assign(STATE.fac||{},s.fac);   // identidade do jogador (nome, cor, bandeira)
   if(s.rd)STATE.rd=s.rd;   // rodadas: tipos de cidade, entregas, rotas, nível da capital (o que faltar é completado por initEconomy)

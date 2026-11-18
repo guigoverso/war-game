@@ -139,19 +139,31 @@ function buffsPages(){
     if(en&&en.press)bad.push('⚔ '+c.name+' sob repressão: necessidades +'+50*en.press.n+'%')}
   // caravanas (suas e das NPC)
   for(const r of rd.routes)good.push('🛒 Caravana '+routeName(r)+': a necessidade do produto da outra cidade cai (100% some, 150% vira 100%, 200% vira 150%) <small>(enquanto a rota existir)</small>');
-  const nr=(rd.nroutes||[]).length;if(nr)good.push('🛒 '+nr+' caravana(s) entre facções NPC: aliviam o suprimento delas <small>(enquanto existirem)</small>');
-  // facções: relação (preço dos serviços), suprimento (preço de venda e estoque), choques ativos e embargos
-  const rsn=r=>resName(r).toLowerCase();
-  for(const f of WORLD.factions||[]){
-    if(!facCities(f.id).length)continue;
-    const st=relStatus(f.id),pr=REL_ST[st].price,nm=fgChipName(f.id);
-    if(pr>0)bad.push('🏴 '+nm+': relação '+REL_ST[st].n.toLowerCase()+' — serviços das cidades dela +'+Math.round(pr*100)+'%');else if(st==='ally')good.push('🏴 '+nm+': aliada — serviços das cidades dela sem acréscimo');
-    const sh=NEEDS.filter(r=>fsupState(f.id,r)==='short'),ab=NEEDS.filter(r=>fsupState(f.id,r)==='abund');
-    if(sh.length){good.push('🏴 '+nm+': em falta de '+sh.map(rsn).join(', ')+' — paga ×'+FSUP.sellShort.toString().replace('.',',')+' pelo que você vende');bad.push('🏴 '+nm+': em falta de '+sh.map(rsn).join(', ')+' — lojas dela com metade do estoque desses itens')}
-    if(ab.length){good.push('🏴 '+nm+': abundante em '+ab.map(rsn).join(', ')+' — lojas dela com o dobro do estoque');bad.push('🏴 '+nm+': abundante em '+ab.map(rsn).join(', ')+' — paga ×'+FSUP.sellAbund.toString().replace('.',',')+' pelo que você vende')}
-    for(const m of((rd.fmods)||[]).filter(x=>x.f===f.id))(m.d>0?bad:good).push('🏴 '+nm+': '+(m.src||'efeito')+' '+(m.d>0?'−':'+')+Math.abs(m.d).toFixed(2)+' de suprimento'+(m.r?' ('+rsn(m.r)+')':'')+rl(m.left));
-  }
-  for(const e of(STATE.gev&&STATE.gev.embargo)||[])if(STATE.round<e.until)bad.push('⛔ Embargo: '+fgChipName(e.a)+' × '+fgChipName(e.b)+' — caravanas entre elas paradas <small>(até a rodada '+(e.until-1)+')</small>');
   const li=a=>a.length?'<ul class="ldul">'+a.map(t=>'<li>'+t+'</li>').join('')+'</ul>':'<p class="ldsm">Nenhum agora.</p>';
   return['<h3>✅ Buffs ativos</h3>'+li(good),'<h3>⚠ Debuffs ativos</h3>'+li(bad)];
+}
+// ---------- Resumo: "Eventos em andamento" (tudo o que dura mais de uma rodada, com a contagem; o mouse mostra o que afeta) ----------
+const ONG_SRC={chuva:'Grande chuva',mina:'Desabamento na mina',peste:'Peste no gado',incêndio:'Incêndio',crise:'Crise interna',sabotagem:'Sabotagem','mercenários':'Sabotagem de mercenários',antigo:'Efeito antigo'};
+function ongoingDesc(f){
+  const k={weapon:'armas',ammo:'munição',vest:'coletes',upgrade:'melhorias',heal:'cura e curativos',buy:'compras nas lojas',tavern:'pratos da taverna',recruit:'recrutar soldados',soldierup:'melhorias dos soldados',repair:'conserto'};
+  const sel=f.p&&f.p.sel;
+  switch(f.t){
+    case'price':return 'Muda o preço de '+(sel?(k[sel]||sel):'todos os serviços')+(f.p&&f.p.mul?' ('+(f.p.mul>1?'+':'')+Math.round((f.p.mul-1)*100)+'%)':'')+(f.c>=0?' em '+WORLD.cities[f.c].name:'')+'.';
+    case'need':return 'Muda a necessidade de '+(sel?resName(sel).toLowerCase():'recursos')+(f.p&&f.p.mul?' ('+(f.p.mul>1?'+':'')+Math.round((f.p.mul-1)*100)+'%)':'')+(f.c>=0?' em '+WORLD.cities[f.c].name:' nas suas cidades')+'.';
+    case'gold':return 'Rende +◉'+((f.p&&f.p.add)||0)+' por rodada no cofre.';
+    case'noProd':return 'A produção da cidade fica suspensa.';
+    case'noTax':return 'A cidade não paga imposto.';
+    case'noRoute':return 'Não dá para criar caravanas na cidade.';
+    case'noHeal':return 'Sem cura nem remédios na cidade.';
+    case'noRecruit':return 'Não dá para recrutar soldados na cidade.';
+    case'prosper':return 'A cidade fica mais próspera (humor melhor).';
+    case'routeProd':return 'Produção extra nas cidades da rota.';
+  }
+  return f.txt;
+}
+function ongoingHtml(){
+  const rows=[],rd=STATE.rd,t=(txt,left,desc)=>'<li title="'+String(desc).replace(/"/g,'&quot;')+'">⏳ '+txt+' <small>— restam <b>'+left+'</b> rodada'+(left>1?'s':'')+'</small></li>';
+  for(const f of(STATE.pol&&STATE.pol.fx)||[])if((f.dur||f.left)>1&&f.left>=1)rows.push(t('📜 '+f.txt,f.left,ongoingDesc(f)));
+  const e=meetEff();if(e)rows.push(t('🏛 Reunião: '+meetName(e),e.until-STATE.round,'Ganho: '+MPD[e.pid][e.side].buff(e.a)+'. Custo: '+MPD[e.pid][e.side].debuff(e.a)+'. Vale para todas as facções.'));
+  return '<h4>⏳ Eventos em andamento</h4>'+(rows.length?'<ul class="ldul">'+rows.join('')+'</ul><p class="ldsm">Passe o mouse para ver o que cada um afeta.</p>':'<p class="ldsm">Nenhum evento de várias rodadas agora.</p>');
 }

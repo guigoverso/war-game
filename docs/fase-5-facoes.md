@@ -235,3 +235,24 @@ Decisões do usuário: o suprimento é **sorteado por rodada** (70% situação, 
 
 ## Relação: no máximo ±1 por decisão
 Uma **decisão** sua (doação de ouro, relíquia, rota, missão, apoio na rebelião, mediação...) muda a relação com a facção em **1 ponto** (sempre ±1): sem multiplicador de temperamento e sem depender do valor da relação (`relChange`, `factions.js`; `relPreview` mostra +1/−1). A doação de ◉1000 deixou de aparecer enquanto der o mesmo ganho que a de ◉500. Exceção: **efeitos que mexem nas relações** (Festival Continental, Pacto reprovado, votos da reunião) passam `fixed=true` e valem o valor exato, **somam** com o resto e não dependem da relação nem da personalidade. A propagação (±1 para aliadas e rivais) e o esfriamento por tempo não mudaram. `FAC_TEMPER.gain/loss` ficou sem uso.
+
+## F5d: o que sobrou
+- **Facção destruída:** NPC sem nenhuma cidade é apagada (`facDestroy`/`facReap`, no início da rodada, após conquista e ao fim de rebelião). Sai de `WORLD.factions`, relações, grafo, missões e suprimentos; `STATE.deadFacs` refaz a remoção ao carregar. A facção nova (rebelião) começa do zero, só com as relações criadas na rebelião. Relatório: "💀 X foi destruída". Teste: tire todas as cidades de uma facção e passe a rodada.
+- **Aliada ofendida:** crime contra aliada não derruba a aliança na hora; no turno do líder vem o cartão `reparaliada`: A paga → neutra; B paga o dobro + desculpas → favorável; C ignora → desfavorável. Modo criativo: "Invocar evento".
+- **Reparação de inimigo:** pedida uma vez só por crime (`repDone`).
+- **Mina dourada:** opção B rende ◉50 por rodada durante 5 rodadas.
+- **Resumo:** seção "Eventos em andamento" com rodadas restantes e descrição ao passar o mouse.
+- **Stamina:** barra sob a vida; correr gasta (`STAM`), zerou trava até 25; recarrega parado/andando.
+- **Pulo:** 1 bloco no máximo. **Queda:** acima de 3 blocos, 8 de dano por bloco extra (`FALL`); água anula.
+- **NPCs de serviço e líder:** imortais, não fogem (`NPC_FIXED`); tiros os atravessam.
+- Save v19.
+
+## F5d (2): ajustes e rebelião em cidade do jogador
+- **Dungeon dourada:** opção B custa ◉100 (e o pagamento de consolo, ◉100). O portal só vale no turno do comandante em que surge: ao fim da rodada some do mapa/minimapa e a disputa é desfeita (`expireGolden`, `js/dungeon.js`). As tropas da disputa vêm de até 2 facções NPC **diferentes e existentes** (cidade do jogador não manda tropa).
+- **Morte do comandante:** morrer (respawn) na rodada ≥ 1 encerra o turno e vai para o líder (`respawn`, `js/game.js`).
+- **Modo invencível:** não gasta estamina.
+- **Sala do líder:** o soldado usa a cor da facção do jogador e as bandeiras (2 na parede, 1 de mastro ao lado da mesa) usam a bandeira dela; atualiza ao mudar a identidade (`officeLook`, `js/rounds.js`).
+- **Rebelião em cidade sua (`js/rebmine.js`):** usa a mesma máquina das rebeliões NPC (`STATE.reb.cur` com `owner:0`). No turno do líder a cidade pega fogo, ganha a bandeira dos rebeldes e vem o cartão "Rebelião na sua cidade". A) Lutar: no comandante, a invasão começa ao chegar perto (só seus soldados contra os rebeldes); vencendo, a cidade volta a ser sua na hora e fica 5 rodadas sem se rebelar, sem pós-rebelião; se você cair, ela fica independente (sem cartão). B) Reconhecer a independência: nasce facção nova (relação Favorável) ou uma que apoiou anexa (60%); as outras cidades suas ganham +1 de descontentamento. Chance de apoio por relação (`REBM.sup`): guerra 80%, inimiga 40%, desfavorável 30%, neutra 20%, favorável/aliada 0%. Se já há outra rebelião em andamento, a cidade se rebela do jeito antigo (guarnição para reconquistar). Teste: modo criativo → Invocar evento → Rebelião na sua cidade.
+- **Correções da rebelião em cidade sua:** `facOf` devolve um substituto ("Facção extinta") para ids sem facção (antes `.name` quebrava o jogo quando a cidade vinha de uma facção destruída); `facCities` ignora cidades em rebelião (elas são dos "Rebeldes"); facção nova nunca reaproveita o id de uma destruída; o cartão mostra a tabela de lados (rebeldes × você e aliadas); se os rebeldes acabam e a vitória não foi registrada, `rebWatch` a registra (evita "rebelião pendente"); se outra rebelião está em andamento, a cidade espera a próxima rodada; o contador "Aliados" não aparece na batalha em cidade sua.
+- **Efeitos (aba de buffs/debuffs):** só o que afeta o jogador; sumiram caravanas entre NPCs, choques de suprimento de facções NPC e embargos entre NPCs.
+- **Rebelião em cidade sua começa já no fim da rodada:** `rebelCity` chama `rebAnnounce` na hora (fogo, ruínas, bandeira dos rebeldes, rotas cortadas). Antes a rebelião ficava "na fila" até o sorteio do turno do líder; se outra política ou um raid passasse na frente, a cidade ficava sem dono visível, com a facção extinta no mapa e sem destruição. Testado: rebelar → salvar/carregar no meio → reconhecer independência → salvar/carregar (a facção nova persiste).

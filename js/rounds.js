@@ -156,9 +156,9 @@ function endRound(city){
         e.press.n++;
         const tax=Math.round((TAX_BASE+TAX_RANK*Math.max(1,c.rank||1)));if(tax>0){shOf().vault+=tax;taxMap[c.id]=tax;rep.push('⚔ '+c.name+' está sob repressão: faltou suprimento, mas pagou imposto de ◉'+tax+'. As necessidades subiram 50% (até 300%).')}
         const at300=NEEDS.filter(r=>(e.pct[r]||0)>0&&pctOf(c,r)>=300).length;
-        if(at300>=2&&!c.home){rebels.push(c);officers.add(c.id)}
+        if(at300>=2&&!c.home&&!(e.noReb>STATE.round)){rebels.push(c);officers.add(c.id)}
       }else if(short){
-        if(e.ups>=ECON.rebelUps&&!c.home)rebels.push(c);
+        if(e.ups>=ECON.rebelUps&&!c.home&&!(e.noReb>STATE.round))rebels.push(c);   // noReb: acabou de ser reconquistada (rebmine.js)
         else rep.push('😠 '+c.name+' está '+moodLbl(c)+': sem imposto e sem produção.'+(c.home?' (A capital não se rebela, mas sofre os mesmos efeitos.)':' Se continuar faltando, ela se rebela em '+(ECON.rebelUps-e.ups)+' rodada(s)!'));
       }else{
         if(e.press){delete e.press;rep.push('✔ '+c.name+' supriu tudo: a repressão acabou e as necessidades voltaram ao normal.')}   // supriu tudo: os recursos que subiram voltam ao valor anterior
@@ -172,7 +172,7 @@ function endRound(city){
     }
     rep.push('💰 Imposto: '+pcs.map(c=>c.name+' ◉'+(taxMap[c.id]||0)).join(', ')+'. Total: ◉'+pcs.reduce((s,c)=>s+(taxMap[c.id]||0),0)+'.');
     meetRoundEnd(rep);   // reunião: produção das caravanas, taxas e manutenção (meetfx.js)   // quanto cada cidade pagou e o total
-    for(const c of rebels){rep.push(officers.has(c.id)?'🔥 '+c.name+': dois suprimentos chegaram a 300% e os oficiais se juntaram aos rebeldes! A cidade se rebelou. Reconquiste-a.':'🔥 '+c.name+' SE REBELOU depois de '+ECON.rebelUps+' rodadas sem suprimentos! Reconquiste-a.');rebelCity(c)}
+    for(const c of rebels){if(typeof rebS==='function'&&rebS().cur){rep.push('⏳ '+c.name+' está à beira da rebelião, mas há outra em andamento: ela fica para a próxima rodada.');continue}rep.push(officers.has(c.id)?'🔥 '+c.name+': dois suprimentos chegaram a 300% e os oficiais se juntaram aos rebeldes! A cidade se rebelou. Reconquiste-a.':'🔥 '+c.name+' SE REBELOU depois de '+ECON.rebelUps+' rodadas sem suprimentos! Reconquiste-a.');rebelCity(c)}
   }
   for(const c of WORLD.cities)rerollNeeds(c);
   fsupRound();   // cidades de facção: sorteia o suprimento de cada facção e daí o humor das cidades (facsupply.js)
@@ -187,10 +187,10 @@ function endRound(city){
 }
 // rebelião: a cidade deixa de ser sua, perde o armazém e ganha uma guarnição que você precisa derrotar
 function rebelCity(c){
-  const e=ec(c);
+  const e=ec(c),mine=typeof rebmStart==='function'&&rebmStart(c);   // rebelião de verdade (rebmine.js): fogo, bandeira rebelde e cartão no turno do líder; sem guarnição aqui
   c.owner='enemy';c.state='idle';facSetFlag(c);facReskin();   // volta à facção de origem
   STATE.rd.routes=STATE.rd.routes.filter(r=>r.a!==c.id&&r.b!==c.id);rebuildCaravans();
-  e.wh=null;whOf(c);e.got={};e.carry={};e.ups=0;e.mood='upset';delete e.press;   // perde os suprimentos e a produção da cidade (o armazenamento e o cofre são seus)
+  e.wh=null;whOf(c);e.got={};e.carry={};e.ups=0;e.mood='upset';delete e.press;if(mine){rebAnnounce();return}e.rebelled=true;   // rebelião sua: fogo, bandeira rebelde e ruínas já agora (não esperam o sorteio do turno do líder)   // perde os suprimentos e a produção da cidade (o armazenamento e o cofre são seus)
   const n=3+Math.max(1,c.rank||1),pts=(c.walk||[]).filter(p=>Math.hypot(p.x-c.cx,p.z-c.cz)>4);
   for(let i=0;i<n&&pts.length;i++){const p=pts[Math.floor(Math.random()*pts.length)];spawnEnemy(c,i===n-1&&(c.rank||1)>=2?'hound':'soldier',p.x,p.z)}
 }function beginLeaderTurn(){
@@ -250,10 +250,9 @@ function genOffice(){
       }
     }
   }
-  // quadro grande atrás da mesa e duas bandeiras azuis
+  // quadro grande atrás da mesa (as bandeiras da facção são objetos separados: initOffice/officeLook, para mudar de cor)
   ob(mx-1.9,2.1,0.1,mx+1.9,3.9,0.2,DK,false,{j:0});ob(mx-1.7,2.3,0.2,mx+1.7,3.7,0.24,0x7ab4e8,false,{j:0});
   ob(mx-1.7,2.3,0.24,mx+1.7,2.95,0.28,0x4a8a3a,false,{j:0});ob(mx-0.3,2.95,0.24,mx+0.3,3.4,0.3,0xd03a3a,false,{j:0});
-  for(const dx of[-4.6,4.0]){ob(mx+dx,1.2,0.12,mx+dx+0.6,3.9,0.2,0x2a6aff,false,{j:0});ob(mx+dx,1.2,0.2,mx+dx+0.6,1.5,0.24,0xf0d040,false,{j:0})}
   // janelas na parede sul (dos dois lados da porta) e lâmpadas de pé junto da mesa
   for(const wx0 of[3,Wd-6]){ob(wx0-0.1,1.7,Dp-0.12,wx0+3.1,3.9,Dp,DK,false,{j:0});ob(wx0,1.8,Dp-0.16,wx0+3,3.8,Dp-0.1,0xcfe8ff,false,{j:0});ob(wx0+1.45,1.8,Dp-0.2,wx0+1.55,3.8,Dp-0.14,DK,false,{j:0})}
   for(const lx of[3.2,Wd-3.8]){ob(lx,0,2.6,lx+0.6,0.2,3.2,DK,false);ob(lx+0.25,0.2,2.85,lx+0.35,2.0,2.95,DK,false);ob(lx-0.1,2.0,2.5,lx+0.7,2.7,3.3,0xffc060,false,{j:0})}
@@ -266,20 +265,35 @@ function inOfficeRoom(){return OFFICE.ok&&P.y<UNDER_Y&&P.x>=OFFICE.ox-1&&P.x<=OF
 function initOffice(){
   if(!OFFICE.ok||OFFICE.soldier)return;
   const ox=OFFICE.ox,oz=OFFICE.oz,Y=OFFICE.Y;
-  const m=buildHuman({skin:SKINS[1],shirt:0x2a4a9a,pants:0x2a2a3a,hairStyle:'helmet',hat:0x8a9ab0,gun:{len:0.75},scarf:0xe0e0e0,scale:1.04});
-  m.arms[1].rotation.x=-1.2;m.arms[0].rotation.x=-1.0;
-  m.group.position.set(ox+OFFICE.Wd/2,Y,oz+OFFICE.Dp-1.1);m.group.rotation.y=Math.PI;scene.add(m.group);
   Col.add({x0:ox+OFFICE.Wd/2-0.5,y0:Y,z0:oz+OFFICE.Dp-1.6,x1:ox+OFFICE.Wd/2+0.5,y1:Y+2,z1:oz+OFFICE.Dp-0.6});
-  OFFICE.soldier=m;
+  OFFICE.soldier=true;officeLook();
+  // bandeiras da facção do jogador (a textura e a cor vêm de officeLook): duas na parede do fundo, uma grande ao lado da mesa e um mastro de pé
+  const fm=OFFICE.flagMat=new THREE.MeshLambertMaterial({color:0xffffff,side:THREE.DoubleSide}),mx=OFFICE.Wd/2,fl=(w,h,x,y,z,ry)=>{const m=new THREE.Mesh(GEO_BOX,fm);m.scale.set(w,h,0.06);m.position.set(ox+x,Y+y,oz+z);if(ry)m.rotation.y=ry;scene.add(m);return m};
+  for(const dx of[-4.6,4.0])fl(1.5,2.4,mx+dx+0.3,2.6,0.2);
+  {const px=ox+mx+4.6,pz=oz+2.6,pole=new THREE.Mesh(GEO_BOX,mat(0x3a3a3a));pole.scale.set(0.1,3.8,0.1);pole.position.set(px,Y+1.9,pz);scene.add(pole);const tip=new THREE.Mesh(GEO_BOX,mat(0xe0b030));tip.scale.set(0.2,0.2,0.2);tip.position.set(px,Y+3.9,pz);scene.add(tip);const base=new THREE.Mesh(GEO_BOX,mat(0x6a6a6a));base.scale.set(0.7,0.2,0.7);base.position.set(px,Y+0.1,pz);scene.add(base);const f=new THREE.Mesh(GEO_BOX,fm);f.scale.set(1.5,1.0,0.06);f.position.set(px+0.8,Y+3.3,pz);scene.add(f)}
+  officeLook();
   // livro aberto em cima da mesa (capa, páginas) com um brilho dourado para chamar atenção
   const g=new THREE.Group(),bx=(c,sx,sy,sz,px,py,pz,rz)=>{const o=new THREE.Mesh(GEO_BOX,mat(c));o.scale.set(sx,sy,sz);o.position.set(px,py,pz);if(rz)o.rotation.z=rz;g.add(o);return o};
   bx(0x5a2a10,1.5,0.06,0.95,0,0,0);bx(0xf2e8c8,0.68,0.07,0.85,-0.36,0.06,0,0.08);bx(0xf2e8c8,0.68,0.07,0.85,0.36,0.06,0,-0.08);bx(0x3a2a14,0.05,0.12,0.9,0,0.05,0);
   const halo=new THREE.Mesh(GEO_BOX,new THREE.MeshBasicMaterial({color:0xffd060,transparent:true,opacity:0.35,depthWrite:false}));halo.scale.set(1.8,0.05,1.2);halo.position.y=-0.03;g.add(halo);
   g.position.set(OFFICE.desk.x,Y+1.07,oz+3.1);scene.add(g);OFFICE.book=g;OFFICE.halo=halo;
 }
+// cor da facção do jogador no escritório: bandeiras (textura) e uniforme do soldado
+function officeLook(){
+  if(!OFFICE.ok||!OFFICE.soldier)return;
+  const col=facColor(0);
+  if(OFFICE.flagMat){OFFICE.flagMat.map=facFlagTex(0);OFFICE.flagMat.color.setHex(0xffffff);OFFICE.flagMat.needsUpdate=true}
+  if(OFFICE.soldierCol===col&&OFFICE.soldierM)return;
+  const ox=OFFICE.ox,oz=OFFICE.oz,Y=OFFICE.Y;
+  if(OFFICE.soldierM)scene.remove(OFFICE.soldierM.group);
+  const m=buildHuman({skin:SKINS[1],shirt:col,pants:0x2a2a3a,hairStyle:'helmet',hat:0x8a9ab0,gun:{len:0.75},scarf:0xe0e0e0,scale:1.04});
+  m.arms[1].rotation.x=-1.2;m.arms[0].rotation.x=-1.0;
+  m.group.position.set(ox+OFFICE.Wd/2,Y,oz+OFFICE.Dp-1.1);m.group.rotation.y=Math.PI;scene.add(m.group);
+  OFFICE.soldierM=m;OFFICE.soldierCol=col;
+}
 function enterOffice(silent){
   if(G.office||!OFFICE.ok)return;
-  initOffice();
+  initOffice();officeLook();G.noPauseUntil=performance.now()+2000;
   G.office={ret:{x:P.x,y:P.y,z:P.z,yaw:P.yaw}};
   G.fireHeld=false;G.aiming=false;P.crouch=false;fishClean();
   P.x=OFFICE.spawn.x;P.z=OFFICE.spawn.z;P.y=OFFICE.Y+0.05;P.vx=P.vz=P.vy=0;P.camY=P.y;P.yaw=0;P.pitch=0;
@@ -760,7 +774,7 @@ function drawPickOverlay(g,s){
     const c=mapOpen()&&e.target&&e.target.id==='bigmap'?pickCityAt(e):null;
     if(!c){hide();return}
     const f=facOf(c.fid);if(!tip){tip=document.createElement('div');tip.className='uitip';document.body.appendChild(tip)}
-    tip.textContent=c.rebel?c.name+'\nProdução: '+typeLabel(c)+'\nFacção: Rebeldes (em rebelião)'+(G.creative?'\n'+rebSidesTxt(rebS().cur):''):c.name+'\nProdução: '+typeLabel(c)+'\nFacção: '+(f?f.name:'—')+(G.creative&&f&&f.temper?' ('+facTemperName(f)+')':'')+(f&&!f.player?'\nRelação: '+REL_ST[relStatus(c.fid)].n+' ('+relOf(c.fid).v+'/10)':'');
+    tip.textContent=c.rebel?c.name+'\nProdução: '+typeLabel(c)+'\nFacção: Rebeldes (em rebelião)'+(G.creative&&rebS().cur?'\n'+rebSidesTxt(rebS().cur):''):c.name+'\nProdução: '+typeLabel(c)+'\nFacção: '+(f?f.name:'—')+(G.creative&&f&&f.temper?' ('+facTemperName(f)+')':'')+(f&&!f.player?'\nRelação: '+REL_ST[relStatus(c.fid)].n+' ('+relOf(c.fid).v+'/10)':'');
     tip.style.display='block';tip.style.left=(e.clientX+14)+'px';tip.style.top=(e.clientY+14)+'px';
   });
   document.addEventListener('keydown',hide);document.addEventListener('click',hide);

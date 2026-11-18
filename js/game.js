@@ -126,6 +126,7 @@ function respawn(){
   P.dead=false;P.hp=P.maxhp;P.armor=0;P.coins=P.coins>0?Math.floor(P.coins*0.9):P.coins;P.crouch=false;P.regen=null;fishClean();
   for(const c of WORLD.cities)if(c.state==='attacking'){c.state='idle';c.crime=false;for(const e of c.enemies)if(e.alive){e.hp=e.maxhp;e.x=e.homeX;e.z=e.homeZ;e.y=tH(e.x,e.z)}}
   placePlayerHome();closePanel();
+  if(STATE.phase==='commander'&&STATE.round>=1&&!(typeof rebCur==='function'&&rebCur()&&rebCur().endNow)&&typeof endRound==='function'){toast('☠ Você caiu: o turno do comandante termina.',3500);endRound(WORLD.home)}   // morrer encerra o turno (a rebelião já tem o seu próprio fim, abaixo)
   if(typeof rebAfterRespawn==='function')rebAfterRespawn();   // morreu numa batalha de rebelião: a rodada acaba (rebellion.js)
 }
 function placePlayerHome(){
@@ -134,7 +135,8 @@ function placePlayerHome(){
   P.x=c.cx+6;P.z=c.cz+6;P.y=tH(P.x,P.z)+1;P.camY=P.y;
 }
 function conquerCity(c){
-  c.owner='player';c.state='conquered';facSetFlag(c);facReskin();armyConquered(c);
+  c.owner='player';c.state='conquered';facSetFlag(c);facReskin();armyConquered(c);if(typeof facReap==='function')facReap();
+  {const e=ec(c);if(e&&e.rebelled){e.rebelled=false;e.noReb=STATE.round+(typeof REBM!=='undefined'?REBM.cool:5);e.ups=0;e.mood='ok'}}   // reconquistada de uma rebelião: 5 rodadas sem se rebelar (rebmine.js)
   const reward=120+60*c.rank;addCoins(reward);
   const n=WORLD.cities.filter(x=>x.owner==='player').length;
   toast('🏴 '+c.name+' CONQUISTADA! +'+reward+' moedas  ('+n+'/7)',5000);sfx('coin',0);
@@ -343,7 +345,7 @@ $('cNew').onclick=()=>{location.href=location.pathname+'?seed='+Math.floor(Math.
 // ---------- Entrada ----------
 document.addEventListener('pointerlockchange',()=>{
   G.locked=document.pointerLockElement===canvas;
-  if(!G.locked&&G.running&&!G.panel){refreshCheats();openPanel('pause')}
+  if(!G.locked&&G.running&&!G.panel&&!(G.noPauseUntil>performance.now())){refreshCheats();openPanel('pause')}   // noPauseUntil: a janela de confirmação que acabou de fechar solta o mouse; isso não deve abrir a pausa ao entrar na sala do líder
 });
 canvas.addEventListener('mousedown',e=>{
   if(!G.running)return;
@@ -466,11 +468,23 @@ function updateInteract(){
 }
 
 // ---------- Atualização do jogador ----------
+const STAM={max:100,drain:16,regen:12,unlock:25};   // stamina: gasto por segundo correndo, recarga por segundo, e o mínimo para voltar a correr depois de esgotar
+const FALL={safe:3,perBlock:8};   // dano de queda: nada até 3 blocos; depois 8 de vida por bloco a mais
+function fallHit(drop){
+  if(drop<=FALL.safe||P.dead||G.god)return;
+  const dmg=Math.round((drop-FALL.safe)*FALL.perBlock);
+  P.hp-=dmg;G.hurtT=0.45;sfx('hurt',0);if(P.hp<=0){P.hp=0;die()}
+}
 function updatePlayer(dt){
   const k=G.keys;
   const seated=!!(G.office&&G.office.meet&&MEETA.seated);   // sentado na reunião: não anda
   const fw=seated?0:(k.KeyW?1:0)-(k.KeyS?1:0),st=seated?0:(k.KeyD?1:0)-(k.KeyA?1:0);
-  const sprint=k.ShiftLeft&&fw>0&&!P.crouch&&!G.aiming;
+  // stamina: correr gasta, esgotou = não corre até recuperar STAM.unlock; recarrega com o tempo
+  if(P.stam===undefined){P.stam=STAM.max;P.stamLock=false}
+  const wantSprint=k.ShiftLeft&&fw>0&&!P.crouch&&!G.aiming,sprint=wantSprint&&!P.stamLock&&P.stam>0;
+  if(G.god){P.stam=STAM.max;P.stamLock=false}   // invencível: correr não gasta estamina
+  else if(sprint)P.stam=Math.max(0,P.stam-STAM.drain*dt);else P.stam=Math.min(STAM.max,P.stam+STAM.regen*dt);
+  if(P.stam<=0)P.stamLock=true;else if(P.stamLock&&P.stam>=STAM.unlock)P.stamLock=false;
   let spd=P.crouch?2.4:sprint?8.2:5;if(G.aiming)spd*=0.65;spd*=buffMul('speed');
   const water=P.y<SEA-0.3&&tH(P.x,P.z)<SEA&&!inDungeonRegion();if(water)spd*=0.6;
   const sy=Math.sin(P.yaw),cy=Math.cos(P.yaw);
@@ -478,10 +492,17 @@ function updatePlayer(dt){
   const acc=P.ground?14:3.5;
   P.vx+=(wx*spd-P.vx)*Math.min(1,acc*dt);P.vz+=(wz*spd-P.vz)*Math.min(1,acc*dt);
   const hgt=P.crouch?1.2:1.8;
-  if(G.noclip)noclipMove(dt,fw,st);else moveXZ(P,P.vx*dt,P.vz*dt,P.r,hgt,1.05);
+  if(G.noclip)noclipMove(dt,fw,st);else moveXZ(P,P.vx*dt,P.vz*dt,P.r,hgt,P.ground?1.05:0.3);   // no ar só sobe degraus pequenos: um pulo vence 1 bloco, não 2
   P.speed=Math.hypot(P.vx,P.vz);
   if(k.Space&&P.ground&&!P.crouch&&!G.noclip&&!seated){P.vy=7.2;P.ground=false}
+  const vy0=P.vy;
   if(!G.noclip)moveY(P,dt,P.r,hgt,1.05);
+  // dano de queda: mede a altura da queda e aplica ao pousar (a água anula)
+  if(!G.noclip){
+    if(!P.ground)P.peakY=Math.max(P.peakY===undefined?P.y:P.peakY,P.y);
+    else{if(P.wasGround===false&&P.peakY!==undefined&&vy0<-4){const inW=P.y<SEA-0.3&&tH(P.x,P.z)<SEA&&!inDungeonRegion();if(!inW)fallHit(P.peakY-P.y)}P.peakY=P.y}
+    P.wasGround=P.ground;
+  }
   const peek=P.crouch&&(G.fireHeld||G.aiming);
   const tgt=P.crouch?(peek?1.52:1.05):1.62;
   P.eye+=(tgt-P.eye)*Math.min(1,dt*(peek?18:10));
@@ -502,6 +523,7 @@ function updatePlayer(dt){
 // ---------- HUD por frame ----------
 let wlistBuilt=false;
 function updateHUD(dt){
+  $('stfill').style.width=((P.stam===undefined?STAM.max:P.stam)/STAM.max*100)+'%';$('stbar').classList.toggle('low',!!P.stamLock);
   $('hpfill').style.width=(P.hp/P.maxhp*100)+'%';$('hptext').textContent='VIDA '+Math.ceil(P.hp)+' / '+P.maxhp;$('arfill').style.width=P.armor+'%';$('arbox').style.display=P.armor>0?'block':'none';
   $('coins').textContent='◉ '+P.coins+(P.coins<0?'  (dívida)':'');$('coins').classList.toggle('debt',P.coins<0);
   const w=WEAPONS[WS.cur];
@@ -619,7 +641,7 @@ function drawBigMap(cvArg,mk){   // cvArg: outro canvas (popup de missão); mk: 
   {const rm=rebMarker();if(rm){drawStar(g,rm.x*s,rm.z*s,13*k,'#ff3a2a');g.fillStyle='#ff9a8a';g.strokeStyle='#000';g.lineWidth=3;g.strokeText(rm.label,rm.x*s,rm.z*s-18*k);g.fillText(rm.label,rm.x*s,rm.z*s-18*k)}}
   {const qt=questTarget();if(qt){drawStar(g,qt.x*s,qt.z*s,10*k);g.fillStyle='#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText('Missão ativa',qt.x*s,qt.z*s-16*k);g.fillText('Missão ativa',qt.x*s,qt.z*s-16*k)}}
   if(mk){drawStar(g,mk.x*s,mk.z*s,13*k,mk.col);g.fillStyle=mk.lcol||'#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText(mk.label,mk.x*s,mk.z*s-18*k);g.fillText(mk.label,mk.x*s,mk.z*s-18*k)}
-  g.save();g.translate(P.x*s,P.z*s);g.rotate(-P.yaw);g.scale(k,k);g.fillStyle='#fff';g.strokeStyle='#000';g.beginPath();g.moveTo(0,-9);g.lineTo(7,8);g.lineTo(0,4);g.lineTo(-7,8);g.closePath();g.fill();g.stroke();g.restore();
+  if(!(G.dg||G.office||P.y<UNDER_Y)){g.save();g.translate(P.x*s,P.z*s);g.rotate(-P.yaw);g.scale(k,k);g.fillStyle='#fff';g.strokeStyle='#000';g.beginPath();g.moveTo(0,-9);g.lineTo(7,8);g.lineTo(0,4);g.lineTo(-7,8);g.closePath();g.fill();g.stroke();g.restore();}   // fora do mapa (dungeon, sala do líder, sala de reuniões): sem o indicador do jogador
 }
 
 
