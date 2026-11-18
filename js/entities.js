@@ -173,7 +173,7 @@ function npcLook(rng,biome,role,owner){
   if(role==='merchant'){L.apron=0x6b4a2a;L.shirt=0x3a6a4a;L.hairStyle='hat';L.hat=0xc8a85a;L.scale=1.02}
   if(role==='cook'){L.apron=0xf2f2f2;L.shirt=0xe8e0d0;L.hairStyle='cap';L.hat=0xf4f4f4;L.beard=L.hair;L.scale=1.04}
   if(role==='nurse'){L.shirt=0xf4f4f4;L.pants=0xf4f4f4;L.hairStyle='cap';L.hat=0xf4f4f4;L.scarf=0xd02a2a;L.shoes=0xdddddd}
-  if(role==='hostage'){L.shirt=0x8a8a80;L.pants=0x4a4036;L.hairStyle='none';L.scale=1;L.miku=true} // prisioneira temporária: Hatsune Miku
+  if(role==='hostage'){L.shirt=0x8a8a80;L.pants=0x4a4036;L.hairStyle='short';L.scale=1}   // refém: NPC com as cores da facção que pediu ajuda (a camisa é pintada em spawnNpc)
   if(role==='clerk'){L.shirt=0x3a5a8a;L.hairStyle='short';L.scarf=0xe0d8b0}
   if(role==='leader'){L.shirt=0x5a2a6a;L.pants=0x2a2a3a;L.hairStyle='hat';L.hat=0x2a2a3a;L.scarf=0xe8c040;L.beard=L.hair;L.scale=1.03}
   if(role==='guard'){L.shirt=0x2a4a9a;L.hairStyle='helmet';L.hat=0x7a8aa0;L.gun={len:0.8};L.pants=0x2a2a3a}
@@ -252,6 +252,7 @@ function spawnNpc(c,o){
   const rng=new RNG((WORLD.seed*7+c.id*131+NPCS.length*17)>>>0);
   if(!o.stationary&&o.role!=='guard'){const f=freeSpot(o.x,o.z,0.3,1.8,0.45);o.x=f[0];o.z=f[1]}
   const role=o.role||'civ',L=npcLook(rng,c.biome===BIO_ROCK?1:c.biome,role,c.owner);
+  if(role==='hostage'){const fc=facColor(o.fid!==undefined?o.fid:(c.hostageFid!==undefined?c.hostageFid:0));if(fc)L.shirt=fc}   // refém: cores da facção que pediu ajuda (ou da sua, se for do acampamento comum)
   if(role==='guard'&&c.fid!==undefined)L.shirt=facColor(c.fid)||L.shirt;   // uniforme do guarda = cor principal da facção dona da cidade
   const m=buildHuman(L);
   const n={kind:'npc',role:L.roleOut,look:L,city:c,model:m,group:m.group,x:o.x,z:o.z,y:o.y!==undefined?o.y:tH(o.x,o.z),vy:0,ground:true,yaw:o.yaw||rng.range(0,6.28),state:'idle',timer:rng.range(0,4),

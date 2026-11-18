@@ -74,7 +74,7 @@ Hooks.on('round',()=>{
 });
 const fgRoutes=()=>{const rd=STATE.rd;return rd.nroutes||(rd.nroutes=[])};
 const fgSameRoute=(r,A,B)=>(r.a===A.id&&r.b===B.id)||(r.a===B.id&&r.b===A.id);
-const fgTrade=(A,B)=>A.fid===B.fid||fgV(A.fid,B.fid)>=1;   // facções inimigas entre si não comerciam
+const fgTrade=(A,B)=>A.fid===B.fid||(fgV(A.fid,B.fid)>=1&&!(typeof gevEmbargoed==='function'&&gevEmbargoed(A.fid,B.fid)));   // embargo (F5c) também corta o comércio   // facções inimigas entre si não comerciam
 // uma caravana NPC nova por rodada. Pesos, nesta ordem: necessidades -> aliança -> relações
 const fgGt=(a,b)=>{for(let k=0;k<a.length;k++)if(a[k]!==b[k])return a[k]>b[k];return false};   // comparação em ordem de prioridade
 function fgPickRoute(){

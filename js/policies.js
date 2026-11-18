@@ -84,6 +84,7 @@ function rollPolicy(force){
   if(typeof meetPending==='function'&&meetPending()){P.pending=meetCard();polNoteUpdate();return}   // reunião das facções (meeting.js): vem antes das outras, só o raid passa na frente
   const mc=typeof fevMedCard==='function'?fevMedCard():null;   // mediação entre facções NPC rivais (facevents.js): só o raid de bandidos passa na frente
   if(mc&&!(pick&&pick.d.id==='raid')){P.pending=mc;polNoteUpdate();return}
+  if(!(pick&&pick.d.id==='raid')){const gc=typeof gevCard==='function'?gevCard():null;if(gc){P.pending=gc;polNoteUpdate();return}}   // evento global (globalev.js, F5c): o raid passa na frente
   if(!pick)return;
   P.pending={pid:pick.d.id,city:pick.city?pick.city.id:-1,round:STATE.round};
   if(pick.d.data)P.pending.data=pick.d.data(rng);   // dados extras sorteados (ex.: qual rota de caravana)
@@ -282,8 +283,8 @@ definePolicy({id:'refugiados',name:'Refugiados',city:true,cool:4,
       apply:x=>x.fx({t:'need',p:{mul:1.5,sel:'food'},txt:'Necessidade de comida +50% em '+x.city.name+' (refugiados)'}),
       onStart:x=>{
         const c=x.city,bk=c.barracks||{x:c.cx,z:c.cz};let n=0;
-        for(let i=0;i<2&&allyCount()<ARMY.max;i++){spawnAlly(bk.x+(Math.random()-0.5)*1.5,bk.z+(Math.random()-0.5)*1.5,c);n++}
-        x.toast(n?'🪖 '+n+' refugiado(s) se alistaram em '+c.name+'.':'Seu exército já está completo: ninguém se alistou.',4000);
+        const g=armyGain(2);n=g.spawned+g.res;   // o excesso vai para a reserva
+        x.toast(n?'🪖 '+n+' refugiado(s) se alistaram'+(g.res?' ('+g.res+' na reserva)':'')+'.':'Seu exército e a reserva estão cheios: ninguém se alistou.',4000);
       }},
     {k:'B',label:'Recusar a entrada',type:'neutral',eff:()=>'Nada muda.'},
     {k:'C',label:'Encaminhá-los a outra cidade',type:'debuff',cost:{gold:60},eff:()=>'−◉60.'}

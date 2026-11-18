@@ -123,6 +123,7 @@ function msPrepare(m){   // devolve false (com aviso) se não deu para montar a 
     let camp=WORLD.camps.find(k=>okQuestCamp(k,c,m.type));if(!camp)camp=respawnQuestCamp(c,m);if(!camp)camp=WORLD.camps.find(k=>okQuestCamp(k,c,m.type,true));
     if(!camp){toast('Nenhum local adequado para o acampamento foi encontrado. Tente outra missão.',3000);return false}
     camp.questTarget=true;camp.name='Acampamento dos '+m.gang;m.campId=camp.id;
+    if(m.type==='hostage'&&camp.reward==='hostage'&&camp.hostagePos)campHostage(camp,m.src==='fac'?m.fid:0);   // refém nas cores de quem pediu ajuda
   }else if(m.type==='pack'){
     const p=msPackPoint(c);if(!p){toast('Não achei um ponto livre para a matilha. Tente outra missão.',3000);return false}
     m.pack=p;m.spawned=false;

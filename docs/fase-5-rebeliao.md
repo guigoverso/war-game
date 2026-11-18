@@ -111,4 +111,6 @@ Fase 6 (guerra). Gancho: `fsupHit` (facsupply.js) reduz o suprimento de uma fac�
 - **Buracos (`rebPitDig`):** forma irregular (de ~6 a ~20 ladrilhos) que cresce a partir de um ladrilho central de rua ou praça plano e livre de prédio e objetos: o miolo (ladrilhos com os 8 vizinhos no buraco) desce 2 blocos e a borda 1 (`PIT`), então nunca há degrau maior que 1 e dá para sair andando. A malha do chunk é ajustada: a face de cima de cada ladrilho desce e escurece, e entram paredes de terra em volta. Entulho em volta (`RUIN.craters` = 3 + 1 por nível). O mapa e o minimapa não mostram os buracos.
 - **Corpos:** soldados dos rebeldes e da facção dona (na cor de cada um) e civis caídos, com poça de sangue (`RUIN.bodies` = 7 + 3 por nível).
 - Os números ficam juntos em `RUIN`. Teste: `?cenario=rebeliao`, encerrar a rodada, ir até a cidade (painel do cenário).
+- **Apoiadores na batalha de apoio:** os soldados de cada facção que apoia os rebeldes (`REB.supTroop`=2) aparecem na cor dela, além dos rebeldes (5 + nível da cidade) e dos seus soldados. Antes só os rebeldes e os seus apareciam.
+- **Fuligem:** só os prédios de verdade (com `c.houses[i].bh`) ganham a caixa escura; currais e campos (também em `c.houses`) ganhavam uma "parede" translúcida que parecia névoa.
 

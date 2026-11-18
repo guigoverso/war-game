@@ -415,7 +415,7 @@ window.addEventListener('blur',()=>{G.keys={};G.fireHeld=false;G.aiming=false});
 function doInteract(){
   const t=G.target;if(!t)return;
   if(t.c&&raidLocked(t.c))return;
-  if(t.type==='hall')openQuests(t.c);else if(t.type==='barracks')openBarracks(t.c);else if(t.type==='shop')openShop(t.c);else if(t.type==='clinic')openClinic(t.c);else if(t.type==='portal'){if(RAID.active&&!RAID.engaged)toast('Há um ataque em andamento! Defenda a cidade antes.',2500);else if(t.p.golden&&CONTEST.active)toast('⚔ A batalha pelo portal dourado ainda não terminou!',2500);else enterDungeon(t.p)}else if(t.type==='dgexit')leaveDungeon();else if(t.type==='store')openStore(t.c,'store');else if(t.type==='tavern')openStore(t.c,'tavern');else if(t.type==='stove')openCooking('tavern');else if(t.type==='fire')openCooking('fire');else if(t.type==='npc')npcTalk(t.n);else if(t.type==='chest')openChest(t.ch);else if(t.type==='vein')mineVein();else if(t.type==='cage')openCage(t.c);else if(t.type==='book')openBook();else if(t.type==='leader')hallRoundAction(t.c);else if(t.type==='warehouse')openWarehouse(t.c);else if(t.type==='loot')lootCaravan(t.car);else if(t.type==='msdeliver')msDeliver(t.m);
+  if(t.type==='dgcage')gevCageOpen();else if(t.type==='hall')openQuests(t.c);else if(t.type==='barracks')openBarracks(t.c);else if(t.type==='shop')openShop(t.c);else if(t.type==='clinic')openClinic(t.c);else if(t.type==='portal'){if(RAID.active&&!RAID.engaged)toast('Há um ataque em andamento! Defenda a cidade antes.',2500);else if(t.p.golden&&CONTEST.active)toast('⚔ A batalha pelo portal dourado ainda não terminou!',2500);else enterDungeon(t.p)}else if(t.type==='dgexit')leaveDungeon();else if(t.type==='store')openStore(t.c,'store');else if(t.type==='tavern')openStore(t.c,'tavern');else if(t.type==='stove')openCooking('tavern');else if(t.type==='fire')openCooking('fire');else if(t.type==='npc')npcTalk(t.n);else if(t.type==='chest')openChest(t.ch);else if(t.type==='vein')mineVein();else if(t.type==='cage')openCage(t.c);else if(t.type==='book')openBook();else if(t.type==='leader')hallRoundAction(t.c);else if(t.type==='warehouse')openWarehouse(t.c);else if(t.type==='loot')lootCaravan(t.car);else if(t.type==='msdeliver')msDeliver(t.m);
 }
 function updateInteract(){
   G.target=null;G.attackCity=null;G.curCity=null;const lines=[];
@@ -452,6 +452,7 @@ function updateInteract(){
   if(nearBook()){G.target={type:'book'};lines.push('[E] Abrir o livro de decisões')}
   {const pp=portalNear();if(pp){G.target={type:'portal',p:pp};lines.push('[E] Entrar no portal — dungeon nível '+pp.tier+' • recompensa: '+rewardText(pp))}}
   if(G.dg&&G.dgPad&&Math.hypot(P.x-G.dgPad.x,P.z-G.dgPad.z)<2.6){G.target={type:'dgexit'};lines.push('[E] Sair da dungeon (volta ao portal)')}
+  if(G.dg&&G.dg.cage&&!G.dg.cage.opened&&Math.hypot(G.dg.cage.x-P.x,G.dg.cage.z-P.z)<3.6){G.target={type:'dgcage'};lines.push(G.dg.area.state==='cleared'?'[E] Abrir a jaula e libertar o refém':'🔒 Jaula trancada — elimine os inimigos')}
   if(G.dg&&G.dg.vein&&!G.dg.vein.mined&&Math.hypot(G.dg.vein.x-P.x,G.dg.vein.z-P.z)<3.4&&Math.abs(G.dg.vein.y-P.y)<2.5){G.target={type:'vein'};lines.push(G.dg.area.state==='cleared'?'[E] Minerar o veio de ouro':'🔒 Veio de ouro — elimine os inimigos')}
   for(const ch of WORLD.chests){if(ch.opened||ch.hold)continue;const d=Math.hypot(ch.x-P.x,ch.z-P.z);if(d<2.8&&Math.abs(ch.y-P.y)<2){G.target={type:'chest',ch};lines.push(ch.lockedBy&&ch.lockedBy.state!=='cleared'?'🔒 Baú trancado — elimine os bandidos':'[E] Abrir baú')}}
   if(!G.target){
@@ -530,7 +531,7 @@ function updateHUD(dt){
   if(best){
     const dx=best.cx-P.x,dz=best.cz-P.z,s=Math.sin(P.yaw),cy=Math.cos(P.yaw);
     const ang=Math.atan2(dx*cy-dz*s,dx*(-s)+dz*(-cy));
-    $('obj').innerHTML='Soldados: <b>'+allyCount()+'/'+ARMY.max+'</b>'+rebAlliesLine()+'<br>Cidades: <b>'+n+'/7</b><br>Alvo: '+best.name+'<br><span id="arrow" style="transform:rotate('+ang+'rad)">▲</span> '+Math.round(bd)+' m';
+    $('obj').innerHTML='Soldados: <b>'+armyTotal()+'/'+ARMY.max+'</b>'+rebAlliesLine()+'<br>Cidades: <b>'+n+'/7</b><br>Alvo: '+best.name+'<br><span id="arrow" style="transform:rotate('+ang+'rad)">▲</span> '+Math.round(bd)+' m';
   }else $('obj').innerHTML='Cidades: <b>'+n+'/7</b><br>Todas conquistadas!';
   $('obj').innerHTML+=questLine();drawMinimap();
 }
@@ -557,9 +558,9 @@ function drawMinimap(){
   mmc.fillStyle='#fff';mmc.strokeStyle='#000';mmc.lineWidth=2;mmc.beginPath();mmc.moveTo(R,R-8);mmc.lineTo(R+6,R+6);mmc.lineTo(R,R+3);mmc.lineTo(R-6,R+6);mmc.closePath();mmc.fill();mmc.stroke();
   {const rm=G.dg?null:rebMarker();if(rm){const dx=(rm.x-P.x)*s,dz=(rm.z-P.z)*s,cs=Math.cos(P.yaw),sn=Math.sin(P.yaw);let rx=dx*cs-dz*sn,ry=dx*sn+dz*cs;const L=Math.hypot(rx,ry);if(L>77){rx*=77/L;ry*=77/L}drawStar(mmc,R+rx,R+ry,8,'#ff3a2a')}}   // marcador da rebelião a resolver (vermelho; no aro quando longe)
   {const qt=G.dg?null:questTarget();if(qt){const dx=(qt.x-P.x)*s,dz=(qt.z-P.z)*s,cs=Math.cos(P.yaw),sn=Math.sin(P.yaw);let rx=dx*cs-dz*sn,ry=dx*sn+dz*cs;const L=Math.hypot(rx,ry);if(L>77){rx*=77/L;ry*=77/L}drawStar(mmc,R+rx,R+ry,7)}}   // fora do alcance a estrela fica no aro, como a rosa dos ventos; perto, fica no local da missão. Sempre por cima de tudo
-  if(!G.dg)for(const p of goldenPortals()){   // portal dourado: losango que se comporta como a estrela de missão (no aro quando longe, no local quando perto; por cima de tudo)
+  if(!G.dg)for(const p of markedPortals()){   // portal dourado: losango que se comporta como a estrela de missão (no aro quando longe, no local quando perto; por cima de tudo)
     const dx=(p.x-P.x)*s,dz=(p.z-P.z)*s,cs=Math.cos(P.yaw),sn=Math.sin(P.yaw);let rx=dx*cs-dz*sn,ry=dx*sn+dz*cs;const L=Math.hypot(rx,ry);if(L>77){rx*=77/L;ry*=77/L}
-    drawGoldDiamond(mmc,R+rx,R+ry,7);
+    drawGoldDiamond(mmc,R+rx,R+ry,7,p.rescue?'#5ad0ff':undefined);
   }
 }
 function drawCompassRim(ctx,cx,cy,r,yaw){
@@ -674,7 +675,7 @@ function update(dt){
   updateWeapons(dt);
   updateActors(dt);updateAllies(dt);updateCritters(dt);updateWild(dt);updateChests(dt);updateDayNight(dt);updateQuests(dt);
   updateFx(dt);checkStuck(dt);updateInventory(dt);updateFishing(dt);updateVendors();updatePortals(dt);updateRaids(dt);updateRounds(dt);
-  updateInteract();facPatrol();rebWatch();
+  updateInteract();facPatrol();rebWatch();gevTick(dt);
   // recuo: cidade em ataque se o jogador se afastou demais
   for(const c of WORLD.cities)if(c.state==='attacking'&&Math.hypot(c.cx-P.x,c.cz-P.z)>170){c.state='idle';c.crime=false;toast('Você recuou. Os inimigos voltam aos postos.',2500);for(const e of c.enemies)if(e.alive){e.hp=e.maxhp}}
   for(const w of WORLD.windmills)w.rotation.z+=dt*0.9;
@@ -762,13 +763,13 @@ function refreshPolicyCheats(){
 }
 
 // marcador do portal dourado (política Dungeon dourada): losango dourado no minimapa e no mapa grande (com o nome)
-function drawGoldDiamond(ctx,x,y,r){ctx.fillStyle='#ffd23a';ctx.strokeStyle='#000';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,y-r);ctx.lineTo(x+r,y);ctx.lineTo(x,y+r);ctx.lineTo(x-r,y);ctx.closePath();ctx.fill();ctx.stroke()}
+function drawGoldDiamond(ctx,x,y,r,col){ctx.fillStyle=col||'#ffd23a';ctx.strokeStyle='#000';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,y-r);ctx.lineTo(x+r,y);ctx.lineTo(x,y+r);ctx.lineTo(x-r,y);ctx.closePath();ctx.fill();ctx.stroke()}
 function drawGoldPortals(ctx,s,px,pz,maxL,big){
-  for(const p of goldenPortals()){
+  for(const p of markedPortals()){
     let x,y;
     if(big){x=p.x*s;y=p.z*s}else{x=(p.x-px)*s;y=(p.z-pz)*s;const L=Math.hypot(x,y);if(L>maxL){x*=maxL/L;y*=maxL/L}}
     const r=big?10:6;
-    ctx.fillStyle='#ffd23a';ctx.strokeStyle='#000';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,y-r);ctx.lineTo(x+r,y);ctx.lineTo(x,y+r);ctx.lineTo(x-r,y);ctx.closePath();ctx.fill();ctx.stroke();
-    if(big){ctx.font='bold 14px monospace';ctx.textAlign='center';ctx.fillStyle='#ffe680';ctx.lineWidth=3;ctx.strokeText('Portal dourado',x,y-r-5);ctx.fillText('Portal dourado',x,y-r-5)}
+    ctx.fillStyle=p.rescue?'#5ad0ff':'#ffd23a';ctx.strokeStyle='#000';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,y-r);ctx.lineTo(x+r,y);ctx.lineTo(x,y+r);ctx.lineTo(x-r,y);ctx.closePath();ctx.fill();ctx.stroke();
+    if(big){const lb=p.rescue?'Portal de resgate':'Portal dourado';ctx.font='bold 14px monospace';ctx.textAlign='center';ctx.fillStyle=p.rescue?'#b0f0ff':'#ffe680';ctx.lineWidth=3;ctx.strokeText(lb,x,y-r-5);ctx.fillText(lb,x,y-r-5)}
   }
 }

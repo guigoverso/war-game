@@ -70,7 +70,7 @@ const FEV_DEFS=[
     run:c=>{
       if(Math.random()<FEV.crisis){   // o espião provoca uma crise interna na vítima: mais descontentamento e menos suprimento por 2 rodadas (pode virar rebelião)
         let n=0;for(const x of facCities(c.b))if(x.owner!=='player'&&!x.rebel&&ec(x)){ec(x).ups=(ec(x).ups||0)+1;n++}
-        fsupHit(c.b,FEV.hit.crisis,FEV.hit.left);fevS().pair[fgKey(c.a,c.b)]=STATE.round;
+        fsupHit(c.b,FEV.hit.crisis,FEV.hit.left,null,'crise');fevS().pair[fgKey(c.a,c.b)]=STATE.round;
         fevNews(fevTxt([(A,B)=>'Boatos e panfletos tomaram as ruas de '+B+': dizem que um agente de '+A+' semeou a discórdia. A população está inquieta.',(A,B)=>'Uma crise política abalou '+B+' depois que um espião de '+A+' espalhou denúncias de corrupção.'],fevName(c.a),fevName(c.b)));
       }else{
         fevRel(c.a,c.b,-2,'espião descoberto');
@@ -79,7 +79,7 @@ const FEV_DEFS=[
     fix:()=>{const p=fevPairs((a,b)=>({a,b}))[0];if(p&&fgV(p.a,p.b)>5)fgSet(p.a,p.b,4,'criativo')}},
   {id:'sabotagem',name:'Sabotagem de suprimento',w:1.5,
     cand:()=>{const out=[];for(const x of fevFacs())for(const y of fevFacs()){if(x===y||!fevAggr(x.id)||!fevOk(x.id,y.id)||fevLocked(x.id,y.id)||!fevNb(x.id,y.id)||fgV(x.id,y.id)<1)continue;const r=fevAbund(y.id)[0];if(r)out.push({a:x.id,b:y.id,r})}return out},
-    run:c=>{fevRel(c.a,c.b,-2,'sabotagem');fsupHit(c.b,FEV.hit.sab,FEV.hit.left);const R=fevRes(c.r);
+    run:c=>{fevRel(c.a,c.b,-2,'sabotagem');fsupHit(c.b,FEV.hit.sab,FEV.hit.left,null,'sabotagem');const R=fevRes(c.r);
       fevNews(fevTxt([(A,B)=>'Os armazéns de '+R+' de '+B+' pegaram fogo numa noite suspeita. '+B+' aponta o dedo para '+A+'.',(A,B)=>'Saqueadores sem bandeira destruíram a colheita de '+B+'. Todos suspeitam de '+A+'.'],fevName(c.a),fevName(c.b)))},
     fix:()=>{const a=fevFacs().find(f=>f.temper!=='agressiva')||fevFacs()[0];if(!a)return;a.temper='agressiva';const p=fevFacs().find(f=>f!==a&&fevNb(a.id,f.id))||fevFacs().find(f=>f!==a);if(!p)return;fevSetSup(p.id,'food','abund');if(fgV(a.id,p.id)<2)fgSet(a.id,p.id,4,'criativo');delete fevS().pair[fgKey(a.id,p.id)]}},
   {id:'expedicao',name:'Expedição contra bandidos',w:1,

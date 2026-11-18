@@ -278,7 +278,7 @@ function genPOIs(rng,cities){
     const s=findSpot(rng,10,16,6,taken.concat(cities.map(k=>({x:k.cx,z:k.cz,r:k.half+24}))),3500);if(!s)continue;
     taken.push({x:s.x,z:s.z,r:14});
     const dg=digCamp(s.x,s.z);s.y=dg.y;
-    const c=newArea('camp',100+i,'Acampamento de bandidos',s,rng,{rank:rng.int(1,2),reward:rng.chance(0.5)?'hostage':'gold',dug:dg.dug});
+    const c=newArea('camp',100+i,'Acampamento de bandidos',s,rng,{rank:rng.int(1,2),reward:rng.chance(0.25)?'hostage':'gold',dug:dg.dug});
     buildCampFull(c,rng);WORLD.camps.push(c);
   }
   const nCaves=rng.int(9,12);
@@ -383,7 +383,12 @@ function populateCamp(c){
     const a=ang0+i*(6.283/n),r=3.4+rng.range(0,1.6),type=(c.rank===2&&i===n-1)?'hound':'soldier';
     spawnEnemy(c,type,c.cx+Math.cos(a)*r,c.cz+Math.sin(a)*r);
   }
-  if(c.reward==='hostage'&&c.hostagePos){c.hostage=spawnNpc(c,{role:'hostage',x:c.hostagePos.x,z:c.hostagePos.z,stationary:true,yaw:0})}
+  if(c.reward==='hostage'&&c.hostagePos)campHostage(c);
+}
+function campHostage(c,fid){   // (re)cria o refém do acampamento, com as cores da facção que pediu ajuda
+  if(fid!==undefined)c.hostageFid=fid;
+  if(c.hostage){c.hostage.alive=false;c.hostage.gone=true;scene.remove(c.hostage.group)}
+  c.hostage=spawnNpc(c,{role:'hostage',x:c.hostagePos.x,z:c.hostagePos.z,stationary:true,yaw:0,fid:c.hostageFid});
 }
 function populateWild(){  for(const c of WORLD.camps)populateCamp(c);
   for(const c of WORLD.packs)populatePack(c);
@@ -428,7 +433,7 @@ function despawnCamp(c){
 function respawnCamp(c,opt){
   opt=opt||{};const rng=new RNG((Math.random()*1e9)|0);
   c.gone=false;c.state='idle';c.completed=false;c.owner='enemy';c.name='Acampamento de bandidos';
-  c.rank=opt.rank||rng.int(1,2);c.reward=opt.reward||(rng.chance(0.5)?'hostage':'gold');
+  c.rank=opt.rank||rng.int(1,2);c.reward=opt.reward||(rng.chance(0.25)?'hostage':'gold');   // menos acampamentos com refém (o refém agora vira soldado ou reserva, não ouro)
   c.enemies=[];c.npcs=[];c.aliveEnemies=0;c.totalEnemies=0;c.flags=[];c.hostage=null;c.chest=null;c.cage=null;c.hostagePos=null;
   buildCampFull(c,rng);populateCamp(c);buildNav();
 }
@@ -448,8 +453,7 @@ function updateWild(dt){
     if(cg&&cg.leaveT>0){cg.leaveT-=dt;if(cg.leaveT<=0){
       const h=c.hostage;if(h&&h.alive){h.alive=false;h.gone=true;scene.remove(h.group);
         const hm=WORLD.home,bk=hm.barracks||{x:hm.cx,z:hm.cz};
-        if(cg.questReward){msObjective(msById(cg.questReward))}else if(allyCount()<ARMY.max){spawnAlly(bk.x,bk.z,hm);toast('🪢 O refém agora é um dos seus soldados, no quartel de '+hm.name+'.',4500)}
-        else{addCoins(150);toast('🪢 Refém libertado! Exército cheio: +150 moedas.',4000)}}c.completed=true}}
+        if(cg.questReward){msObjective(msById(cg.questReward))}else{const g=armyGain(1);toast(g.spawned?'🪢 O refém agora é um dos seus soldados, no quartel de '+hm.name+'.':g.res?'🪢 Refém libertado! Seu exército está cheio: ele foi para a reserva ('+armyTotal()+'/'+ARMY.max+').':'🪢 Refém libertado! O exército e a reserva estão cheios.',4500)}}c.completed=true}}
     if(cg&&cg.opened&&cg.t<1){cg.t=Math.min(1,cg.t+dt*1.6);cg.door.rotation.y=cg.yb+cg.th*cg.t}}
   for(const m of FIRES){const k=0.85+Math.sin(G.t*14+m.position.x)*0.15+Math.random()*0.1;m.scale.set(m.userData.base[0]*k,m.userData.base[1]*(0.8+Math.random()*0.4),m.userData.base[2]*k)}
 }

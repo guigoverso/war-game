@@ -137,6 +137,21 @@ function buffsPages(){
   for(const c of playerCities()){const m=moodOf(c),en=ec(c);
     if(m==='rich')good.push('😄 '+c.name+' próspera: '+MOOD_TXT.rich);else if(m==='upset')bad.push('😠 '+c.name+' descontente: '+MOOD_TXT.upset);
     if(en&&en.press)bad.push('⚔ '+c.name+' sob repressão: necessidades +'+50*en.press.n+'%')}
+  // caravanas (suas e das NPC)
+  for(const r of rd.routes)good.push('🛒 Caravana '+routeName(r)+': a necessidade do produto da outra cidade cai (100% some, 150% vira 100%, 200% vira 150%) <small>(enquanto a rota existir)</small>');
+  const nr=(rd.nroutes||[]).length;if(nr)good.push('🛒 '+nr+' caravana(s) entre facções NPC: aliviam o suprimento delas <small>(enquanto existirem)</small>');
+  // facções: relação (preço dos serviços), suprimento (preço de venda e estoque), choques ativos e embargos
+  const rsn=r=>resName(r).toLowerCase();
+  for(const f of WORLD.factions||[]){
+    if(!facCities(f.id).length)continue;
+    const st=relStatus(f.id),pr=REL_ST[st].price,nm=fgChipName(f.id);
+    if(pr>0)bad.push('🏴 '+nm+': relação '+REL_ST[st].n.toLowerCase()+' — serviços das cidades dela +'+Math.round(pr*100)+'%');else if(st==='ally')good.push('🏴 '+nm+': aliada — serviços das cidades dela sem acréscimo');
+    const sh=NEEDS.filter(r=>fsupState(f.id,r)==='short'),ab=NEEDS.filter(r=>fsupState(f.id,r)==='abund');
+    if(sh.length){good.push('🏴 '+nm+': em falta de '+sh.map(rsn).join(', ')+' — paga ×'+FSUP.sellShort.toString().replace('.',',')+' pelo que você vende');bad.push('🏴 '+nm+': em falta de '+sh.map(rsn).join(', ')+' — lojas dela com metade do estoque desses itens')}
+    if(ab.length){good.push('🏴 '+nm+': abundante em '+ab.map(rsn).join(', ')+' — lojas dela com o dobro do estoque');bad.push('🏴 '+nm+': abundante em '+ab.map(rsn).join(', ')+' — paga ×'+FSUP.sellAbund.toString().replace('.',',')+' pelo que você vende')}
+    for(const m of((rd.fmods)||[]).filter(x=>x.f===f.id))(m.d>0?bad:good).push('🏴 '+nm+': '+(m.src||'efeito')+' '+(m.d>0?'−':'+')+Math.abs(m.d).toFixed(2)+' de suprimento'+(m.r?' ('+rsn(m.r)+')':'')+rl(m.left));
+  }
+  for(const e of(STATE.gev&&STATE.gev.embargo)||[])if(STATE.round<e.until)bad.push('⛔ Embargo: '+fgChipName(e.a)+' × '+fgChipName(e.b)+' — caravanas entre elas paradas <small>(até a rodada '+(e.until-1)+')</small>');
   const li=a=>a.length?'<ul class="ldul">'+a.map(t=>'<li>'+t+'</li>').join('')+'</ul>':'<p class="ldsm">Nenhum agora.</p>';
   return['<h3>✅ Buffs ativos</h3>'+li(good),'<h3>⚠ Debuffs ativos</h3>'+li(bad)];
 }

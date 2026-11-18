@@ -13,7 +13,7 @@ const REB={
   base:0.5,buffFin:0.2,buffSup:0.1,        // sorteio do resultado: 50% base, ±20 pontos de apoio financeiro, +10 por facção que apoia os rebeldes
   fin:{gold:600,goldRank:200,res:6,resRank:2},   // apoio financeiro: ouro, comida e minério (por nível da cidade)
   join:{base:2000,perLvl:1000,perFac:1500,stay:2000},   // anexar: ◉2000 + ◉1000 por nível + ◉1500 por facção interessada (+◉2000 se você não se envolveu); a guerra vai subir isto (sabotagem)
-  waves:3,startWait:10,extra:5,troop:10,troopAlly:2,   // troop: soldados que a facção envia ao ser combatida; troopAlly: mais por facção aliada dela
+  waves:3,startWait:10,extra:5,supTroop:2,troop:10,troopAlly:2,   // troop: soldados que a facção envia ao ser combatida; troopAlly: mais por facção aliada dela
   centerR:8,nearR:35,leaveWarn:25,leaveLose:50,   // batalha de apoio: 3 ondas; aviso a 25 blocos da muralha e batalha perdida a 50
   rel:{finR:-2,finO:2,combat:3}            // mudança de relação com a dona (apoio financeiro aos rebeldes / à dona; reprimir na batalha); apoiar na batalha leva a "Inimiga"
 };
@@ -25,7 +25,7 @@ const rebTotalFacs=()=>1+(WORLD.factions||[]).length;
 const rebAtCap=()=>rebTotalFacs()>=REB.maxFacs;
 const rebInvolved=()=>{const r=rebS().cur;return !!r&&(r.choice==='finR'||r.choice==='support')};
 const rebDied=()=>{const r=rebS().cur;return !!r&&r.choice==='combat'};   // combateu a rebelião e caiu: os rebeldes venceram
-const rebReinf=c=>REB.extra+(c.rank||1)+rebS().cur.sup.length;   // reforço do apoio: 5 + nível da cidade + 1 por facção que apoia
+const rebReinf=c=>REB.extra+(c.rank||1)+REB.supTroop*rebS().cur.sup.length;   // reforço do apoio: 5 + nível da cidade (rebeldes) + REB.supTroop soldados de cada facção que apoia (na cor dela)
 const rebFinCost=c=>({gold:REB.fin.gold+REB.fin.goldRank*(c.rank||1),food:REB.fin.res+REB.fin.resRank*(c.rank||1),ore:REB.fin.res+REB.fin.resRank*(c.rank||1)});
 const rebCostTxt=k=>'◉'+k.gold+', '+k.food+' de comida e '+k.ore+' de minério';
 const rebJoinCost=(c,r)=>({gold:REB.join.base+REB.join.perLvl*(c.rank||1)+REB.join.perFac*r.sup.length+(rebInvolved()?0:REB.join.stay)});
@@ -102,6 +102,7 @@ function rebAnnounce(){
     rd.routes=rd.routes.filter(x=>!cut(x));rd.nroutes=(rd.nroutes||[]).filter(x=>!cut(x));
     if(typeof CARAVANS!=='undefined')for(const k of CARAVANS)if(gone.includes(k.r))k.doomed=true;
     if(typeof computeBuffs==='function')computeBuffs();
+    if(STATE.phase==='leader'&&typeof purgeDoomedCaravans==='function')purgeDoomedCaravans();   // (as carroças somem já no turno do líder)
   }
   for(const m of STATE.ms.taken.slice())if(m.cityId===c.id||m.destId===c.id){msDrop(m);msLine('❌ A cidade '+c.name+' se rebelou: missão cancelada ('+msTitle(m)+').')}
   for(const k in STATE.ms.fac){const o=STATE.ms.fac[k];if(o&&o.m&&(o.m.cityId===c.id||o.m.destId===c.id))o.m=null}
@@ -176,7 +177,7 @@ definePolicy({id:'rebnpc',name:'Rebelião',city:true,noRoll:true,flex:true,cool:
   text:(c)=>{const r=rebCur();return 'Cansados da escassez, os moradores de '+c.name+' tomaram as ruas contra '+facOf(r.owner).name+'. A guarnição foi expulsa, a cidade arde e uma bandeira nova foi hasteada. Os dois lados esperam a sua palavra.'},
   extra:(c)=>rebSidesTable(rebCur()),
   options:[
-    {k:'A',label:'Apoiar os rebeldes',type:'both',hide:()=>meetPact(),eff:c=>'No turno do Comandante, vá até o centro da cidade (marcado no mapa): a batalha começa quando você chegar. Você luta ao lado dos rebeldes contra '+REB.waves+' ondas de '+rebOwnerName()+' (soldados, brutamontes, drones e golems; cada onda é mais difícil). Você vira inimigo de '+rebOwnerName()+'. Ganha '+rebReinf(c)+' soldados rebeldes ('+REB.extra+' fixos + '+(c.rank||1)+' pelo nível da cidade'+(rebCur().sup.length?' + '+rebCur().sup.length+' por facção que apoia':'')+'). Se você cair ou fugir, os rebeldes perdem.',
+    {k:'A',label:'Apoiar os rebeldes',type:'both',hide:()=>meetPact(),eff:c=>'No turno do Comandante, vá até o centro da cidade (marcado no mapa): a batalha começa quando você chegar. Você luta ao lado dos rebeldes contra '+REB.waves+' ondas de '+rebOwnerName()+' (soldados, brutamontes, drones e golems; cada onda é mais difícil). Você vira inimigo de '+rebOwnerName()+'. Ganha '+rebReinf(c)+' soldados: '+(REB.extra+(c.rank||1))+' rebeldes ('+REB.extra+' fixos + '+(c.rank||1)+' pelo nível da cidade)'+(rebCur().sup.length?' e '+REB.supTroop+' de cada facção que apoia ('+rebNames(rebCur().sup)+'), na cor delas':'')+'. Se você cair ou fugir, os rebeldes perdem.',
       apply:x=>{const r=rebCur();r.choice='support';r.prevRel=relOf(r.owner).v;relSet(r.owner,0,'você apoiou os rebeldes de '+x.city.name+' contra ela');rebAfter(x,'⚔ Você apoia os rebeldes de '+x.city.name+': '+rebOwnerName()+' é sua inimiga.')}},
     {k:'B',label:'Combater a rebelião',type:'both',hide:()=>relStatus(rebCur().owner)==='war',eff:c=>'No turno do Comandante, vá até a cidade (marcada no mapa): a invasão começa quando você chegar perto. Os soldados dela são os rebeldes'+(rebCur().sup.length?' (mais soldados de '+rebNames(rebCur().sup)+')':'')+'. A facção envia '+(REB.troop+REB.troopAlly*(rebSides(rebCur()).con.length-1))+' soldados de vários tipos (normal, pesado, atirador, metralhador): '+REB.troop+' dela e '+REB.troopAlly+' de cada aliada, em torno da cidade. Seus soldados seguem com você. Vencendo, a relação com ela sobe (+'+REB.rel.combat+'). Se você cair, os rebeldes vencem.',
       apply:x=>{rebCur().choice='combat';rebAfter(x,'⚔ Você vai combater a rebelião de '+x.city.name+'.')}},
@@ -369,7 +370,7 @@ function rebRuinsEnsure(c){
   const box=(w,h,d,x,y,z,mt)=>{const m=new THREE.Mesh(GEO_BOX,mt);m.scale.set(w,h,d);m.position.set(x,y,z);g.add(m);return m};
   // prédios queimados: fuligem sobre as paredes, telhado chamuscado e entulho/brasas sobre o telhado de verdade (a altura vem das caixas de colisão)
   (c.houses||[]).forEach((h,i)=>{
-    if(rn(i,1,3)>RUIN.burn)return;
+    if(h.bh===undefined||rn(i,1,3)>RUIN.burn)return;   // só prédios de verdade (c.houses também guarda currais e campos, que não têm altura de parede)
     const w=h.x1-h.x0+1,d=h.z1-h.z0+1,x=c.cx+h.x0+w/2,z=c.cz+h.z0+d/2,hb=h.bh||4,hh=hb+0.3;
     box(w+1.1,hh,d+1.1,x,c.y+hh/2,z,dark(0.5));   // fuligem nas paredes (maior que o prédio por causa do beiral)
     const at=(u,v)=>{const px=x+(u-0.5)*(w-1),pz=z+(v-0.5)*(d-1);return{px,pz,y:rebTopAt(px,pz,c.y+hb-0.5)}};   // ponto sobre o telhado, ou null se não há telhado ali
@@ -468,7 +469,8 @@ function rebSupportStart(){
   WORLD.areas.push(area);
   RAID.active=true;RAID.area=area;RAID.city=c;RAID.t=0;RAID.engaged=true;RAID.alliesCalled=true;RAID.seeT=0;RAID.waves={i:0,gapT:REB.startWait};RAID.reb={};RAID.warnT=0;   // a 1ª onda vem depois de REB.startWait segundos (o raid conta o intervalo)
   REBB.active=true;REBB.mode='support';REBB.c=c;
-  rebTempAllies(rebReinf(c),FAC_COLORS[r.color].c);   // você já está no centro: os rebeldes aparecem em volta
+  rebTempAllies(REB.extra+(c.rank||1),FAC_COLORS[r.color].c);   // você já está no centro: os rebeldes aparecem em volta
+  for(const g of r.sup)rebTempAllies(REB.supTroop,facColor(g));   // e os soldados de cada facção que apoia os rebeldes, na cor dela
   rebPostAllies(c);   // e todos (rebeldes e seus soldados) vão para os postos, dentro da muralha, perto das entradas
   REBB.total=rebAlliesNow();
 }

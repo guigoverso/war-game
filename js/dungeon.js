@@ -119,7 +119,7 @@ function buildWingBoxes(w,rng){
 function distHome(x,z){const h=WORLD.home;return Math.hypot(x-h.cx,z-h.cz)}
 function spawnPortals(){
   if(!DG.ok)return 0;
-  const keep=(STATE.portals||[]).filter(p=>(G.dg&&G.dg.p===p)||p.golden);   // a dungeon dourada (política) não é trocada a cada rodada
+  const keep=(STATE.portals||[]).filter(p=>(G.dg&&G.dg.p===p)||p.golden||p.rescue);   // a dungeon dourada (política) não é trocada a cada rodada
   clearPortalMeshes();STATE.portals=keep;
   const rng=new RNG((Math.random()*1e9)|0),used=new Set(keep.map(p=>p.wing));
   for(let k=0;k<DG.wings.length&&STATE.portals.length<PORTAL_MAX;k++){
@@ -149,19 +149,20 @@ function spawnPortals(){
 function clearPortalMeshes(){for(const m of PORTALS)scene.remove(m.group);PORTALS.length=0}
 function rewardText(p){
   const r=p.reward;
+  if(r.type==='rescue')return 'ouro e a gratidão de '+gnm(r.fid)+' (liberte o refém da jaula)';
   if(r.type==='resource')return r.res==='gold'?'◉ '+r.amt+' de ouro':DATA.resources[r.res].icon+' '+r.amt+' itens de '+DATA.resources[r.res].name.toLowerCase();
   return r.type==='weapon'?'★ uma arma lendária':'🏺 uma relíquia';
 }
 function makePortalMesh(p){
   const g=new THREE.Group(),y=tH(p.x,p.z);g.position.set(p.x,y,p.z);g.rotation.y=(p.id*1.7)%6.28;
-  const stone=mat(0x6a6a74),dark=mat(0x3a3a44),glow=new THREE.MeshBasicMaterial({color:p.golden?0xffc830:0xb070ff,transparent:true,opacity:0.75,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending});
+  const stone=mat(0x6a6a74),dark=mat(0x3a3a44),glow=new THREE.MeshBasicMaterial({color:p.golden?0xffc830:p.rescue?0x50d0ff:0xb070ff,transparent:true,opacity:0.75,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending});
   const box=(m,sx,sy,sz,px,py,pz)=>{const o=new THREE.Mesh(GEO_BOX,m);o.scale.set(sx,sy,sz);o.position.set(px,py,pz);g.add(o);return o};
   box(dark,3.6,0.3,1.2,0,0.15,0);                                       // base
   box(stone,0.55,3.4,0.55,-1.45,1.85,0);box(stone,0.55,3.4,0.55,1.45,1.85,0);   // pilares
   box(stone,3.6,0.55,0.7,0,3.75,0);box(dark,0.9,0.4,0.8,0,4.15,0);      // arco com pedra-chave
   const swirl=new THREE.Mesh(new THREE.PlaneGeometry(2.4,3.2),glow);swirl.position.set(0,1.95,0);g.add(swirl);
-  const orbs=[];for(let i=0;i<6;i++){const o=new THREE.Mesh(GEO_BOX,new THREE.MeshBasicMaterial({color:p.golden?0xfff0b0:0xe0b0ff}));o.scale.set(0.16,0.16,0.16);const a=i*1.047;o.position.set(Math.cos(a)*1.2,1.95+Math.sin(a)*1.5,0.05);g.add(o);orbs.push(o)}
-  const beam=new THREE.Mesh(GEO_BOX,new THREE.MeshBasicMaterial({color:p.golden?0xffb020:0xa060ff,transparent:true,opacity:0.2,depthWrite:false}));beam.scale.set(0.7,60,0.7);beam.position.set(0,30,0);g.add(beam);   // coluna de luz visível de longe
+  const orbs=[];for(let i=0;i<6;i++){const o=new THREE.Mesh(GEO_BOX,new THREE.MeshBasicMaterial({color:p.golden?0xfff0b0:p.rescue?0xb0f0ff:0xe0b0ff}));o.scale.set(0.16,0.16,0.16);const a=i*1.047;o.position.set(Math.cos(a)*1.2,1.95+Math.sin(a)*1.5,0.05);g.add(o);orbs.push(o)}
+  const beam=new THREE.Mesh(GEO_BOX,new THREE.MeshBasicMaterial({color:p.golden?0xffb020:p.rescue?0x30b0ff:0xa060ff,transparent:true,opacity:0.2,depthWrite:false}));beam.scale.set(0.7,60,0.7);beam.position.set(0,30,0);g.add(beam);   // coluna de luz visível de longe
   scene.add(g);
   const m={id:p.id,group:g,swirl,orbs,beam,p};PORTALS.push(m);return m;
 }
@@ -199,7 +200,8 @@ function updateBarrier(){
   }
   const gone=(e,low)=>{if(low?e.y<BAR_UP:e.y>BAR_DOWN){e.alive=false;e.gone=true;scene.remove(e.group);if(e.city&&e.city.aliveEnemies>0)e.city.aliveEnemies--;return true}return false};
   for(const e of ENEMIES){if(!e.alive||e.gone)continue;gone(e,!(e.city&&e.city.kind==='dungeon'))}
-  for(const n of NPCS){if(!n.alive||n.gone)continue;if(n.y<BAR_UP){n.alive=false;n.gone=true;scene.remove(n.group)}}
+  for(const n of NPCS){if(!n.alive||n.gone)continue;if(n.y<BAR_UP&&!(n.city&&n.city.kind==='dungeon')){   // (o refém da dungeon de resgate mora lá embaixo)
+n.alive=false;n.gone=true;scene.remove(n.group)}}
   for(const a of ALLIES){if(a.alive&&!a.gone&&a.y<BAR_UP){a.alive=false;a.gone=true;scene.remove(a.group)}}
 }
 Hooks.on('round',()=>{if(DG.ok&&!G.dg)spawnPortals()});
@@ -209,6 +211,7 @@ Hooks.on('round',()=>{if(DG.ok&&!G.dg)spawnPortals()});
 // surgem e lutam pelo portal contra você e entre si (isso não é guerra).
 const CONTEST={active:false,areas:[]},GOLD_PORTAL_AMT=200;
 const goldenPortals=()=>(STATE.portals||[]).filter(p=>p.golden&&!p.claimed);
+const markedPortals=()=>(STATE.portals||[]).filter(p=>(p.golden||p.rescue)&&!p.claimed);   // portais que aparecem no mapa e no minimapa (dourado e de resgate)
 function spawnGoldenPortal(c){
   if(!DG.ok)return null;
   if(!STATE.portals)STATE.portals=[];
@@ -339,7 +342,8 @@ function enterDungeon(p){
       for(const [dx,dz] of[[3,0],[-3,0],[0,3],[0,-3],[3,3],[-3,-3],[3,-3],[-3,3]])if(!Col.near(cx+dx-1,cz+dz-1,cx+dx+1,cz+dz+1).some(b=>b.y1>DG.Y+0.3&&b.y0<DG.Y+2)){rx=cx+dx;rz=cz+dz;break}
       const rc=addChest(rx,DG.Y,rz,ang,0,area);rc.fixedLoot=[['reliquia',1]];rc.onOpen=()=>{p.relicTaken=true};G.dg.chest=rc;
     }
-  }else{const ch=addArcaneChest(cx,DG.Y,cz,ang,40+30*p.tier,area);ch.dg=p;ch.lootKey='chest_dungeon';G.dg.chest=ch}
+  }else if(p.rescue){gevRescueEnter(p,w,area,cx,cz,ang)}   // portal de resgate (F5c): baú comum de acampamento e o refém numa jaula (globalev.js)
+  else{const ch=addArcaneChest(cx,DG.Y,cz,ang,40+30*p.tier,area);ch.dg=p;ch.lootKey='chest_dungeon';G.dg.chest=ch}
   P.x=w.entrance.x;P.z=w.entrance.z;P.y=DG.Y+0.2;P.vy=0;P.vx=P.vz=0;P.camY=P.y;P.yaw=Math.atan2(-(w.boss.x-w.entrance.x),-(w.boss.z-w.entrance.z));
   G.dgPad=w.entrance;
   {   // pedra de saída: disco de pedra com brilho roxo
@@ -349,7 +353,7 @@ function enterDungeon(p){
     const bm=new THREE.Mesh(GEO_BOX,new THREE.MeshBasicMaterial({color:0xa060ff,transparent:true,opacity:0.18,depthWrite:false}));bm.scale.set(0.5,3.5,0.5);bm.position.y=1.8;g.add(bm);
     scene.add(g);G.dgPadMesh=g;
   }
-  toast('🌀 Dungeon '+(p.golden?'dourada ':'')+'nível '+p.tier+' — elimine os inimigos e '+(p.golden?'minere o veio de ouro do fundo (e abra o baú da relíquia)':'abra o baú do fundo')+'. Recompensa: '+rewardText(p),6000);
+  if(p.rescue)toast('🌀 Resgate: elimine os inimigos, abra o baú e a jaula do refém.',6000);else toast('🌀 Dungeon '+(p.golden?'dourada ':'')+'nível '+p.tier+' — elimine os inimigos e '+(p.golden?'minere o veio de ouro do fundo (e abra o baú da relíquia)':'abra o baú do fundo')+'. Recompensa: '+rewardText(p),6000);
 }
 // ponto livre dentro da ala: piso (nunca parede) e sem pilares, caixas ou escombros por perto; busca em espiral a partir do ponto pedido
 function dgFreeSpot(w,x,z,r,hgt,minRad){
@@ -381,6 +385,7 @@ function leaveDungeon(noTeleport){
   const ai=WORLD.areas.indexOf(d.area);if(ai>=0)WORLD.areas.splice(ai,1);
   if(d.chest){const k=WORLD.chests.indexOf(d.chest);if(k>=0)WORLD.chests.splice(k,1);scene.remove(d.chest.g)}
   if(d.vein)scene.remove(d.vein.g);
+  if(d.cage)gevRescueLeave(d);
   const p=d.p;G.dg=null;G.dgPad=null;if(G.dgPadMesh){scene.remove(G.dgPadMesh);G.dgPadMesh=null}
   if(!noTeleport){P.x=d.ret.x;P.z=d.ret.z;P.y=d.ret.y+0.3;P.vy=0;P.camY=P.y;P.yaw=d.ret.yaw}
   if(p.claimed){removePortal(p);toast('O portal se desfez depois de entregar sua recompensa.',3500)}
