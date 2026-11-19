@@ -29,7 +29,7 @@ function genDungeons(rng,cities,taken){
   taken.push({x:DG.rx+S/2,z:DG.rz+S/2,r:S*0.75});
   // o terreno de cima NÃO é alterado: a região fica no "mundo de baixo" (Y muito negativo), com um chão invisível próprio
   Col.add({x0:DG.rx,y0:DG.Y-3,z0:DG.rz,x1:DG.rx+S,y1:DG.Y,z1:DG.rz+S});  for(let k=0;k<WING_OFF.length;k++)DG.wings.push(buildWing(new RNG((WORLD.seed*57+k*911+13)>>>0),k));
-  genOffice();genMeetHall();   // sala das reuniões (meeting.js) ao lado do escritório; o 4º quadrante da região guarda o escritório do líder (rounds.js)
+  genOffice();genMeetHall();   // sala das reuniões (meeting.js) ao lado do escritório; o 4º quadrante da região guarda o escritório do líder (office.js)
 }
 
 function buildWing(rng,k){
