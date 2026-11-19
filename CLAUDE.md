@@ -3,7 +3,7 @@
 Jogo de guerra e economia em voxels, no navegador (Three.js r128 via CDN). Sem build, sem dependências locais: `index.html` carrega os scripts de `js/` na ordem listada no fim do arquivo. Tudo é JS "global" (sem módulos): as funções e constantes são compartilhadas entre arquivos.
 
 ## Antes de começar qualquer sessão
-1. Leia **`docs/ESTADO.md`**: o que foi feito por último, o que está pendente e o que fazer em seguida.
+1. Leia as seções relevantes do **`docs/ESTADO.md`** (o que foi feito por último, o que está pendente e o que fazer em seguida) e consulte **`docs/MAPA.md`** para achar arquivos, funções, UIs, ganchos e números de balanceamento sem varrer o código.
 2. Rode `git pull` na branch de trabalho antes de editar (o usuário alterna entre PCs; o GitHub é a ponte).
 3. Ao terminar, rode a skill **`/encerrar-sessao`** (ver `docs/skills/`): ela atualiza `docs/ESTADO.md`, commita e envia.
 
