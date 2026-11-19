@@ -21,7 +21,7 @@ Jogo de guerra e economia em voxels, no navegador (Three.js r128 via CDN). Sem b
 - Sistemas: `rounds` (rodadas, economia — números em `ECON`), `policies` (política locais/eventos), `raids` (raids em ondas e emboscada de caravana), `warehouse` (armazém), `store`/`inventory`/`cooking`/`fishing`, `quests`, `dungeon`, `poi`, `data` (tabelas de itens e loot).
 
 ## Convenções importantes
-- **Fim de linha: os arquivos `.js` e `index.html` usam CRLF.** Ao editar por script, preserve CRLF (um `read/write` em modo texto no Python converte para LF e o diff mostra o arquivo inteiro alterado). Confira com `git diff --stat` depois de editar: só as linhas mudadas devem aparecer. Os `.md` de `docs/` usam LF.
+- **Fim de linha: todos os arquivos usam LF** (garantido por `.gitattributes` e `.editorconfig`). Confira com `git diff --stat` depois de editar: só as linhas mudadas devem aparecer.
 - Estilo do código: denso, uma função por bloco, comentários curtos em português explicando o "porquê". Mantenha esse estilo.
 - Textos do jogo, comentários e docs em **português do Brasil**.
 - Estado que precisa sobreviver ao salvar fica em `STATE` (JSON puro). Se a mudança altera o estado salvo: some 1 a `SAVE_VERSION` (`js/state.js`), acrescente um passo `if(d.v<N)` em `migrateSave` (`js/save.js`) e só **acrescente** campos (ausentes = padrão).
