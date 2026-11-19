@@ -7,7 +7,8 @@ Mantenha curto: o histórico detalhado das regras fica em `docs/fase-4-testes.md
 - **Branch de trabalho:** `factions-update` (commitada e enviada).
 - **Fase atual:** 6 (guerra), começando pelos POIs. Fases 4 (rodadas) e 5 (facções) prontas. Desenho completo em `docs/fase-6-guerra.md` (fonte mais confiável para a guerra).
 - **Save:** `SAVE_VERSION = 21`.
-- **Última atualização:** 2026-11-19, sessão local (limpeza: `js/poiserv.js` fundido em `js/poigame.js`, sem mudar comportamento).
+- **Última atualização:** 2026-11-19, sessão local (teste de fumaça `tests/smoke.js` com Playwright; jogo sem mudanças).
+- **Teste de fumaça:** `node tests/smoke.js` (instalação na primeira vez: ver `CLAUDE.md`). Rode depois de mexer em POIs, serviços, rodadas ou Negociação.
 
 ## Facções (Fase 5): o que existe
 Decisões e números completos em `docs/fase-5-facoes.md`. Código principal: `js/factions.js`, `js/flageditor.js`, `js/scenario.js`.
@@ -34,6 +35,7 @@ Detalhes em `docs/fase-6-guerra.md` (seções "POIs: fatia 1" e "fatia 2"). Cód
 - Guarnição de bandidos (10+, 4 tipos novos de bandido), cartão "Terras livres" (anexar/doar/vender), renda por rodada, retomada pelos bandidos (até 75%), celeiro/ferraria/forte/ruínas, torre (vigia, binóculo) e quarto da taverna. POIs só aparecem no mapa depois de avistados.
 - **Fatia 3 (2026-11-19, commit 8ec79f1):** binóculo (chances POI<ruínas<baú<portal<acampamento/caverna), moradores em POIs de facção/seus (aparecem na rodada N+1; ponte e torre só soldados), POIs de guerra só na guerra, taverneiro/ferreiro/bigorna/curtidor e tela de **Negociação** estilo app (`js/poigame.js`, `js/negoc.js`). Detalhes em `docs/fase-6-guerra.md`. Testado por script e na tela da Negociação; falta jogar.
 - **Limpeza (2026-11-19):** `js/poiserv.js` foi fundido em `js/poigame.js` (uma só definição de `poiAct`, `poiScan`, `poiGarrisonSync`, `poiCivSync`; campos da fatia 3 dentro do `POIX`); apagados os ramos mortos `poibinoc`/`poibar` antigos em `poiAct` e o `'fwar'` em `bookClick` (`rounds.js`; nenhum botão o gerava). Validado no `?cenario=pois` (ferreiro, bigorna, curtidor, taverneiro, quarto e cama, binóculo) e na Negociação, sem erros. Não testado: POI de guerra sem guerra (no cenário a guerra fica sempre ligada; equivalência só por leitura).
+- **Teste de fumaça (2026-11-19):** `tests/smoke.js` (Node + Playwright, com `tests/package.json`; `node_modules` fora do git) sobe um servidor estático e abre `?auto=1&mute=1&seed=11` e `?cenario=pois&auto=1&mute=1`. Confere: carga sem erros, POIs gerados, `svcSmith`/`svcAnvil`/`svcTanner`/`svcTavern`, `poiBinoc`, moradores (conquista na rodada N sem moradores, `endRound` → aparecem na N+1; só no mundo normal, porque no mapa manual os POIs são `show` e os moradores surgem na hora) e a Negociação (livro na aba `facs`, todas as telas por `negnav`/`negback`, sem fechar aliança nem declarar guerra). As 14 verificações passam (~20 s). Não cobre: interação por tecla E, combate, POIs de guerra sem guerra.
 - **Falta jogar:** balanceamento (bandidos, preços, renda), bandidos novos atirando, interiores novos e o forte em tela.
 - **Pontas soltas:** negociar POIs (comprar/trocar/doar) na tela de Negociação (a tela existe; falta o menu de POIs), POIs de guerra nos buracos do mapa (com a guerra).
 - **Pendente do usuário:** lista de novas mecânicas de caravana e o desenho do espião.
