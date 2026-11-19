@@ -1,74 +1,31 @@
 # Estado do projeto
 
-Arquivo de passagem entre sessões e entre computadores. **Leia no início de cada sessão; atualize no fim** (skill `/encerrar-sessao`, em `docs/skills/`).
-Mantenha curto: o histórico detalhado das regras fica em `docs/fase-4-testes.md` (rodadas, economia, políticas, raids) e `docs/fase-5-facoes.md` (facções).
+Bilhete de passagem entre sessões e PCs: **leia no início, atualize no fim** (`/encerrar-sessao`). No máximo 40 linhas; o histórico detalhado fica nos `docs/fase-N-*.md` e no `git log`.
 
-## Resumo
-- **Branch de trabalho:** `factions-update` (commitada e enviada).
-- **Fase atual:** 6 (guerra), começando pelos POIs. Fases 4 (rodadas) e 5 (facções) prontas. Desenho completo em `docs/fase-6-guerra.md` (fonte mais confiável para a guerra).
-- **Save:** `SAVE_VERSION = 21`.
-- **Última atualização:** 2026-11-19, sessão local (`js/rounds.js` dividido em 6 arquivos sem mudança de comportamento; depois, correção do `carry` em `endRound`).
-- **Teste de fumaça:** `node tests/smoke.js` (instalação na primeira vez: ver `CLAUDE.md`). Rode depois de mexer em POIs, serviços, rodadas ou Negociação.
+## Agora
+- **Branch:** `factions-update`. **Save:** `SAVE_VERSION = 21`.
+- **Fase atual:** 6 (guerra), começando pelos POIs (fatias 1 a 3 feitas). Fases 4 (rodadas) e 5 (facções) prontas.
+- **Última atualização:** 2026-11-19, sessão local: `ESTADO.md` reduzido; histórico movido para os docs das fases; `CLAUDE.md` enxuto. Antes, no mesmo dia: `rounds.js` dividido em 6 arquivos e correção do `carry` em `endRound`.
+- **Teste de fumaça:** `node tests/smoke.js` (instalação: ver `CLAUDE.md`). Rode depois de mexer em POIs, serviços, rodadas ou Negociação.
 
-## Facções (Fase 5): o que existe
-Decisões e números completos em `docs/fase-5-facoes.md`. Código principal: `js/factions.js`, `js/flageditor.js`, `js/scenario.js`.
-- **F0 rastreio de preços:** os efeitos somam em % (`priceOf` em `state.js`); cada item das lojas, a venda e as recompensas mostram o total com um "?" que explica. Buffs e debuffs de suprimento valem só para as **suas** cidades.
-- **F1 / F1b identidade:** 2 a 4 facções NPC pela semente (`c.fid`), bandeiras, cores, uniformes e temperamento (pacífica, neutra, agressiva). Tela de criação antes do mundo (`?auto=1` pula; `&fac=1` força) e editor de bandeira em pixel art. Mastros nas entradas e na prefeitura.
-- **F2 relações:** 0 a 10, seis status (aliado, favorável, neutro, desfavorável, inimiga, em guerra), preços por status, território inimigo, crime (queda de degrau), reparação (valor guardado = preço da paz), aliança paga (como ação do líder), declaração de guerra e pedido de reparação **como políticas** (fila no mesmo turno, nunca sorteadas), paz paga, soldados repostos quando a guerra começa. Invasão de cidade só em guerra.
-- **F4:** doação de ouro (◉500 +1, ◉1000 +2; só a mais cara aparece se o ganho for igual) e de relíquia (+3) e rota comercial (+1) sobem a relação, cada uma gasta 1 ação do líder, 1 vez por rodada por facção; multiplicador de temperamento. Decaimento de 1 ponto em direção a 5 (2 rodadas; agressiva 3).
-- **Caderno:** abas Bolsa, Livro (inclui **🏴 Facções**) e Mapa. Atalhos **B** (bolsa), **L** (livro), **M** (mapa); sem pedido explícito abre no Livro. O mapa ocupa as duas páginas.
-- **Caravanas:** guardas são NPCs reais com ronda num círculo de 7 m, reagem a tiros (hostis até 38 m), não ressurgem se mortos pelo jogador, carroça com colisão, **saque** quando não sobra guarda (item do produto + ◉), carroças de rotas desfeitas ficam até o fim do turno do comandante. Uma caravana por cidade (vale para NPC). Caravanas de Desfavorável para cima.
-- **Rodada 0 (preparação):** começa no turno do líder, sem decisões; cidade contente, sem facções/missões/portais; máx. 5 acampamentos e 5 baús soltos (a rodada 1 devolve tudo). Ver `docs/fase-4-testes.md`.
-- **Missões (passo 2):** `js/missions.js`. Cidade: nível × 2 por rodada na prefeitura, várias aceitas, recompensa em ouro/recursos/mista. Facção: no máx. 2 ofertas a cada 3 rodadas (não em guerra), entregas e relatórios feitos na prefeitura do alvo, aceitar = 1 ação do líder, falha no fim da rodada (−1 relação), +1 relação ao cumprir (máx. +2 por facção por rodada). Tipos: acampamento, refém, pacote, matilha, entregar recurso, entregar relíquia. Aba **📋 Missões** no livro, mapa em popup, uma missão ativa. Detalhes em `docs/fase-5-facoes.md`.
-- **F3 (relações entre as facções NPC, `js/facgraph.js`):** grafo por semente (temperamento + vizinhança), propagação fixa ±1 das suas ações para aliadas/rivais, deriva, caravanas entre NPC (uma por rodada: necessidades → aliança → relações) e aba 🕊 Diplomacia (diagrama de cordas). Relatório da propagação no modo criativo. Detalhes em `docs/fase-5-facoes.md`.
-- **F5a (base, `js/facsupply.js`):** suprimento sorteado por facção e recurso a cada rodada (70% situação, 30% sorte), humor das cidades NPC derivado dele, preço de venda e estoque da loja por falta/abundância, contador `ups`. Rebelião das cidades NPC está desenhada em `docs/fase-5-rebeliao.md` (fase própria, não implementada). Ver `docs/fase-5-facoes.md`.
-- **Rebelião de cidades NPC (`js/rebellion.js`, 3 etapas feitas):** gatilho por `ups`, cartões, apoio financeiro, sorteio, Negociação, nova facção (save v14), batalhas (marcador no mapa, gatilho por chegada, tropas, aliados em postos) e a cidade destruída (prédios queimados, buracos de verdade, corpos). Falta jogar para balancear. Desenho e como testar (`?cenario=rebeliao`) em `docs/fase-5-rebeliao.md`.
-- **F5a eventos entre facções NPC (`js/facevents.js`, save v16):** 35% por rodada, 10 eventos independentes (disputa, ajuda, incidente, acordo, festival, casamento, espião/crise, sabotagem, expedição, suborno de caravana) com notícia no Resumo, e a **mediação** como cartão do líder. Desenho, números e como testar em `docs/fase-5-eventos.md`. Falta jogar para balancear.
-- **F5b reuniões (`js/meeting.js`, `js/meetfx.js`, save v17):** a cada 5 rodadas, sala com mesa redonda, líderes NPC diversos (visual salvo), conversa e compra de votos, votação e 12 propostas com buffs e debuffs ao aprovar e ao reprovar. Aba ✨ Efeitos no livro. Ver `docs/fase-5-reunioes.md`.
-- **F5c eventos globais (`js/globalev.js`, save v18):** 10 cartões com respostas (chuva, colheita, mina, peste, sequestro com dungeon de resgate, visita, incêndio, embargo, mercenários, golpe). Modificadores de suprimento que somam (`fsupHit`/`fmods`). **Reserva de soldados** no quartel (8/5). Ver `docs/fase-5-globais.md`.
-- **Relatório da rodada:** duas partes (anterior/atual; `rdNow`), e toda mudança da sua relação com uma facção entra com o motivo (`relLog`). **Relação:** uma decisão muda no máximo ±1 (`relChange`; `fixed` para efeitos que mexem nas relações).
-- **Modo criativo:** pausa → aba **🏴 Facções** muda o status de cada facção; no livro há botões de relação. **Cenário controlado:** `index.html?cenario=caravanas` (3 rotas: aliada, favorável, neutra; botões "Ir até a caravana" na mesma aba).
+## Onde está o histórico
+- Fase 4 (rodadas, economia, políticas, raids, divisão de `rounds.js`, `carry`): `docs/fase-4-testes.md`.
+- Fase 5 (facções, missões, F3, F5a–F5d): `docs/fase-5-facoes.md` (seção "Resumo do que existe") e `docs/fase-5-{rebeliao,eventos,reunioes,globais}.md`.
+- Fase 6 (POIs, Negociação, smoke, desenho da guerra): `docs/fase-6-guerra.md`.
 
-## F6 POIs (feita e enviada; quase só checada por script)
-Detalhes em `docs/fase-6-guerra.md` (seções "POIs: fatia 1" e "fatia 2"). Código: `js/pois.js` (tipos, construtores, geração), `js/poigame.js` (guarnição, renda, usos, moradores, serviços, binóculo). Números em `POIX`.
-- 11 tipos + acampamento fortificado e trincheira, com dono e bandeira, estradas e folgas (`POI_GAP`, `AMB_GAP`). Mapa 896 e 7 a 10 cidades pela terra. Mapa manual: `?cenario=pois`.
-- Guarnição de bandidos (10+, 4 tipos novos de bandido), cartão "Terras livres" (anexar/doar/vender), renda por rodada, retomada pelos bandidos (até 75%), celeiro/ferraria/forte/ruínas, torre (vigia, binóculo) e quarto da taverna. POIs só aparecem no mapa depois de avistados.
-- **Fatia 3 (2026-11-19, commit 8ec79f1):** binóculo (chances POI<ruínas<baú<portal<acampamento/caverna), moradores em POIs de facção/seus (aparecem na rodada N+1; ponte e torre só soldados), POIs de guerra só na guerra, taverneiro/ferreiro/bigorna/curtidor e tela de **Negociação** estilo app (`js/poigame.js`, `js/negoc.js`). Detalhes em `docs/fase-6-guerra.md`. Testado por script e na tela da Negociação; falta jogar.
-- **Limpeza (2026-11-19):** `js/poiserv.js` foi fundido em `js/poigame.js` (uma só definição de `poiAct`, `poiScan`, `poiGarrisonSync`, `poiCivSync`; campos da fatia 3 dentro do `POIX`); apagados os ramos mortos `poibinoc`/`poibar` antigos em `poiAct` e o `'fwar'` em `bookClick` (`rounds.js`; nenhum botão o gerava). Validado no `?cenario=pois` (ferreiro, bigorna, curtidor, taverneiro, quarto e cama, binóculo) e na Negociação, sem erros. Não testado: POI de guerra sem guerra (no cenário a guerra fica sempre ligada; equivalência só por leitura).
-- **Teste de fumaça (2026-11-19):** `tests/smoke.js` (Node + Playwright, com `tests/package.json`; `node_modules` fora do git) sobe um servidor estático e abre `?auto=1&mute=1&seed=11` e `?cenario=pois&auto=1&mute=1`. Confere: carga sem erros, POIs gerados, `svcSmith`/`svcAnvil`/`svcTanner`/`svcTavern`, `poiBinoc`, moradores (conquista na rodada N sem moradores, `endRound` → aparecem na N+1; só no mundo normal, porque no mapa manual os POIs são `show` e os moradores surgem na hora) e a Negociação (livro na aba `facs`, todas as telas por `negnav`/`negback`, sem fechar aliança nem declarar guerra). As 14 verificações passam (~20 s). Não cobre: interação por tecla E, combate, POIs de guerra sem guerra.
-- **Divisão de `rounds.js` (2026-11-19, commits 0562cf0..8c43460):** o arquivo de 898 linhas virou `econ.js` (`ECON`, ações do líder, necessidades, humor, imposto, produção, lojas), `office.js` (escritório, `hallExit`, `placeAtHall`), `caravans.js` (carroças, guardas, saque, `buyCaravan`, `dealSummary`), `book.js` (caderno `ldbook`), `bookmap.js` (aba Mapa e escolha de caravana) e `rounds.js` (fim da rodada, turno do líder, HUD, rodada 0). Carregam nessa ordem, no lugar do antigo, para manter a ordem dos ganchos e ouvintes. Só linhas movidas, nenhum nome global mudou; `docs/MAPA.md`, `CLAUDE.md` e comentários atualizados. Validado: smoke igual à linha de base e um roteiro extra por script (encerrar rodada, abas do caderno, criar caravana, encerrar turno, bolsa) idêntico ao código antigo. Não jogado na tela.
-- **Correção do `carry` (2026-11-19):** em `endRound` um comentário engolia, desde 2026-11-13, a linha que grava o excedente dos slots (`carry`); o bônus de entrega exigia entregar a necessidade inteira de novo e a aba Cidades nunca mostrava "(+N da rodada anterior)". Agora o que sobrou conta para a meta. Regra e teste em `docs/fase-4-testes.md`. Validado por script (antes: carry 0, sem bônus; depois: carry 2, bônus entregando necessidade − 1) e smoke; não jogado na tela.
-- **Falta jogar:** balanceamento (bandidos, preços, renda), bandidos novos atirando, interiores novos e o forte em tela.
-- **Pontas soltas:** negociar POIs (comprar/trocar/doar) na tela de Negociação (a tela existe; falta o menu de POIs), POIs de guerra nos buracos do mapa (com a guerra).
-- **Pendente do usuário:** lista de novas mecânicas de caravana e o desenho do espião.
+## Pendências
+- **Quase tudo foi checado só por script/console; falta jogar na tela:** POIs (bandidos novos atirando, interiores, forte, balanceamento de renda e preços), F5d (destruição, stamina, queda, pulo, sala do líder), guardas de caravana, missões, rebelião, eventos NPC, reuniões, eventos globais, `carry`, divisão de `rounds.js`.
+- **POIs:** negociar POIs na tela de Negociação (falta o menu); POIs de guerra nos buracos do mapa (com a guerra); POI de guerra sem guerra não testado.
+- **Raids fáceis demais** (ideias em `docs/fase-4-testes.md`, "Pendências da fase"); mudanças recentes de raid não testadas.
+- Humor nos níveis 0 e −1 igual ao nível 1. Contador "16/36" na batalha de rebelião sem causa achada.
+- **Pendente do usuário:** lista de novas mecânicas de caravana e desenho do espião.
+- Detalhes por fase: seções "Pendências" em `docs/fase-4-testes.md` e `docs/fase-5-facoes.md`; "Falta jogar"/"Pontas soltas" em `docs/fase-6-guerra.md`; `docs/futuras-correcoes.md`.
 
-## F5d (feita e enviada, commit 3f3cd95; testada só por console)
-Detalhes e como testar em `docs/fase-5-facoes.md` (seções F5d).
-- **Facção destruída:** NPC sem cidades some (`facDestroy`/`facReap`, `STATE.deadFacs`); `facOf` devolve "Facção extinta" para ids sem facção; id de facção nova nunca reaproveita o de uma destruída; `rebSweep` corrige cidade órfã.
-- **Rebelião em cidade sua (`js/rebmine.js`):** usa `STATE.reb.cur` com `owner:0`; começa no fim da rodada (fogo, ruínas, bandeira rebelde); lutar (5 rodadas sem se rebelar, sem pós-rebelião) ou reconhecer a independência (facção nova ou anexada; +1 descontentamento nas outras). Apoio por relação em `REBM.sup`.
-- **Aliada ofendida** (cartão `reparaliada`), reparação única, mina dourada 5 rodadas, "Eventos em andamento" no Resumo, stamina, pulo 1 bloco, dano de queda, NPCs de serviço imortais.
-- **Dungeon dourada** só no turno do comandante (`expireGolden`), custo ◉100; **morrer encerra o turno**; **sala do líder** com cor e bandeira da facção (`officeLook`); aba Efeitos só com o que afeta o jogador; sem seta do jogador no mapa grande fora do mundo; pausa não abre ao entrar na sala do líder.
+## Próximo passo
+1. **Jogar** POIs, rebelião e eventos NPC para balancear (`POIX`, `REB`, `rebWaveSpec`, `FEV`, `FSUP`, `ECON`).
+2. **Guerra (Fase 6):** nível do líder com efeito, objeto `WAR` (migração de save), `?cenario=guerra`, operações, cabo de guerra, fadiga, espiões, aliados (ordem em `docs/fase-6-guerra.md`).
 
-## Pendências e problemas conhecidos
-- **Missões:** falta jogar de verdade (só testado por script) e ajustar números (`MS` em `missions.js`). Proteger caravanas e resgatar cidadãos ainda não são tipos de missão.
-- **F5:** NPC mudam de relação entre si por rodada; depois eventos globais e reuniões. **Fase 6:** guerra completa (frente, ondas, economia, paz por andamento, recusa de paz da agressiva).
-- **F5d não jogada de verdade:** tudo foi checado por console (o laço do jogo não roda no painel de teste); falta ver na tela a destruição, as bandeiras da sala do líder, a stamina, o dano de queda e o pulo. O contador "16/36" visto numa batalha de rebelião não teve causa achada. Missões e temperamento ficaram como estavam (missões ficam para a guerra).
-- Dica de teste: o navegador guarda scripts antigos; recarregue com Ctrl+F5.
-- **Não visto na tela, só por script:** guardas de caravana patrulhando e atirando; mastro da prefeitura (só confirmado por teste); o jogo normal sem criativo. Vale jogar e conferir.
-- **Pacotão de correções (feito, falta jogar):** ver `docs/futuras-correcoes.md`. Ainda abertos: balanceamento das raids e NPCs presos nas folhas (não reproduzido; as folhas não têm colisão). Confirmar jogando: qual botão de política ainda aparece depois de decidir; efeito das copas vazadas (shader em `world.js`); resgate de inimigos presos na dungeon durante a luta.
-- **Raid fácil demais:** o jogador venceu as 3 ondas com a arma inicial e ◉100 de cura nos intervalos. Ideias (nada implementado): 1) cura limitada no raid; 2) composição por onda; 3) escalar com a rodada e o nível da cidade; 4) cura mais cara durante o raid; 5) onda chefe, flanco, ameaça ao armazém. As últimas mudanças de raid (lojas fechadas só durante o combate e abertas entre ondas; bandidos não perseguem civis) **ainda não foram testadas no jogo**.
-- Efeitos do humor nos níveis 0 e −1 ainda são iguais aos do nível 1.
-- Não testado em tempo real: a luta entre as tropas na disputa do portal dourado.
-- Balanceamento da economia (`ECON`) e dos números das facções (`ECON.ally`, `FAC_*`, `REL_REP`) depende de teste jogando.
+Roteiro rápido: `index.html?auto=1&mute=1&seed=11` (criativo), `?cenario=pois&auto=1&mute=1` (POIs), `?cenario=caravanas&mute=1` (caravanas). Recarregue com Ctrl+F5.
 
-## Próximo passo sugerido
-1. **Jogar** a rebelião e os eventos NPC para balancear (`REB`, `rebWaveSpec`, `FEV`).
-2. **F5b (feito, falta jogar e ajustar):** reuniões das facções (`js/meeting.js`, `js/meetfx.js`, save v17), desenho e como testar em `docs/fase-5-reunioes.md`. **F5c:** eventos globais em que o jogador pode intervir (depois das reuniões).
-3. Eventos propostos e não aprovados, se quiser: roubo de caravana e pacto de defesa (ver `docs/fase-5-eventos.md`).
-4. Raids mais difíceis, jogar rodada 0/missões/suprimento NPC/rebelião para ajustar números (`FSUP`, `REB`, `ECON`).
-5. **Fase 6:** jogar e balancear os POIs; depois a guerra: nível do líder como número com efeito, objeto `WAR` (migração de save), `?cenario=guerra`, operações, locais proibidos, cabo de guerra, fadiga, espiões, aliados e Negociações (ordem em `docs/fase-6-guerra.md`).
-
-Roteiro rápido para ver o estado atual: `index.html?cenario=caravanas&mute=1` (caravanas e relações) e `index.html?auto=1&mute=1&seed=11` (modo criativo normal).
-
-## Como trabalhamos entre PCs
-Conversas locais ficam salvas só no PC onde ocorreram; o contexto viaja por este arquivo, pelo `CLAUDE.md` e por `docs/`. Antes de trocar de PC: `/encerrar-sessao` (commita e envia). No outro PC: `git pull` na `factions-update`.
+## Entre PCs
+O contexto viaja por este arquivo, `CLAUDE.md` e `docs/`. Antes de trocar: `/encerrar-sessao`. No outro PC: `git pull` na `factions-update`.

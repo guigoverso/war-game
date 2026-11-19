@@ -30,11 +30,11 @@ Jogo de guerra e economia em voxels, no navegador (Three.js r128 via CDN). Sem b
 - Números de balanceamento ficam juntos: economia em `ECON` (`js/econ.js`), políticas em `POL` (`js/policies.js`), raids em `RAID_WAVES`/`RAID_GAP` (`js/raids.js`). Ajuste ali em vez de espalhar constantes.
 - Ao concluir uma mudança de regra, documente-a na seção da fase em `docs/fase-4-testes.md` (regra + como testar), como já é feito.
 
-## Conceitos do jogo (resumo; detalhes em `docs/fase-4-testes.md`)
-- **Rodadas:** rodada 0 é preparação. A partir da 1, cada rodada tem o **turno do Líder** (escritório: livro de decisões, caravanas, porto, evoluir cidade, política sorteada) e o **turno do Comandante** (buscar e entregar suprimentos, combate, recrutar).
-- **Suprimentos:** comida, minério, madeira e couro (itens 1 para 1). Cada cidade tem necessidades sorteadas por rodada (100/150/200%). Faltar gera debuffs, humor "descontente" e, depois de 4 rodadas seguidas, rebelião (a capital não se rebela). Armazém e cofre são compartilhados entre as cidades suas.
-- **Políticas locais:** 10 eventos com 3 opções (A/B/C), 30% de chance por rodada; os efeitos duram só a rodada (`POL.dur=1`).
-- **Raids:** 3 ondas (5, 10 e 15 bandidos) com 30 s de intervalo. Durante uma onda os serviços da cidade ficam fechados; bandidos vão sempre atrás do jogador e dos soldados (não perseguem civis).
+## Conceitos do jogo (onde ler)
+Cada rodada (a partir da 1; a 0 é preparação) tem o **turno do Líder** (decisões no escritório) e o **turno do Comandante** (suprimentos, combate). Regras e números ficam nos docs, não aqui:
+- Rodadas, suprimentos, humor, políticas e raids: `docs/fase-4-testes.md` e `docs/politicas-locais.md`.
+- Facções, relações, missões, rebelião, eventos, reuniões: `docs/fase-5-*.md`.
+- Guerra e POIs: `docs/fase-6-guerra.md`. Ideias soltas: `docs/ideias-e-design.md`.
 
 ## Git
 - Branch de trabalho atual: **`factions-update`**. Não faça push em outra branch sem o usuário pedir. Não crie pull request sem pedido.

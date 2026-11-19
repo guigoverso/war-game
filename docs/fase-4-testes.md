@@ -174,3 +174,17 @@ Na rodada 0 o jogo ainda não "começou": a rodada 1 é o jogo de verdade. Códi
 - **Sem portais de dungeon** até a rodada 1 (o hook `round` os cria).
 - **Menos perigo:** no máximo **5 acampamentos de bandidos** e **5 baús soltos** (os mais perto da capital; cada acampamento mantém seus bandidos), e metade dos bandos de animais. O resto fica guardado: é só um "esconder" em tempo de execução (geração e saves não mudam; ao carregar um save da rodada 0 a redução é refeita). **A rodada 1 devolve tudo** (os acampamentos voltam novos, com outros bandidos e recompensa).
 - **Como testar:** `?auto=1&mute=1&seed=11`: só 5 acampamentos e 5 baús soltos, sem portal. Encerre a rodada 0 e confira que os acampamentos, bandos, baús e portais aparecem.
+
+## Divisão de `rounds.js` (2026-11-19, commits 0562cf0..8c43460)
+O arquivo de 898 linhas virou `econ.js` (`ECON`, ações do líder, necessidades, humor, imposto, produção, lojas), `office.js` (escritório, `hallExit`, `placeAtHall`), `caravans.js` (carroças, guardas, saque, `buyCaravan`, `dealSummary`), `book.js` (caderno `ldbook`), `bookmap.js` (aba Mapa e escolha de caravana) e `rounds.js` (fim da rodada, turno do líder, HUD, rodada 0). Carregam nessa ordem, no lugar do antigo, para manter a ordem dos ganchos e ouvintes. Só linhas movidas, nenhum nome global mudou. Por isso, menções antigas neste arquivo a `ECON` "em `js/rounds.js`" hoje valem para `js/econ.js`. Validado: smoke igual à linha de base e um roteiro extra por script (encerrar rodada, abas do caderno, criar caravana, encerrar turno, bolsa) idêntico ao código antigo. Não jogado na tela.
+
+## Correção do `carry` (2026-11-19)
+Em `endRound` um comentário engolia, desde 2026-11-13, a linha que grava o excedente dos slots (`carry`); o bônus de entrega exigia entregar a necessidade inteira de novo e a aba Cidades nunca mostrava "(+N da rodada anterior)". Agora o que sobrou conta para a meta (regra em "Como o sistema funciona"). Validado por script (antes: carry 0, sem bônus; depois: carry 2, bônus entregando necessidade − 1) e smoke; não jogado na tela.
+
+## Pendências da fase (vindas do `docs/ESTADO.md` em 2026-11-19)
+- **Raid fácil demais:** o jogador venceu as 3 ondas com a arma inicial e ◉100 de cura nos intervalos. Ideias (nada implementado): 1) cura limitada no raid; 2) composição por onda; 3) escalar com a rodada e o nível da cidade; 4) cura mais cara durante o raid; 5) onda chefe, flanco, ameaça ao armazém. As últimas mudanças de raid (lojas fechadas só durante o combate e abertas entre ondas; bandidos não perseguem civis) **ainda não foram testadas no jogo**.
+- **Pacotão de correções (feito, falta jogar):** ver `docs/futuras-correcoes.md`. Ainda abertos: balanceamento das raids e NPCs presos nas folhas (não reproduzido; as folhas não têm colisão). Confirmar jogando: qual botão de política ainda aparece depois de decidir; efeito das copas vazadas (shader em `world.js`); resgate de inimigos presos na dungeon durante a luta.
+- Efeitos do humor nos níveis 0 e −1 ainda são iguais aos do nível 1.
+- Não testado em tempo real: a luta entre as tropas na disputa do portal dourado.
+- Balanceamento da economia (`ECON`) depende de teste jogando.
+- Dica de teste: o navegador guarda scripts antigos; recarregue com Ctrl+F5.
