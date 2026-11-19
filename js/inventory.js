@@ -304,7 +304,7 @@ function repairWeapon(i,c){
 }
 
 // ---------- tela da bolsa ----------
-function openInventory(){openBook('inv')}   // a bolsa vive dentro do livro (rounds.js)
+function openInventory(){openBook('inv')}   // a bolsa vive dentro do livro (book.js)
 function slotTitle(it,loc){
   const d=itemDef(it.id);let t=(d.weapon!==undefined?wName(d.weapon):d.name)+(it.n>1?' ×'+it.n:'');
   if(d.weapon!==undefined)t+=' — '+(weaponBroken(d.weapon)?'QUEBRADA':Math.round(durOf(d.weapon))+'%');
@@ -367,5 +367,5 @@ function renderInventory(){
     });
     pe.appendChild(h);
   }
-  if(typeof renderDeposit==='function')renderDeposit();   // botão de depositar suprimentos no estoque (rounds.js)
+  if(typeof renderDeposit==='function')renderDeposit();   // botão de depositar suprimentos no estoque (book.js)
 }
