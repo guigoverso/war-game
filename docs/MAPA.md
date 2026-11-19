@@ -7,7 +7,7 @@ Se renomear ou mover algo listado aqui, atualize esta página.
 util → render → voxel → phys → world → city → nav → entities → weapons → allies → poi → quests → ambient → data →
 state → ui → inventory → store → cooking → fishing → dungeon → raids → warehouse → rounds → policies →
 factions → facgraph → facsupply → rebellion → rebmine → facevents → meetfx → meeting → globalev → flageditor →
-scenario → missions → pois → poigame → poiserv → negoc → save → **game** (último: laço principal e entrada).
+scenario → missions → pois → poigame → negoc → save → **game** (último: laço principal e entrada).
 Código no topo de um arquivo só pode usar o que veio antes; dentro de funções, qualquer global serve.
 
 ## Arquivos
@@ -59,8 +59,7 @@ Código no topo de um arquivo só pode usar o que veio antes; dentro de funçõe
 
 **POIs da Fase 6**
 - `pois` — tipos e construção dos POIs no mundo: `POI_DEFS`, `POI_TYPES`, `poiBuild`, `genWorldPois`, `poiSetOwner`, `poiNear`, `poiShowcase`.
-- `poigame` — regras dos POIs (guarnição, anexação, renda, preço): `POIX`, `POI_PRICE`, `poiMine`, `poiGarrisonSync`, `poiScan`, `poiAct`, `poiTick`.
-- `poiserv` — moradores e serviços (ferreiro, bigorna, curtidor, taverneiro), binóculo: `SVC`, `svcOpen`, `svcSmith`, `svcAnvil`, `svcTanner`, `svcTavern`, `poiBinoc`.
+- `poigame` — regras dos POIs (guarnição, anexação, renda, preço): `POIX`, `POI_PRICE`, `poiMine`, `poiGarrisonSync`, `poiScan`, `poiAct`, `poiTick`; moradores e serviços (ferreiro, bigorna, curtidor, taverneiro), binóculo: `SVC`, `svcOpen`, `svcSmith`, `svcAnvil`, `svcTanner`, `svcTavern`, `poiBinoc`.
 - `negoc` — Negociação (entrada no caderno): `negOpen`, `negPage`, `negClick`, `negEntryHtml`.
 
 **Outros**
@@ -73,7 +72,7 @@ Código no topo de um arquivo só pode usar o que veio antes; dentro de funçõe
 - **Caderno** (painel `ldbook`, `rounds.js`): estado em `LB` (`top`: `book`/`inv`/`map`; `tab`), abas em `LSUBS`, montagem em `openBook` → `renderBook` → `bookPages` / `mapPages`; cliques em `bookClick`. Teclas L (Livro) e M (Mapa) em `game.js`.
   Páginas vindas de outros arquivos: `polBookHtml` (policies), `buffsPages`/`meetBookHtml` (meetfx), `fgBookPages` (facgraph), `msBookPages` (missions), `negEntryHtml` (negoc). Inventário dentro do caderno: `INV_L`/`INV_R` + `renderInventory`.
 - **Escritório do Líder**: `OFFICE`, `enterOffice`, `leaveOffice`, `nearBook`, `hallRoundAction` (`rounds.js`).
-- **Lojas**: loja de armas/munição `openShop`/`renderShop` e clínica `openClinic` (`game.js`); mercado e taverna `openStore` (`store.js`); quartel `openBarracks` (`allies.js`); armazém `openWarehouse` (`warehouse.js`); cozinha `openCooking` (`cooking.js`); serviços dos POIs `svcOpen` (painel `svc`, `poiserv.js`).
+- **Lojas**: loja de armas/munição `openShop`/`renderShop` e clínica `openClinic` (`game.js`); mercado e taverna `openStore` (`store.js`); quartel `openBarracks` (`allies.js`); armazém `openWarehouse` (`warehouse.js`); cozinha `openCooking` (`cooking.js`); serviços dos POIs `svcOpen` (painel `svc`, `poigame.js`).
 - **Cartões/popups**: política `showPolicy`, evento de facção `fevMedCard`, evento global `gevCard`, rebelião `rebCard`, reunião `meetCard`, missão `msCard`.
 - **HUD**: `updateHUD` (`game.js`), `refreshRoundHud` (`rounds.js`), `polHud`, `rebHud`. Preços explicados: `openPriceWhy`/`priceTag` (`game.js`).
 - **Pausa** (Tab/O/Esc): `pauseTab`, aba Locais `renderLocs`, truques `refreshCheats`/`refreshPolicyCheats` (`game.js`); cada sistema fornece seu `*CheatHtml` (`fgCheatHtml`, `fsupCheatHtml`, `rebCheatHtml`, `fevCheatHtml`, `gevCheatHtml`, `scenarioHtml`).
@@ -81,7 +80,7 @@ Código no topo de um arquivo só pode usar o que veio antes; dentro de funçõe
 ## Ganchos (`Hooks`, `state.js`)
 `Hooks.on(nome,fn)` / `Hooks.emit(nome,arg)`. Eventos existentes:
 - `resetState` — emitido por `resetState()`; quase todo sistema registra aqui o seu pedaço de `STATE`.
-- `round` — emitido em `endRound` (`rounds.js`) e `Rounds.advance`; ouvido por rounds, policies, factions, facgraph, facevents, globalev, meetfx, missions, dungeon, poigame, poiserv.
+- `round` — emitido em `endRound` (`rounds.js`) e `Rounds.advance`; ouvido por rounds, policies, factions, facgraph, facevents, globalev, meetfx, missions, dungeon, poigame.
 - `leaderTurn` — emitido no início do turno do Líder (`rounds.js`); ouvido por `policies.js` (sorteia o cartão).
 - `ledger` — emitido por `Ledger.set` quando um recurso muda.
 
@@ -91,7 +90,7 @@ Código no topo de um arquivo só pode usar o que veio antes; dentro de funçõe
 `stove`/`fire`→`openCooking`, `npc`→`npcTalk`, `chest`→`openChest`, `cage`→`openCage`, `dgcage`→`gevCageOpen`,
 `portal`→`enterDungeon`, `dgexit`→`leaveDungeon`, `vein`→`mineVein`, `book`→`openBook`, `leader`→`hallRoundAction`,
 `warehouse`→`openWarehouse`, `loot`→`lootCaravan`, `msdeliver`→`msDeliver`, `poi*`→`poiAct` (`poigame.js`).
-Alvos `poi*`: `poibar`, `poibed`, `poibinoc`, `poivigil` (`poiScan`, poigame) e `poisvc`, `poianvil` (`_poiScan`, poiserv).
+Alvos `poi*`: `poibar`, `poibed`, `poibinoc`, `poivigil`, `poisvc`, `poianvil` (`poiScan`, poigame).
 Raid ativa bloqueia via `raidLocked(t.c)`. No escritório/salão: `meetInteract` (meeting) ou `nearBook`→`openBook`.
 
 ## Números de balanceamento

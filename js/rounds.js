@@ -698,7 +698,6 @@ function bookClick(e){
   else if(a==='city'){LB.city=+t.dataset.id}
   else if(a==='fac'){LB.fac=+t.dataset.id;LB.neg=null}else if(a&&a.indexOf('neg')===0){negClick(t)}
   else if(a==='fally'){if(isLeader())facAlly(+t.dataset.id)}
-  else if(a==='fwar'){const id=+t.dataset.id;if(isLeader()&&STATE.round>=1&&!meetPact())UI.confirm('Declarar guerra a '+facOf(id).name+'? A relação vai a 0, a aliança e as caravanas acabam, e você só entra nas cidades dela atacando.',()=>{facDeclareWar(id);renderBook()},'Declarar guerra');return}
   else if(a==='fask'){if(isLeader())facAskPeace(+t.dataset.id)}
   else if(a==='fgive'){facGiveGold(+t.dataset.id,+t.dataset.g)}
   else if(a==='frelic'){facGiveRelic(+t.dataset.id)}

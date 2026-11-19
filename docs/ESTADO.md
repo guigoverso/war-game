@@ -7,7 +7,7 @@ Mantenha curto: o histórico detalhado das regras fica em `docs/fase-4-testes.md
 - **Branch de trabalho:** `factions-update` (commitada e enviada).
 - **Fase atual:** 6 (guerra), começando pelos POIs. Fases 4 (rodadas) e 5 (facções) prontas. Desenho completo em `docs/fase-6-guerra.md` (fonte mais confiável para a guerra).
 - **Save:** `SAVE_VERSION = 21`.
-- **Última atualização:** 2026-11-18, sessão local (F6 POIs, fatias 1 e 2: commits 6c44eba e 5138d51).
+- **Última atualização:** 2026-11-19, sessão local (limpeza: `js/poiserv.js` fundido em `js/poigame.js`, sem mudar comportamento).
 
 ## Facções (Fase 5): o que existe
 Decisões e números completos em `docs/fase-5-facoes.md`. Código principal: `js/factions.js`, `js/flageditor.js`, `js/scenario.js`.
@@ -29,10 +29,11 @@ Decisões e números completos em `docs/fase-5-facoes.md`. Código principal: `j
 - **Modo criativo:** pausa → aba **🏴 Facções** muda o status de cada facção; no livro há botões de relação. **Cenário controlado:** `index.html?cenario=caravanas` (3 rotas: aliada, favorável, neutra; botões "Ir até a caravana" na mesma aba).
 
 ## F6 POIs (feita e enviada; quase só checada por script)
-Detalhes em `docs/fase-6-guerra.md` (seções "POIs: fatia 1" e "fatia 2"). Código: `js/pois.js` (tipos, construtores, geração), `js/poigame.js` (guarnição, renda, usos). Números em `POIX`.
+Detalhes em `docs/fase-6-guerra.md` (seções "POIs: fatia 1" e "fatia 2"). Código: `js/pois.js` (tipos, construtores, geração), `js/poigame.js` (guarnição, renda, usos, moradores, serviços, binóculo). Números em `POIX`.
 - 11 tipos + acampamento fortificado e trincheira, com dono e bandeira, estradas e folgas (`POI_GAP`, `AMB_GAP`). Mapa 896 e 7 a 10 cidades pela terra. Mapa manual: `?cenario=pois`.
 - Guarnição de bandidos (10+, 4 tipos novos de bandido), cartão "Terras livres" (anexar/doar/vender), renda por rodada, retomada pelos bandidos (até 75%), celeiro/ferraria/forte/ruínas, torre (vigia, binóculo) e quarto da taverna. POIs só aparecem no mapa depois de avistados.
-- **Fatia 3 (2026-11-19, não commitada):** binóculo (chances POI<ruínas<baú<portal<acampamento/caverna), moradores em POIs de facção/seus (aparecem na rodada N+1; ponte e torre só soldados), POIs de guerra só na guerra, taverneiro/ferreiro/bigorna/curtidor e tela de **Negociação** estilo app (`js/poiserv.js`, `js/negoc.js`). Detalhes em `docs/fase-6-guerra.md`. Testado por script e na tela da Negociação; falta jogar.
+- **Fatia 3 (2026-11-19, commit 8ec79f1):** binóculo (chances POI<ruínas<baú<portal<acampamento/caverna), moradores em POIs de facção/seus (aparecem na rodada N+1; ponte e torre só soldados), POIs de guerra só na guerra, taverneiro/ferreiro/bigorna/curtidor e tela de **Negociação** estilo app (`js/poigame.js`, `js/negoc.js`). Detalhes em `docs/fase-6-guerra.md`. Testado por script e na tela da Negociação; falta jogar.
+- **Limpeza (2026-11-19):** `js/poiserv.js` foi fundido em `js/poigame.js` (uma só definição de `poiAct`, `poiScan`, `poiGarrisonSync`, `poiCivSync`; campos da fatia 3 dentro do `POIX`); apagados os ramos mortos `poibinoc`/`poibar` antigos em `poiAct` e o `'fwar'` em `bookClick` (`rounds.js`; nenhum botão o gerava). Validado no `?cenario=pois` (ferreiro, bigorna, curtidor, taverneiro, quarto e cama, binóculo) e na Negociação, sem erros. Não testado: POI de guerra sem guerra (no cenário a guerra fica sempre ligada; equivalência só por leitura).
 - **Falta jogar:** balanceamento (bandidos, preços, renda), bandidos novos atirando, interiores novos e o forte em tela.
 - **Pontas soltas:** negociar POIs (comprar/trocar/doar) na tela de Negociação (a tela existe; falta o menu de POIs), POIs de guerra nos buracos do mapa (com a guerra).
 - **Pendente do usuário:** lista de novas mecânicas de caravana e o desenho do espião.
