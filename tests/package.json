@@ -1,0 +1,7 @@
+{
+  "name": "fronteira-cubica-tests",
+  "private": true,
+  "description": "Testes de fumaça (só para desenvolvimento; o jogo não tem build).",
+  "scripts": { "smoke": "node smoke.js" },
+  "devDependencies": { "playwright": "^1.50.0" }
+}
