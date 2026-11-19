@@ -20,14 +20,14 @@ Jogo de guerra e economia em voxels, no navegador (Three.js r128 via CDN). Sem b
 - Mundo/render: `util`, `render`, `voxel`, `phys`, `world` (geração por semente), `city` (cidades e prédios), `nav`.
 - Entidades: `entities` (NPCs, inimigos, IA), `allies` (soldados do jogador, escolha de alvo `pickTarget`), `weapons`, `ambient`.
 - Jogo: `game` (laço principal, entrada, interação `doInteract`/`updateInteract`, painéis), `state` (STATE serializável, Ledger de recursos, Hooks), `save` (salvar/carregar com versão).
-- Sistemas: `rounds` (rodadas, economia — números em `ECON`), `policies` (política locais/eventos), `raids` (raids em ondas e emboscada de caravana), `warehouse` (armazém), `store`/`inventory`/`cooking`/`fishing`, `quests`, `dungeon`, `poi`, `data` (tabelas de itens e loot).
+- Sistemas: `econ` (economia — números em `ECON`), `rounds` (rodadas), `policies` (política locais/eventos), `raids` (raids em ondas e emboscada de caravana), `warehouse` (armazém), `store`/`inventory`/`cooking`/`fishing`, `quests`, `dungeon`, `poi`, `data` (tabelas de itens e loot).
 
 ## Convenções importantes
 - **Fim de linha: todos os arquivos usam LF** (garantido por `.gitattributes` e `.editorconfig`). Confira com `git diff --stat` depois de editar: só as linhas mudadas devem aparecer.
 - Estilo do código: denso, uma função por bloco, comentários curtos em português explicando o "porquê". Mantenha esse estilo.
 - Textos do jogo, comentários e docs em **português do Brasil**.
 - Estado que precisa sobreviver ao salvar fica em `STATE` (JSON puro). Se a mudança altera o estado salvo: some 1 a `SAVE_VERSION` (`js/state.js`), acrescente um passo `if(d.v<N)` em `migrateSave` (`js/save.js`) e só **acrescente** campos (ausentes = padrão).
-- Números de balanceamento ficam juntos: economia em `ECON` (`js/rounds.js`), políticas em `POL` (`js/policies.js`), raids em `RAID_WAVES`/`RAID_GAP` (`js/raids.js`). Ajuste ali em vez de espalhar constantes.
+- Números de balanceamento ficam juntos: economia em `ECON` (`js/econ.js`), políticas em `POL` (`js/policies.js`), raids em `RAID_WAVES`/`RAID_GAP` (`js/raids.js`). Ajuste ali em vez de espalhar constantes.
 - Ao concluir uma mudança de regra, documente-a na seção da fase em `docs/fase-4-testes.md` (regra + como testar), como já é feito.
 
 ## Conceitos do jogo (resumo; detalhes em `docs/fase-4-testes.md`)

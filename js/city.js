@@ -415,7 +415,7 @@ function buildTavern(c,f,D,doorU,rng,opt){opt=opt||{};   // opt (taverna dos POI
 
 function buildCity(c,rng){  const Hc=c.half;
   const ps=PAL[c.biome===BIO_ROCK?1:c.biome];
-  c.ctype=(WORLD.ctype&&WORLD.ctype[c.id])||null;   // tipo da cidade (ver cityTypePlan, rounds.js)
+  c.ctype=(WORLD.ctype&&WORLD.ctype[c.id])||null;   // tipo da cidade (ver cityTypePlan, econ.js)
   c.pal={walls:[rng.pick(ps.walls),rng.pick(ps.walls),rng.pick(ps.walls)],roofs:[rng.pick(ps.roofs),rng.pick(ps.roofs)],base:ps.base,trim:ps.trim,all:ps.walls};
   const ord=c.style==='ordenada',cha=c.style==='caotica';
   if(ord){c.pal.walls=rng.shuffle(ps.walls.slice()).slice(0,4);c.pal.roofs=rng.shuffle(ps.roofs.slice()).slice(0,3)}

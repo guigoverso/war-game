@@ -29,7 +29,7 @@ const poiVisible=p=>(p.show||G.creative||!!poiX().seen[p.id])&&poiLive(p);   // 
 let POI_READY=false;
 const poiMine=type=>(WORLD.pois||[]).filter(p=>!p.show&&p.owner==='player'&&poiLive(p)&&(!type||p.type===type));
 const poiCount=type=>poiMine(type).length;
-const poiNeedMul=(c,res)=>c&&c.owner==='player'?Math.pow(POIX.granaryNeed,Math.min(POIX.granaryMax,poiCount('granary'))):1;   // usado por needOf (rounds.js)
+const poiNeedMul=(c,res)=>c&&c.owner==='player'?Math.pow(POIX.granaryNeed,Math.min(POIX.granaryMax,poiCount('granary'))):1;   // usado por needOf (econ.js)
 
 // ---------- POIs de guerra: só existem durante a guerra ----------
 // (acampamento fortificado e trincheira): sem guerra não contam, não rendem, não aparecem nos mapas nem têm guarnição. No mapa manual (?cenario=pois) ficam ligados para teste.

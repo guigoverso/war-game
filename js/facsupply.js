@@ -64,5 +64,5 @@ function fsupCheatHtml(){
   const cs=WORLD.cities.filter(c=>c.owner!=='player'&&ec(c)).map(c=>c.name+' ('+(c.rebel?'Rebeldes':facOf(c.fid).name)+'): '+MOOD[moodOf(c)].icon+' '+MOOD[moodOf(c)].n+(ec(c).ups?' • '+ec(c).ups+' rodada(s) descontente':'')).join('<br>');
   return (typeof rebCheatHtml==='function'?rebCheatHtml():'')+(typeof fevCheatHtml==='function'?fevCheatHtml():'')+(typeof gevCheatHtml==='function'?gevCheatHtml():'')+'<h4 style="margin:12px 0 4px">Suprimento das facções NPC</h4><small>'+rows+'</small><h4 style="margin:12px 0 4px">Modificadores de suprimento ativos (somam)</h4><small>'+(((STATE.rd.fmods)||[]).map(m=>facOf(m.f).name+' • '+(m.r?resName(m.r):'tudo')+': '+(m.d>0?'−':'+')+Math.abs(m.d).toFixed(2)+' ('+(m.src||'efeito')+', mais '+m.left+' rod.)').join('<br>')||'nenhum')+'</small><h4 style="margin:12px 0 4px">Humor das cidades NPC</h4><small>'+cs+'</small>';
 }
-// cidade NPC descontente encarece todos os serviços (curas já dobram em rounds.js)
+// cidade NPC descontente encarece todos os serviços (curas já dobram em econ.js)
 addPriceFx('fmood',ctx=>{const c=ctx.city;if(!c||c.owner==='player'||!c.fid||ctx.kind==='heal'||ctx.kind==='healhp'||moodOf(c)!=='upset')return[];return[{txt:'Cidade descontente',mul:1+FSUP.upsetPrice}]},65);

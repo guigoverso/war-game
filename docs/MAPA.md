@@ -5,7 +5,7 @@ Se renomear ou mover algo listado aqui, atualize esta página.
 
 ## Ordem de carga (`index.html`, fim do arquivo)
 util → render → voxel → phys → world → city → nav → entities → weapons → allies → poi → quests → ambient → data →
-state → ui → inventory → store → cooking → fishing → dungeon → raids → warehouse → rounds → policies →
+state → ui → inventory → store → cooking → fishing → dungeon → raids → warehouse → econ → rounds → policies →
 factions → facgraph → facsupply → rebellion → rebmine → facevents → meetfx → meeting → globalev → flageditor →
 scenario → missions → pois → poigame → negoc → save → **game** (último: laço principal e entrada).
 Código no topo de um arquivo só pode usar o que veio antes; dentro de funções, qualquer global serve.
@@ -43,7 +43,8 @@ Código no topo de um arquivo só pode usar o que veio antes; dentro de funçõe
 - `warehouse` — armazém, cofre e suprimentos: `RES_ITEM`, `supplyOf`, `consumeSupply`, `prodAdd`, `giveResource`, `openWarehouse`, `renderWarehouse`.
 
 **Rodadas, economia e eventos**
-- `rounds` — rodadas, economia, escritório, caderno, caravanas, guardas: `ECON`, `NEEDS`, `endRound`, `finishLeaderTurn`, `enterOffice`, `openBook`, `renderBook`, `CARAVANS`, `buyCaravan`.
+- `econ` — economia das cidades: `ECON`, `NEEDS`, `RES4`, `MOOD`, ações do líder (`isLeader`, `actCost`, `canAct`, `spendAct`), `initEconomy`, `cityTypePlan`, `needOf`, `pctOf`, `missingOf`, `prodOf`, `taxOf`, `moodOf`/`moodLbl`/`joyShift`, `computeBuffs`, `rerollNeeds`, `refreshShops`/`shopLeft`/`shopTake`, `capCost`, `CARAVAN_COST`.
+- `rounds` — rodadas, escritório, caderno, caravanas, guardas: `endRound`, `finishLeaderTurn`, `enterOffice`, `openBook`, `renderBook`, `CARAVANS`, `buyCaravan`.
 - `raids` — raids em ondas e batalha de caravana: `RAID`, `RAID_WAVES`, `RAID_GAP`, `startRaid`, `endRaid`, `raidLocked`, `CVB`/`startCaravanBattle`.
 - `policies` — políticas locais (cartões A/B/C): `POL`, `definePolicy`, `rollPolicy`, `showPolicy`, `polChoose`, `polBookHtml`, `polHud`.
 - `factions` — facções, bandeiras, relações, guerra/paz: `FAC_KINDS`, `REL_MAX`, `facOf`, `relOf`, `relChange`, `facDeclareWar`, `facPeace`, `FAC_GOLD`.
@@ -80,7 +81,7 @@ Código no topo de um arquivo só pode usar o que veio antes; dentro de funçõe
 ## Ganchos (`Hooks`, `state.js`)
 `Hooks.on(nome,fn)` / `Hooks.emit(nome,arg)`. Eventos existentes:
 - `resetState` — emitido por `resetState()`; quase todo sistema registra aqui o seu pedaço de `STATE`.
-- `round` — emitido em `endRound` (`rounds.js`) e `Rounds.advance`; ouvido por rounds, policies, factions, facgraph, facevents, globalev, meetfx, missions, dungeon, poigame.
+- `round` — emitido em `endRound` (`rounds.js`) e `Rounds.advance`; ouvido por econ (grutas), rounds, policies, factions, facgraph, facevents, globalev, meetfx, missions, dungeon, poigame.
 - `leaderTurn` — emitido no início do turno do Líder (`rounds.js`); ouvido por `policies.js` (sorteia o cartão).
 - `ledger` — emitido por `Ledger.set` quando um recurso muda.
 
@@ -94,7 +95,7 @@ Alvos `poi*`: `poibar`, `poibed`, `poibinoc`, `poivigil`, `poisvc`, `poianvil` (
 Raid ativa bloqueia via `raidLocked(t.c)`. No escritório/salão: `meetInteract` (meeting) ou `nearBook`→`openBook`.
 
 ## Números de balanceamento
-- `ECON` (`rounds.js`) — necessidades, produção, impostos, caravana (`CARAVAN_COST=ECON.caravan`), evolução de cidade.
+- `ECON` (`econ.js`) — necessidades, saque de caravana (`ECON.loot`), produção, impostos, caravana (`CARAVAN_COST=ECON.caravan`), evolução de cidade.
 - `POL` (`policies.js`) — chance e duração das políticas; definições via `definePolicy`.
 - `POIX` e `POI_PRICE` (`poigame.js`) — guarnição, renda, retomada e preço dos POIs.
 - `RAID_WAVES`, `RAID_GAP`, `RAID_TIME`, `RAID_LOSS_*` (`raids.js`).
