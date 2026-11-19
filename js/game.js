@@ -643,7 +643,7 @@ function drawBigMap(cvArg,mk){   // cvArg: outro canvas (popup de missão); mk: 
   drawGoldPortals(g,s,0,0,0,true);   // portais dourados no mapa grande
   {const ct=cvbTarget();if(ct){drawStar(g,ct.x*s,ct.z*s,10*k);g.fillStyle='#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText('Caravana',ct.x*s,ct.z*s-16*k);g.fillText('Caravana',ct.x*s,ct.z*s-16*k)}}
   drawRose(g,cv.width-64*k,64*k,30*k);
-  drawPickOverlay(g,s);   // modo de escolha de caravana (rounds.js)
+  drawPickOverlay(g,s);   // modo de escolha de caravana (bookmap.js)
   {const rm=rebMarker();if(rm){drawStar(g,rm.x*s,rm.z*s,13*k,'#ff3a2a');g.fillStyle='#ff9a8a';g.strokeStyle='#000';g.lineWidth=3;g.strokeText(rm.label,rm.x*s,rm.z*s-18*k);g.fillText(rm.label,rm.x*s,rm.z*s-18*k)}}
   {const pm=G.poiMark;if(pm){drawStar(g,pm.x*s,pm.z*s,11*k,'#ff9a2a');g.fillStyle='#ffd08a';g.strokeStyle='#000';g.lineWidth=3;g.strokeText(pm.label,pm.x*s,pm.z*s-16*k);g.fillText(pm.label,pm.x*s,pm.z*s-16*k)}}
   {const qt=questTarget();if(qt){drawStar(g,qt.x*s,qt.z*s,10*k);g.fillStyle='#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText('Missão ativa',qt.x*s,qt.z*s-16*k);g.fillText('Missão ativa',qt.x*s,qt.z*s-16*k)}}

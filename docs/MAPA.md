@@ -5,7 +5,7 @@ Se renomear ou mover algo listado aqui, atualize esta página.
 
 ## Ordem de carga (`index.html`, fim do arquivo)
 util → render → voxel → phys → world → city → nav → entities → weapons → allies → poi → quests → ambient → data →
-state → ui → inventory → store → cooking → fishing → dungeon → raids → warehouse → econ → office → caravans → book → rounds → policies →
+state → ui → inventory → store → cooking → fishing → dungeon → raids → warehouse → econ → office → caravans → book → bookmap → rounds → policies →
 factions → facgraph → facsupply → rebellion → rebmine → facevents → meetfx → meeting → globalev → flageditor →
 scenario → missions → pois → poigame → negoc → save → **game** (último: laço principal e entrada).
 Código no topo de um arquivo só pode usar o que veio antes; dentro de funções, qualquer global serve.
@@ -47,7 +47,8 @@ Código no topo de um arquivo só pode usar o que veio antes; dentro de funçõe
 - `office` — escritório do Líder (sala no canto da região das dungeons): `OFFICE`, `genOffice`, `initOffice`, `officeLook`, `enterOffice`, `leaveOffice`, `nearBook`, `inOfficeRoom`, `hallExit`, `placeAtHall`.
 - `caravans` — caravanas e rotas na estrada, guardas, saque e compra: `CARAVANS`, `rebuildCaravans`, `makeCaravan`, `roadSpot`, `updateCaravanGuards`, `damageGuard`, `nearGuard`, `lootCaravan`, `caravanAttacked`, `destroyRoute`, `purgeDoomedCaravans`, `buyCaravan`, `dealSummary`.
 - `book` — caderno (painel `ldbook`): `LB`, `LSUBS`, `openBook`, `renderBook`, `bookPages`, `bookClick`, `routeTip`, `typeLabel`, `moodHtml`, `INV_L`/`INV_R`, `renderDeposit`, `mapOpen`.
-- `rounds` — rodadas: `endRound`, `finishLeaderTurn`.
+- `bookmap` — aba Mapa do caderno e escolha de caravana no mapa: `MP`, `mapPages`, `startCaravanPick`, `drawPickOverlay`, `pickCityAt`, `pickPoiAt`, `freeCityForRoute`; dica do mouse sobre cidades e POIs.
+- `rounds` — fim da rodada, turno do Líder, HUD da rodada e rodada 0: `endRound`, `rebelCity`, `beginLeaderTurn`, `finishLeaderTurn`, `updateRounds`, `refreshRoundHud`, `hallRoundAction`, `prepOn`/`prepThin`/`prepRestore`.
 - `raids` — raids em ondas e batalha de caravana: `RAID`, `RAID_WAVES`, `RAID_GAP`, `startRaid`, `endRaid`, `raidLocked`, `CVB`/`startCaravanBattle`.
 - `policies` — políticas locais (cartões A/B/C): `POL`, `definePolicy`, `rollPolicy`, `showPolicy`, `polChoose`, `polBookHtml`, `polHud`.
 - `factions` — facções, bandeiras, relações, guerra/paz: `FAC_KINDS`, `REL_MAX`, `facOf`, `relOf`, `relChange`, `facDeclareWar`, `facPeace`, `FAC_GOLD`.
@@ -73,7 +74,7 @@ Código no topo de um arquivo só pode usar o que veio antes; dentro de funçõe
 
 ## Onde fica cada UI
 - **Painéis** (`G.panel`): nomes em `SCREENS` (`game.js`); abrir/fechar com `openPanel`/`closePanel`. Peças comuns em `UI` (`ui.js`).
-- **Caderno** (painel `ldbook`, `book.js`): estado em `LB` (`top`: `book`/`inv`/`map`; `tab`), abas em `LSUBS`, montagem em `openBook` → `renderBook` → `bookPages` / `mapPages`; cliques em `bookClick`. Teclas L (Livro) e M (Mapa) em `game.js`.
+- **Caderno** (painel `ldbook`, `book.js`): estado em `LB` (`top`: `book`/`inv`/`map`; `tab`), abas em `LSUBS`, montagem em `openBook` → `renderBook` → `bookPages` / `mapPages` (`bookmap.js`); cliques em `bookClick`. Teclas L (Livro) e M (Mapa) em `game.js`.
   Páginas vindas de outros arquivos: `polBookHtml` (policies), `buffsPages`/`meetBookHtml` (meetfx), `fgBookPages` (facgraph), `msBookPages` (missions), `negEntryHtml` (negoc). Inventário dentro do caderno: `INV_L`/`INV_R` + `renderInventory`.
 - **Escritório do Líder**: `OFFICE`, `enterOffice`, `leaveOffice`, `nearBook` (`office.js`); `hallRoundAction` (`rounds.js`).
 - **Lojas**: loja de armas/munição `openShop`/`renderShop` e clínica `openClinic` (`game.js`); mercado e taverna `openStore` (`store.js`); quartel `openBarracks` (`allies.js`); armazém `openWarehouse` (`warehouse.js`); cozinha `openCooking` (`cooking.js`); serviços dos POIs `svcOpen` (painel `svc`, `poigame.js`).
@@ -84,7 +85,7 @@ Código no topo de um arquivo só pode usar o que veio antes; dentro de funçõe
 ## Ganchos (`Hooks`, `state.js`)
 `Hooks.on(nome,fn)` / `Hooks.emit(nome,arg)`. Eventos existentes:
 - `resetState` — emitido por `resetState()`; quase todo sistema registra aqui o seu pedaço de `STATE`.
-- `round` — emitido em `endRound` (`rounds.js`) e `Rounds.advance`; ouvido por econ (grutas), rounds, policies, factions, facgraph, facevents, globalev, meetfx, missions, dungeon, poigame.
+- `round` — emitido em `endRound` (`rounds.js`) e `Rounds.advance`; ouvido por econ (grutas), caravans, rounds (rodada 0), policies, factions, facgraph, facevents, globalev, meetfx, missions, dungeon, poigame.
 - `leaderTurn` — emitido no início do turno do Líder (`rounds.js`); ouvido por `policies.js` (sorteia o cartão).
 - `ledger` — emitido por `Ledger.set` quando um recurso muda.
 
