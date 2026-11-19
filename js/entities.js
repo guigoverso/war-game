@@ -300,7 +300,7 @@ function animWalk(m,phase,amp,quad){
   else if(m.legs.length===4){m.legs[0].rotation.x=a;m.legs[3].rotation.x=a;m.legs[1].rotation.x=-a;m.legs[2].rotation.x=-a}
 }
 function updateNpc(n,dt){
-  if(n.caravan)return;   // guarda de caravana: quem cuida é updateCaravanGuards (rounds.js)
+  if(n.caravan)return;   // guarda de caravana: quem cuida é updateCaravanGuards (caravans.js)
   const c=n.city;
   if(!n.alive){n.deadT+=dt;n.group.rotation.z=Math.min(1,n.deadT*3)*1.5;if(n.deadT>6){scene.remove(n.group);n.gone=true}return}
   if(n.bubble){n.sayT-=dt;if(n.sayT<=0){n.group.remove(n.bubble);n.bubble=null}}

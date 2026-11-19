@@ -5,7 +5,7 @@ Se renomear ou mover algo listado aqui, atualize esta página.
 
 ## Ordem de carga (`index.html`, fim do arquivo)
 util → render → voxel → phys → world → city → nav → entities → weapons → allies → poi → quests → ambient → data →
-state → ui → inventory → store → cooking → fishing → dungeon → raids → warehouse → econ → office → rounds → policies →
+state → ui → inventory → store → cooking → fishing → dungeon → raids → warehouse → econ → office → caravans → rounds → policies →
 factions → facgraph → facsupply → rebellion → rebmine → facevents → meetfx → meeting → globalev → flageditor →
 scenario → missions → pois → poigame → negoc → save → **game** (último: laço principal e entrada).
 Código no topo de um arquivo só pode usar o que veio antes; dentro de funções, qualquer global serve.
@@ -45,7 +45,8 @@ Código no topo de um arquivo só pode usar o que veio antes; dentro de funçõe
 **Rodadas, economia e eventos**
 - `econ` — economia das cidades: `ECON`, `NEEDS`, `RES4`, `MOOD`, ações do líder (`isLeader`, `actCost`, `canAct`, `spendAct`), `initEconomy`, `cityTypePlan`, `needOf`, `pctOf`, `missingOf`, `prodOf`, `taxOf`, `moodOf`/`moodLbl`/`joyShift`, `computeBuffs`, `rerollNeeds`, `refreshShops`/`shopLeft`/`shopTake`, `capCost`, `CARAVAN_COST`.
 - `office` — escritório do Líder (sala no canto da região das dungeons): `OFFICE`, `genOffice`, `initOffice`, `officeLook`, `enterOffice`, `leaveOffice`, `nearBook`, `inOfficeRoom`, `hallExit`, `placeAtHall`.
-- `rounds` — rodadas, caderno, caravanas, guardas: `endRound`, `finishLeaderTurn`, `openBook`, `renderBook`, `CARAVANS`, `buyCaravan`.
+- `caravans` — caravanas e rotas na estrada, guardas, saque e compra: `CARAVANS`, `rebuildCaravans`, `makeCaravan`, `roadSpot`, `updateCaravanGuards`, `damageGuard`, `nearGuard`, `lootCaravan`, `caravanAttacked`, `destroyRoute`, `purgeDoomedCaravans`, `buyCaravan`, `dealSummary`.
+- `rounds` — rodadas e caderno: `endRound`, `finishLeaderTurn`, `openBook`, `renderBook`.
 - `raids` — raids em ondas e batalha de caravana: `RAID`, `RAID_WAVES`, `RAID_GAP`, `startRaid`, `endRaid`, `raidLocked`, `CVB`/`startCaravanBattle`.
 - `policies` — políticas locais (cartões A/B/C): `POL`, `definePolicy`, `rollPolicy`, `showPolicy`, `polChoose`, `polBookHtml`, `polHud`.
 - `factions` — facções, bandeiras, relações, guerra/paz: `FAC_KINDS`, `REL_MAX`, `facOf`, `relOf`, `relChange`, `facDeclareWar`, `facPeace`, `FAC_GOLD`.

@@ -159,7 +159,7 @@ function facCutCaravans(fid){
   const cut=rd.routes.filter(r=>WORLD.cities[r.a].fid===fid||WORLD.cities[r.b].fid===fid);
   if(!cut.length)return 0;
   rd.routes=rd.routes.filter(r=>!cut.includes(r));
-  if(typeof CARAVANS!=='undefined')for(const c of CARAVANS)if(cut.includes(c.r))c.doomed=true;   // as carroças ficam na estrada até o turno acabar (purgeDoomedCaravans, rounds.js)
+  if(typeof CARAVANS!=='undefined')for(const c of CARAVANS)if(cut.includes(c.r))c.doomed=true;   // as carroças ficam na estrada até o turno acabar (purgeDoomedCaravans, caravans.js)
   if(typeof computeBuffs==='function')computeBuffs();
   if(STATE.phase==='leader'&&typeof purgeDoomedCaravans==='function')purgeDoomedCaravans();   // decidido no turno do líder: as carroças somem já, não ficam na estrada no turno do comandante
   facNote('🛒 As caravanas com '+facOf(fid).name+' foram desfeitas (as carroças somem quando o turno acabar).');
