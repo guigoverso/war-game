@@ -249,7 +249,7 @@ function buildHideout(x,z,y,rng){
   const gap=rng.int(0,5);
   for(let k=0;k<6;k++){if(k===gap)continue;const a=k/6*6.283+rng.range(-0.2,0.2),rx=x+Math.round(Math.cos(a)*2.3),rz=z+Math.round(Math.sin(a)*2.3);
     if(getT(rx,rz)===T_NAT&&H[rz*W+rx]>=SEA+1)addRock(rx,rz,H[rz*W+rx],rng,B[rz*W+rx]===BIO_SNOW,B[rz*W+rx])}
-  addChest(x+0.5,H[z*W+x],z+0.5,rng.range(0,6.28),rng.int(60,180),null);
+  addChest(x+0.5,H[z*W+x],z+0.5,rng.range(0,6.28),rng.int(60,180),null).lost=true;   // baú escondido (o binóculo da torre os acha)
 }
 
 // grutas só em montanhas: tile de rocha, ou neve com rocha (montanha nevada) por perto

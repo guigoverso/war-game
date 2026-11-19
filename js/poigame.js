@@ -19,9 +19,9 @@ const POIX={
 };
 Hooks.on('resetState',()=>{STATE.poiX={clr:{},defer:{},vigil:-1,room:null,done:{},seen:{}}});
 const poiX=()=>{const X=STATE.poiX||(STATE.poiX={clr:{},defer:{},vigil:-1,room:null,done:{},seen:{}});if(!X.done)X.done={};if(!X.seen)X.seen={};return X};
-const poiVisible=p=>p.show||G.creative||!!poiX().seen[p.id];   // fora do modo criativo, o POI só aparece nos mapas depois que você chega perto
+const poiVisible=p=>(p.show||G.creative||!!poiX().seen[p.id])&&poiLive(p);   // fora do modo criativo, o POI só aparece nos mapas depois que você chega perto
 let POI_READY=false;
-const poiMine=type=>(WORLD.pois||[]).filter(p=>!p.show&&p.owner==='player'&&(!type||p.type===type));
+const poiMine=type=>(WORLD.pois||[]).filter(p=>!p.show&&p.owner==='player'&&poiLive(p)&&(!type||p.type===type));
 const poiCount=type=>poiMine(type).length;
 const poiNeedMul=(c,res)=>c&&c.owner==='player'?Math.pow(POIX.granaryNeed,Math.min(POIX.granaryMax,poiCount('granary'))):1;   // usado por needOf (rounds.js)
 
@@ -67,7 +67,7 @@ function poiGarrisonCleared(c){
 const poiById=id=>(WORLD.pois||[]).find(p=>p.id===id);
 function poiDueList(){
   const out=[],X=poiX();if(X.decided===STATE.round)return out;
-  for(const p of WORLD.pois||[])if(!p.show&&p.owner==='free'&&(X.clr[p.id]===undefined||X.clr[p.id]<STATE.round))out.push({pid:'poianexar',city:-1,round:STATE.round,data:{poi:p.id}});
+  for(const p of WORLD.pois||[])if(!p.show&&!POI_DEFS[p.type].war&&p.owner==='free'&&(X.clr[p.id]===undefined||X.clr[p.id]<STATE.round))out.push({pid:'poianexar',city:-1,round:STATE.round,data:{poi:p.id}});
   return out;
 }
 const poiNearestMineDist=p=>{let bd=1e9;for(const c of playerCities()){const d=Math.hypot(c.cx-p.cx,c.cz-p.cz);if(d<bd)bd=d}return bd};
@@ -163,26 +163,16 @@ addPriceFx('poi',ctx=>{const n=Math.min(POIX.forgeMax,poiCount('forge'));return 
 // ---------- ruínas: baú com chance de artefato ----------
 function poiRuinLoot(p){if(Math.random()<POIX.ruinRelic){const t=invGive([['reliquia',1]]);toast('🏺 Entre os destroços havia um artefato! '+(t||''),4500)}}
 
-// ---------- taverna: taverneiro e fregueses quando o POI é seu ----------
-function poiCivSync(p){   // quem mora no POI: guardas na cor do dono (você ou uma facção) e, na taverna, o taverneiro e os fregueses
-  if(!POI_READY||p.type==='ruins')return;
-  const o=p.owner,friendly=o==='player'||typeof o==='number',fid=o==='player'?0:o;
-  if(p.civ&&(!friendly||p.civ.fid!==fid)){for(const n of p.civ.npcs){n.alive=false;n.gone=true;scene.remove(n.group)}p.civ=null}
-  if(!friendly||p.civ)return;
-  p.civ={id:2000+p.id,biome:p.biome,owner:o==='player'?'player':'enemy',fid,npcs:[],kind:'poiciv',cx:p.cx,cz:p.cz,half:12,enemies:[],state:'idle'};
-  const d=POI_DEFS[p.type],ng=p.type==='fort'||p.type==='fortcamp'?4:2;
-  for(let i=0;i<ng;i++){const a=i*6.283/ng+0.7,f=freeSpot(p.cx+Math.cos(a)*d.r*0.45,p.cz+Math.sin(a)*d.r*0.45,0.3,1.8,0.45);spawnNpc(p.civ,{role:'guard',x:f[0],z:f[1],y:p.y,yaw:a,stationary:true})}
-  if(p.type==='tavern')for(const k of p.keepers||[])spawnNpc(p.civ,{role:k.role,x:k.x,z:k.z,y:p.y,yaw:k.yaw,stationary:true,sit:k.sit});
-}
+// ---------- moradores dos POIs (soldados, civis, taverneiro, ferreiro, curtidor): ver poiserv.js (poiCivSync) ----------
 
 // ---------- interações: vigia e binóculo da torre, balcão e cama da taverna ----------
 function poiScan(lines){
   for(const p of WORLD.pois||[]){
-    if(p.owner!=='player')continue;
-    if(p.vigilPos&&Math.hypot(P.x-p.vigilPos.x,P.z-p.vigilPos.z)<2.6&&Math.abs(P.y-p.y)<2.6){G.target={type:'poivigil',p};lines.push('[E] Fazer vigia (avança '+POIX.vigilHours+' h e marca um ponto de interesse)'+(poiX().vigil===STATE.round?' — já feito nesta rodada':''))}
-    if(p.binoc&&Math.hypot(P.x-p.binoc.x,P.z-p.binoc.z)<1.8&&Math.abs(P.y-p.binoc.y)<3){G.target={type:'poibinoc',p};lines.push('[E] Usar o binóculo')}
-    if(p.tavern&&Math.hypot(P.x-p.tavern.x,P.z-p.tavern.z)<3.2&&Math.abs(P.y-p.y)<2.6){G.target={type:'poibar',p};const r=poiX().room;lines.push(r&&r.poi===p.id&&r.round===STATE.round?'[E] Taverneiro: o seu quarto já está reservado (suba a escada: a porta aberta)':'[E] Taverneiro: reservar um quarto (◉'+POIX.roomCost+')')}
-    if(p.bed&&Math.hypot(P.x-p.bed.x,P.z-p.bed.z)<2.4&&Math.abs(P.y-p.bed.y)<2.6){G.target={type:'poibed',p};const r=poiX().room;lines.push(r&&r.poi===p.id&&r.round===STATE.round?'[E] Dormir (noite vira manhã; dia vira noite)':'🔒 Cama: reserve o quarto com o taverneiro')}
+    const own=p.owner==='player',svc=typeof poiSvcOk==='function'&&poiSvcOk(p);if(!own&&!svc)continue;   // vigia e binóculo só nos seus; taverneiro e cama também nos de facções amigas (poiserv.js)
+    if(own&&p.vigilPos&&Math.hypot(P.x-p.vigilPos.x,P.z-p.vigilPos.z)<2.6&&Math.abs(P.y-p.y)<2.6){G.target={type:'poivigil',p};lines.push('[E] Fazer vigia (avança '+POIX.vigilHours+' h e marca um ponto de interesse)'+(poiX().vigil===STATE.round?' — já feito nesta rodada':''))}
+    if(own&&p.binoc&&Math.hypot(P.x-p.binoc.x,P.z-p.binoc.z)<1.8&&Math.abs(P.y-p.binoc.y)<3){G.target={type:'poibinoc',p};lines.push('[E] Usar o binóculo (acha POIs, ruínas, baús, portais e acampamentos num raio de '+POIX.binoc.range+' blocos)')}
+    if(svc&&p.tavern&&Math.hypot(P.x-p.tavern.x,P.z-p.tavern.z)<3.2&&Math.abs(P.y-p.y)<2.6){G.target={type:'poibar',p};const r=poiX().room;lines.push('[E] Taverneiro: comida e quarto')}
+    if(svc&&p.bed&&Math.hypot(P.x-p.bed.x,P.z-p.bed.z)<2.4&&Math.abs(P.y-p.bed.y)<2.6){G.target={type:'poibed',p};const r=poiX().room;lines.push(r&&r.poi===p.id&&r.round===STATE.round?'[E] Dormir (noite vira manhã; dia vira noite)':'🔒 Cama: reserve o quarto com o taverneiro')}
   }
 }
 function poiAct(t){
@@ -220,6 +210,6 @@ function poiTick(dt){
   POI_T-=dt;if(POI_T>0)return;POI_T=0.5;
   for(const c of WORLD.garrisons||[])if(c._ally&&c.state!=='attacking'){c._ally=false;armyConquered(WORLD.home)}   // acabou (ou você recuou): de volta ao posto
   const X=poiX();
-  for(const p of WORLD.pois||[])if(!p.show&&!X.seen[p.id]&&Math.hypot(P.x-p.cx,P.z-p.cz)<POIX.reveal+POI_DEFS[p.type].r){X.seen[p.id]=true;if(p.type!=='ruins'&&!G.creative)toast('📍 Você avistou: '+POI_DEFS[p.type].ic+' '+POI_DEFS[p.type].n+' (marcado no mapa).',3500)}
+  for(const p of WORLD.pois||[])if(!p.show&&!X.seen[p.id]&&poiLive(p)&&Math.hypot(P.x-p.cx,P.z-p.cz)<POIX.reveal+POI_DEFS[p.type].r){X.seen[p.id]=true;if(p.type!=='ruins'&&!G.creative)toast('📍 Você avistou: '+POI_DEFS[p.type].ic+' '+POI_DEFS[p.type].n+' (marcado no mapa).',3500)}
 }
 document.addEventListener('click',e=>{if(e.target&&e.target.id==='mapback'){closePanel();showPolicy()}});   // do mapa de volta ao cartão do evento

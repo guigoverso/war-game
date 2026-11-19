@@ -174,6 +174,8 @@ function npcLook(rng,biome,role,owner){
   if(role==='civ'&&rng.chance(0.15))L.pack=rng.pick([0x6b4a2a,0x4a5a3a]);
   if(role==='civ'&&rng.chance(0.15)){L.hairStyle='hat';L.hat=0xc8a85a;L.pants=0x5a4a3a}
   if(role==='shop'){L.apron=0xf2f2f2;L.shirt=0x8a3a2a;L.hairStyle='cap';L.hat=0x6b4a2a;L.beard=L.hair;L.scale=1.05}
+  if(role==='smith'){L.apron=0x3a3a3a;L.shirt=0x6a3a2a;L.hairStyle='cap';L.hat=0x2a2a2a;L.beard=L.hair;L.scale=1.08}   // ferreiro (POI)
+  if(role==='tanner'){L.apron=0x6b4a2a;L.shirt=0xa88a5a;L.hairStyle='hat';L.hat=0x7a5a3a;L.scale=1.02}   // curtidor (POI)
   if(role==='merchant'){L.apron=0x6b4a2a;L.shirt=0x3a6a4a;L.hairStyle='hat';L.hat=0xc8a85a;L.scale=1.02}
   if(role==='cook'){L.apron=0xf2f2f2;L.shirt=0xe8e0d0;L.hairStyle='cap';L.hat=0xf4f4f4;L.beard=L.hair;L.scale=1.04}
   if(role==='nurse'){L.shirt=0xf4f4f4;L.pants=0xf4f4f4;L.hairStyle='cap';L.hat=0xf4f4f4;L.scarf=0xd02a2a;L.shoes=0xdddddd}
@@ -336,7 +338,7 @@ function updateNpc(n,dt){
   if(n.model.sway)n.model.sway(n.phase,moving,G.t)
 }
 // NPCs de serviço (armeiro, taverneiro, cozinheiro, enfermeira, escriturário) e o líder: não tomam tiro, não fogem e ficam sempre no posto (a cadeira, no caso do líder)
-const NPC_FIXED=new Set(['shop','merchant','cook','nurse','clerk','leader']);
+const NPC_FIXED=new Set(['shop','merchant','cook','nurse','clerk','leader','smith','tanner']);
 function damageNpc(n,amount,src){   // src: bicho que atacou (não envolve o jogador)
   if(!n.alive||NPC_FIXED.has(n.role))return;n.hp-=amount;burst(n.x,n.y+1,n.z,0xaa1111,8,5,0.1);
   if(!src){if(n.caravan)caravanAttacked(n);else facHostileAct(n.city)}   // ferir um cidadão: ataque (em guerra) ou crime; ferir guarda de caravana de outra facção: crime contra as facções da rota (factions.js)

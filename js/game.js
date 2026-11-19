@@ -144,7 +144,7 @@ function conquerCity(c){
 }
 
 // ---------- Painéis ----------
-const SCREENS=['start','shop','clinic','barracks','quests','pause','dead','victory','store','cook','raid','ldbook','warehouse'];
+const SCREENS=['start','shop','clinic','svc','barracks','quests','pause','dead','victory','store','cook','raid','ldbook','warehouse'];
 function openPanel(name){
   if(G.frozen)setFrozen(false);
   SCREENS.forEach(s=>$(s).classList.add('hidden'));$(name).classList.remove('hidden');
@@ -392,7 +392,7 @@ window.addEventListener('keydown',e=>{
     else if(!G.panel)openBook('map');
     return;
   }
-  if(G.panel==='shop'||G.panel==='clinic'||G.panel==='barracks'||G.panel==='quests'||G.panel==='store'||G.panel==='cook'||G.panel==='raid'||G.panel==='warehouse'){if(e.code==='KeyE'||e.code==='Escape'){if(!UI.closeTop())closePanel()}return}
+  if(G.panel==='shop'||G.panel==='clinic'||G.panel==='svc'||G.panel==='barracks'||G.panel==='quests'||G.panel==='store'||G.panel==='cook'||G.panel==='raid'||G.panel==='warehouse'){if(e.code==='KeyE'||e.code==='Escape'){if(!UI.closeTop())closePanel()}return}
   if(G.panel==='uiwin'){if(e.code==='Escape'||e.code==='KeyE')UI.closeTop();return}   // janela de confirmação sobre o jogo
   if(G.panel==='ldbook'){if(e.code==='KeyE'||e.code==='Escape'||e.code==='KeyB'){if(!UI.closeTop())closePanel()}return}   // livro: bolsa + decisões
   if(G.panel)return;

@@ -5,9 +5,9 @@ Mantenha curto: o histórico detalhado das regras fica em `docs/fase-4-testes.md
 
 ## Resumo
 - **Branch de trabalho:** `factions-update` (commitada e enviada).
-- **Fase atual:** 5 (facções). A Fase 4 (rodadas, prefeitura, livro, caravanas, 10 políticas locais) está pronta. A guerra é a Fase 6 (`docs/fase-6-guerra.md`).
-- **Save:** `SAVE_VERSION = 19`.
-- **Última atualização:** 2026-11-18, sessão local (F5d: facção destruída, rebelião em cidade do jogador, stamina/queda, ajustes).
+- **Fase atual:** 6 (guerra), começando pelos POIs. Fases 4 (rodadas) e 5 (facções) prontas. Desenho completo em `docs/fase-6-guerra.md` (fonte mais confiável para a guerra).
+- **Save:** `SAVE_VERSION = 21`.
+- **Última atualização:** 2026-11-18, sessão local (F6 POIs, fatias 1 e 2: commits 6c44eba e 5138d51).
 
 ## Facções (Fase 5): o que existe
 Decisões e números completos em `docs/fase-5-facoes.md`. Código principal: `js/factions.js`, `js/flageditor.js`, `js/scenario.js`.
@@ -27,6 +27,15 @@ Decisões e números completos em `docs/fase-5-facoes.md`. Código principal: `j
 - **F5c eventos globais (`js/globalev.js`, save v18):** 10 cartões com respostas (chuva, colheita, mina, peste, sequestro com dungeon de resgate, visita, incêndio, embargo, mercenários, golpe). Modificadores de suprimento que somam (`fsupHit`/`fmods`). **Reserva de soldados** no quartel (8/5). Ver `docs/fase-5-globais.md`.
 - **Relatório da rodada:** duas partes (anterior/atual; `rdNow`), e toda mudança da sua relação com uma facção entra com o motivo (`relLog`). **Relação:** uma decisão muda no máximo ±1 (`relChange`; `fixed` para efeitos que mexem nas relações).
 - **Modo criativo:** pausa → aba **🏴 Facções** muda o status de cada facção; no livro há botões de relação. **Cenário controlado:** `index.html?cenario=caravanas` (3 rotas: aliada, favorável, neutra; botões "Ir até a caravana" na mesma aba).
+
+## F6 POIs (feita e enviada; quase só checada por script)
+Detalhes em `docs/fase-6-guerra.md` (seções "POIs: fatia 1" e "fatia 2"). Código: `js/pois.js` (tipos, construtores, geração), `js/poigame.js` (guarnição, renda, usos). Números em `POIX`.
+- 11 tipos + acampamento fortificado e trincheira, com dono e bandeira, estradas e folgas (`POI_GAP`, `AMB_GAP`). Mapa 896 e 7 a 10 cidades pela terra. Mapa manual: `?cenario=pois`.
+- Guarnição de bandidos (10+, 4 tipos novos de bandido), cartão "Terras livres" (anexar/doar/vender), renda por rodada, retomada pelos bandidos (até 75%), celeiro/ferraria/forte/ruínas, torre (vigia, binóculo) e quarto da taverna. POIs só aparecem no mapa depois de avistados.
+- **Fatia 3 (2026-11-19, não commitada):** binóculo (chances POI<ruínas<baú<portal<acampamento/caverna), moradores em POIs de facção/seus (aparecem na rodada N+1; ponte e torre só soldados), POIs de guerra só na guerra, taverneiro/ferreiro/bigorna/curtidor e tela de **Negociação** estilo app (`js/poiserv.js`, `js/negoc.js`). Detalhes em `docs/fase-6-guerra.md`. Testado por script e na tela da Negociação; falta jogar.
+- **Falta jogar:** balanceamento (bandidos, preços, renda), bandidos novos atirando, interiores novos e o forte em tela.
+- **Pontas soltas:** negociar POIs (comprar/trocar/doar) na tela de Negociação (a tela existe; falta o menu de POIs), POIs de guerra nos buracos do mapa (com a guerra).
+- **Pendente do usuário:** lista de novas mecânicas de caravana e o desenho do espião.
 
 ## F5d (feita e enviada, commit 3f3cd95; testada só por console)
 Detalhes e como testar em `docs/fase-5-facoes.md` (seções F5d).
@@ -52,7 +61,7 @@ Detalhes e como testar em `docs/fase-5-facoes.md` (seções F5d).
 2. **F5b (feito, falta jogar e ajustar):** reuniões das facções (`js/meeting.js`, `js/meetfx.js`, save v17), desenho e como testar em `docs/fase-5-reunioes.md`. **F5c:** eventos globais em que o jogador pode intervir (depois das reuniões).
 3. Eventos propostos e não aprovados, se quiser: roubo de caravana e pacto de defesa (ver `docs/fase-5-eventos.md`).
 4. Raids mais difíceis, jogar rodada 0/missões/suprimento NPC/rebelião para ajustar números (`FSUP`, `REB`, `ECON`).
-5. Fase 6: guerra (inclui sabotagem, que usa `fsupHit`).
+5. **Fase 6:** jogar e balancear os POIs; depois a guerra: nível do líder como número com efeito, objeto `WAR` (migração de save), `?cenario=guerra`, operações, locais proibidos, cabo de guerra, fadiga, espiões, aliados e Negociações (ordem em `docs/fase-6-guerra.md`).
 
 Roteiro rápido para ver o estado atual: `index.html?cenario=caravanas&mute=1` (caravanas e relações) e `index.html?auto=1&mute=1&seed=11` (modo criativo normal).
 

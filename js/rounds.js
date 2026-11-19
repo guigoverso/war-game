@@ -642,19 +642,11 @@ function bookPages(){
       relH='<h4>Relação</h4><p><b style="color:'+S.col+'">'+S.n+'</b> • '+rl.v+'/10 <span style="letter-spacing:1px;color:'+S.col+'">'+'■'.repeat(rl.v)+'<span style="color:#9a8a6a">'+'□'.repeat(10-rl.v)+'</span></span></p><p class="ldsm">'+S.txt+'</p>'
         +(dv?'<p class="ldbad">💰 Reparação registrada: <b>◉'+dv.amt+'</b> — '+(rl.war?'é o valor cobrado para pedir paz.':(st==='enemy'&&rl.warAt==null?'um pedido de reparação aparece no turno do líder. ':'')+'É o valor da paz se houver guerra.')+'</p>':'')
         +(rl.warAt!=null&&!rl.war?'<p class="ldbad">⚔ Declaração de guerra a caminho (rodada '+rl.warAt+'): vira uma política no turno do líder, com a chance de pagar reparação (a agressiva recusa).</p>':'')
-        +'<h4>Decisões</h4><button data-a="fally" data-id="'+id+'" '+(lead&&rl.v>=REL_MAX&&!rl.ally&&!rl.war&&canAct('ally')&&Ledger.canAfford({gold:ac.cost})?'':'disabled')+' title="'+(canAct('ally')?'':'Sem ações do líder nesta rodada.')+'">🤝 Negociar aliança (◉'+ac.cost+' + '+actCost('ally')+' ação)</button> <button data-a="fwar" data-id="'+id+'" '+(lead&&!rl.war&&STATE.round>=1&&!meetPact()?'':'disabled')+(STATE.round<1?' title="Não há guerra na rodada 0."':'')+'>⚔ Declarar guerra</button>'
-        +(rl.war?' <button data-a="fask" data-id="'+id+'" '+(lead&&Ledger.canAfford({gold:dv?dv.amt:REL_REP.neutral})?'':'disabled')+'>🕊 Pedir paz (◉'+(dv?dv.amt:REL_REP.neutral)+')</button>':'')
-        +'<p class="ldsm">Preço da aliança = ◉'+ECON.ally.base+' × (poder deles ÷ o seu), entre '+ECON.ally.min+'× e '+ECON.ally.max+'×. Seu poder: <b>'+ac.me+'</b> • deles: <b>'+ac.them+'</b> (cada cidade vale 1 + o nível dela).</p>'
-        +(lead?'':'<p class="ldsm">🔒 Só no turno do líder.</p>')
-        +'<h4>Melhorar a relação <small>(cada ação gasta 1 ação ◆)</small></h4>'
-        +[[500,'g'],[1000,'g']].filter(([g])=>!facGoldHidden(id,g)).map(([g])=>{const b=facActBlock(id,'gold',g);return '<button data-a="fgive" data-id="'+id+'" data-g="'+g+'" '+(b?'disabled':'')+' title="'+(b||'')+'">💰 Doar ◉'+g+' (+'+Math.min(relPreview(id,FAC_GOLD[g]),REL_MAX-rl.v)+')</button> '}).join('')
-        +(()=>{const b=facActBlock(id,'relic');return '<button data-a="frelic" data-id="'+id+'" '+(b?'disabled':'')+' title="'+(b||'')+'">🏺 Doar relíquia (+'+Math.min(relPreview(id,FAC_RELIC_GAIN),REL_MAX-rl.v)+')</button>'})()
-        +'<p class="ldsm">Relíquias: '+invCount('reliquia')+' na bolsa, '+facRelicStore()+' no armazém. <b>Rota comercial:</b> crie uma caravana com uma cidade dela na aba 🛒 Caravanas (+'+relPreview(id,FAC_ROUTE_GAIN)+'; exige relação desfavorável ou melhor). Cada ação vale uma vez por rodada por facção. Missões: em breve.</p>'
-        +(()=>{const u=['gold','relic','route'].filter(t=>facActUsed(id,t)).map(t=>({gold:'doação de ouro',relic:'relíquia',route:'rota comercial'})[t]);return u.length?'<p class="ldsm">Já feito nesta rodada: '+u.join(', ')+'.</p>':''})()
+        +negEntryHtml(f)
         +(!rl.war&&rl.v!==REL_START&&!rl.ally&&!(st==='enemy'&&rl.debt)?'<p class="ldsm">⏳ Sem novas ações, a relação esfria 1 ponto em direção a 5 a cada '+FAC_DECAY[f.temper||'neutra']+' rodadas.</p>':'');
       if(G.creative)relH+='<h4>Modo criativo</h4><div>Relação: <button class="ldmini" data-a="frel" data-id="'+id+'" data-d="-1">−1</button><button class="ldmini" data-a="frel" data-id="'+id+'" data-d="1">+1</button> '+[0,2,5,8,10].map(v=>'<button class="ldmini" data-a="frelset" data-id="'+id+'" data-v="'+v+'">'+v+'</button>').join('')+(rl.war?' <button class="ldmini" data-a="fpeace" data-id="'+id+'">🕊 Paz</button>':'')+'</div>';
     }
-    const L='<h3>'+f.name+(f.player?' <small>(você)</small>':'')+'</h3><img class="fe-img" src="'+facFlagURL(f.id,4)+'" width="128" height="80">'
+    const L=(!f.player&&negOpen(f))?negPage(f):'<h3>'+f.name+(f.player?' <small>(você)</small>':'')+'</h3><img class="fe-img" src="'+facFlagURL(f.id,4)+'" width="128" height="80">'
       +(G.creative&&!f.player?'<p>Personalidade: <b>'+facTemperName(f)+'</b> <small>(só no modo criativo)</small></p>':'')
       +relH
       +'<h4>Cidades</h4>'+(cs.length?'<ul class="ldul">'+cs.map(c=>{const r=rt(c);const e=ec(c),cr=G.creative&&c.owner!=='player'&&e,px=cr?priceExplain({city:c,kind:'buy'}):[];   // modo criativo: humor e, se o preço varia, o "?" com as variações
@@ -704,7 +696,7 @@ function bookClick(e){
   if(a==='polopen'){showPolicy();return}
   if(a==='polview'){const lg=STATE.pol.log[STATE.pol.log.length-1];if(lg)showPolicy(lg);return}
   else if(a==='city'){LB.city=+t.dataset.id}
-  else if(a==='fac'){LB.fac=+t.dataset.id}
+  else if(a==='fac'){LB.fac=+t.dataset.id;LB.neg=null}else if(a&&a.indexOf('neg')===0){negClick(t)}
   else if(a==='fally'){if(isLeader())facAlly(+t.dataset.id)}
   else if(a==='fwar'){const id=+t.dataset.id;if(isLeader()&&STATE.round>=1&&!meetPact())UI.confirm('Declarar guerra a '+facOf(id).name+'? A relação vai a 0, a aliança e as caravanas acabam, e você só entra nas cidades dela atacando.',()=>{facDeclareWar(id);renderBook()},'Declarar guerra');return}
   else if(a==='fask'){if(isLeader())facAskPeace(+t.dataset.id)}
