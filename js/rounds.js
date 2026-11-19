@@ -25,7 +25,8 @@ function endRound(city){
         const need=needOf(c,r),cover=G.alwaysSupplied?need:storedOf(c,r),sh=Math.max(0,need-cover);   // (modo criativo: sempre supridas)
         if(gotOf(c,r)>Math.max(0,need-carryOf(c,r))){over=true;overRes.push(r)}   // entregou acima da meta: gera bônus (cidade próspera)
         if(sh>0){short=true;debuf[r]=true;rep.push('⚠ '+c.name+': faltaram '+sh+' de '+resName(r).toLowerCase()+' (debuff nesta rodada; a necessidade continua a mesma).')}
-        consumeSupply(c,r,Math.min(need,cover));   // o que a cidade precisa é consumido (destruído); a necessidade da rodada seguinte é a mesma        const left=storedOf(c,r);if(left>0)carry2[r]=left;
+        consumeSupply(c,r,Math.min(need,cover));   // o que a cidade precisa é consumido (destruído); a necessidade da rodada seguinte é a mesma
+        const left=storedOf(c,r);if(left>0)carry2[r]=left;   // o que sobrou nos slots conta como já entregue na rodada seguinte (bônus e "+N da rodada anterior")
       }
       e.got={};e.carry=carry2;
       if(!short)rep.push('✔ '+c.name+': suprida corretamente'+(over?' e acima da meta — bônus de entrega ('+overRes.map(resIcon).join(' ')+') na próxima rodada':'')+'.');
