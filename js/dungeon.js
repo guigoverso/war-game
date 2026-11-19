@@ -131,6 +131,7 @@ function spawnPortals(){
       if(Math.abs(H[z*W+x+2]-H[z*W+x])>(lax?2:1)||Math.abs(H[(z+2)*W+x]-H[z*W+x])>(lax?2:1))continue;
       if(WORLD.cities.some(c=>Math.max(Math.abs(c.cx-x),Math.abs(c.cz-z))<c.half+(lax?12:30)))continue;
       if(WORLD.camps.some(c=>Math.hypot(c.cx-x,c.cz-z)<(lax?14:30)))continue;
+      if(typeof ambClash==='function'&&ambClash(x,z,lax))continue;   // POIs, cavernas e baús (pois.js)
       if(STATE.portals.some(p=>Math.hypot(p.x-x,p.z-z)<(lax?25:60)))continue;
       if(treeNear(x,z,lax?4:5))continue;   // área limpa: nunca dentro de árvores
       const d=distHome(x,z),tier=d<150?1:d<270?2:3,r=rng.next();
@@ -227,6 +228,7 @@ function spawnGoldenPortal(c){
     if(Math.abs(H[z*W+x+2]-H[z*W+x])>(lax?2:1)||Math.abs(H[(z+2)*W+x]-H[z*W+x])>(lax?2:1))continue;
     if(WORLD.cities.some(cc=>Math.max(Math.abs(cc.cx-x),Math.abs(cc.cz-z))<cc.half+(lax?12:30)))continue;
     if(WORLD.camps.some(cc=>Math.hypot(cc.cx-x,cc.cz-z)<(lax?14:30)))continue;
+    if(typeof ambClash==='function'&&ambClash(x,z,lax))continue;
     if(STATE.portals.some(p=>Math.hypot(p.x-x,p.z-z)<(lax?25:60)))continue;
     if(treeNear(x,z,lax?4:5))continue;
     const clash=STATE.portals.find(p=>p.wing===wing&&!p.golden&&!inUse(p));if(clash)removePortal(clash);   // a ala fica para a dourada

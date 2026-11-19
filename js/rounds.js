@@ -762,8 +762,8 @@ function pickBannerText(){return MP.step===1?'🛒 <b>Caravana</b> — clique no
 function updatePickBanner(){if(mapOpen())renderBook()}   // o aviso da escolha de caravana fica na página do mapa
 // página do caderno para a aba Mapa: o mapa ocupa as duas páginas (sem legenda); na escolha de caravana o aviso fica em cima
 function mapPages(){
-  const h=Math.min(620,innerHeight*0.84),sz=Math.max(260,Math.floor(Math.min(h-34-(MP.on?52:0),Math.min(960,innerWidth*0.86)-70)));
-  return[(MP.on?'<div class="mpick">'+pickBannerText()+'</div>':'')+'<canvas id="bigmap" width="'+sz+'" height="'+sz+'"></canvas>',''];
+  const h=Math.min(620,innerHeight*0.84),sz=Math.max(260,Math.floor(Math.min(h-72-(MP.on?52:0),Math.min(960,innerWidth*0.86)-70)));
+  return[(MP.on?'<div class="mpick">'+pickBannerText()+'</div>':'')+'<canvas id="bigmap" width="'+sz+'" height="'+sz+'"></canvas><div style="text-align:right;margin-top:4px"><button class="alt" id="mapnames">🏷 Nomes dos POIs: '+(G.poiNames?'ligado':'desligado')+'</button></div>',''];
 }
 function drawPickOverlay(g,s){
   if(!MP.on)return;
@@ -780,13 +780,24 @@ function drawPickOverlay(g,s){
   let tip=null;const hide=()=>{if(tip)tip.style.display='none'};
   document.addEventListener('mousemove',e=>{
     const c=mapOpen()&&e.target&&e.target.id==='bigmap'?pickCityAt(e):null;
-    if(!c){hide();return}
+    if(!c){   // sem cidade sob o mouse: talvez um POI (nome e dono)
+      const q=mapOpen()&&e.target&&e.target.id==='bigmap'?pickPoiAt(e):null;if(!q){hide();return}
+      if(!tip){tip=document.createElement('div');tip.className='uitip';document.body.appendChild(tip)}
+      tip.textContent=POI_DEFS[q.type].ic+' '+POI_DEFS[q.type].n+'\nDomínio: '+poiOwnerName(q.owner);tip.style.display='block';tip.style.left=(e.clientX+14)+'px';tip.style.top=(e.clientY+14)+'px';return;
+    }
     const f=facOf(c.fid);if(!tip){tip=document.createElement('div');tip.className='uitip';document.body.appendChild(tip)}
     tip.textContent=c.rebel?c.name+'\nProdução: '+typeLabel(c)+'\nFacção: Rebeldes (em rebelião)'+(G.creative&&rebS().cur?'\n'+rebSidesTxt(rebS().cur):''):c.name+'\nProdução: '+typeLabel(c)+'\nFacção: '+(f?f.name:'—')+(G.creative&&f&&f.temper?' ('+facTemperName(f)+')':'')+(f&&!f.player?'\nRelação: '+REL_ST[relStatus(c.fid)].n+' ('+relOf(c.fid).v+'/10)':'');
     tip.style.display='block';tip.style.left=(e.clientX+14)+'px';tip.style.top=(e.clientY+14)+'px';
   });
   document.addEventListener('keydown',hide);document.addEventListener('click',hide);
 })();
+function pickPoiAt(e){
+  const cv=document.getElementById('bigmap'),r=cv.getBoundingClientRect(),s=cv.width/W;
+  const x=(e.clientX-r.left)*cv.width/r.width,y=(e.clientY-r.top)*cv.height/r.height;
+  let best=null,bd=14;for(const p of WORLD.pois||[]){if(p.type==='ruins')continue;const d=Math.hypot(p.cx*s-x,p.cz*s-y);if(d<bd){bd=d;best=p}}
+  return best;
+}
+document.addEventListener('click',e=>{if(e.target&&e.target.id==='mapnames'){G.poiNames=!G.poiNames;renderBook()}});   // botão: nomes dos POIs no mapa (desligado por padrão)
 function pickCityAt(e){
   const cv=document.getElementById('bigmap'),r=cv.getBoundingClientRect(),s=cv.width/W;
   const x=(e.clientX-r.left)*cv.width/r.width,y=(e.clientY-r.top)*cv.height/r.height;

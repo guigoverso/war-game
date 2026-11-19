@@ -570,6 +570,7 @@ function drawMinimap(){
     mmc.fillStyle=cityCol(c);
     mmc.strokeStyle='#fff';mmc.lineWidth=2;mmc.beginPath();mmc.rect(x-6,y-6,12,12);mmc.fill();mmc.stroke();
   }
+  if(!G.dg)for(const p of WORLD.pois||[]){if(p.type==='ruins')continue;const x=(p.cx-P.x)*s,y=(p.cz-P.z)*s;mmc.fillStyle=poiCss(p.owner);mmc.strokeStyle=POI_BORDER;mmc.lineWidth=2.5;mmc.beginPath();mmc.rect(x-4.5,y-4.5,9,9);mmc.fill();mmc.stroke()}   // POIs (cor do dono)
   {const ct=G.dg?null:cvbTarget();if(ct){let x=(ct.x-P.x)*s,y=(ct.z-P.z)*s;const L=Math.hypot(x,y),maxL=62;if(L>maxL){x*=maxL/L;y*=maxL/L}drawStar(mmc,x,y,7)}}   // caravana sendo saqueada
   if(!G.dg)for(const a of ALLIES)if(a.alive){mmc.fillStyle='#4aa0ff';mmc.fillRect((a.x-P.x)*s-2,(a.z-P.z)*s-2,4,4)}
   if(!G.dg)for(const e of ENEMIES)if(e.alive&&e.city.state==='attacking'){mmc.fillStyle='#ff2a2a';mmc.fillRect((e.x-P.x)*s-1.5,(e.z-P.z)*s-1.5,3,3)}
@@ -634,6 +635,8 @@ function drawBigMap(cvArg,mk){   // cvArg: outro canvas (popup de missão); mk: 
     g.beginPath();g.rect(x-h,y-h,2*h,2*h);g.fill();g.stroke();
     g.fillStyle='#fff';g.strokeStyle='#000';g.lineWidth=3;const lbl=c.name+(MP.on?'  '+resIcon(focusOf(c)):'');g.strokeText(lbl,x,y-12*k);g.fillText(lbl,x,y-12*k);   // na escolha de caravana, o ícone do que a cidade troca
   }
+  for(const p of WORLD.pois||[]){if(p.type==='ruins')continue;const x=p.cx*s,y=p.cz*s,h=5*k;g.fillStyle=poiCss(p.owner);g.strokeStyle=POI_BORDER;g.lineWidth=3;g.beginPath();g.rect(x-h,y-h,2*h,2*h);g.fill();g.stroke();
+    if(G.poiNames){g.font='bold '+Math.round(10*k)+'px monospace';g.fillStyle='#ffe9b0';g.strokeStyle='#000';g.lineWidth=3;g.strokeText(POI_DEFS[p.type].n,x,y-8*k);g.fillText(POI_DEFS[p.type].n,x,y-8*k);g.font='bold '+Math.round(14*k)+'px monospace'}}   // POIs no mapa grande, como as cidades (menores); o nome só aparece se o botão estiver ligado (e, sempre, ao passar o mouse)
   drawGoldPortals(g,s,0,0,0,true);   // portais dourados no mapa grande
   {const ct=cvbTarget();if(ct){drawStar(g,ct.x*s,ct.z*s,10*k);g.fillStyle='#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText('Caravana',ct.x*s,ct.z*s-16*k);g.fillText('Caravana',ct.x*s,ct.z*s-16*k)}}
   drawRose(g,cv.width-64*k,64*k,30*k);
@@ -786,6 +789,7 @@ function renderLocs(){
   s+=h('🏘 Cidades')+WORLD.cities.map(c=>b('c'+c.id,nm(c))).join('');
   s+=h('⛺ Acampamentos de bandidos')+WORLD.camps.filter(k=>!k.gone).map((k,i)=>b('k'+k.id,'#'+(i+1)+(k.state==='cleared'?' (limpo)':''))).join('');
   s+=h('🕳 Grutas')+WORLD.caves.map((k,i)=>b('g'+k.id,'#'+(i+1))).join('');
+  s+=h('🏗 POIs')+(WORLD.pois||[]).map(p=>b('o'+p.id,POI_DEFS[p.type].ic+' '+POI_DEFS[p.type].n+' — '+poiOwnerName(p.owner))).join('');
   s+=h('🌀 Portais')+(STATE.portals&&STATE.portals.length?STATE.portals.map((p,i)=>b('p'+i,'#'+(i+1))).join(''):'<small>Nenhum ativo (aba Mundo → "Criar portais agora").</small>');
   s+='<p class="ldsm" style="margin-top:10px">Os POIs novos da guerra (fazenda, mina, ponte, forte...) ainda não existem no jogo.</p>';
   box.innerHTML=s;
@@ -795,6 +799,7 @@ document.addEventListener('click',e=>{
   const k=bt.dataset.loc,t=k[0],id=+k.slice(1);let x,z,y;
   if(t==='w'){const c=WORLD.cities.find(q=>q.id===id);if(!c||!c.works)return;x=c.works.x;z=c.works.z;y=c.y+0.3}
   else if(t==='c'){const c=WORLD.cities.find(q=>q.id===id);if(!c)return;x=c.cx+c.S+2.5;z=c.cz+c.P-2;y=c.y+0.3}
+  else if(t==='o'){const o=WORLD.pois.find(q=>q.id===id);if(!o)return;x=o.cx;z=o.cz+POI_DEFS[o.type].r+4;y=tH(x,z)+0.3}
   else if(t==='p'){const p=STATE.portals[id];if(!p)return;x=p.x+4;z=p.z;y=tH(x,z)+0.3}
   else{const a=(t==='k'?WORLD.camps:WORLD.caves).find(q=>q.id===id);if(!a)return;x=a.cx+6;z=a.cz;y=tH(x,z)+0.3}
   if(G.office)leaveOffice();   // no turno do Líder o jogador está no escritório: sai primeiro (o mundo só aparece fora dele)

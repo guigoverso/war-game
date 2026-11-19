@@ -9,7 +9,7 @@ Jogo de guerra e economia em voxels, no navegador (Three.js r128 via CDN). Sem b
 
 ## Como rodar e testar
 - Abra `index.html` (de preferência por um servidor estático: `python3 -m http.server 8000`).
-- Parâmetros de URL: `?auto=1` (modo criativo, com truques de teste), `?auto=normal`, `?mute=1` (sem som), `?seed=11` (semente do mundo), `?bio=N` (bioma), `?load=1` (carrega o espaço de save 1). `?cenario=caravanas` abre um cenário controlado de caravanas e facções (ver `docs/fase-5-facoes.md`).
+- Parâmetros de URL: `?auto=1` (modo criativo, com truques de teste), `?auto=normal`, `?mute=1` (sem som), `?seed=11` (semente do mundo), `?bio=N` (bioma), `?load=1` (carrega o espaço de save 1). `?cenario=caravanas` abre um cenário controlado de caravanas e facções (ver `docs/fase-5-facoes.md`). `?cenario=pois` abre o mapa manual com todos os POIs da Fase 6 (mundo plano; ver `docs/fase-6-guerra.md`). `?w=640` usa o mapa antigo (o padrão é 896). `?cid=N` força o número de cidades (o padrão é proporcional à terra, de 7 a 10).
 - Modo criativo: pausa (Tab/O/Esc) tem abas de teste. Na aba **Rodadas**, "Invocar evento" dispara uma política específica no turno do Líder.
 - Os roteiros de teste de cada fase estão em `docs/fase-N-testes.md`. **`docs/fase-4-testes.md` é o mais completo e atual** (regras de rodadas, economia, políticas, raids).
 - Não há suíte de testes automática. Testar = jogar no navegador (ou script com Playwright).

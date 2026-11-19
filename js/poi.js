@@ -275,7 +275,7 @@ function genPOIs(rng,cities){
   genDungeons(rng,cities,taken);   // região reservada num canto do mapa (antes de qualquer outro ponto de interesse)
   const nCamps=rng.int(14,18);
   for(let i=0;i<nCamps;i++){
-    const s=findSpot(rng,10,16,6,taken.concat(cities.map(k=>({x:k.cx,z:k.cz,r:k.half+24}))),3500);if(!s)continue;
+    const s=findSpot(rng,10,10+AMB_GAP,6,taken.concat(cities.map(k=>({x:k.cx,z:k.cz,r:k.half+8}))),3500);   // folga AMB_GAP (pois.js) da muralha e dos outrosif(!s)continue;
     taken.push({x:s.x,z:s.z,r:14});
     const dg=digCamp(s.x,s.z);s.y=dg.y;
     const c=newArea('camp',100+i,'Acampamento de bandidos',s,rng,{rank:rng.int(1,2),reward:rng.chance(0.25)?'hostage':'gold',dug:dg.dug});
@@ -283,17 +283,18 @@ function genPOIs(rng,cities){
   }
   const nCaves=rng.int(9,12);
   for(let i=0;i<nCaves;i++){
-    const s=findSpot(rng,11,20,9,taken,9000,caveOK);if(!s)continue;
+    const s=findSpot(rng,11,11+AMB_GAP,9,taken,9000,caveOK);if(!s)continue;
     taken.push({x:s.x,z:s.z,r:17});
     const c=newArea('cave',200+i,'Gruta',s,rng,{rank:6,owner:'wild'});
     buildCave(c,rng);WORLD.caves.push(c);
   }
   const nChests=rng.int(34,46);
   for(let i=0;i<nChests;i++){
-    const s=findSpot(rng,3,10,4,taken,1500);if(!s)continue;
+    const s=findSpot(rng,3,3+AMB_GAP,4,taken,1500);if(!s)continue;
     taken.push({x:s.x,z:s.z,r:4});buildHideout(s.x,s.z,s.y,rng);
   }
   genPacks(rng,cities,taken);
+  if(typeof genWorldPois==='function')genWorldPois(cities,taken);   // POIs permanentes da Fase 6 (pois.js), por último para não mexer no sorteio dos outros
   WORLD.areas=cities.concat(WORLD.camps,WORLD.caves,WORLD.packs);
 }
 

@@ -7,6 +7,7 @@
 // Na pausa (Tab) → aba 🏴 Facções aparecem botões para ir até cada caravana. Nada daqui roda no jogo normal.
 const SCN={on:false,routes:[]};
 function scenarioApply(){
+  if(new URLSearchParams(location.search).get('cenario')==='pois'){poiShowcase();return}   // mapa manual com todos os POIs (pois.js)
   if(new URLSearchParams(location.search).get('cenario')==='rebeliao'){rebScenario();return}   // cenário da rebelião de cidade NPC (rebellion.js)
   if(new URLSearchParams(location.search).get('cenario')!=='caravanas')return;
   SCN.on=true;G.introBook=false;STATE.phase='commander';STATE.round=1;P.coins=20000;

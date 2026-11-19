@@ -61,7 +61,7 @@ const DOM_NAMES={plains:'Planícies',forest:'Florestas',mountain:'Montanhas',sno
 async function genWorld(seed,status,dominant){
   // bioma dominante: escolhido pelo jogador ou sorteado pela semente
   if(!DOM_NAMES[dominant])dominant=['plains','forest','mountain','snow','desert'][new RNG(seed+999).int(0,4)];
-  WORLD.dominant=dominant;WORLD.seed=seed;WORLD.cities=[];WORLD.chunkMeshes=[];WORLD.windmills=[];
+  WORLD.dominant=dominant;WORLD.seed=seed;WORLD.cities=[];WORLD.chunkMeshes=[];WORLD.windmills=[];WORLD.showcaseMode=new URLSearchParams(location.search).get('cenario')==='pois';
   Col.map.clear();Col.all.length=0;for(const a of CRITTERS)scene.remove(a.g);CRITTERS.length=0;
   const rng=new RNG(seed);
   const nz=new Noise(seed),nt=new Noise(seed+11),nm=new Noise(seed+23),nr=new Noise(seed+37),nd=new Noise(seed+51),nj=new Noise(seed+77);TNOISE=new Noise(seed+303);
@@ -139,18 +139,23 @@ async function genWorld(seed,status,dominant){
     for(let bz=0;bz<N;bz++)for(let bx=0;bx<N;bx++)if(dg[bz*N+bx])for(let dz=-R;dz<=R;dz++)for(let dx=-R;dx<=R;dx++){const x=bx+dx,z=bz+dz;if(x>=0&&z>=0&&x<N&&z<N)keep[z*N+x]=1}
     for(let i=0;i<W*W;i++)if(B[i]===lose&&keep[((i/W|0)>>3)*N+((i%W)>>3)])B[i]=BIO_PLAINS;
   }
+  if(WORLD.showcaseMode){for(let i=0;i<W*W;i++){H[i]=SEA+6;B[i]=BIO_PLAINS}}   // mapa manual dos POIs (?cenario=pois): toda a superfície apagada e plana
+  // nº de cidades proporcional à terra do mapa (terra ÷ 48 mil, entre 7 e 10); ?cid=N força um número (estudo)
+  let landN=0;for(let i=0;i<W*W;i+=9)if(H[i]>=SEA+1)landN++;
+  const NC=Math.max(4,Math.min(16,+(new URLSearchParams(location.search).get('cid'))||Math.max(7,Math.min(10,Math.round(landN*9/48000)))));
+  const inShow=(x,z)=>WORLD.showcaseMode&&Math.abs(x-W/2)<210&&Math.abs(z-W/2)<170;   // área reservada aos POIs do mapa manual: sem cidades
   // 2) Locais das cidades
   status('Escolhendo locais para as cidades...');await tick();
   // candidatos planos em terra; depois escolhe pontos o mais afastados possível entre si
   const cand=[];
   for(let relax=1;relax<=6&&cand.length<700;relax*=1.6){
     cand.length=0;
-    for(let t=0;t<34000;t++){
+    for(let t=0,nT=Math.round(34000*(W/640)*(W/640));t<nT;t++){   // (mais tentativas num mapa maior)
       const x=rng.int(76,W-76),z=rng.int(76,W-76);
       let mn=99,mx=-99,wet=0;
       for(let dz=-40;dz<=40;dz+=8)for(let dx=-40;dx<=40;dx+=8){const h=H[(z+dz)*W+x+dx];if(h<SEA+1){wet++;continue}if(h<mn)mn=h;if(h>mx)mx=h}
       const ok=wet<=10&&H[z*W+x]>=SEA+1;
-      if(ok&&mx-mn<=28*relax)cand.push({x,z,b:B[z*W+x],rough:mx-mn});
+      if(ok&&!inShow(x,z)&&mx-mn<=28*relax)cand.push({x,z,b:B[z*W+x],rough:mx-mn});
     }
   }
   // O número de cidades depende da área útil: uma cidade tem até 90 blocos de lado, mais a faixa de terreno aplainado em volta. Se a terra (ilha pequena, faixa
@@ -158,7 +163,7 @@ async function genWorld(seed,status,dominant){
   const sites=[],MIND=104,MINC=4;   // MIND: distância mínima entre os centros; só desce (de 10 em 10) se não couberem ao menos MINC cidades
   if(cand.length)sites.push(cand[rng.int(0,cand.length-1)]);
   const pickSites=floorD=>{
-    while(sites.length<7&&cand.length){
+    while(sites.length<NC&&cand.length){
       let bestC=null,bs=-1e9,bmd=0;
       for(const c of cand){
         let md=1e9;for(const s of sites){const d=Math.hypot(s.x-c.x,s.z-c.z);if(d<md)md=d}
@@ -170,10 +175,10 @@ async function genWorld(seed,status,dominant){
       sites.push(bestC);
     }
     // último recurso (poucos candidatos): sempre em terra firme, afastado das outras; relaxa a distância até o piso se não achar
-    for(let tries=0,minD=Math.max(floorD,120);sites.length<7&&tries<20000;tries++){
+    for(let tries=0,minD=Math.max(floorD,120);sites.length<NC&&tries<20000;tries++){
       if(tries&&tries%2000===0)minD=Math.max(floorD,minD-12);
       const x=rng.int(76,W-76),z=rng.int(76,W-76);
-      if(H[z*W+x]>=SEA+1&&sites.every(s=>Math.hypot(s.x-x,s.z-z)>minD))sites.push({x,z,b:B[z*W+x]});
+      if(H[z*W+x]>=SEA+1&&!inShow(x,z)&&sites.every(s=>Math.hypot(s.x-x,s.z-z)>minD))sites.push({x,z,b:B[z*W+x]});
     }
   };
   pickSites(MIND);
@@ -435,12 +440,14 @@ function addLog(x,z,y,rng){const al=rng.chance(0.5),L=rng.range(1.6,2.6);
   if(al)Bx(x+0.2,y,z+0.4,x+0.2+L,y+0.5,z+0.9,0x5a3d22,true,{j:0.06});else Bx(x+0.4,y,z+0.2,x+0.9,y+0.5,z+0.2+L,0x5a3d22,true,{j:0.06});
   if(al)Bx(x+0.2+L,y+0.04,z+0.44,x+0.26+L,y+0.46,z+0.86,0xb08a58,false,{j:0.02});else Bx(x+0.44,y+0.04,z+0.2+L,x+0.86,y+0.46,z+0.26+L,0xb08a58,false,{j:0.02})}
 function genDecor(rng,dn,cities){
+  if(WORLD.showcaseMode)return;   // mapa manual: sem árvores, pedras nem plantas
   const dens=new Noise(WORLD.seed+91);
   for(let z=3;z<W-3;z+=2)for(let x=3;x<W-3;x+=2){
     const px=x+rng.int(0,1),pz=z+rng.int(0,1),i=pz*W+px;
     if(T[i]!==T_NAT)continue;const h=H[i];if(h<SEA+1)continue;
     if(nearCity(px,pz,4,cities))continue;
     if(WORLD.camps.some(k=>Math.hypot(px-k.cx,pz-k.cz)<13.5))continue;   // acampamentos ficam sem árvores, pedras e plantas ao redor
+    if(WORLD.pois&&WORLD.pois.some(k=>Math.hypot(px-k.cx,pz-k.cz)<POI_DEFS[k.type].r+5))continue;   // POIs também (a margem deixa as copas das árvores de fora)
     if(!clearAround(px,pz))continue;
     const b=B[i],cl=dens.fbm(px/22,pz/22,2);
     let r=rng.next();

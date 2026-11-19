@@ -216,7 +216,7 @@ function makeBuilding(c,r,D,doorU,o,rng){
     Bc(c,xa,0,za,xb,h-0.02,zb,pc,false,{j:0.03});
   }
   fillT(c,r,T_FLOOR);
-  if(o.floors>1)addFloors(c,f,o,rng);
+  if(o.floors>1&&!o.noFloors)addFloors(c,f,o,rng);   // noFloors: quem chama monta a laje e a escada (taverna dos POIs)
   const layers=o.roofT==='none'?0:roofOn(c,f.X0,f.Z0,f.X1,f.Z1,h,o.roofT,o.roof,o);
   if(o.roofT==='gable'&&o.chimney){
     const cx0=f.X0+1.2,cz0=f.Z0+1.2,top=h+layers+1.3;
@@ -361,7 +361,7 @@ function buildStore(c,f,D,doorU,rng){
 }
 // taverna grande: balcão com prateleiras e barris, mesas com bancos, canecas de cerveja e comida nas mesas, clientes sentados
 // e um fogão no fundo (o jogador cozinha nele; o taverneiro vende comida pronta no balcão)
-function buildTavern(c,f,D,doorU,rng){
+function buildTavern(c,f,D,doorU,rng,opt){opt=opt||{};   // opt (taverna dos POIs): stair (sem barris na frente), rows, colStep, stairZone {u0,v1} (sem mesas no vão da escada), barStools
   const wx=(u,v)=>{const m=f.map(u,v);return[c.cx+m[0],c.cz+m[1]]},U=f.U,V=f.V;
   const WOOD=0x6b4a2a,WOOD2=0x4a2f1a,TOP=0x7a5632,AMB=0xd89a2a,FOAM=0xf8f4e8;
   const facing=(ox,oz,tx,tz)=>Math.atan2(tx-ox,tz-oz);
@@ -371,6 +371,7 @@ function buildTavern(c,f,D,doorU,rng){
   const stoveW=2.4,su0=U-1.4-stoveW,su1=U-1.4,cu0=1.4,cu1=Math.max(cu0+1.8,su0-1.2);
   FB(c,f,cu0,V-3.2,cu1,V-2.2,0,1.1,WOOD2,true);FB(c,f,cu0-0.1,V-3.3,cu1+0.1,V-2.1,1.1,1.18,TOP,false,{j:0.03});
   for(let u=cu0+0.3;u<cu1-0.3;u+=0.8){FB(c,f,u,V-3.0,u+0.22,V-2.78,1.18,1.4,AMB,false,{j:0.05});FB(c,f,u,V-3.0,u+0.22,V-2.78,1.4,1.46,FOAM,false,{j:0})}   // canecas no balcão
+  if(opt.barStools)for(let u=cu0+0.5;u<cu1-0.3;u+=1.3)FB(c,f,u,V-4.2,u+0.4,V-3.8,0,0.55,0x5a3d22,false,{j:0.04});   // banquinhos em frente ao balcão
   // prateleira com garrafas e barris atrás
   FB(c,f,cu0,V-1.4,cu1,V-1.05,1.3,1.38,WOOD,false,{j:0});
   for(let u=cu0+0.2;u<cu1-0.2;u+=0.45)FB(c,f,u,V-1.35,u+0.22,V-1.1,1.38,1.78,rng.pick([0x3a7a4a,0x7a3a2a,0x3a5a8a,0xc8a85a]),false,{j:0.05});
@@ -381,14 +382,15 @@ function buildTavern(c,f,D,doorU,rng){
   FB(c,f,su1-1.0,V-2.3,su1-0.3,V-1.6,1.1,1.3,0x8a5a3a,false,{j:0.03});                                                                             // caçarola
   FB(c,f,su0+0.8,V-1.9,su1-0.8,V-1.15,1.1,3.6,0x55555e,false,{j:0.03});                                                                             // chaminé
   // ---- barris no canto da frente ----
-  for(const [bu,bv] of[[U-2.3,V*0.45],[U-2.3,V*0.45+1.1]]){if(Math.abs(bu-doorU)<3.5)continue;FB(c,f,bu,bv,bu+0.9,bv+0.9,0,0.95,0x7a5a30,true);FB(c,f,bu,bv,bu+0.9,bv+0.9,0.55,0.62,0x3a3a3e,false,{j:0})}
+  for(const [bu,bv] of[[U-2.3,V*0.45],[U-2.3,V*0.45+1.1]]){if(opt.stair)break;if(Math.abs(bu-doorU)<3.5)continue;FB(c,f,bu,bv,bu+0.9,bv+0.9,0,0.95,0x7a5a30,true);FB(c,f,bu,bv,bu+0.9,bv+0.9,0.55,0.62,0x3a3a3e,false,{j:0})}
   // ---- mesas com bancos, canecas, comida e clientes ----
   const seats=[];
-  const rows=[2.6,2.6+3.0];
+  const rows=opt.rows||[2.6,2.6+3.0];
   for(const tv of rows){
     if(tv+1.2>V-4.4)continue;
-    for(let tu=1.8;tu+1.6<=U-1.6;tu+=3.4){
+    for(let tu=1.8;tu+1.6<=U-1.6;tu+=(opt.colStep||3.4)){
       if(tv<3.6&&tu+1.6>doorU-1&&tu<doorU+3)continue;   // mantém o corredor da porta livre
+      if(opt.stairZone&&tu+2.4>opt.stairZone.u0)continue;   // e o vão da escada (nenhuma mesa nessa ponta, para haver caminho até o fogão)
       FB(c,f,tu+0.1,tv+0.1,tu+1.5,tv+1.0,0,0.82,WOOD2,true);FB(c,f,tu,tv,tu+1.6,tv+1.1,0.82,0.9,TOP,false,{j:0.03});
       mug(tu+0.25,tv+0.3);if(rng.chance(0.7))mug(tu+1.0,tv+0.55);
       FB(c,f,tu+0.6,tv+0.3,tu+1.0,tv+0.7,0.9,0.93,0xeeeeee,false,{j:0});FB(c,f,tu+0.7,tv+0.4,tu+0.9,tv+0.6,0.93,1.06,rng.pick([0xc86a3a,0xe0c050,0x8a5a2a,0xb04a4a]),false,{j:0.06});
