@@ -394,6 +394,7 @@ function campHostage(c,fid){   // (re)cria o refém do acampamento, com as cores
 function populateWild(){  for(const c of WORLD.camps)populateCamp(c);
   for(const c of WORLD.packs)populatePack(c);
   for(const c of WORLD.caves)populateCave(c,new RNG(WORLD.seed*19+c.id*71+5));
+  if(typeof poiPopulateAll==='function')poiPopulateAll();   // bandidos nos POIs (poigame.js)
 }
 function populateCave(c,rng){
   const plan=rng.int(0,1)===0?['wolf','wolf','wolf']:['bear','bear'];
@@ -448,8 +449,9 @@ function updateCamps(dt){
 }
 function updateWild(dt){
   updateCamps(dt);updatePacks(dt);
+  if(typeof poiTick==='function')poiTick(dt);
   if(POISON.t>0){if(P.dead)POISON.t=0;else{POISON.t-=dt;POISON.acc+=dt;if(POISON.acc>=1){POISON.acc=0;damagePlayer(2,P.x+1,P.z)}}}
-  for(const c of WORLD.caves.concat(WORLD.camps,WORLD.packs))if(c.state==='attacking'&&!c.enemies.some(e=>e.alive&&e.aggro))c.state='idle';
+  for(const c of WORLD.caves.concat(WORLD.camps,WORLD.packs,WORLD.garrisons||[]))if(c.state==='attacking'&&!c.enemies.some(e=>e.alive&&e.aggro))c.state='idle';
   for(const c of WORLD.camps){const cg=c.cage;
     if(cg&&cg.leaveT>0){cg.leaveT-=dt;if(cg.leaveT<=0){
       const h=c.hostage;if(h&&h.alive){h.alive=false;h.gone=true;scene.remove(h.group);

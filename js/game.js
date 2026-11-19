@@ -417,7 +417,7 @@ window.addEventListener('blur',()=>{G.keys={};G.fireHeld=false;G.aiming=false});
 function doInteract(){
   const t=G.target;if(!t)return;
   if(t.c&&raidLocked(t.c))return;
-  if(t.type==='dgcage')gevCageOpen();else if(t.type==='hall')openQuests(t.c);else if(t.type==='barracks')openBarracks(t.c);else if(t.type==='shop')openShop(t.c);else if(t.type==='clinic')openClinic(t.c);else if(t.type==='portal'){if(RAID.active&&!RAID.engaged)toast('Há um ataque em andamento! Defenda a cidade antes.',2500);else if(t.p.golden&&CONTEST.active)toast('⚔ A batalha pelo portal dourado ainda não terminou!',2500);else enterDungeon(t.p)}else if(t.type==='dgexit')leaveDungeon();else if(t.type==='store')openStore(t.c,'store');else if(t.type==='tavern')openStore(t.c,'tavern');else if(t.type==='stove')openCooking('tavern');else if(t.type==='fire')openCooking('fire');else if(t.type==='npc')npcTalk(t.n);else if(t.type==='chest')openChest(t.ch);else if(t.type==='vein')mineVein();else if(t.type==='cage')openCage(t.c);else if(t.type==='book')openBook();else if(t.type==='leader')hallRoundAction(t.c);else if(t.type==='warehouse')openWarehouse(t.c);else if(t.type==='loot')lootCaravan(t.car);else if(t.type==='msdeliver')msDeliver(t.m);
+  if(t.type==='dgcage')gevCageOpen();else if(t.type==='hall')openQuests(t.c);else if(t.type==='barracks')openBarracks(t.c);else if(t.type==='shop')openShop(t.c);else if(t.type==='clinic')openClinic(t.c);else if(t.type==='portal'){if(RAID.active&&!RAID.engaged)toast('Há um ataque em andamento! Defenda a cidade antes.',2500);else if(t.p.golden&&CONTEST.active)toast('⚔ A batalha pelo portal dourado ainda não terminou!',2500);else enterDungeon(t.p)}else if(t.type==='dgexit')leaveDungeon();else if(t.type==='store')openStore(t.c,'store');else if(t.type==='tavern')openStore(t.c,'tavern');else if(t.type==='stove')openCooking('tavern');else if(t.type==='fire')openCooking('fire');else if(t.type==='npc')npcTalk(t.n);else if(t.type==='chest')openChest(t.ch);else if(t.type==='vein')mineVein();else if(t.type==='cage')openCage(t.c);else if(t.type==='book')openBook();else if(t.type==='leader')hallRoundAction(t.c);else if(t.type==='warehouse')openWarehouse(t.c);else if(t.type==='loot')lootCaravan(t.car);else if(t.type==='msdeliver')msDeliver(t.m);else if(String(t.type).indexOf('poi')===0)poiAct(t);
 }
 function updateInteract(){
   G.target=null;G.attackCity=null;G.curCity=null;const lines=[];
@@ -456,6 +456,7 @@ function updateInteract(){
   if(G.dg&&G.dgPad&&Math.hypot(P.x-G.dgPad.x,P.z-G.dgPad.z)<2.6){G.target={type:'dgexit'};lines.push('[E] Sair da dungeon (volta ao portal)')}
   if(G.dg&&G.dg.cage&&!G.dg.cage.opened&&Math.hypot(G.dg.cage.x-P.x,G.dg.cage.z-P.z)<3.6){G.target={type:'dgcage'};lines.push(G.dg.area.state==='cleared'?'[E] Abrir a jaula e libertar o refém':'🔒 Jaula trancada — elimine os inimigos')}
   if(G.dg&&G.dg.vein&&!G.dg.vein.mined&&Math.hypot(G.dg.vein.x-P.x,G.dg.vein.z-P.z)<3.4&&Math.abs(G.dg.vein.y-P.y)<2.5){G.target={type:'vein'};lines.push(G.dg.area.state==='cleared'?'[E] Minerar o veio de ouro':'🔒 Veio de ouro — elimine os inimigos')}
+  if(typeof poiScan==='function'){poiScan(lines);poiMarkCheck()}   // POIs seus: vigia, binóculo, balcão e cama (poigame.js)
   for(const ch of WORLD.chests){if(ch.opened||ch.hold)continue;const d=Math.hypot(ch.x-P.x,ch.z-P.z);if(d<2.8&&Math.abs(ch.y-P.y)<2){G.target={type:'chest',ch};lines.push(ch.lockedBy&&ch.lockedBy.state!=='cleared'?'🔒 Baú trancado — elimine os bandidos':'[E] Abrir baú')}}
   if(!G.target){
     camera.getWorldDirection(_d);let bd=3.4;
@@ -570,7 +571,7 @@ function drawMinimap(){
     mmc.fillStyle=cityCol(c);
     mmc.strokeStyle='#fff';mmc.lineWidth=2;mmc.beginPath();mmc.rect(x-6,y-6,12,12);mmc.fill();mmc.stroke();
   }
-  if(!G.dg)for(const p of WORLD.pois||[]){if(p.type==='ruins')continue;const x=(p.cx-P.x)*s,y=(p.cz-P.z)*s;mmc.fillStyle=poiCss(p.owner);mmc.strokeStyle=POI_BORDER;mmc.lineWidth=2.5;mmc.beginPath();mmc.rect(x-4.5,y-4.5,9,9);mmc.fill();mmc.stroke()}   // POIs (cor do dono)
+  if(!G.dg)for(const p of WORLD.pois||[]){if(p.type==='ruins'||!poiVisible(p))continue;const x=(p.cx-P.x)*s,y=(p.cz-P.z)*s;mmc.fillStyle=poiCss(p.owner);mmc.strokeStyle=POI_BORDER;mmc.lineWidth=1.3;mmc.beginPath();mmc.rect(x-4.5,y-4.5,9,9);mmc.fill();mmc.stroke()}   // POIs (cor do dono)
   {const ct=G.dg?null:cvbTarget();if(ct){let x=(ct.x-P.x)*s,y=(ct.z-P.z)*s;const L=Math.hypot(x,y),maxL=62;if(L>maxL){x*=maxL/L;y*=maxL/L}drawStar(mmc,x,y,7)}}   // caravana sendo saqueada
   if(!G.dg)for(const a of ALLIES)if(a.alive){mmc.fillStyle='#4aa0ff';mmc.fillRect((a.x-P.x)*s-2,(a.z-P.z)*s-2,4,4)}
   if(!G.dg)for(const e of ENEMIES)if(e.alive&&e.city.state==='attacking'){mmc.fillStyle='#ff2a2a';mmc.fillRect((e.x-P.x)*s-1.5,(e.z-P.z)*s-1.5,3,3)}
@@ -580,6 +581,7 @@ function drawMinimap(){
       for(const ic of cityIcons(c)){const dx=(ic.x-P.x)*s,dz=(ic.z-P.z)*s,rx=dx*cs-dz*sn,ry=dx*sn+dz*cs;if(Math.hypot(rx,ry)>R-16)continue;drawIcon(mmc,R+rx,R+ry,ic,7)}}}
   mmc.fillStyle='#fff';mmc.strokeStyle='#000';mmc.lineWidth=2;mmc.beginPath();mmc.moveTo(R,R-8);mmc.lineTo(R+6,R+6);mmc.lineTo(R,R+3);mmc.lineTo(R-6,R+6);mmc.closePath();mmc.fill();mmc.stroke();
   {const rm=G.dg?null:rebMarker();if(rm){const dx=(rm.x-P.x)*s,dz=(rm.z-P.z)*s,cs=Math.cos(P.yaw),sn=Math.sin(P.yaw);let rx=dx*cs-dz*sn,ry=dx*sn+dz*cs;const L=Math.hypot(rx,ry);if(L>77){rx*=77/L;ry*=77/L}drawStar(mmc,R+rx,R+ry,8,'#ff3a2a')}}   // marcador da rebelião a resolver (vermelho; no aro quando longe)
+  {const pm=G.dg?null:G.poiMark;if(pm){const dx=(pm.x-P.x)*s,dz=(pm.z-P.z)*s,cs=Math.cos(P.yaw),sn=Math.sin(P.yaw);let rx=dx*cs-dz*sn,ry=dx*sn+dz*cs;const L=Math.hypot(rx,ry);if(L>77){rx*=77/L;ry*=77/L}drawStar(mmc,R+rx,R+ry,7,'#ff9a2a')}}   // ponto de interesse da vigia
   {const qt=G.dg?null:questTarget();if(qt){const dx=(qt.x-P.x)*s,dz=(qt.z-P.z)*s,cs=Math.cos(P.yaw),sn=Math.sin(P.yaw);let rx=dx*cs-dz*sn,ry=dx*sn+dz*cs;const L=Math.hypot(rx,ry);if(L>77){rx*=77/L;ry*=77/L}drawStar(mmc,R+rx,R+ry,7)}}   // fora do alcance a estrela fica no aro, como a rosa dos ventos; perto, fica no local da missão. Sempre por cima de tudo
   if(!G.dg)for(const p of markedPortals()){   // portal dourado: losango que se comporta como a estrela de missão (no aro quando longe, no local quando perto; por cima de tudo)
     const dx=(p.x-P.x)*s,dz=(p.z-P.z)*s,cs=Math.cos(P.yaw),sn=Math.sin(P.yaw);let rx=dx*cs-dz*sn,ry=dx*sn+dz*cs;const L=Math.hypot(rx,ry);if(L>77){rx*=77/L;ry*=77/L}
@@ -635,13 +637,15 @@ function drawBigMap(cvArg,mk){   // cvArg: outro canvas (popup de missão); mk: 
     g.beginPath();g.rect(x-h,y-h,2*h,2*h);g.fill();g.stroke();
     g.fillStyle='#fff';g.strokeStyle='#000';g.lineWidth=3;const lbl=c.name+(MP.on?'  '+resIcon(focusOf(c)):'');g.strokeText(lbl,x,y-12*k);g.fillText(lbl,x,y-12*k);   // na escolha de caravana, o ícone do que a cidade troca
   }
-  for(const p of WORLD.pois||[]){if(p.type==='ruins')continue;const x=p.cx*s,y=p.cz*s,h=5*k;g.fillStyle=poiCss(p.owner);g.strokeStyle=POI_BORDER;g.lineWidth=3;g.beginPath();g.rect(x-h,y-h,2*h,2*h);g.fill();g.stroke();
+  for(const p of WORLD.pois||[]){if(p.type==='ruins'||!poiVisible(p))continue;const x=p.cx*s,y=p.cz*s,h=5*k;g.fillStyle=poiCss(p.owner);g.strokeStyle=POI_BORDER;g.lineWidth=1.6;g.beginPath();g.rect(x-h,y-h,2*h,2*h);g.fill();g.stroke();
     if(G.poiNames){g.font='bold '+Math.round(10*k)+'px monospace';g.fillStyle='#ffe9b0';g.strokeStyle='#000';g.lineWidth=3;g.strokeText(POI_DEFS[p.type].n,x,y-8*k);g.fillText(POI_DEFS[p.type].n,x,y-8*k);g.font='bold '+Math.round(14*k)+'px monospace'}}   // POIs no mapa grande, como as cidades (menores); o nome só aparece se o botão estiver ligado (e, sempre, ao passar o mouse)
+  {const pf=(WORLD.pois||[]).find(q=>q.id===G.poiFocus);if(pf){const x=pf.cx*s,y=pf.cz*s;g.strokeStyle='#ffd23a';g.lineWidth=4*k;g.beginPath();g.arc(x,y,(16+3*Math.sin(Date.now()/250))*k,0,6.283);g.stroke();g.fillStyle='#ffe9a0';g.strokeStyle='#000';g.lineWidth=3;g.font='bold '+Math.round(13*k)+'px monospace';g.strokeText(POI_DEFS[pf.type].n,x,y-22*k);g.fillText(POI_DEFS[pf.type].n,x,y-22*k);g.font='bold '+Math.round(14*k)+'px monospace'}}   // POI do cartão "Terras livres" em destaque
   drawGoldPortals(g,s,0,0,0,true);   // portais dourados no mapa grande
   {const ct=cvbTarget();if(ct){drawStar(g,ct.x*s,ct.z*s,10*k);g.fillStyle='#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText('Caravana',ct.x*s,ct.z*s-16*k);g.fillText('Caravana',ct.x*s,ct.z*s-16*k)}}
   drawRose(g,cv.width-64*k,64*k,30*k);
   drawPickOverlay(g,s);   // modo de escolha de caravana (rounds.js)
   {const rm=rebMarker();if(rm){drawStar(g,rm.x*s,rm.z*s,13*k,'#ff3a2a');g.fillStyle='#ff9a8a';g.strokeStyle='#000';g.lineWidth=3;g.strokeText(rm.label,rm.x*s,rm.z*s-18*k);g.fillText(rm.label,rm.x*s,rm.z*s-18*k)}}
+  {const pm=G.poiMark;if(pm){drawStar(g,pm.x*s,pm.z*s,11*k,'#ff9a2a');g.fillStyle='#ffd08a';g.strokeStyle='#000';g.lineWidth=3;g.strokeText(pm.label,pm.x*s,pm.z*s-16*k);g.fillText(pm.label,pm.x*s,pm.z*s-16*k)}}
   {const qt=questTarget();if(qt){drawStar(g,qt.x*s,qt.z*s,10*k);g.fillStyle='#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText('Missão ativa',qt.x*s,qt.z*s-16*k);g.fillText('Missão ativa',qt.x*s,qt.z*s-16*k)}}
   if(mk){drawStar(g,mk.x*s,mk.z*s,13*k,mk.col);g.fillStyle=mk.lcol||'#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText(mk.label,mk.x*s,mk.z*s-18*k);g.fillText(mk.label,mk.x*s,mk.z*s-18*k)}
   if(!(G.dg||G.office||P.y<UNDER_Y)){g.save();g.translate(P.x*s,P.z*s);g.rotate(-P.yaw);g.scale(k,k);g.fillStyle='#fff';g.strokeStyle='#000';g.beginPath();g.moveTo(0,-9);g.lineTo(7,8);g.lineTo(0,4);g.lineTo(-7,8);g.closePath();g.fill();g.stroke();g.restore();}   // fora do mapa (dungeon, sala do líder, sala de reuniões): sem o indicador do jogador

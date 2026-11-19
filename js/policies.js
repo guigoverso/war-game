@@ -120,9 +120,27 @@ function polCtx(d,op,c,data){
     gold:n=>Ledger.add('gold',n),vault:n=>{shOf().vault+=n},
     toast:(m,ms)=>toast(m,ms||3500)};
 }
-function showPolicy(rev){
+// quando há mais de uma política a decidir na rodada, uma lista: só ao clicar numa delas abre a janela dela
+function polListWin(){
+  const P=STATE.pol,all=[P.pending].concat(P.extra||[]);
+  if(!polWin)polWin=UI.window({title:'',width:600,z:50});
+  polWin.setTitle('📜 Políticas desta rodada ('+all.length+')');
+  const b=polWin.body;b.innerHTML='';
+  const intro=document.createElement('p');intro.className='ldsm';intro.textContent='Decida todas antes de encerrar o turno do Líder. Clique em uma para abrir.';b.appendChild(intro);
+  all.forEach((pd,i)=>{
+    const d=POL.byId[pd.pid];if(!d)return;
+    const c=polCityOf(pd),row=document.createElement('div');row.className='card';row.style.cssText='display:flex;align-items:center;gap:10px;margin:6px 0;padding:8px 10px';
+    const tx=document.createElement('div');tx.style.cssText='flex:1;line-height:1.4';tx.innerHTML='<b>'+d.name+(c?' — '+c.name:'')+'</b>'+(d.listLabel?'<br><small>'+polSafe(()=>d.listLabel(c,pd.data))+'</small>':'');row.appendChild(tx);
+    row.appendChild(UI.button('Abrir','gold',()=>polOpenFrom(i)));b.appendChild(row);
+  });
+  polWin.foot.innerHTML='';polWin.foot.appendChild(UI.button('Decidir depois','alt',()=>polWin.close()));
+  polWin.open();
+}
+function polOpenFrom(i){const P=STATE.pol,all=[P.pending].concat(P.extra||[]);if(i<0||i>=all.length)return;const pd=all.splice(i,1)[0];P.pending=pd;P.extra=all;showPolicy(null,true)}
+function showPolicy(rev,force){
   if(rev&&rev.snap){const d0=POL.byId[rev.pid];if(d0&&d0.withSnap)return d0.withSnap(rev.snap,()=>showPolicy(Object.assign({},rev,{snap:null})))}   // política que guarda um retrato do estado (ex.: rebelião): a revisão é montada com ele   // rev: entrada do log de uma política já decidida (só leitura: botões desativados e a opção escolhida em destaque)
   const pd=rev||(STATE.pol&&STATE.pol.pending);if(!pd)return;
+  if(!rev&&!force&&(STATE.pol.extra||[]).length)return polListWin();   // mais de uma: lista primeiro
   const d=POL.byId[pd.pid];if(!d){STATE.pol.pending=null;return}
   const c=polCityOf(pd);
   if(!polWin)polWin=UI.window({title:'',width:600,z:50});
@@ -167,6 +185,7 @@ function polChoose(k){
     refreshRoundHud();
     if(STATE.pol.pending){toast('📜 Ainda há outra política a decidir.',3500);showPolicy()}
   };
+  if(op.pick){op.pick(ctx,sel=>{ctx.sel=sel;go()});return}   // a opção abre uma janela própria para escolher algo (ex.: a facção que recebe o POI) e só então vale
   if(op.preview){   // resumo antes de confirmar (ex.: resultado da batalha calculado no turno do Líder)
     const w=UI.window({title:'📋 Resumo — '+op.label,width:480,z:60});
     w.body.innerHTML=op.preview(ctx);

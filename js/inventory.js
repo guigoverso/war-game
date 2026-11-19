@@ -194,7 +194,8 @@ const LOOT_CHANCE=0.3;   // chance de um inimigo morto pelo jogador deixar itens
 // inimigo morto pelo jogador
 function dropLoot(e){
   if(Math.random()>=LOOT_CHANCE)return;
-  let list=rollLoot(e.type);if(!list.length)list=rollOne(e.type);if(!list.length)return;
+  const lk=(e.def&&e.def.loot)||e.type;   // tipos novos de bandido usam a tabela de um tipo parecido
+  let list=rollLoot(lk);if(!list.length)list=rollOne(lk);if(!list.length)return;
   const txt=invGive(list);if(txt)toast('🎁 '+txt,2200);
 }
 // baú aberto: loot garantido (pelo menos um item). key: 'chest' (comum) ou 'chest_dungeon'. Devolve o texto do que veio

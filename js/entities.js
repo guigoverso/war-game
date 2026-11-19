@@ -111,6 +111,10 @@ const EDEF={
   bear:{name:'Urso',hp:170,spd:3.8,melee:true,reach:2.5,dmg:20,cd:1.5,lunge:true,lungeMin:4,lungeMax:11,lungeT:0.55,lungeMul:2.6,lungeCd:1.1,leap:5.5,eye:1.4,r:0.7,h:1.6,reward:45},
   boar:{name:'Javali',hp:75,spd:5.6,melee:true,reach:1.8,dmg:11,cd:1.3,lunge:true,lungeMin:5,lungeMax:12,lungeT:1.0,lungeMul:1.7,lungeCd:2.4,stun:0.9,eye:0.7,r:0.5,h:0.9,reward:20},
   scorpion:{name:'Escorpião',hp:65,spd:4.3,melee:true,reach:2.3,dmg:8,cd:1.1,poison:true,eye:0.5,r:0.6,h:0.7,reward:22},
+  raider:{name:'Saqueador',hp:95,spd:4.1,range:40,pref:20,dmg:5,burst:6,burstInt:0.08,cd:1.5,acc:0.5,eye:1.6,r:0.4,h:1.9,reward:22,ranged:true,sfx:'rifle',loot:'soldier'},   // bandidos mais fortes dos POIs: fuzil de rajada longa
+  gunner:{name:'Metralhador',hp:190,spd:2.4,range:46,pref:26,dmg:4,burst:12,burstInt:0.07,cd:3.0,acc:0.45,eye:1.9,r:0.5,h:2.3,reward:38,ranged:true,sfx:'rifle',loot:'brute'},   // metralhadora: rajada enorme e lenta de começar
+  marksman:{name:'Atirador de Elite',hp:75,spd:2.8,range:115,pref:70,dmg:32,burst:1,burstInt:1,cd:3.2,acc:0.8,eye:1.6,r:0.4,h:1.9,reward:40,ranged:true,sfx:'sniper',loot:'sniper'},   // fuzil de precisão de muito longe
+  warlord:{name:'Chefe dos Bandidos',hp:650,spd:3.0,range:38,pref:14,dmg:8,pellets:5,burst:3,burstInt:0.16,cd:2.0,acc:0.55,eye:2.4,r:0.7,h:2.9,reward:140,ranged:true,sfx:'shotgun',loot:'brute'},   // espingarda em rajada, muita vida
   golem:{name:'Golem de Pedra',hp:380,spd:2.2,melee:true,reach:3.6,dmg:26,cd:2.0,slam:true,eye:3,r:1.0,h:3.6,reward:70}
 };
 
@@ -352,7 +356,7 @@ function npcTalk(n){
 // uma cor de uniforme por nível (rank) da cidade
 const RANK_COL=[0x2a6aff,0x6a7a2a,0xc8641e,0x9a2a2a,0x6a3a9a,0x2e2e3a,0xd8b830];
 function buildEnemyModel(type,rng,rank,c,vest){
-  const fcol=c&&c.uniform!==undefined?c.uniform:c&&!c.kind&&c.fid!==undefined?facColor(c.fid):null,red=fcol||RANK_COL[rank]||0x9a2a2a,dark=shadec(red,0.6),steel=0x9ab0c8,camp=c&&(c.kind==='camp'||c.kind==='raid')&&c.uniform===undefined;   // c.uniform: cor de uniforme própria (tropas e rebeldes das rebeliões, rebellion.js)   // bandidos de raid usam o visual dos bandidos de acampamento
+  const fcol=c&&c.uniform!==undefined?c.uniform:c&&!c.kind&&c.fid!==undefined?facColor(c.fid):null,red=fcol||RANK_COL[rank]||0x9a2a2a,dark=shadec(red,0.6),steel=0x9ab0c8,camp=c&&(c.kind==='camp'||c.kind==='raid'||c.kind==='poi')&&c.uniform===undefined;   // c.uniform: cor de uniforme própria (tropas e rebeldes das rebeliões, rebellion.js)   // bandidos de raid usam o visual dos bandidos de acampamento
   switch(type){
     case'soldier':
       if(camp)return buildHuman({skin:rng.pick(SKINS),shirt:0x6b4a2a,sleeve:0x4a3a2a,pants:0x3a2f24,hairStyle:'bandana',hat:0xb02a2a,hair:0x2a1a10,beard:rng.chance(0.5)?0x2a1a10:undefined,gun:{len:0.7}});
@@ -366,6 +370,10 @@ function buildEnemyModel(type,rng,rank,c,vest){
     case'boar':return buildBoarV();
     case'scorpion':return buildScorpionV();
     case'bot':return buildBot();
+    case'raider':return buildHuman({skin:rng.pick(SKINS),shirt:0x7a2a22,sleeve:0x4a2a22,pants:0x2a2420,hairStyle:'bandana',hat:0x2a2a2a,hair:0x1a1008,beard:0x1a1008,scale:1.06,gun:{len:0.95},scarf:0xc8b070});
+    case'gunner':return buildHuman({skin:rng.pick(SKINS),shirt:0x3a2e28,sleeve:0x2a2420,pants:0x2a2a30,hairStyle:'helmet',hat:steel,hair:0x2a2a2a,scale:1.3,gun:{len:1.1},pack:0x6a2a22,scarf:0xb02a2a,vest:true});
+    case'marksman':return buildHuman({skin:rng.pick(SKINS),shirt:0x5a4a2a,sleeve:0x4a3a22,pants:0x3a3022,hairStyle:'hat',hat:0x6a5a3a,scarf:0x8a2a2a,gun:{len:1.45}});
+    case'warlord':return buildHuman({skin:rng.pick(SKINS),shirt:0x1e1414,sleeve:0x9a2a2a,pants:0x2a1e1e,hairStyle:'helmet',hat:0xc8a030,hair:0x2a1a10,beard:0x2a1a10,scale:1.55,gun:{len:1.0},pack:0x9a2a2a,scarf:0xc8a030,vest:true});
     default:return buildGolemV();
   }
 }function spawnEnemy(c,type,x,z,y,sentry){
@@ -419,7 +427,7 @@ let EUID=0;
 // animais e bandidos: só atacam se te virem perto da área deles; o bando/matilha avisa os vizinhos
 function wildAggro(e){
   e.aggro=true;e.unseenT=99;const c=e.city;
-  if(c.state!=='attacking')c.state='attacking';
+  if(c.state!=='attacking'){c.state='attacking';if(c.kind==='poi'&&typeof poiBattleStart==='function')poiBattleStart(c)}   // batalha num POI: seus soldados aparecem (poigame.js)
   for(const o of c.enemies)if(o.alive&&!o.aggro&&Math.hypot(o.x-e.x,o.z-e.z)<16){o.aggro=true;o.unseenT=99}
 }
 // tempo de reação ao notar o alvo: maior nos níveis baixos; rank 6 (dourado) = reação padrão (0)
@@ -467,7 +475,7 @@ function updateEnemy(e,dt){  const def=e.def,m=e.model;
   const tg=e.tg,dx=tg.x-e.x,dz=tg.z-e.z,d=Math.hypot(dx,dz);
   e.cool-=dt;e.losT-=dt;e.flash-=dt;
   let active=c.state==='attacking'&&!P.dead&&d<140;
-  if(c.kind==='cave'||c.kind==='camp'||c.kind==='pack'||c.kind==='dungeon'){
+  if(c.kind==='cave'||c.kind==='camp'||c.kind==='pack'||c.kind==='dungeon'||c.kind==='poi'){
     const dc=Math.hypot(P.x-c.cx,P.z-c.cz),leash=c.leash||(c.kind==='cave'?24:30);
     e.wildT=(e.wildT||0)-dt;
     if(e.wildT<=0){
@@ -591,6 +599,7 @@ function damageEnemy(e,amount,head,byAlly,src){   // src: outro bicho/soldado qu
 function checkConquest(c){
   if(c.aliveEnemies>0)return;
   if(c.kind==='raid'){if(c===RAID.area&&(!RAID.waves||RAID.waves.i>=raidWaveCount()))onRaidCleared();return}   // raid repelido (só depois da última onda; as ondas seguintes são tratadas em updateRaids)
+  if(c.kind==='poi'){poiGarrisonCleared(c);return}   // bandidos de um POI eliminados (poigame.js)
   if(c.kind==='dungeon'){c.state='cleared';toast('✔ A dungeon foi limpa! Abra o baú do fundo.',4000);return}
   if(c.kind==='camp'&&!c.ambush&&!c.gone&&c.state!=='cleared'){clearCamp(c);return}   // acampamento esvaziado (até por animais): baú e refém liberados
   if(c.state!=='attacking')return;

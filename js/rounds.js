@@ -111,7 +111,7 @@ function pctOf(c,res){
   }
   return pct;
 }
-const needOf=(c,res)=>Math.round(pctOf(c,res)*ECON.baseNeed/100*polMul('need',c.id,res)*meetNeedMul(c,res));   // políticas podem multiplicar a necessidade (policies.js)   // recursos 1 para 1: 100% = ECON.baseNeed unidades
+const needOf=(c,res)=>Math.round(pctOf(c,res)*ECON.baseNeed/100*polMul('need',c.id,res)*meetNeedMul(c,res)*(typeof poiNeedMul==='function'?poiNeedMul(c,res):1));   // políticas podem multiplicar a necessidade (policies.js)   // recursos 1 para 1: 100% = ECON.baseNeed unidades
 // recursos do mais abundante (necessidade 0) ao menos abundante (necessidade 200%) nesta rodada
 const abundOf=c=>(focusOf(c)==='gold'?['gold']:[]).concat(NEEDS.slice().sort((a,b)=>pctOf(c,a)-pctOf(c,b)||NEEDS.indexOf(a)-NEEDS.indexOf(b)));
 const abundHtml=c=>abundOf(c).map((r,i)=>'<span title="'+resName(r)+': necessidade '+pctOf(c,r)+'%">'+resIcon(r)+'</span>').join(' › ');
@@ -763,7 +763,7 @@ function updatePickBanner(){if(mapOpen())renderBook()}   // o aviso da escolha d
 // página do caderno para a aba Mapa: o mapa ocupa as duas páginas (sem legenda); na escolha de caravana o aviso fica em cima
 function mapPages(){
   const h=Math.min(620,innerHeight*0.84),sz=Math.max(260,Math.floor(Math.min(h-72-(MP.on?52:0),Math.min(960,innerWidth*0.86)-70)));
-  return[(MP.on?'<div class="mpick">'+pickBannerText()+'</div>':'')+'<canvas id="bigmap" width="'+sz+'" height="'+sz+'"></canvas><div style="text-align:right;margin-top:4px"><button class="alt" id="mapnames">🏷 Nomes dos POIs: '+(G.poiNames?'ligado':'desligado')+'</button></div>',''];
+  return[(MP.on?'<div class="mpick">'+pickBannerText()+'</div>':'')+'<canvas id="bigmap" width="'+sz+'" height="'+sz+'"></canvas><div style="text-align:right;margin-top:4px">'+(G.poiFocus!=null&&STATE.pol&&STATE.pol.pending?'<button class="gold" id="mapback" style="float:left">↩ Voltar ao evento</button>':'')+'<button class="alt" id="mapnames">🏷 Nomes dos POIs: '+(G.poiNames?'ligado':'desligado')+'</button></div>',''];
 }
 function drawPickOverlay(g,s){
   if(!MP.on)return;
@@ -794,7 +794,7 @@ function drawPickOverlay(g,s){
 function pickPoiAt(e){
   const cv=document.getElementById('bigmap'),r=cv.getBoundingClientRect(),s=cv.width/W;
   const x=(e.clientX-r.left)*cv.width/r.width,y=(e.clientY-r.top)*cv.height/r.height;
-  let best=null,bd=14;for(const p of WORLD.pois||[]){if(p.type==='ruins')continue;const d=Math.hypot(p.cx*s-x,p.cz*s-y);if(d<bd){bd=d;best=p}}
+  let best=null,bd=14;for(const p of WORLD.pois||[]){if(p.type==='ruins'||!poiVisible(p))continue;const d=Math.hypot(p.cx*s-x,p.cz*s-y);if(d<bd){bd=d;best=p}}
   return best;
 }
 document.addEventListener('click',e=>{if(e.target&&e.target.id==='mapnames'){G.poiNames=!G.poiNames;renderBook()}});   // botão: nomes dos POIs no mapa (desligado por padrão)

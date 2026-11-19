@@ -13,14 +13,14 @@ const POI_TYPES=['farm','mine','sawmill','tannery','bridge','fort','tower','tave
 Hooks.on('resetState',()=>{STATE.pois={}});
 
 // ---------- dono e bandeira ----------
-const poiColor=o=>o==='bandit'?0x2a2a2a:o==='player'?0x2a6aff:typeof o==='number'?(facColor(o)||0x888888):0x888888;
+const poiColor=o=>o==='free'?0xcfcfcf:o==='bandit'?0x2a2a2a:o==='player'?0x2a6aff:typeof o==='number'?(facColor(o)||0x888888):0x888888;
 const AMB_GAP=22;   // folga (borda a borda) de portais, acampamentos de bandidos, baús perdidos e cavernas de animais em relação a cidades e POIs: menor que a dos POIs (POI_GAP)
 const POI_BORDER='#ff2bd6';   // borda dos quadrados dos POIs nos mapas: magenta, uma cor que não existe no terreno
 const poiCss=o=>'#'+poiColor(o).toString(16).padStart(6,'0');
-function poiOwnerName(o){return o==='bandit'?'Bandidos':o==='player'?'Você':o==='none'?'Sem dono':typeof o==='number'?((facOf(o)||{}).name||'Facção'):'?'}
+function poiOwnerName(o){return o==='free'?'Livre (limpo)':o==='bandit'?'Bandidos':o==='player'?'Você':o==='none'?'Sem dono':typeof o==='number'?((facOf(o)||{}).name||'Facção'):'?'}
 function poiPaint(p){if(p.flagMat)p.flagMat.color.setHex(poiColor(p.owner))}
-function poiSetOwner(p,o){p.owner=o;if(!p.show){STATE.pois=STATE.pois||{};STATE.pois[p.id]=o}poiPaint(p)}
-function poiApply(){for(const p of WORLD.pois||[]){if(!p.show&&STATE.pois&&STATE.pois[p.id]!==undefined)p.owner=STATE.pois[p.id];poiPaint(p)}}   // depois de gerar/carregar
+function poiSetOwner(p,o){p.owner=o;if(!p.show){STATE.pois=STATE.pois||{};STATE.pois[p.id]=o}poiPaint(p);if(typeof poiGarrisonSync==='function')poiGarrisonSync(p)}   // (guarnição e moradores acompanham o dono)
+function poiApply(){for(const p of WORLD.pois||[]){if(!p.show&&STATE.pois&&STATE.pois[p.id]!==undefined)p.owner=STATE.pois[p.id];poiPaint(p);if(typeof poiGarrisonSync==='function')poiGarrisonSync(p)}}   // depois de gerar/carregar
 
 // ---------- ferramentas de construção ----------
 const pBc=(c,x0,y0,z0,x1,y1,z1,col,solid,o)=>Bc(c,Math.min(x0,x1),y0,Math.min(z0,z1),Math.max(x0,x1),y1,Math.max(z0,z1),col,solid,Object.assign({b:true},o||{}));   // b: desenha também a face de baixo (senão tetos e lajes somem vistos de dentro)
@@ -200,12 +200,11 @@ const POI_BUILD={
     }
     for(const sx of[-1,1])for(const z of[-6,0,6]){const x=sx*(R-1.6);pBc(c,x-0.08,4,z-0.08,x+0.08,5.0,z+0.08,0x4a3320,false,{j:0});pBc(c,x-0.2,5.0,z-0.2,x+0.2,5.4,z+0.2,0xff9a2a,false,{j:0.05})}   // tochas na muralha
     poiHut(c,-4,-8,8,6,'S',{h:5,wall:0x9a9a98,roof:0x4a4a52,roofT:'hip',chimney:false},rng);   // torre de menagem
-    poiHut(c,-10,-1,6,4,'E',{h:3.6,wall:0x8a7a62,roof:0x5a4a3a,timber:true},rng);                // quartel
-    for(let k=0;k<3;k++){pBc(c,4+k*2.4,0,-3,6.2+k*2.4,0.9,-1,0x5a3d22,true,{j:0.03});pBc(c,4+k*2.4,0.9,-3,6.2+k*2.4,1.0,-1,0xe0d0a0,false,{j:0})}   // baias do estábulo
-    pBc(c,3.6,0,-3.2,10.6,2.6,-3,0x6b4a2a,false,{j:0.03});for(let k=0;k<3;k++)poiAnimal(c,4.4+k*2.4,-2.6,[0x8a5a3a,0x5a3a2a,0xc8b090][k],true);
-    for(const [dx,dz] of[[-8,6],[-5,7.5]]){poiPole(c,dx,dz,2.2);pBc(c,dx-0.8,1.4,dz-0.1,dx+0.8,1.6,dz+0.1,0x4a3320,false,{j:0});pBc(c,dx-0.35,2.2,dz-0.35,dx+0.35,2.8,dz+0.35,0xb89048,false,{j:0.05})}   // bonecos de treino
-    poiRack(c,7,6,true);poiWell(c,0,2);for(const [tx,tz] of[[8,8.5],[-10,8.5]]){pBc(c,tx-1.5,0,tz-1.2,tx+1.5,0.5,tz+1.2,0x7a3a2a,false,{j:0.05});pBc(c,tx-1.2,0.5,tz-1.2,tx+1.2,1.4,tz+1.2,0x8a4a3a,false,{j:0.05});pBc(c,tx-0.8,1.4,tz-1.2,tx+0.8,2.1,tz+1.2,0x7a3a2a,false,{j:0.05})}
-    barrel(c,-3,9);barrel(c,-2,9.4);crate(c,3,9,1,1.2);poiPath(c,0,R+1,0,4);poiBrazier(c,-3.4,R+1.6);poiBrazier(c,3.4,R+1.6);
+    poiHut(c,-8,2,6,4,'E',{h:3.6,wall:0x8a7a62,roof:0x5a4a3a,timber:true},rng);                // quartel (afastado da torre de menagem, para dar passagem)
+    poiWell(c,7,-2);   // poço no lugar do estábulo (o pátio fica limpo: sem tendas, bonecos nem caixotes)
+    poiRack(c,6,6,true);poiBench(c,5.5,8.2,true);poiPole(c,9,6.8,2.2);pBc(c,8.2,1.4,6.7,9.8,1.6,6.9,0x4a3320,false,{j:0});pBc(c,8.65,2.2,6.45,9.35,2.8,7.15,0xb89048,false,{j:0.05});   // decoração do canto sudeste: estante de armas, banco e boneco de treino
+    pBc(c,-10.6,0,5.5,-9.2,1,6.5,0x7a7a82,true,{j:0.03});pBc(c,-10.6,0,6.5,-9.2,2,7.5,0x8a8a92,true,{j:0.03});pBc(c,-10.6,0,7.5,-9.2,3,8.5,0x7a7a82,true,{j:0.03});pBc(c,-10.6,0,8.5,-9.2,4,9.5,0x8a8a92,true,{j:0.03});   // escada de pedra até o passadiço da muralha oeste (último degrau na altura 4)
+poiPath(c,0,R+1,0,4);poiBrazier(c,-3.4,R+1.6);poiBrazier(c,3.4,R+1.6);
     poiFlag(c,p,0,-R+0.7,10);
   },
   tower(c,rng,p){   // torre de vigia de pedra com escada externa (degraus de 1 bloco), plataforma com parapeito, braseiro e teto de madeira; porta ao norte
@@ -232,6 +231,7 @@ const POI_BUILD={
     pBc(c,-0.8,0.2,0,0.4,0.28,0.6,0xe0d8c0,false,{j:0});
     poiLampAt(c,-1.8,-b-1.4);poiSign(c,1.8,-b-1.6,0x4a3a2a);poiBench(c,-b-2,-1,false);poiPath(c,0,-b-0.5,0,-b-4);
     pBc(c,-5.2,0,-5.2,-4.4,2.4,-4.4,0x4a3320,false,{j:0});pBc(c,-5.5,2.4,-5.5,-4.1,2.8,-4.1,0x4a3320,false,{j:0.02});
+    p.vigilPos={x:c.cx,z:c.cz};   // dentro da base: [E] Fazer vigia
     poiFlag(c,p,b+2.6,-b-1,7);
   },
   tavern(c,rng,p){   // térreo = taverna das cidades (balcão, fogão, mesas); escada interna até um andar com saguão e quartos (uma porta aberta, o resto falso)
@@ -239,6 +239,7 @@ const POI_BUILD={
     const f=makeBuilding(c,r,D,doorU,{floors:2,noFloors:true,wall:0xc89a62,glass:0x9ed4ff,roof:0x5a3a24,roofT:'gable',chimney:true,timber:true,shut:0x5a3d22,base:0xa88a5a},rng);
     const U=f.U,V=f.V,Y=3.6,SZ={u0:15.0,u1:17.0,v1:5.0};   // SZ: vão da escada no canto da frente, à direita
     buildTavern(c,f,D,doorU,rng,{stair:true,rows:[2.6,5.7],colStep:3.0,stairZone:{u0:SZ.u0,v1:SZ.v1},barStools:true});   // taverneiro e fregueses entram na fatia 2
+    p.tavern=c.tavern;p.stove=c.stove;p.keepers=(c.keepers||[]).slice();   // balcão, fogão e taverneiro/fregueses (poigame.js)
     const W2=(u0,v0,u1,v1,y0,y1,col,s,o)=>FB(c,f,u0,v0,u1,v1,y0,y1,col,s,Object.assign({b:true},o||{}));
     // laje (piso do andar de cima / teto do térreo), com o vão da escada
     W2(0,SZ.v1,U,V,3.2,3.6,0x8a6a3a,true,{j:0.02});W2(0,0,SZ.u0,SZ.v1,3.2,3.6,0x8a6a3a,true,{j:0.02});W2(SZ.u1,0,U,SZ.v1,3.2,3.6,0x8a6a3a,true,{j:0.02});
@@ -265,6 +266,7 @@ const POI_BUILD={
       }
     }
     W2(u0,PV,U-1,PV+0.3,Y,Y+3.0,0xb89a6a,true,{j:0.02});   // fecha o último trecho da parede
+    {const uco=1+open*3.2+1.6,bm=f.map(uco-0.8,V-2.2);p.bed={x:c.cx+bm[0],z:c.cz+bm[1],y:c.y+3.6}}   // a cama do quarto aberto: [E] Dormir
     for(const [uu,vv] of[[3,V-1.3],[9,V-1.3]])W2(uu,vv,uu+0.5,vv+0.3,Y+2.2,Y+2.8,0xffe9a0,false,{j:0});
     // por fora: o caminho até a porta (u 6 a 12) fica livre; barris, banco e cocho nas laterais, placa na frente, lampiões
     W2(0.8,-1.8,1.7,-0.9,0,0.95,0x7a5a30,true);W2(0.8,-3.0,1.7,-2.1,0,0.95,0x7a5a30,true);W2(2.4,-1.5,4.4,-0.9,0.45,0.6,0x7a5632,true);W2(2.5,-1.5,2.7,-0.9,0,0.45,0x5a3d22,false,{j:0});W2(4.1,-1.5,4.3,-0.9,0,0.45,0x5a3d22,false,{j:0});
@@ -286,7 +288,7 @@ const POI_BUILD={
     for(let k=0;k<4;k++){const x=rng.range(-6,6);pBc(c,x,0,-2.2,x+0.06,rng.range(0.6,1.4),-2.14,0x3aa0b0,false,{j:0})}   // runas apagadas
     for(let k=0;k<9;k++){const x=rng.range(-7,7),z=rng.range(-5,6),s=rng.range(0.4,1);pBc(c,x,0,z,x+s,s*0.7,z+s,rng.pick(poiStone),false,{j:0.1})}
     for(let k=0;k<7;k++){const x=rng.range(-8,8),z=rng.range(-6,7);pBc(c,x,0,z,x+0.3,rng.range(0.3,0.7),z+0.3,0x3a7a2a,false,{j:0.1})}   // mato
-    p.chest=addChest(c.cx,c.y+2.05,c.cz-2.4,0,rng.int(40,120),null);
+    p.chest=addChest(c.cx,c.y+2.05,c.cz-2.4,0,rng.int(40,120),null);p.chest.onOpen=()=>poiRuinLoot(p);   // 10% de chance de artefato
   },
   forge(c,rng,p){   // ferraria: oficina mobiliada com chaminé, anexo aberto com esmeril e bigorna, barril de têmpera, estante de armas, carvão e ferraduras
     poiHut(c,-8,-8,8,6,'S',{h:4,wall:0x8a8a90,roof:0x33333a,chimney:true,timber:false},rng);
@@ -386,6 +388,7 @@ function ambClash(x,z,lax){
   return false;
 }
 const POI_GAP=30;   // folga mínima, em blocos, entre a borda de um POI e a muralha de uma cidade ou a borda de outro POI: conquistá-lo na guerra tem de ser uma viagem
+const poiNearR=(x,z,R,f)=>{for(let dz=-R;dz<=R;dz+=6)for(let dx=-R;dx<=R;dx+=6){const i=(z+dz)*W+x+dx;if(i>=0&&i<W*W&&f(i))return true}return false};
 const poiNear=(x,z,f)=>{for(let dz=-18;dz<=18;dz+=9)for(let dx=-18;dx<=18;dx+=9){const i=(z+dz)*W+x+dx;if(i>=0&&i<W*W&&f(i))return true}return false};
 const POI_PRED={
   farm:(x,z)=>B[z*W+x]===BIO_PLAINS||B[z*W+x]===BIO_DESERT,
@@ -394,7 +397,7 @@ const POI_PRED={
   tannery:(x,z)=>B[z*W+x]===BIO_PLAINS||B[z*W+x]===BIO_FOREST,
   fort:(x,z)=>H[z*W+x]>=SEA+6,
   tower:(x,z)=>H[z*W+x]>=SEA+8,
-  tavern:(x,z)=>poiNear(x,z,i=>T[i]===T_ROAD),
+  tavern:(x,z)=>poiNearR(x,z,30,i=>T[i]===T_ROAD),   // taverna só perto de estrada (em nenhuma passada)
   ruins:()=>true,
   forge:()=>true,
   granary:(x,z)=>B[z*W+x]===BIO_PLAINS
@@ -418,7 +421,7 @@ function genWorldPois(cities,taken){
     const d=POI_DEFS[type];
     for(let t=0;t<260;t++){
       const [x,z]=pick();if(x<40||z<40||x>W-40||z>W-40)continue;
-      if(!pass&&!POI_PRED[type](x,z))continue;
+      if((!pass||type==='tavern')&&!POI_PRED[type](x,z))continue;
       const y=spotOK(x,z,d.r+1,taken,d.r+POI_GAP,(POI_RANGE[type]||4)+(t>100?4:0)+(t>190?6:0));if(y===null)continue;   // o desnível aceito sobe se não achar lugar
       return{x,z,y};
     }
@@ -427,7 +430,7 @@ function genWorldPois(cities,taken){
   // 1 a 4 POIs por cidade (distribuição desigual de propósito), longe da muralha, de tipos que combinem com o terreno
   const tc={},counts=[1,2,2,3,3,4],pool0=POI_TYPES.filter(t=>t!=='bridge'&&t!=='ruins');
   for(const c of cities){
-    const n=rng.pick(counts),pool=rng.shuffle(pool0.slice()).sort((a,b)=>(tc[a]||0)-(tc[b]||0));let made=0;const mine=new Set();   // tipos menos usados no mapa primeiro (sem encher o mundo de torres)
+    const n=rng.pick(counts),pool=rng.shuffle(pool0.slice()).sort((a,b)=>(tc[a]||0)-(tc[b]||0));let made=0;const mine=new Set();if(rng.chance(0.55)){pool.splice(pool.indexOf('fort'),1);pool.unshift('fort')}   // tipos menos usados no mapa primeiro (sem encher o mundo de torres)
     for(const pass of[0,1])for(const type of pool){   // 2ª passada: o que não achou terreno ideal aceita qualquer lugar plano (menos mina e serraria, que dependem do terreno)
       if(made>=n)break;if(mine.has(type)||(pass&&(type==='mine'||type==='sawmill')))continue;
       const d=POI_DEFS[type],s=place(type,pass,()=>{const a=rng.range(0,6.283),dist=rng.range(c.half+d.r+POI_GAP+10,c.half+d.r+POI_GAP+130);return[Math.round(c.cx+Math.cos(a)*dist),Math.round(c.cz+Math.sin(a)*dist)]});
@@ -438,6 +441,11 @@ function genWorldPois(cities,taken){
   for(let guard=0;WORLD.pois.length<cities.length*2+2&&guard<40;guard++){
     const type=pool0.slice().sort((a,b)=>(tc[a]||0)-(tc[b]||0))[guard%3],d=POI_DEFS[type],s=place(type,guard>pool0.length?1:0,()=>[rng.int(40,W-40),rng.int(40,W-40)]);
     if(s){const nc=nearestCity(s.x,s.z);add(type,s.x,s.z,s.y,{cityId:nc?nc.id:undefined});tc[type]=(tc[type]||0)+1}
+  }
+  // fortes devem aparecer mais: pelo menos um para cada duas cidades
+  for(let guard=0;WORLD.pois.filter(p=>p.type==='fort').length<Math.ceil(cities.length/2)&&guard<14;guard++){
+    const s=place('fort',guard>4?1:0,()=>[rng.int(40,W-40),rng.int(40,W-40)]);
+    if(s){const nc=nearestCity(s.x,s.z);add('fort',s.x,s.z,s.y,{cityId:nc?nc.id:undefined});tc.fort=(tc.fort||0)+1}
   }
   // ruínas soltas pelo mapa
   for(let k=0,n=rng.int(3,5);k<n;k++){const s=findSpot(rng,POI_DEFS.ruins.r+1,POI_DEFS.ruins.r+POI_GAP,4,taken,3000);if(s)add('ruins',s.x,s.z,s.y)}

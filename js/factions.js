@@ -375,6 +375,7 @@ function facDueList(){
     .forEach(id=>out.push({pid:'declguerra',city:-1,round:STATE.round,data:{fid:id}}));
   ids.filter(id=>facRepOk(id)).forEach(id=>out.push({pid:'reparacao',city:-1,round:STATE.round,data:{fid:id}}));
   ids.filter(id=>R[id].allyHit&&!R[id].war&&facCities(id).length>0).forEach(id=>out.push({pid:'reparaliada',city:-1,round:STATE.round,data:{fid:id}}));
+  if(typeof poiDueList==='function')out.push(...poiDueList());   // POIs limpos à espera de decisão (poigame.js)
   return out;
 }
 definePolicy({id:'reparacao',name:'Pedido de reparação',city:false,noRoll:true,cool:0,
