@@ -3,23 +3,24 @@
 const T_CAVE=9,T_WILD=10;
 const FIRES=[];
 
-function flattenArea(x,z,r,y){
-  const F=3;
+function flattenArea(x,z,r,y,F){
+  F=F||3;   // F: largura da rampa até o terreno original
   for(let dz=-(r+F);dz<=r+F;dz++)for(let dx=-(r+F);dx<=r+F;dx++){
     const px=x+dx,pz=z+dz;if(px<2||pz<2||px>=W-2||pz>=W-2)continue;
     const d=Math.max(Math.abs(dx),Math.abs(dz)),i=pz*W+px;
     if(d<=r)H[i]=y;else H[i]=Math.round(lerp(y,H[i],(d-r)/F));
   }
 }
-function spotOK(x,z,r,taken,gap,maxRange){
+function spotOK(x,z,r,taken,gap,maxRange,wet){   // wet: fração de pontos de água aceita (o POI aterra a poça ao nivelar)
   if(x<r+8||z<r+8||x>W-r-8||z>W-r-8)return null;
   for(const t of taken)if(Math.hypot(t.x-x,t.z-z)<t.r+gap)return null;
-  let mn=99,mx=-99,sum=0,n=0;
+  let mn=99,mx=-99,sum=0,n=0,w=0,tot=0;
   for(let dz=-r-1;dz<=r+1;dz+=2)for(let dx=-r-1;dx<=r+1;dx+=2){
-    const i=(z+dz)*W+x+dx;if(T[i]!==T_NAT||H[i]<SEA+2)return null;
+    const i=(z+dz)*W+x+dx;if(T[i]!==T_NAT)return null;tot++;
+    if(H[i]<SEA+2){if(!wet)return null;w++;continue}
     if(H[i]<mn)mn=H[i];if(H[i]>mx)mx=H[i];sum+=H[i];n++;
   }
-  return mx-mn>maxRange?null:Math.round(sum/n);
+  return w>tot*(wet||0)||!n||mx-mn>maxRange?null:Math.round(sum/n);
 }
 function findSpot(rng,r,gap,maxRange,taken,tries,pred){
   for(let t=0;t<tries;t++){
@@ -90,9 +91,9 @@ function updateChests(dt){
 }
 
 // ---------- acampamento de bandidos ----------
-function buildCamp(c,rng){
-  for(let dz=-8;dz<=8;dz++)for(let dx=-8;dx<=8;dx++)if(Math.hypot(dx,dz)<=9.6)setTL(c,dx,dz,T_WILD);
-  c.flagMat=new THREE.MeshLambertMaterial({color:0x2a2a2a});
+// fogueira de pedras com brasas, lenha, tripé com panela e chamas animadas (FIRES); usada pelo acampamento de bandidos e pelo de caçadores. Devolve as chamas.
+function buildCampFire(c,rng){
+  const flames=[];
   // fogueira
   for(let k=0;k<10;k++){const a=k/10*6.283+rng.range(-0.1,0.1),x=Math.cos(a)*1.0,z=Math.sin(a)*1.0,s=rng.range(0.26,0.42),hh=rng.range(0.22,0.46);
     Bc(c,x-s/2,0,z-s/2,x+s/2,hh,z+s/2,shadec(rng.pick([0x6a6a6a,0x7a7a78,0x5a5a5e,0x8a8780]),rng.range(0.9,1.1)),false,{j:0.1})}
@@ -104,8 +105,14 @@ function buildCamp(c,rng){
   Bc(c,-0.04,1.6,-0.04,0.04,2.05,0.04,0x555555,false,{j:0});
   Bc(c,-0.3,1.1,-0.3,0.3,1.5,0.3,0x2a2a2e,false,{j:0.03});Bc(c,-0.34,1.46,-0.34,0.34,1.54,0.34,0x44444a,false,{j:0.03});
   for(const [col,sc,yy] of[[0xff7a1a,[0.5,0.6,0.5],0.5],[0xffd84a,[0.28,0.85,0.28],0.6]]){
-    const m=new THREE.Mesh(GEO_BOX,new THREE.MeshBasicMaterial({color:col}));m.scale.set(sc[0],sc[1],sc[2]);m.position.set(c.cx,c.y+yy,c.cz);m.userData.base=sc;scene.add(m);FIRES.push(m);
+    const m=new THREE.Mesh(GEO_BOX,new THREE.MeshBasicMaterial({color:col}));m.scale.set(sc[0],sc[1],sc[2]);m.position.set(c.cx,c.y+yy,c.cz);m.userData.base=sc;scene.add(m);FIRES.push(m);flames.push(m);
   }
+  return flames;
+}
+function buildCamp(c,rng){
+  for(let dz=-8;dz<=8;dz++)for(let dx=-8;dx<=8;dx++)if(Math.hypot(dx,dz)<=9.6)setTL(c,dx,dz,T_WILD);
+  c.flagMat=new THREE.MeshLambertMaterial({color:0x2a2a2a});
+  buildCampFire(c,rng);
   // troncos de sentar
   for(let k=0;k<4;k++){const a=k*1.57+0.4,x=Math.cos(a)*2.7,z=Math.sin(a)*2.7;
     const ax=Math.abs(Math.cos(a))>Math.abs(Math.sin(a));
@@ -273,9 +280,11 @@ function genPOIs(rng,cities){
   WORLD.camps=[];WORLD.caves=[];WORLD.chests=[];FIRES.length=0;
   const taken=cities.map(c=>({x:c.cx,z:c.cz,r:c.half+8}));
   genDungeons(rng,cities,taken);   // região reservada num canto do mapa (antes de qualquer outro ponto de interesse)
+  if(typeof genWorldPois==='function')genWorldPois(cities,taken);   // POIs permanentes da Fase 6 (pois.js) antes dos extras: acampamentos, grutas e baús é que se desviam deles
   const nCamps=rng.int(14,18);
   for(let i=0;i<nCamps;i++){
-    const s=findSpot(rng,10,10+AMB_GAP,6,taken.concat(cities.map(k=>({x:k.cx,z:k.cz,r:k.half+8}))),3500);   // folga AMB_GAP (pois.js) da muralha e dos outrosif(!s)continue;
+    const s=findSpot(rng,10,10+AMB_GAP,6,taken.concat(cities.map(k=>({x:k.cx,z:k.cz,r:k.half+8}))),3500);   // folga AMB_GAP (pois.js) da muralha e dos outros
+    if(!s)continue;
     taken.push({x:s.x,z:s.z,r:14});
     const dg=digCamp(s.x,s.z);s.y=dg.y;
     const c=newArea('camp',100+i,'Acampamento de bandidos',s,rng,{rank:rng.int(1,2),reward:rng.chance(0.25)?'hostage':'gold',dug:dg.dug});
@@ -294,7 +303,6 @@ function genPOIs(rng,cities){
     taken.push({x:s.x,z:s.z,r:4});buildHideout(s.x,s.z,s.y,rng);
   }
   genPacks(rng,cities,taken);
-  if(typeof genWorldPois==='function')genWorldPois(cities,taken);   // POIs permanentes da Fase 6 (pois.js), por último para não mexer no sorteio dos outros
   WORLD.areas=cities.concat(WORLD.camps,WORLD.caves,WORLD.packs);
 }
 

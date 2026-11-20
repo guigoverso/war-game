@@ -82,7 +82,7 @@ function fgPickRoute(){
   let best=null,bk=null;
   for(let i=0;i<npc.length;i++)for(let j=i+1;j<npc.length;j++){
     const A=npc[i],B=npc[j];
-    if(focusOf(A)===focusOf(B)||!fgTrade(A,B)||polFlag('noRoute',A.id)||polFlag('noRoute',B.id))continue;
+    if(focusOf(A)===focusOf(B)||!fgTrade(A,B)||polFlag('noRoute',A.id)||polFlag('noRoute',B.id)||poiRouteBlocked({a:A.id,b:B.id}))continue;
     const need=(res(B)?needOf(A,res(B)):0)+(res(A)?needOf(B,res(A)):0);   // 1) necessidades: quanto cada uma precisa do que a outra produz
     const v=A.fid===B.fid?10:fgV(A.fid,B.fid),ali=A.fid===B.fid?3:v>=10?2:v>=FG.allyMin?1:0;   // 2) aliança (mesma facção > aliadas > amistosas)  3) relação
     const key=[need,ali,v,-(A.id+B.id)];

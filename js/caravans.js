@@ -205,6 +205,7 @@ function buyCaravan(A,B){
   else if(hasRoute(A)||hasRoute(B))toast('Cada cidade só pode ter uma caravana ativa por vez: '+(hasRoute(A)?A.name:B.name)+' já tem uma.',3500);
   else if(polFlag('noRoute',A.id)||polFlag('noRoute',B.id))toast('Uma epidemia impede novas caravanas para essa cidade.',3000);
   else if(B.owner!=='player'&&!facTradeOK(B.fid))toast('Sem comércio com '+facOf(B.fid).name+': só com relação desfavorável ou melhor.',3500);
+  else if(poiRouteBlocked({a:A.id,b:B.id}))toast('Um Entreposto inimigo (ou seu, contra o inimigo) impede essa rota.',3000);
   else if(!canAct('caravan'))toast('Sem ações do líder nesta rodada.',2500);
   else if(!Ledger.spend({gold:meetCaravanCost()}))toast('Ouro insuficiente (ou você está em dívida).',2500);
   else{spendAct('caravan');rd.routes.push({a:A.id,b:B.id});rebuildCaravans();computeBuffs();facRouteGain(B);sfx('win',0);toast('🛒 Duas caravanas partiram entre '+A.name+' e '+B.name+'. (−◉'+CARAVAN_COST+')',3500)}

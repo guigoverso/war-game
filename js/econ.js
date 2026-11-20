@@ -109,7 +109,7 @@ function pctOf(c,res){
   }
   return pct;
 }
-const needOf=(c,res)=>Math.round(pctOf(c,res)*ECON.baseNeed/100*polMul('need',c.id,res)*meetNeedMul(c,res)*(typeof poiNeedMul==='function'?poiNeedMul(c,res):1));   // políticas podem multiplicar a necessidade (policies.js)   // recursos 1 para 1: 100% = ECON.baseNeed unidades
+const needOf=(c,res)=>Math.round(pctOf(c,res)*ECON.baseNeed/100*polMul('need',c.id,res)*meetNeedMul(c,res));   // políticas podem multiplicar a necessidade (policies.js)   // recursos 1 para 1: 100% = ECON.baseNeed unidades
 // recursos do mais abundante (necessidade 0) ao menos abundante (necessidade 200%) nesta rodada
 const abundOf=c=>(focusOf(c)==='gold'?['gold']:[]).concat(NEEDS.slice().sort((a,b)=>pctOf(c,a)-pctOf(c,b)||NEEDS.indexOf(a)-NEEDS.indexOf(b)));
 const abundHtml=c=>abundOf(c).map((r,i)=>'<span title="'+resName(r)+': necessidade '+pctOf(c,r)+'%">'+resIcon(r)+'</span>').join(' › ');

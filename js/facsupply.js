@@ -22,6 +22,9 @@ function fsupRelief(){   // caravanas (suas e das NPC) trazem para uma cidade o 
   }
   return out;
 }
+function poiHuntPen(fid,r){   // acampamentos de caçadores seus tiram pontuação de couro da facção em guerra com você (POIX.hunt, poigame.js)
+  return r==='leather'&&relOf(fid).war?POIX.hunt.pen*poiCount('hunters'):0;
+}
 function fsupRound(){
   if(STATE.rd.fmod){for(const k in STATE.rd.fmod)fsupHit(+k,STATE.rd.fmod[k].d,STATE.rd.fmod[k].left,null,'antigo');delete STATE.rd.fmod}   // saves antigos: um golpe por facção vira um modificador
   const rd=STATE.rd,fs=WORLD.factions||[],rel=fsupRelief();rd.fsup=rd.fsup||{};
@@ -30,7 +33,7 @@ function fsupRound(){
     const st={};
     for(const r of NEEDS){
       const prod=cs.filter(c=>focusOf(c)===r).length,base=clamp(FSUP.floor+(1-FSUP.floor-FSUP.ceil)*clamp(2*prod/cs.length,0,1)+((rel[f.id]||{})[r]||0),0,1);   // sem produtor: base baixa (mercado interno); metade das cidades produzindo já é o teto
-      const score=(1-FSUP.luck)*base+FSUP.luck*Math.random()-fsupPen(f.id,r)+meetNpc(f.id,r);   // reunião das facções: efeito para todas
+      const score=(1-FSUP.luck)*base+FSUP.luck*Math.random()-fsupPen(f.id,r)-poiHuntPen(f.id,r)+meetNpc(f.id,r);   // reunião das facções: efeito para todas
       st[r]=score<FSUP.short?'short':score>FSUP.abund?'abund':'ok';
     }
     rd.fsup[f.id]=st;
@@ -42,7 +45,8 @@ function fsupRound(){
     let sh=0,ab=0;
     for(const r of NEEDS){const pct=e.pct[r]||0;if(pct<=0)continue;const s=rd.fsup[c.fid][r];if(s==='short')sh+=pct/100;else if(s==='abund')ab+=pct/100}
     e.mood=sh>=FSUP.upW?'upset':(sh===0&&(ab>=FSUP.richW||Math.random()<FSUP.richLuck))?'rich':'ok';
-    e.ups=e.mood==='upset'?(e.ups||0)+1:0;   // rodadas seguidas descontente (a rebelião, em fase futura, olha isto)
+    e.ups=e.mood==='upset'?(e.ups||0)+1:0;
+    if(e.mood==='upset'&&poiSancPeace(c.fid))e.mood='ok';   // Santuário da facção: 50% de não ficar Descontente (a contagem e.ups não muda)   // rodadas seguidas descontente (a rebelião, em fase futura, olha isto)
   }
 }
 // preço que a facção paga pelo recurso que você vende (em falta: paga mais; abundante: paga menos)

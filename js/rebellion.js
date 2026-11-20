@@ -88,7 +88,7 @@ function rebStart(c,force){   // põe a rebelião na fila (aparece no próximo t
 }
 function rebCheck(){   // chamado no fim da rodada (rebRound)
   const S=rebS();if(S.cur||STATE.round+1<REB.minRound||STATE.round-S.last<REB.cool)return;
-  const cand=rebEligible().filter(c=>(ec(c).ups||0)>=rebLimit(c));if(!cand.length)return;
+  const cand=rebEligible().filter(c=>(ec(c).ups||0)>=rebLimit(c)&&!poiSancDelay(c.fid));if(!cand.length)return;   // Santuário da facção: 30% de adiar para a rodada seguinte
   cand.sort((a,b)=>(ec(b).ups||0)-(ec(a).ups||0)||Math.random()-0.5);
   rebStart(cand[0]);
 }

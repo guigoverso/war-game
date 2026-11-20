@@ -18,7 +18,7 @@ function mapPages(){
 function drawPickOverlay(g,s){
   if(!MP.on)return;
   for(const c of WORLD.cities){
-    const ok=!c.rebel&&(MP.step===1?(c.owner==='player'&&!hasRoute(c)):(c.id!==MP.a&&!hasRoute(c)&&(c.owner==='player'||facTradeOK(c.fid))));
+    const ok=!c.rebel&&(MP.step===1?(c.owner==='player'&&!hasRoute(c)):(c.id!==MP.a&&!hasRoute(c)&&(c.owner==='player'||facTradeOK(c.fid))&&!poiRouteBlocked({a:MP.a,b:c.id})));
     g.strokeStyle=c.id===MP.a?'#5aff7a':ok?'#ffd23a':'#555';g.lineWidth=c.id===MP.a?5:3;
     g.beginPath();g.arc(c.cx*s,c.cz*s,16,0,6.283);g.stroke();
     if(c.rebel){const x=c.cx*s,y=c.cz*s;g.strokeStyle='#ff2a2a';g.lineWidth=4;g.beginPath();g.arc(x,y,16,0,6.283);g.moveTo(x-8,y-8);g.lineTo(x+8,y+8);g.moveTo(x+8,y-8);g.lineTo(x-8,y+8);g.stroke()}   // cidade em rebelião: círculo vermelho com X (sem caravana)
@@ -67,6 +67,7 @@ document.addEventListener('click',e=>{
   if(hasRoute(c)){toast(c.name+' já tem uma caravana ativa (uma por cidade).',2500);return}
   if(c.rebel){toast(c.name+' está em rebelião: não há caravana para lá.',3000);return}
   if(c.owner!=='player'&&!facTradeOK(c.fid)){toast('Sem comércio com '+facOf(c.fid).name+': ela é inimiga ou está em guerra com você.',3000);return}
+  if(poiRouteBlocked({a:A.id,b:c.id})){toast('Um Entreposto inimigo (ou seu, contra o inimigo) impede essa rota.',3000);return}
   dealSummary(A,c,()=>{MP.on=false;updatePickBanner();buyCaravan(A,c);openBook('book','caravanas')});
 });
 document.addEventListener('mousemove',e=>{

@@ -140,9 +140,9 @@ async function genWorld(seed,status,dominant){
     for(let i=0;i<W*W;i++)if(B[i]===lose&&keep[((i/W|0)>>3)*N+((i%W)>>3)])B[i]=BIO_PLAINS;
   }
   if(WORLD.showcaseMode){for(let i=0;i<W*W;i++){H[i]=SEA+6;B[i]=BIO_PLAINS}}   // mapa manual dos POIs (?cenario=pois): toda a superfície apagada e plana
-  // nº de cidades proporcional à terra do mapa (terra ÷ 48 mil, entre 7 e 10); ?cid=N força um número (estudo)
+  // nº de cidades proporcional à terra do mapa (terra ÷ 48 mil, entre 6 e 8); ?cid=N força um número (estudo)
   let landN=0;for(let i=0;i<W*W;i+=9)if(H[i]>=SEA+1)landN++;
-  const NC=Math.max(4,Math.min(16,+(new URLSearchParams(location.search).get('cid'))||Math.max(7,Math.min(10,Math.round(landN*9/48000)))));
+  const NC=Math.max(4,Math.min(16,+(new URLSearchParams(location.search).get('cid'))||Math.max(6,Math.min(8,Math.round(landN*9/48000)))));
   const inShow=(x,z)=>WORLD.showcaseMode&&Math.abs(x-W/2)<210&&Math.abs(z-W/2)<170;   // área reservada aos POIs do mapa manual: sem cidades
   // 2) Locais das cidades
   status('Escolhendo locais para as cidades...');await tick();
@@ -160,7 +160,7 @@ async function genWorld(seed,status,dominant){
   }
   // O número de cidades depende da área útil: uma cidade tem até 90 blocos de lado, mais a faixa de terreno aplainado em volta. Se a terra (ilha pequena, faixa
   // estreita, deserto recortado) não comporta 7 cidades afastadas, o mundo ganha MENOS cidades em vez de cidades coladas (a construção e o aplainamento se atropelavam).
-  const sites=[],MIND=104,MINC=4;   // MIND: distância mínima entre os centros; só desce (de 10 em 10) se não couberem ao menos MINC cidades
+  const sites=[],MIND=220,MINC=6;   // MIND: distância mínima entre os centros; só desce (de 10 em 10, até 64) se não couberem ao menos MINC cidades
   if(cand.length)sites.push(cand[rng.int(0,cand.length-1)]);
   const pickSites=floorD=>{
     while(sites.length<NC&&cand.length){

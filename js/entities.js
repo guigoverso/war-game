@@ -175,6 +175,7 @@ function npcLook(rng,biome,role,owner){
   if(role==='civ'&&rng.chance(0.15)){L.hairStyle='hat';L.hat=0xc8a85a;L.pants=0x5a4a3a}
   if(role==='shop'){L.apron=0xf2f2f2;L.shirt=0x8a3a2a;L.hairStyle='cap';L.hat=0x6b4a2a;L.beard=L.hair;L.scale=1.05}
   if(role==='smith'){L.apron=0x3a3a3a;L.shirt=0x6a3a2a;L.hairStyle='cap';L.hat=0x2a2a2a;L.beard=L.hair;L.scale=1.08}   // ferreiro (POI)
+  if(role==='merc'){L.shirt=0x7a2a2a;L.pants=0x2a2a2a;L.hairStyle='hat';L.hat=0x2a2218;L.scarf=0xc8a040;L.pack=0x4a3a2a;L.beard=L.hair;L.scale=1.06}   // mercenário (taverna do jogador)
   if(role==='tanner'){L.apron=0x6b4a2a;L.shirt=0xa88a5a;L.hairStyle='hat';L.hat=0x7a5a3a;L.scale=1.02}   // curtidor (POI)
   if(role==='merchant'){L.apron=0x6b4a2a;L.shirt=0x3a6a4a;L.hairStyle='hat';L.hat=0xc8a85a;L.scale=1.02}
   if(role==='cook'){L.apron=0xf2f2f2;L.shirt=0xe8e0d0;L.hairStyle='cap';L.hat=0xf4f4f4;L.beard=L.hair;L.scale=1.04}
@@ -200,6 +201,7 @@ const SAY={
   patron:['Saúde!','Esta cerveja está ótima.','Sente-se, forasteiro.','Dizem que o peixe-dourado existe de verdade...','O taverneiro faz o melhor ensopado da região.'],
   merchant:['Bem-vindo à loja! Aperte E para vender o que você encontrou.','Peles, presas, joias... eu compro quase tudo.'],
   cook:['Hoje tem prato quente! Aperte E para ver o cardápio.','O fogão no fundo é todo seu, se trouxer os ingredientes.'],
+  merc:['Preciso de ouro e você de braços. Aperte E.','Soldado bom custa caro, mas vale cada moeda.'],
   shop:['Bem-vindo! Aperte E para ver as armas.'],nurse:['Está ferido? Aperte E para se tratar.']
 };
 function makeBubble(text){
@@ -338,7 +340,7 @@ function updateNpc(n,dt){
   if(n.model.sway)n.model.sway(n.phase,moving,G.t)
 }
 // NPCs de serviço (armeiro, taverneiro, cozinheiro, enfermeira, escriturário) e o líder: não tomam tiro, não fogem e ficam sempre no posto (a cadeira, no caso do líder)
-const NPC_FIXED=new Set(['shop','merchant','cook','nurse','clerk','leader','smith','tanner']);
+const NPC_FIXED=new Set(['shop','merchant','cook','nurse','clerk','leader','smith','tanner','merc']);
 function damageNpc(n,amount,src){   // src: bicho que atacou (não envolve o jogador)
   if(!n.alive||NPC_FIXED.has(n.role))return;n.hp-=amount;burst(n.x,n.y+1,n.z,0xaa1111,8,5,0.1);
   if(!src){if(n.caravan)caravanAttacked(n);else facHostileAct(n.city)}   // ferir um cidadão: ataque (em guerra) ou crime; ferir guarda de caravana de outra facção: crime contra as facções da rota (factions.js)
@@ -348,7 +350,7 @@ function damageNpc(n,amount,src){   // src: bicho que atacou (não envolve o jog
 function npcTalk(n){
   if(n.caravan){n.lookT=4;n.state='idle';n.timer=5;n.yaw=Math.atan2(P.x-n.x,P.z-n.z);n.group.rotation.y=n.yaw}   // guarda de caravana: vira para o jogador e fica olhando enquanto ele fala
   const c=n.city;let pool;
-  if(n.role==='guard')pool=SAY.guard;else if(n.role==='shop')pool=SAY.shop;else if(n.role==='nurse')pool=SAY.nurse;else if(n.role==='merchant')pool=SAY.merchant;else if(n.role==='cook')pool=SAY.cook;else if(n.role==='patron')pool=SAY.patron;else if(n.role==='hostage')pool=SAY.hostage;else if(n.role==='clerk')pool=SAY.clerk;else if(n.role==='leader')pool=SAY.leader;
+  if(n.role==='guard')pool=SAY.guard;else if(n.role==='shop')pool=SAY.shop;else if(n.role==='nurse')pool=SAY.nurse;else if(n.role==='merchant')pool=SAY.merchant;else if(n.role==='cook')pool=SAY.cook;else if(n.role==='patron')pool=SAY.patron;else if(n.role==='hostage')pool=SAY.hostage;else if(n.role==='clerk')pool=SAY.clerk;else if(n.role==='merc')pool=SAY.merc;else if(n.role==='leader')pool=SAY.leader;
   else if(n.role==='child')pool=SAY.child;else if(n.role==='elder'&&Math.random()<0.6)pool=SAY.elder;
   else pool=c.home?SAY.civ_f:(c.owner==='player'?SAY.civ_c:SAY.civ_e);
   npcSay(n,pool[Math.floor(Math.random()*pool.length)]);

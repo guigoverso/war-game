@@ -23,8 +23,8 @@ Código no topo de um arquivo só pode usar o que veio antes; dentro de funçõe
 **Entidades e combate**
 - `entities` — NPCs, inimigos e IA: `NPCS`, `EDEF`, `spawnNpc`, `updateNpc`, `npcTalk`, `updateEnemy`, `damageEnemy`, `populateCities`.
 - `weapons` — armas e tiro: `WEAPONS`, `initWeapons`, `selectWeapon`, `fireWeapon`, `updateWeapons`, `noiseAt`.
-- `allies` — soldados do jogador e exército: `ALLIES`, `ARMY`, `pickTarget`, `recruitAlly`, `updateAllies`, `openBarracks`.
-- `poi` — POIs antigos (acampamentos, cavernas, baús, matilhas) e dia/noite: `genPOIs`, `openChest`, `openCage`, `updateCamps`, `genPacks`, `updateDayNight`.
+- `allies` — soldados do jogador e exército: `ALLIES`, `ARMY`, `pickTarget`, `recruitAlly`, `updateAllies`, `openBarracks`, reparo do colete do jogador no Quartel (`vestRepairQuote`, `vestRepair`; números em `POIX.vest`).
+- `poi` — POIs antigos (acampamentos, cavernas, baús, matilhas) e dia/noite: `genPOIs` (chama `genWorldPois` antes dos acampamentos, grutas e baús), `spotOK` (parâmetro `wet`: água aceita), `flattenArea` (rampa `F`), `openChest`, `openCage`, `updateCamps`, `genPacks`, `updateDayNight`.
 - `quests` — emboscadas de gangues: `QUEST`, `GANGS`, `spawnAmbush`, `updateAmbushes`.
 - `ambient` — som ambiente e passos: `AMB`, `SND`, `initAmbient`, `footstep`, `updateAmbient`.
 - `data` — tabelas de itens, peixes, receitas e loot: `DATA`, `defItems`, `defLoot`, `dataGet`, `dataDefine`.
@@ -63,8 +63,10 @@ Código no topo de um arquivo só pode usar o que veio antes; dentro de funçõe
 - `missions` — missões (quadro do salão e de facções): `MS`, `msBoard`, `msAdd`, `msComplete`, `msDeliver`, `openQuests`, `msBookPages`.
 
 **POIs da Fase 6**
-- `pois` — tipos e construção dos POIs no mundo: `POI_DEFS`, `POI_TYPES`, `poiBuild`, `genWorldPois`, `poiSetOwner`, `poiNear`, `poiShowcase`.
-- `poigame` — regras dos POIs (guarnição, anexação, renda, preço): `POIX`, `POI_PRICE`, `poiMine`, `poiGarrisonSync`, `poiScan`, `poiAct`, `poiTick`; moradores e serviços (ferreiro, bigorna, curtidor, taverneiro), binóculo: `SVC`, `svcOpen`, `svcSmith`, `svcAnvil`, `svcTanner`, `svcTavern`, `poiBinoc`.
+- `pois` — tipos e construção dos POIs no mundo: `POI_DEFS`, `POI_TYPES` (fazenda, mina, serraria, caçadores, santuário, ponte, forte, torre, taverna, entreposto, ruínas), `POI_BUILD`, `poiBuild`, `genWorldPois` (anel, estrada e interior; números em `POI_GEN`, pesos por bioma em `POI_W`, regras de lugar em `poiRuleOK`, `POI_RANGE`/`POI_BIG`: desnível e terreno dos grandes, `POI_GEN.limit`/`min`/`biomeCap`/`first`: limites, mínimos e tipo principal do bioma), `poiSetOwner`, `poiNear`, `poiShowcase`.
+- `poigame` — regras dos POIs (guarnição, anexação, renda, preço): `POIX`, `POI_PRICE`, `poiMine`, `poiLvl` (nível do dono: produção e pedágio), `poiGarrisonSync`, `poiScan`, `poiAct`, `poiTick`; moradores e serviços (ferreiro, mercenário, taverneiro, lojista do entreposto), binóculo: `SVC`, `svcOpen`, `svcSmith`, `svcMerc`, `svcTavern`, `svcPost`, `poiBinoc`.
+  Entreposto: `poiPosts`, `poiOnRoute` (`p.road` opcional), `poiRouteBlocked` (usado em `caravans.js`, `bookmap.js`, `facgraph.js`), `poiPostIncome`, `poiPostEffects` (aba Efeitos, `meetfx.js`), `postPrice`; números em `POIX.post`.
+  Santuário: `poiHasSanc`, `poiSancPeace` (usado em `rounds.js` e `facsupply.js`), `poiSancDelay` (`rounds.js` e `rebellion.js`); números em `POIX.sanc`. Ruínas: guardiões voltam a cada rodada (gancho `round` de `poigame`), baú não volta (`POIX.ruinRelic`). Caçadores: `poiHuntLoot`, `poiHuntPen` (`facsupply.js`).
 - `negoc` — Negociação (entrada no caderno): `negOpen`, `negPage`, `negClick`, `negEntryHtml`.
 
 **Outros**
@@ -85,7 +87,7 @@ Código no topo de um arquivo só pode usar o que veio antes; dentro de funçõe
 ## Ganchos (`Hooks`, `state.js`)
 `Hooks.on(nome,fn)` / `Hooks.emit(nome,arg)`. Eventos existentes:
 - `resetState` — emitido por `resetState()`; quase todo sistema registra aqui o seu pedaço de `STATE`.
-- `round` — emitido em `endRound` (`rounds.js`) e `Rounds.advance`; ouvido por econ (grutas), caravans, rounds (rodada 0), policies, factions, facgraph, facevents, globalev, meetfx, missions, dungeon, poigame.
+- `round` — emitido em `endRound` (`rounds.js`) e `Rounds.advance`; ouvido por econ (grutas), caravans, rounds (rodada 0), policies, factions, facgraph, facevents, globalev, meetfx, missions, dungeon, poigame (renda, retomada, rotas bloqueadas e renda do entreposto, guardiões das ruínas).
 - `leaderTurn` — emitido no início do turno do Líder (`rounds.js`); ouvido por `policies.js` (sorteia o cartão).
 - `ledger` — emitido por `Ledger.set` quando um recurso muda.
 
@@ -95,13 +97,14 @@ Código no topo de um arquivo só pode usar o que veio antes; dentro de funçõe
 `stove`/`fire`→`openCooking`, `npc`→`npcTalk`, `chest`→`openChest`, `cage`→`openCage`, `dgcage`→`gevCageOpen`,
 `portal`→`enterDungeon`, `dgexit`→`leaveDungeon`, `vein`→`mineVein`, `book`→`openBook`, `leader`→`hallRoundAction`,
 `warehouse`→`openWarehouse`, `loot`→`lootCaravan`, `msdeliver`→`msDeliver`, `poi*`→`poiAct` (`poigame.js`).
-Alvos `poi*`: `poibar`, `poibed`, `poibinoc`, `poivigil`, `poisvc`, `poianvil` (`poiScan`, poigame).
+Alvos `poi*`: `poibar`, `poibed`, `poibinoc`, `poivigil`, `poisvc` (ferreiro, mercenário, lojista do entreposto) (`poiScan`, poigame).
 Raid ativa bloqueia via `raidLocked(t.c)`. No escritório/salão: `meetInteract` (meeting) ou `nearBook`→`openBook`.
 
 ## Números de balanceamento
 - `ECON` (`econ.js`) — necessidades, saque de caravana (`ECON.loot`), produção, impostos, caravana (`CARAVAN_COST=ECON.caravan`), evolução de cidade.
 - `POL` (`policies.js`) — chance e duração das políticas; definições via `definePolicy`.
-- `POIX` e `POI_PRICE` (`poigame.js`) — guarnição, renda, retomada e preço dos POIs.
+- `POI_GEN`, `POI_W`, `POI_RANGE` (`pois.js`) — quantidade, pesos por bioma, limites e mínimos dos POIs gerados.
+- `POIX` e `POI_PRICE` (`poigame.js`) — guarnição, produção e pedágio por nível, santuário (`sanc`), caçadores (`hunt`), entreposto (`post`), colete (`vest`), retomada e preço dos POIs.
 - `RAID_WAVES`, `RAID_GAP`, `RAID_TIME`, `RAID_LOSS_*` (`raids.js`).
 - `REB` (rebellion), `FEV` (facevents), `GEV` (globalev), `FSUP` (facsupply), `MEET`/`MEET_DUR` (meeting/meetfx).
 - `REL_MAX`/`REL_START`, `FAC_GOLD`, `FAC_RELIC_GAIN` (`factions.js`); `VENDOR_*` (`store.js`); `INV_BASE`, `INV_UP_COST` (`inventory.js`); `WEAPONS` (`weapons.js`).

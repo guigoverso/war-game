@@ -34,6 +34,7 @@ function endRound(city){
       // políticas: festa (efeito 'prosper') e felicidade (e.joyAdj, ±1) empurram o humor entre Descontente(1) e Próspera(3), mas NÃO mudam a contagem de rebelião (e.ups)
       {const ORD=['upset','ok','rich'];e.mood=short?'upset':ORD[clamp((over?2:1)+(e.joyAdj||0)+(polFlag('prosper',c.id)?1:0),polFlag('prosper',c.id)?2:0,2)];e.joyAdj=0}
       e.ups=short?(e.ups||0)+1:0;
+      const peace=short&&!e.press&&poiSancPeace('player');if(peace)e.mood='ok';   // Santuário: 50% de a cidade não ficar Descontente (a contagem e.ups acima não muda)
       // níveis: 1ª falta = Descontente (1); 2ª = (0); 3ª = (−1); 4ª = rebelião (os efeitos de 0 e −1 ainda são os do nível 1)
       if(short&&e.press){   // reprimida: não se rebela por falta, continua pagando imposto; as necessidades sobem 50% a cada rodada (até 300%)
         e.press.n++;
@@ -41,8 +42,10 @@ function endRound(city){
         const at300=NEEDS.filter(r=>(e.pct[r]||0)>0&&pctOf(c,r)>=300).length;
         if(at300>=2&&!c.home&&!(e.noReb>STATE.round)){rebels.push(c);officers.add(c.id)}
       }else if(short){
-        if(e.ups>=ECON.rebelUps&&!c.home&&!(e.noReb>STATE.round))rebels.push(c);   // noReb: acabou de ser reconquistada (rebmine.js)
-        else rep.push('😠 '+c.name+' está '+moodLbl(c)+': sem imposto e sem produção.'+(c.home?' (A capital não se rebela, mas sofre os mesmos efeitos.)':' Se continuar faltando, ela se rebela em '+(ECON.rebelUps-e.ups)+' rodada(s)!'));
+        if(e.ups>=ECON.rebelUps&&!c.home&&!(e.noReb>STATE.round)){   // noReb: acabou de ser reconquistada (rebmine.js)
+          if(poiSancDelay('player'))rep.push('⛪ '+c.name+' ia se rebelar, mas o Santuário acalmou os ânimos: a rebelião foi adiada para a próxima rodada.');
+          else rebels.push(c);
+        }else rep.push((peace?'⛪ '+c.name+': o Santuário manteve o povo calmo ('+MOOD.ok.n+'), mas sem suprimento não há imposto nem produção.':'😠 '+c.name+' está '+moodLbl(c)+': sem imposto e sem produção.')+(c.home?' (A capital não se rebela, mas sofre os mesmos efeitos.)':' Se continuar faltando, ela se rebela em '+(ECON.rebelUps-e.ups)+' rodada(s)!'));
       }else{
         if(e.press){delete e.press;rep.push('✔ '+c.name+' supriu tudo: a repressão acabou e as necessidades voltaram ao normal.')}   // supriu tudo: os recursos que subiram voltam ao valor anterior
         const gt=goldTradeOf(c);if(gt>0){shOf().vault+=gt;rep.push('🛒 '+c.name+': comércio com cidades de ouro rendeu ◉'+gt+' no cofre.')}

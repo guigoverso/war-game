@@ -214,12 +214,26 @@ function renderBarracks(){
   h+='<div class="card"><b>Dano dos soldados</b><div class="st">Nível '+dl+'/'+ARMY.maxLvl+' • +25% de dano por nível (atual ×'+allyDmgMul().toFixed(2)+')</div>'+tagLine(priceTag(ARMY.city,'soldierup'))+'<button data-a="dmg" '+(dl>=ARMY.maxLvl||P.coins<bp(upCost(dl),'soldierup')?'disabled':'')+'>'+(dl>=ARMY.maxLvl?'Máximo':'Evoluir ◉'+bp(upCost(dl),'soldierup'))+'</button></div>';
   h+='<div class="card"><b>Vida dos soldados</b><div class="st">Nível '+hl+'/'+ARMY.maxLvl+' • +12 de vida por nível (atual '+allyMaxHp()+')</div>'+tagLine(priceTag(ARMY.city,'soldierup'))+'<button data-a="hp" '+(hl>=ARMY.maxLvl||P.coins<bp(upCost(hl),'soldierup')?'disabled':'')+'>'+(hl>=ARMY.maxLvl?'Máximo':'Evoluir ◉'+bp(upCost(hl),'soldierup'))+'</button></div>';
   h+='<div class="card"><b>🛡 Colete dos soldados</b><div class="st">Soldados com colete (e capacete de aço) absorvem 60% do dano até esgotar '+VEST_HP+' pontos.</div>'+tagLine(priceTag(ARMY.city,'vest'))+(ARMY.vest?'<button data-a="refill" '+(P.coins<bp(60,'vest')?'disabled':'')+'>Repor coletes ◉'+bp(60,'vest')+'</button>':'<button class="gold" data-a="vest" '+(P.coins<bp(220,'vest')?'disabled':'')+'>Comprar ◉'+bp(220,'vest')+'</button>')+'</div>';
+  if(ARMY.city&&ARMY.city.owner==='player'&&P.armor<100){const q=vestRepairQuote();   // reparo do SEU colete, em qualquer cidade sua
+    h+='<div class="card"><b>🛡 Reparar o seu colete</b><div class="st">Colete: '+Math.ceil(P.armor)+'/100</div>'+tagLine(priceTag(ARMY.city,'vest'))
+      +'<button class="gold" data-a="vgold" '+(P.coins<q.gold||Ledger.anyDebt()?'disabled':'')+'>Com ouro ◉'+q.gold+'</button>'
+      +'<button class="gold" data-a="vleather" '+(invCount('couro')<q.lea||P.coins<q.goldLea||Ledger.anyDebt()?'disabled':'')+'>🟤 '+q.lea+' couro + ◉'+q.goldLea+'</button></div>'}
   WEAPONS.forEach((w,i)=>{
     const own=ARMY.owned[i],cur=ARMY.weapon===i;
     h+='<div class="card'+(cur?'':own?'':' locked')+'"><b>'+w.name+(cur?' ✔ (em uso)':'')+'</b><div class="st">Dano '+w.dmg+(w.pellets>1?' ×'+w.pellets:'')+' • '+w.rpm+' dpm</div>'+
       (cur?'':own?'<button data-a="eq" data-i="'+i+'">Equipar</button>':tagLine(priceTag(ARMY.city,'weapon'))+'<button class="gold" data-a="buy" data-i="'+i+'" '+(P.coins<bp(w.price,'weapon')?'disabled':'')+'>Comprar ◉'+bp(w.price,'weapon')+'</button>')+'</div>';
   });
   $('bkbody').innerHTML=h+'</div>';
+}
+function vestRepairQuote(){   // proporcional ao que falta: ouro = 35% do preço de um colete novo; com couro: couro + 60% desse ouro
+  const miss=Math.max(0,100-P.armor)/100,V=POIX.vest,gold=Math.max(1,Math.round(bp(V.base*V.pct*miss,'vest')));
+  return{gold,lea:Math.max(1,Math.ceil(V.leather*miss)),goldLea:Math.max(1,Math.round(gold*V.goldPct))};
+}
+function vestRepair(withLeather){
+  const q=vestRepairQuote();if(P.armor>=100||Ledger.anyDebt())return false;
+  if(withLeather){if(invCount('couro')<q.lea||!Ledger.spend({gold:q.goldLea}))return false;invRemove('couro',q.lea)}
+  else if(!Ledger.spend({gold:q.gold}))return false;
+  P.armor=100;sfx('coin',0);return true;
 }
 document.addEventListener('click',e=>{
   const b=e.target.closest('#bkbody button');if(!b||b.classList.contains('qmark'))return;
@@ -231,6 +245,8 @@ document.addEventListener('click',e=>{
   else if(a==='eq'){ARMY.weapon=i}
   else if(a==='vest'&&!ARMY.vest&&P.coins>=bp(220,'vest')){P.coins-=bp(220,'vest');ARMY.vest=true;for(const x of ALLIES)if(x.alive)giveAllyVest(x);sfx('coin',0)}
   else if(a==='refill'&&P.coins>=bp(60,'vest')){P.coins-=bp(60,'vest');for(const x of ALLIES)if(x.alive)x.armor=VEST_HP;sfx('coin',0)}
+  else if(a==='vgold')vestRepair(false);
+  else if(a==='vleather')vestRepair(true);
   renderBarracks();
 });
 

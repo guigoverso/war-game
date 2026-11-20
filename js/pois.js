@@ -4,12 +4,13 @@
 // Cada POI é uma construção de blocos numa malha própria (como os acampamentos). O dono (bandidos, uma facção ou o jogador) aparece na bandeira.
 // Dono: 'bandit' | número de facção | 'player' | 'none' (ruínas). Só o que mudou vai para STATE.pois (o mundo é refeito pela semente).
 const POI_DEFS={
-  farm:{n:'Fazenda',ic:'🌾',r:14},mine:{n:'Mina',ic:'⛏',r:15},sawmill:{n:'Serraria',ic:'🪚',r:14},tannery:{n:'Curtume',ic:'🧴',r:14},
-  bridge:{n:'Ponte',ic:'🌉',r:9},fort:{n:'Forte',ic:'🏰',r:15},tower:{n:'Torre de vigia',ic:'🗼',r:8},tavern:{n:'Taverna',ic:'🍺',r:13},
-  ruins:{n:'Ruínas antigas',ic:'🏛',r:9},forge:{n:'Ferraria',ic:'⚒',r:10},granary:{n:'Celeiro',ic:'🌽',r:13},
+  farm:{n:'Fazenda',ic:'🌾',r:18},mine:{n:'Mina',ic:'⛏',r:15},sawmill:{n:'Serraria',ic:'🪚',r:14},hunters:{n:'Acampamento de caçadores',ic:'🏹',r:13},
+  sanctuary:{n:'Santuário',ic:'⛪',r:14},post:{n:'Entreposto comercial',ic:'🏪',r:16},
+  bridge:{n:'Ponte',ic:'🌉',r:9},fort:{n:'Forte',ic:'🏰',r:15},tower:{n:'Torre de vigia',ic:'🗼',r:8},tavern:{n:'Taverna',ic:'🍺',r:17},
+  ruins:{n:'Ruínas antigas',ic:'🏛',r:9},
   fortcamp:{n:'Acampamento fortificado',ic:'⛺',r:12,war:true},trench:{n:'Trincheira',ic:'🪖',r:11,war:true}
 };
-const POI_TYPES=['farm','mine','sawmill','tannery','bridge','fort','tower','tavern','ruins','forge','granary'];
+const POI_TYPES=['farm','mine','sawmill','hunters','sanctuary','bridge','fort','tower','tavern','post','ruins'];
 Hooks.on('resetState',()=>{STATE.pois={}});
 
 // ---------- dono e bandeira ----------
@@ -84,20 +85,47 @@ const poiLampAt=(c,x,z)=>{pBc(c,x-0.1,0,z-0.1,x+0.1,3.0,z+0.1,0x2a2a2a,true,{j:0
 
 // ---------- construtores (frente = +z) ----------
 const POI_BUILD={
-  farm(c,rng,p){   // casa de fazenda mobiliada, campo de trigo e horta, curral com animais, galinheiro, pomar, poço, carroça e silos
-    poiHut(c,-12,-12,8,6,'S',{chimney:true,timber:true,shut:0x3a5a3a},rng);
-    for(let i=0;i<7;i++){const z=-10+i*1.7;pBc(c,-3,0,z,11,0.15,z+1.0,0x5a3d22,false,{j:0.02});
-      for(let x=-3;x<11;x+=2.4)pBc(c,x,0.15,z+0.1,Math.min(11,x+2.2),0.9+0.25*rng.next(),z+0.8,rng.pick([0xd8b84a,0xe0c050,0xc8a83c]),false,{j:0.08})}
-    for(let i=0;i<3;i++){const z=2.6+i*1.2;pBc(c,-3,0,z,3,0.12,z+0.8,0x5a3d22,false,{j:0.02});for(let x=-3;x<3;x+=0.9)pBc(c,x+0.1,0.12,z+0.1,x+0.7,0.5+0.3*rng.next(),z+0.7,rng.pick([0x3a8a2a,0xc83a2a,0xe08a2a,0x5ab03a]),false,{j:0.1})}   // horta
-    pBc(c,5,0,2.5,11,0.12,5.5,0x6a4a2e,false,{j:0.03});poiAnimal(c,6,3.2,0xf0ece0,true);poiAnimal(c,8.4,3.8,0x8a5a3a,true);poiAnimal(c,9.8,2.9,0xf0b0b0,false);poiFence(c,4.5,2,11.5,2);poiFence(c,4.5,6,11.5,6);poiFence(c,4.5,2,4.5,6);poiFence(c,11.5,2,11.5,6);   // curral
-    pBc(c,-12,0,-5,-9,1.1,-3.6,0x9a6a3a,true,{j:0.03});pBc(c,-12.2,1.1,-5.2,-8.8,1.7,-3.4,0x7a3a2a,false,{j:0.03});pBc(c,-11.5,0,-3.6,-10.5,0.7,-3.5,0x2a1a10,false,{j:0});   // galinheiro
-    hay(c,-8,-4.5);hay(c,-6.5,-4.5);hay(c,-7.2,-3.2);
-    for(const [tx,tz] of[[-12,5],[-9.5,6.5],[-14,2]])tinyTree(c,tx,tz,rng);
-    poiWell(c,-6,3);poiCart(c,-1,-4,true,0xd8b84a);
-    poiPole(c,9,-3.6,2.2);pBc(c,7.9,1.5,-3.7,10.1,1.7,-3.5,0x4a3320,false,{j:0});pBc(c,8.7,2.2,-4,9.3,2.7,-3.2,0xb89048,false,{j:0.04});pBc(c,8.55,2.7,-4.1,9.45,2.85,-3.1,0x6b4a2a,false,{j:0});   // espantalho
-    for(let k=0;k<2;k++)pBc(c,6+k*1.7,0,-12,7.5+k*1.7,3,-10.5,0xc8c8c8,true,{j:0.03});   // silos
-    poiPath(c,-8,-6,-8,2);poiLampAt(c,-9.5,-5.2);poiFence(c,-14,7.5,12,7.5);
-    poiFlag(c,p,-14,4,6);
+  hunters(c,rng,p){   // acampamento de caçadores: tendas de pele, fogueira com tripé, varais de couro, troféus, lenha e armadilhas
+    const tent=(tx,tz,col)=>{for(let i=0;i<5;i++){const w=1.8-i*0.34;pBc(c,tx-w,i*0.5,tz-1.4,tx+w,i*0.5+0.5,tz+1.4,shadec(col,i%2?1.07:0.95),i<3,{j:0.06})}pBc(c,tx-0.5,0,tz+1.35,tx+0.5,1.5,tz+1.45,0x1f1710,false,{j:0})};
+    tent(-6,-5,0x8a6a3a);tent(5.5,-6,0xa08a5a);tent(-8.5,0.5,0x6a7a4a);
+    p.sceneObjs.push(...buildCampFire(c,rng));   // a mesma fogueira do acampamento de bandidos (poi.js)
+    for(const [x0,z0] of[[-9,6],[1,6.5]]){   // varais de couro com peles penduradas
+      poiPole(c,x0,z0,2.8,0x7a5632);poiPole(c,x0+6,z0,2.8,0x7a5632);pBc(c,x0,2.6,z0-0.08,x0+6,2.8,z0+0.08,0x7a5632,false,{j:0});
+      for(let x=x0+0.5;x<x0+5.7;x+=1.0)pBc(c,x,0.7,z0-0.05,x+0.75,2.6,z0+0.05,rng.pick([0xe0b888,0xd0a070,0xc89860,0x8a6a4a,0xb8b0a0]),false,{j:0.03})}
+    poiPole(c,-3.5,-9.5,3);pBc(c,-4.2,2.7,-9.6,-2.8,2.9,-9.4,0x4a3320,false,{j:0});for(const s of[-4.2,-2.9]){pBc(c,s,2.9,-9.6,s+0.12,3.7,-9.4,0xe8e0c8,false,{j:0})}   // poste com chifres de troféu
+    for(let k=0;k<3;k++)pBc(c,9+k*0.35,0,-2.5+k*0.7,9.9+k*0.35,0.5+0.35*k,-1.9+k*0.7,0x6b4a2a,true,{j:0.06});   // lenha empilhada
+    crate(c,2.5,-9.5,1,1.2);barrel(c,-1.5,-9);poiBench(c,2.5,3.2,true);
+    for(const [tx,tz] of[[-11,-5],[11,6],[-5,10],[11.5,-8]])tinyTree(c,tx,tz,rng);
+    poiPath(c,0,2.2,0,5.2);poiLampAt(c,3.5,1.2);
+    p.chestPos={x:c.cx+6.5,y:c.y,z:c.cz+2.8};   // onde nasce o baú da conquista (poigame.js)
+    poiFlag(c,p,6,9,6);
+  },
+  sanctuary(c,rng,p){   // santuário: capela de pedra com vitrais, torre do sino, altar e bancos, poço, canteiros de flores e braseiros no caminho
+    const st=[0xd8d0c0,0xcfc7b6,0xe0d8c8];
+    pBc(c,-6,0,-9,6,0.12,3.5,0x9a9aa0,false,{j:0.03});   // laje de pedra
+    for(const [x0,z0,x1,z1] of[[-5,-8,5,-7.6],[-5,-8,-4.6,2],[4.6,-8,5,2],[-5,1.6,-1.2,2],[1.2,1.6,5,2]])pBc(c,x0,0,z0,x1,4.6,z1,rng.pick(st),true,{j:0.03});   // paredes (a frente tem a porta)
+    pBc(c,-1.2,3.2,1.6,1.2,4.6,2,0xd8d0c0,true,{j:0.02});   // verga da porta
+    for(const s of[-1,1])for(const z of[-5.5,-2.5])pBc(c,s*5-0.06,1.6,z-0.6,s*5+0.06,3.6,z+0.6,rng.pick([0x6aa0e0,0xe07a6a,0xe0c04a]),false,{j:0});   // vitrais
+    roofOn(c,-5.6,-8.6,5.6,2.6,4.6,'gable',0x5a6a8a,{trim:0x3a3a4a});
+    pBc(c,-1.1,0.12,-7.6,1.1,1.1,-6.4,0xf2eee4,true,{j:0.02});pBc(c,-0.9,1.1,-7.5,0.9,1.2,-6.5,0xb02a3a,false,{j:0});   // altar com toalha
+    for(const x of[-0.8,0.8])pBc(c,x-0.08,1.2,-7.1,x+0.08,1.6,-6.9,0xffe9a0,false,{j:0});   // velas
+    for(const x of[-3.6,1.8])for(const z of[-4.5,-2.5,-0.5])poiBench(c,x,z,true);
+    // torre do sino ao lado da capela: base cheia, quatro pilares, sino e telhado em pirâmide
+    pBc(c,6.4,0,-9,9.6,4.5,-5.8,0xcfc7b6,true,{j:0.03});
+    for(const [x,z] of[[6.4,-9],[9.2,-9],[6.4,-6.2],[9.2,-6.2]])pBc(c,x,4.5,z,x+0.4,7.5,z+0.4,0xd8d0c0,true,{j:0.02});
+    pBc(c,7.4,5.3,-8,8.6,6.6,-6.8,0xe0b030,false,{j:0.03});pBc(c,7.9,6.6,-7.5,8.1,7.2,-7.3,0x3a3a3a,false,{j:0});   // sino
+    for(let k=0;k<4;k++){const w=2.0-k*0.5;pBc(c,8-w,7.5+k*0.5,-7.5-w,8+w,8+k*0.5,-7.5+w,k%2?0x5a6a8a:0x4a5a7a,false,{j:0.04})}
+    pBc(c,7.9,8.0,-7.6,8.1,9.6,-7.4,0xe0b030,false,{j:0});   // cruz do topo
+    pBc(c,7.55,9.2,-7.6,8.45,9.4,-7.4,0xe0b030,false,{j:0});
+    // frente: braseiros, caminho, poço e canteiros
+    poiBrazier(c,-2.2,3.6);poiBrazier(c,2.2,3.6);poiPath(c,0,2.4,0,11);poiLampAt(c,3.6,7);
+    poiWell(c,-8,7);
+    for(const [x0,z0] of[[3.5,6],[-12,0.5]]){pBc(c,x0,0,z0,x0+4,0.4,z0+2,0x5a3d22,true,{j:0.04});
+      for(let k=0;k<7;k++)pBc(c,x0+0.2+k*0.52,0.4,z0+0.3+(k%2)*0.9,x0+0.55+k*0.52,0.75,z0+0.65+(k%2)*0.9,rng.pick([0xe05a8a,0xf0d84a,0xf2f2f2,0x9a6ae0]),false,{j:0.05})}   // canteiros
+    poiBench(c,-3.5,9,true);poiBench(c,2,9,true);
+    for(const [tx,tz] of[[-10,-6],[11,3],[-11,10],[12,9]])tinyTree(c,tx,tz,rng);
+    p.keepers=[];p.svcSpec=[];   // só ambientação: guardas e civis nascem em poiCivSync (poigame.js), os mesmos das cidades
+    poiFlag(c,p,9,10,6);
   },
   mine(c,rng,p){   // mina em cabana: galpão de madeira sobre uma rampa escavada (5 degraus de 1 bloco) com trilhos e um vagonete descendo, torre do guincho, oficina e minério
     for(let k=1;k<=5;k++)poiDig(c,-2,4-2*k,2,6-2*k,k);   // a frente é +z; a rampa desce para o fundo
@@ -148,17 +176,6 @@ const POI_BUILD={
     pBc(c,-1,0,-3.6,-0.1,0.5,-2.8,0x6b4a2a,true,{j:0.05});pBc(c,-0.7,0.5,-3.4,-0.5,1.2,-3.2,0xb0b0b8,false,{j:0});   // toco com machado
     poiPath(c,0,0.5,0,5);poiLampAt(c,3.4,1.2);poiFence(c,-14,7,10,7);
     poiFlag(c,p,9,2,6);
-  },
-  tannery(c,rng,p){   // cabana mobiliada, varais altos de couro, fossos de cal, tinas, estaca de raspar, poço e carroça de peles
-    poiHut(c,-12,-12,7,6,'S',{wall:0xc4703a,roof:0x4a2a1a,timber:true,shut:0x4a3a2a},rng);
-    for(let r=0;r<2;r++){const z=-2+r*3.2;poiPole(c,-1,z,3.6,0x7a5632);poiPole(c,9,z,3.6,0x7a5632);pBc(c,-1,3.4,z-0.1,9,3.6,z+0.1,0x7a5632,false,{j:0});
-      for(let x=0;x<8.4;x+=0.9)pBc(c,x,1.0,z-0.05,x+0.7,3.4,z+0.05,rng.pick([0xe0b888,0xd0a070,0xc89860,0xe8c898]),false,{j:0.03})}
-    for(let k=0;k<3;k++){const x=-9+k*3;pBc(c,x,0,3.4,x+2.2,0.9,5.6,0x6a4a2a,true);pBc(c,x+0.2,0.9,3.6,x+2,1.0,5.4,[0x5a7a3a,0x7a5a2a,0xd8d0b0][k],false,{j:0})}   // tinas
-    for(let k=0;k<2;k++){const x=-9+k*3.2;pBc(c,x,-0.4,7,x+2.4,0,9,0x4a3a2a,false,{j:0});pBc(c,x+0.1,0.0,7.1,x+2.3,0.08,8.9,k?0xd8d8c0:0x8a8a58,false,{j:0})}   // fossos de cal
-    pBc(c,-2,0.4,-9.5,-0.6,1.7,-8.5,0x7a5632,true,{j:0.03});pBc(c,-1.6,1.7,-9.4,-1.0,2.6,-8.6,0x7a5632,false,{j:0.03});   // estaca de raspar
-    pBc(c,3,0,6,5,0.5,7.4,0xc09060,false,{j:0.06});poiCart(c,7,5.5,true,0xc89860);poiWell(c,-3.5,6.5);
-    barrel(c,5.5,-10);barrel(c,6.7,-10);poiBench(c,2,-10,true);poiPath(c,-8.5,-5.5,-8.5,2);poiLampAt(c,-5,-4.8);poiFence(c,-13,9.5,11,9.5);
-    poiFlag(c,p,10,6,6);
   },
   fort(c,rng,p){   // muralha de pedra com ameias e tochas, torres, portão com grade, pátio com poço, quartel, estábulo, treino e tendas
     const R=12;
@@ -274,7 +291,65 @@ poiPath(c,0,R+1,0,4);poiBrazier(c,-3.4,R+1.6);poiBrazier(c,3.4,R+1.6);
     W2(5.2,-0.6,5.32,-0.48,0,3.6,0x4a2f1a,false,{j:0});W2(5.2,-0.6,7.2,-0.48,3.3,3.6,0x4a2f1a,false,{j:0});W2(6.1,-0.6,7.2,-0.5,2.4,3.3,0x5a3d22,false,{j:0});W2(6.2,-0.5,7.1,-0.45,2.5,3.2,0xf0d890,false,{j:0});   // placa pendurada
     for(const uu of[5.0,13.0]){W2(uu,-1.2,uu+0.2,-1.0,0,3.2,0x2a2a2a,true,{j:0});W2(uu-0.15,-1.35,uu+0.35,-0.85,3.2,3.7,0xffe9a0,false,{j:0})}
     for(let v=-6;v<0;v++)for(let u=6;u<12;u++){const m=f.map(u+0.5,v+0.5);setTL(c,Math.floor(m[0]),Math.floor(m[1]),T_STREET)}   // chão batido na frente
-    poiFlag(c,p,10.5,-6,9);
+    // área do ferreiro ao lado da taverna (leste): chão de pedra, telhado aberto, fornalha com chaminé, fuligem, bigorna, fole, barril de têmpera, ferramentas e carvão
+    for(let i=0;i<6;i++)for(let j=0;j<6;j++)pBc(c,10+i,0,-7+j,11+i,0.07,-6+j,(i+j)%2?0x7a7a82:0x6a6a72,false,{j:0.02});
+    for(const [x,z] of[[10.2,-6.8],[15.6,-6.8],[10.2,-1.4],[15.6,-1.4]])pBc(c,x,0,z,x+0.3,3.0,z+0.3,0x5a3d22,true,{j:0});
+    for(let k=0;k<4;k++)pBc(c,9.8,3.0+k*0.2,-7.2+k*1.55,16.2,3.2+k*0.2,-5.5+k*1.55,k%2?0x4a3a2a:0x5a4a3a,false,{j:0.03});
+    pBc(c,9.8,2.96,-7.2,16.2,3.0,-4.2,0x1a1a1e,false,{j:0});   // fuligem no forro, sobre a fornalha
+    pBc(c,13.6,0,-6.6,15.8,1.7,-4.6,0x6a6a70,true,{j:0.03});pBc(c,14.2,1.7,-6.3,15.2,4.6,-5.4,0x5a5a60,true,{j:0.03});pBc(c,14.1,4.0,-6.4,15.3,4.6,-5.3,0x2a2a2e,false,{j:0});   // fornalha e chaminé (topo enegrecido)
+    pBc(c,13.5,0.5,-6.1,13.62,1.2,-5.1,0x1a1a1a,false,{j:0});pBc(c,13.45,0.55,-5.95,13.6,0.95,-5.25,0xff7a1a,false,{j:0});pBc(c,13.42,0.6,-5.8,13.58,0.8,-5.4,0xffd84a,false,{j:0});   // boca da fornalha com brasa
+    pBc(c,12.6,0.07,-6.9,13.5,0.1,-4.3,0x1a1a1a,false,{j:0.05});pBc(c,15.8,0.07,-6.9,16.1,0.1,-4.5,0x222226,false,{j:0.05});   // fuligem no chão
+    pBc(c,13.8,0.3,-4.5,14.9,0.8,-3.9,0x6b4a2a,true,{j:0.03});pBc(c,14.9,0.4,-4.4,15.7,0.65,-4.0,0x3a2a1a,false,{j:0.02});   // fole
+    pBc(c,11.0,0,-3.4,12.0,0.5,-2.4,0x6b4a2a,true,{j:0.04});pBc(c,10.85,0.5,-3.3,12.15,0.8,-2.5,0x2a2a2e,false,{j:0});pBc(c,12.15,0.55,-3.1,12.7,0.75,-2.7,0x2a2a2e,false,{j:0});   // bigorna sobre o cepo
+    pBc(c,10.4,0,-6.3,11.6,0.7,-5.2,0x6b4a2a,true,{j:0.03});pBc(c,10.5,0.7,-6.2,11.5,0.78,-5.3,0x3a7ad8,false,{j:0});   // barril de têmpera
+    poiRack(c,12.2,-1.5,true);poiSign(c,9.0,-1.2,0x4a4a52);
+    for(let k=0;k<5;k++)pBc(c,15.1+k*0.15,0,-3.2+k*0.25,15.6+k*0.15,0.25+0.1*k,-2.8+k*0.25,0x2a2a2a,false,{j:0.1});   // carvão
+    // caminho da porta da taverna até o ferreiro, com arbustos, flores, árvores pequenas, lampiões e bancos dos dois lados
+    poiPath(c,-1,5.5,-1,9);poiPath(c,-1,9,12,9);poiPath(c,12,9,12,0.5);
+    for(let x=1;x<=11;x+=2){const s=(x/2|0)%2?1:-1;   // alterna os lados do trecho de leste a oeste
+      const bx=x+0.2,bz=9+s*1.7;
+      pBc(c,bx,0,bz,bx+0.9,0.7,bz+0.8,rng.pick([0x3a7a2a,0x4a8a32,0x2f6a24]),false,{j:0.12});   // arbusto
+      if(x%4===1)for(let k=0;k<3;k++)pBc(c,bx+k*0.3,0,bz+(s>0?0.9:-0.5),bx+k*0.3+0.2,0.35,bz+(s>0?1.1:-0.3),rng.pick([0xe0409a,0xf0d040,0xf0f0f0,0xe05a2a]),false,{j:0.04})}   // flores
+    for(let z=1.5;z<=8;z+=2.2){const s=(z*2|0)%2?1:-1;pBc(c,12+s*1.8,0,z,12+s*1.8+0.9,0.7,z+0.8,rng.pick([0x3a7a2a,0x4a8a32]),false,{j:0.12});if(z>2)for(let k=0;k<3;k++)pBc(c,12-s*1.8+k*0.3,0,z+0.2,12-s*1.8+k*0.3+0.2,0.35,z+0.4,rng.pick([0xe0409a,0xf0d040,0xf0f0f0,0xe05a2a]),false,{j:0.04})}
+    for(const [tx,tz] of[[3,11.5],[9,11.8],[14.5,6.5],[9.5,6.5]])tinyTree(c,tx,tz,rng);
+    poiLampAt(c,2,7.8);poiLampAt(c,10,10.2);poiLampAt(c,13.4,4);
+    poiBench(c,5,10.2,true);barrel(c,14.2,2.2);crate(c,14.4,3.4,1,0.9);
+    p.svcSpec=[{kind:'smith',role:'smith',label:'Ferreiro: consertar arma',x:c.cx+11.5,z:c.cz-1.7,yaw:Math.PI}];
+    const seat=p.keepers.find(k=>k.role==='patron');   // o mercenário ocupa o lugar de um freguês sentado à mesa (só na taverna do jogador; nas outras o freguês fica)
+    if(seat){seat.merc=true;p.svcSpec.push({kind:'merc',label:'Mercenário: recrutar soldado',x:seat.x,z:seat.z,seat:true})}
+    poiFlag(c,p,-11,6,9);
+  },
+  post(c,rng,p){   // entreposto comercial: galpão de mercado com balcão e prateleiras, banca de feira, carroças carregadas, pilhas de caixas e barris, poço e cavalos
+    pBc(c,-9,0,-10,9,0.1,-0.5,0x8a6a3a,false,{j:0.03});   // piso de tábuas
+    for(const [x,z] of[[-9,-10],[9,-10],[-9,-0.5],[9,-0.5],[-3,-0.5],[3,-0.5]])pBc(c,x-0.18,0,z-0.18,x+0.18,3.9,z+0.18,0x5a3d22,true,{j:0.02});   // pilares
+    pBc(c,-9.2,3.5,-0.7,9.2,3.9,-0.3,0x4a3320,false,{j:0.02});   // viga da frente
+    pBc(c,-9,0,-10.2,9,3.9,-9.8,0x7a5632,true,{j:0.03});   // parede do fundo
+    for(const s of[-1,1]){pBc(c,s*9-0.1,0,-10,s*9+0.1,1.3,-0.7,0x7a5632,true,{j:0.04});pBc(c,s*9-0.1,2.5,-10,s*9+0.1,3.9,-0.7,0x6b4a2a,false,{j:0.04})}   // laterais: muro baixo e tábuas no alto
+    for(let lv=0;lv<3;lv++){const y=0.9+lv*0.9;   // prateleiras do fundo com mercadorias (comida, munição, remédios, materiais)
+      pBc(c,-8.6,y,-9.8,8.6,y+0.1,-8.7,0x6b4a2a,false,{j:0.02});
+      for(let x=-8.2;x<8;x+=1.15)pBc(c,x,y+0.1,-9.5,x+0.9,y+0.1+rng.range(0.35,0.7),-8.9,rng.pick([0xc8a060,0xa03a3a,0x5a8a4a,0xd8d0b0,0x6a7a9a,0x8a6a3a]),false,{j:0.08})}
+    pBc(c,-8.8,0,-4.4,8.8,1.1,-3.7,0x7a5632,true,{j:0.03});pBc(c,-9,1.1,-4.6,9,1.2,-3.5,0x9a6a3a,false,{j:0.02});   // balcão (fecha o galpão: o lojista fica atrás)
+    for(const x of[-6.5,-2.5,3,6.5])pBc(c,x,1.2,-4.3,x+0.8,1.7,-3.8,rng.pick([0xd8c8a0,0xc8a060,0x8a5a3a]),false,{j:0.06});   // caixinhas e sacos no balcão
+    pBc(c,-0.4,1.2,-4.2,0.4,1.35,-3.9,0xe0b030,false,{j:0.02});pBc(c,-0.1,1.35,-4.1,0.1,1.9,-4.0,0x3a3a3a,false,{j:0});   // balança
+    roofOn(c,-9.8,-10.6,9.8,0.3,3.9,'gable',0x7a4a2a,{trim:0x4a3320});
+    pBc(c,-2.6,2.5,-0.25,2.6,3.45,-0.05,0x3a2a1a,false,{j:0.02});pBc(c,-0.55,2.75,-0.05,0.55,3.25,0.05,0xe0b030,false,{j:0.02});pBc(c,-0.25,2.9,0.05,0.25,3.1,0.1,0x3a2a1a,false,{j:0});   // placa com uma moeda
+    poiLampAt(c,-8,-6);poiLampAt(c,8,-6);
+    // banca de feira à esquerda: balcão, toldo listrado e frutas
+    for(const [x,z] of[[-14.4,2.6],[-9.6,2.6],[-14.4,6.2],[-9.6,6.2]])pBc(c,x-0.1,0,z-0.1,x+0.1,2.7,z+0.1,0x5a3d22,true,{j:0.02});
+    pBc(c,-14,0,3.6,-10,1.0,4.4,0x7a5632,true,{j:0.03});
+    for(let i=0;i<5;i++)pBc(c,-14.6+i*1.0,2.6+i*0.04,2.5,-13.6+i*1.0,2.8+i*0.04,6.3,i%2?0xc03a3a:0xf0ece0,false,{j:0.03});
+    for(let k=0;k<7;k++)pBc(c,-13.7+k*0.55,1.0,3.7+(k%2)*0.4,-13.3+k*0.55,1.3,4.0+(k%2)*0.4,rng.pick([0xc83a2a,0xe08a2a,0xe0c030,0x5ab03a]),false,{j:0.05});
+    // carroças carregadas, cavalos amarrados, caixas, barris, sacos e feno
+    poiCart(c,8,3.5,true,0xc8a060);poiCart(c,8,7.5,true,0x8a5a3a);
+    pBc(c,3.8,0.95,9.8,8.2,1.1,10.0,0x5a3d22,false,{j:0.02});for(const x of[3.8,6,8.2])pBc(c,x-0.1,0,9.8,x+0.1,1.4,10.0,0x4a3320,true,{j:0});
+    poiAnimal(c,4.6,10.5,0x8a5a3a,true);poiAnimal(c,6.8,10.7,0xf0ece0,true);
+    crate(c,-13.5,-8,1.2,1.2);crate(c,-12.1,-8,1.2,0.9);crate(c,-13.2,-6.6,1,1.0);barrel(c,-12.5,-4.6);barrel(c,-11.3,-4.4);
+    for(let k=0;k<4;k++)pBc(c,11+(k%2)*1.1,0,-7+Math.floor(k/2)*0.9,12+(k%2)*1.1,0.7,-6.1+Math.floor(k/2)*0.9,0xd8c8a0,true,{j:0.1});   // sacos empilhados
+    hay(c,12,-3.5);
+    poiPath(c,0,0.5,0,13);poiWell(c,-6,9);poiBench(c,-4,3,true);poiLampAt(c,-3.4,2.2);poiLampAt(c,3.4,2.2);poiSign(c,-1.8,5,0x4a3a2a);
+    for(const [tx,tz] of[[-13,8],[13,-5.5]])tinyTree(c,tx,tz,rng);
+    p.keepers=[];p.svcSpec=[{kind:'shop',role:'merchant',label:'Lojista: comprar suprimentos',x:c.cx,z:c.cz-5.0,yaw:0}];   // o lojista nasce em poiCivSync (só com dono amigo)
+    poiFlag(c,p,10.5,-1.5,7);
   },
   ruins(c,rng,p){   // muros quebrados, arco, colunas (algumas caídas), degraus até o altar com braseiros, entulho, mato e um baú
     for(let k=0;k<5;k++){const x=-7+k*3.4,h=rng.range(0.8,3.8);pBc(c,x,0,-6,x+2.4,h,-5,rng.pick(poiStone),true,{j:0.07});if(h>2)pBc(c,x+0.4,h,-6,x+1.6,h+0.6,-5,0x7a7a82,false,{j:0.1});if(rng.chance(0.5))pBc(c,x+0.2,h*0.5,-5.05,x+0.6,h*0.5+1.2,-4.95,0x3a7a2a,false,{j:0.1})}   // musgo
@@ -288,37 +363,30 @@ poiPath(c,0,R+1,0,4);poiBrazier(c,-3.4,R+1.6);poiBrazier(c,3.4,R+1.6);
     for(let k=0;k<4;k++){const x=rng.range(-6,6);pBc(c,x,0,-2.2,x+0.06,rng.range(0.6,1.4),-2.14,0x3aa0b0,false,{j:0})}   // runas apagadas
     for(let k=0;k<9;k++){const x=rng.range(-7,7),z=rng.range(-5,6),s=rng.range(0.4,1);pBc(c,x,0,z,x+s,s*0.7,z+s,rng.pick(poiStone),false,{j:0.1})}
     for(let k=0;k<7;k++){const x=rng.range(-8,8),z=rng.range(-6,7);pBc(c,x,0,z,x+0.3,rng.range(0.3,0.7),z+0.3,0x3a7a2a,false,{j:0.1})}   // mato
-    p.chest=addChest(c.cx,c.y+2.05,c.cz-2.4,0,rng.int(40,120),null);p.chest.onOpen=()=>poiRuinLoot(p);   // 10% de chance de artefato
+    p.chest=addChest(c.cx,c.y+2.05,c.cz-2.4,0,rng.int(40,120),null);p.chest.onOpen=()=>poiRuinLoot(p);   // 30% de chance de artefato (POIX.ruinRelic)
   },
-  forge(c,rng,p){   // ferraria: oficina mobiliada com chaminé, anexo aberto com esmeril e bigorna, barril de têmpera, estante de armas, carvão e ferraduras
-    poiHut(c,-8,-8,8,6,'S',{h:4,wall:0x8a8a90,roof:0x33333a,chimney:true,timber:false},rng);
-    pBc(c,-5,0,-9.6,-3.4,6,-8.0,0x6a6a70,true,{j:0.04});pBc(c,-5.2,6,-9.8,-3.2,6.6,-7.8,0x55555c,false,{j:0.03});   // chaminé alta, encostada na parede dos fundos
-    // anexo aberto (telhado de uma água sobre pilares)
-    for(const [x,z] of[[1,0],[6,0],[1,4.5],[6,4.5]])pBc(c,x,0,z,x+0.3,2.8,z+0.3,0x5a3d22,true,{j:0});for(let k=0;k<4;k++)pBc(c,0.6,2.8+k*0.2,k*1.2-0.2,6.8,3.0+k*0.2,k*1.2+1.4,k%2?0x4a3a2a:0x5a4a3a,false,{j:0.03});
-    pBc(c,2,0,1.5,3.1,0.5,2.7,0x3a3a3a,true);pBc(c,1.9,0.5,1.4,3.2,0.8,2.8,0x2a2a2a,false,{j:0});pBc(c,3.1,0.2,1.8,3.5,0.55,2.4,0x2a2a2a,false,{j:0});   // bigorna
-    pBc(c,4.2,0,1,5.6,0.6,2.4,0x6b4a2a,true,{j:0.03});pBc(c,4.3,0.6,1.1,5.5,0.7,2.3,0x3a7ad8,false,{j:0});   // barril/cocho de têmpera
-    pBc(c,4.2,0.7,3.2,4.9,1.4,3.5,0x7a7a82,true,{j:0.03});pBc(c,4.4,1.4,3.0,4.7,1.9,3.7,0xb0b0b8,false,{j:0});pBc(c,4.5,0.2,3.3,4.6,0.7,3.4,0x4a3320,false,{j:0});   // esmeril
-    poiRack(c,-7,4.4,true);poiRack(c,-4.8,4.4,true);
-    for(let k=0;k<5;k++)pBc(c,7+k*0.35,0,2+k*0.25,7.9+k*0.35,0.25+0.12*k,2.7+k*0.25,0x2a2a2a,false,{j:0.1});   // carvão
-    for(let k=0;k<4;k++)pBc(c,-1.6,0.5+k*0.4,5.6+0.0,-1.0,0.65+k*0.4,5.7,0x9a9aa2,false,{j:0});   // ferraduras
-    poiPole(c,-1.3,5.5,2.2);poiBench(c,-3.5,5.4,true);poiPath(c,-4,-1.5,-4,5);poiLampAt(c,-0.5,-1);poiSign(c,-5.5,6.6,0x4a4a52);
-    poiFlag(c,p,8,7,6);
+  farm(c,rng,p){   // fazenda: uma única casa, campos de plantação (trigo e horta) e cercados de animais (vacas, ovelhas, porcos e galinhas), com poço, silos e carroça
+    poiHut(c,-12,-14,9,7,'S',{chimney:true,timber:true,shut:0x3a5a3a},rng);   // a casa
+    poiPath(c,-7.5,-6,-7.5,3);poiLampAt(c,-5.6,-5.4);
+    for(let i=0;i<5;i++){const z=-14+i*1.7;pBc(c,0,0,z,14,0.15,z+1.0,0x5a3d22,false,{j:0.02});   // campo de trigo
+      for(let x=0;x<14;x+=2.4)pBc(c,x,0.15,z+0.1,Math.min(14,x+2.2),0.9+0.25*rng.next(),z+0.8,rng.pick([0xd8b84a,0xe0c050,0xc8a83c]),false,{j:0.08})}
+    poiPole(c,7,-9.5,2.2);pBc(c,5.9,1.5,-9.6,8.1,1.7,-9.4,0x4a3320,false,{j:0});pBc(c,6.7,2.2,-9.9,7.3,2.7,-9.1,0xb89048,false,{j:0.04});   // espantalho
+    for(let i=0;i<3;i++){const z=-4+i*1.2;pBc(c,-14,0,z,-9,0.12,z+0.8,0x5a3d22,false,{j:0.02});   // horta ao lado da casa
+      for(let x=-14;x<-9;x+=0.9)pBc(c,x+0.1,0.12,z+0.1,x+0.7,0.5+0.3*rng.next(),z+0.7,rng.pick([0x3a8a2a,0xc83a2a,0xe08a2a,0x5ab03a]),false,{j:0.1})}
+    // cercado grande: vacas e ovelhas, com cocho e fardos
+    pBc(c,-6,0,4,4,0.12,11,0x6a4a2e,false,{j:0.03});poiFence(c,-6.5,3.5,4.5,3.5);poiFence(c,-6.5,11.5,4.5,11.5);poiFence(c,-6.5,3.5,-6.5,11.5);poiFence(c,4.5,3.5,4.5,11.5);
+    poiAnimal(c,-4,6,0xf0ece0,true);poiAnimal(c,-1.5,8.5,0x8a5a3a,true);poiAnimal(c,1.5,5.8,0xf0ece0,true);poiAnimal(c,2.5,9.2,0x3a2a22,true);
+    pBc(c,-5.5,0,9.8,-2.5,0.6,10.6,0x7a5632,true,{j:0.04});pBc(c,-5.4,0.6,9.9,-2.6,0.7,10.5,0x3a7ad8,false,{j:0});hay(c,3,10.2);hay(c,-5.6,4.4);
+    // cercado menor: porcos e galinheiro
+    pBc(c,7,0,4,14,0.12,9,0x6a4a2e,false,{j:0.03});poiFence(c,6.5,3.5,14.5,3.5);poiFence(c,6.5,9.5,14.5,9.5);poiFence(c,6.5,3.5,6.5,9.5);poiFence(c,14.5,3.5,14.5,9.5);
+    poiAnimal(c,8.5,5.5,0xf0b0b0,false);poiAnimal(c,10.5,7.6,0xf0b0b0,false);
+    pBc(c,11.5,0,4.4,14,1.0,5.8,0x9a6a3a,true,{j:0.03});pBc(c,11.3,1.0,4.2,14.2,1.5,6.0,0x7a3a2a,false,{j:0.03});pBc(c,12.4,0,5.8,13.2,0.7,5.9,0x2a1a10,false,{j:0});   // galinheiro
+    for(let k=0;k<2;k++)pBc(c,8+k*1.7,0,-4,9.5+k*1.7,3.4,-2.5,0xc8c8c8,true,{j:0.03});   // silos
+    poiWell(c,-2,-4);poiCart(c,2,0,true,0xd8b84a);
+    for(const [tx,tz] of[[-14,6],[-12,9.5],[-14,12]])tinyTree(c,tx,tz,rng);
+    poiFlag(c,p,-10,5,6);
   },
-  granary(c,rng,p){   // celeiro vermelho com porta larga e claraboia do palheiro, silos, carroça, galinheiro, cocho, cata-vento e fardos
-    poiHut(c,-7,-9,13,9,'S',{h:5,wall:0xa83a2a,roof:0x5a3a2a,timber:true,shut:0xe8e0d0},rng);
-    pBc(c,-2.5,4.4,0.2,0.5,4.8,0.5,0xe8e0d0,false,{j:0});for(const s of[-2.5,0.5])pBc(c,s-0.1,0,0.15,s+0.1,4.4,0.5,0xe8e0d0,false,{j:0});   // moldura da porta larga (X branco)
-    pBc(c,-1.9,5.4,-0.1,-0.1,6.6,0.1,0x1a1008,false,{j:0});pBc(c,-2.1,5.3,-0.15,0.1,5.4,0.1,0xe8e0d0,false,{j:0});   // janela do palheiro
-    hay(c,8,0);hay(c,9.4,0);hay(c,8.7,1.4);hay(c,-9,2);hay(c,-9,3.4);hay(c,-8.2,2.6);
-    for(let k=0;k<7;k++)pBc(c,6.5,k*1.1,-8.5,9.5,k*1.1+1.1,-5.5,k%2?0xc8c8c8:0xd8d8d8,k===0,{j:0.02});
-    pBc(c,6.4,7.7,-8.6,9.6,8.1,-5.4,0x7a4a2a,false,{j:0});pBc(c,7,8.1,-8,9,8.7,-6,0x7a4a2a,false,{j:0});
-    for(let k=0;k<5;k++)pBc(c,9.8,k*1.1,-4.4,11.6,k*1.1+1.1,-2.6,k%2?0xc8c8c8:0xd8d8d8,k===0,{j:0.02});pBc(c,9.7,5.5,-4.5,11.7,5.9,-2.5,0x7a4a2a,false,{j:0});   // silo menor
-    poiCart(c,5,4,true,0xd8b84a);poiAnimal(c,-5,5.2,0xf0ece0,true);poiAnimal(c,-3,6,0x8a5a3a,true);poiFence(c,-7,4.4,-1.5,4.4);poiFence(c,-7,8,-1.5,8);poiFence(c,-7,4.4,-7,8);poiFence(c,-1.5,4.4,-1.5,8);
-    pBc(c,2,0,6.4,5,0.6,7.2,0x7a5632,true,{j:0.04});pBc(c,2.1,0.6,6.5,4.9,0.7,7.1,0x3a7ad8,false,{j:0});
-    poiPole(c,-1,-4.5,11);pBc(c,-1.9,10.6,-4.7,-0.1,10.9,-4.3,0x3a3a3a,false,{j:0});pBc(c,-0.2,10.4,-4.8,0.5,11.1,-4.2,0x3a3a3a,false,{j:0});   // cata-vento
-    for(let k=0;k<4;k++)pBc(c,-12+k*0.0,0,-6+k*1.0,-11,0.4+k*0.0,-5.4+k*1.0,0xe8dcc0,false,{j:0.05});   // sacos
-    poiPath(c,0,1.2,0,6);poiLampAt(c,2.8,1.8);
-    poiFlag(c,p,-9,6,6);
-  },
+
   bridge(c,rng,p){   // posto de pedágio de aço: tabuleiro metálico com guarda-corpo, pórtico, cancela (com colisão) e guarita mobiliada sobre base própria (p.axis: direção da estrada)
     const A=p.axis==='x',Q=(u0,v0,u1,v1,y0,y1,col,s,o)=>A?pBc(c,v0,y0,u0,v1,y1,u1,col,s,o):pBc(c,u0,y0,v0,u1,y1,v1,col,s,o);   // u: de lado a lado da estrada; v: ao longo dela
     for(let v=-12;v<=12;v++){   // tabuleiro de chapas de aço e guarda-corpo, acompanhando a altura de cada trecho da estrada
@@ -390,19 +458,34 @@ function ambClash(x,z,lax){
 const POI_GAP=30;   // folga mínima, em blocos, entre a borda de um POI e a muralha de uma cidade ou a borda de outro POI: conquistá-lo na guerra tem de ser uma viagem
 const poiNearR=(x,z,R,f)=>{for(let dz=-R;dz<=R;dz+=6)for(let dx=-R;dx<=R;dx+=6){const i=(z+dz)*W+x+dx;if(i>=0&&i<W*W&&f(i))return true}return false};
 const poiNear=(x,z,f)=>{for(let dz=-18;dz<=18;dz+=9)for(let dx=-18;dx<=18;dx+=9){const i=(z+dz)*W+x+dx;if(i>=0&&i<W*W&&f(i))return true}return false};
-const POI_PRED={
-  farm:(x,z)=>B[z*W+x]===BIO_PLAINS||B[z*W+x]===BIO_DESERT,
-  mine:(x,z)=>poiNear(x,z,i=>B[i]===BIO_ROCK||H[i]>=SEA+12),
-  sawmill:(x,z)=>B[z*W+x]===BIO_FOREST,
-  tannery:(x,z)=>B[z*W+x]===BIO_PLAINS||B[z*W+x]===BIO_FOREST,
-  fort:(x,z)=>H[z*W+x]>=SEA+6,
-  tower:(x,z)=>H[z*W+x]>=SEA+8,
-  tavern:(x,z)=>poiNearR(x,z,30,i=>T[i]===T_ROAD),   // taverna só perto de estrada (em nenhuma passada)
-  ruins:()=>true,
-  forge:()=>true,
-  granary:(x,z)=>B[z*W+x]===BIO_PLAINS
+// ---------- geração por lugar (tarefa 9): anel, estrada e interior; tipo sorteado pelo bioma ----------
+// Números de balanceamento: ring = quantos POIs por cidade; ringMin/Max = distância da muralha; roadMin = estrada curta fica sem POI;
+// roadW = peso da Taverna e do Entreposto no lugar de estrada; sancRoad = distância mínima do Santuário a estradas; limit = máximo no mapa.
+const POI_GEN={ring:[2,2,3,3],ringMin:30,ringMax:70,roadMin:80,interior:[3,5],fill:3,roadW:4,sancRoad:40,maxTyped:25,   // maxTyped: teto de POIs sorteados (com ruínas e pontes o mapa fecha em até 30)
+  limit:{farm:5,mine:4,sawmill:4,hunters:3,sanctuary:3,fort:3,tower:4,tavern:3,post:3},tavpost:[2,5],   // máximo por tipo no mapa; Taverna+Entreposto juntos
+  min:{farm:2,mine:1,sawmill:1,hunters:2,sanctuary:1,fort:1,tower:2},   // mínimo por tipo (se houver lugar válido)
+  biomeCap:{[BIO_PLAINS]:{farm:5},[BIO_FOREST]:{sawmill:4},[BIO_ROCK]:{mine:4}},snowCap:2,
+  first:{plains:['farm',3],forest:['sawmill',3],mountain:['mine',3]}};   // o tipo principal do bioma dominante entra primeiro: com o mapa cheio, os grandes (Fazenda) não achavam mais lugar   // teto do tipo principal em cada bioma; neve e deserto: 2 por tipo
+const POI_SORT=['farm','mine','sawmill','hunters','sanctuary','fort','tower','tavern','post'];   // a ponte e as ruínas não entram no sorteio
+const POI_W={   // pesos por bioma (o que não está na tabela pesa 1)
+  [BIO_PLAINS]:{farm:6,sawmill:4,hunters:3,sanctuary:2},
+  [BIO_FOREST]:{sawmill:6,hunters:4,farm:3,tower:2},
+  [BIO_ROCK]:{mine:6,tower:4,fort:3,sanctuary:2},
+  [BIO_SNOW]:{farm:2,sawmill:2,hunters:2,sanctuary:2,mine:2,tower:2,fort:2}
 };
-const POI_RANGE={mine:9,fort:7,tower:7};
+POI_W[BIO_DESERT]=POI_W[BIO_SNOW];
+// árvores só nascem depois dos POIs: a "floresta em volta" é medida pelo bioma (60% dos pontos num raio de 25)
+const poiForested=(x,z)=>{let n=0,f=0;for(let dz=-25;dz<=25;dz+=5)for(let dx=-25;dx<=25;dx+=5){const i=(z+dz)*W+x+dx;if(i>=0&&i<W*W){n++;if(B[i]===BIO_FOREST)f++}}return f>=n*0.6};
+function poiRuleOK(type,x,z,place){   // o lugar cumpre as regras do tipo?
+  if(type==='tavern'||type==='post')return place==='road';   // só na beira de estrada entre cidades (uma por estrada: há 1 POI por estrada)
+  if(type==='sanctuary')return place!=='road'&&!poiNearR(x,z,POI_GEN.sancRoad,i=>T[i]===T_ROAD);
+  if(type==='mine')return poiNear(x,z,i=>B[i]===BIO_ROCK||H[i]>=SEA+12);
+  if(type==='sawmill')return poiForested(x,z);
+  return true;
+}
+const WANT_TRIES=90;   // tentativas insistindo no tipo sorteado antes de aceitar qualquer um que caiba
+const POI_RANGE={mine:9,fort:7,tower:7,farm:16,tavern:16,post:16,sawmill:8};
+const POI_BIG={farm:1,tavern:1,post:1};   // grandes: o terreno é aplainado com rampa maior (flattenArea) e a área livre checada é maior   // desnível aceito no terreno (blocos)
 function poiInitOwner(p,rng){
   if(p.type==='ruins')return 'none';
   const hm=WORLD.home;if(hm&&Math.hypot(hm.cx-p.cx,hm.cz-p.cz)<170)return 'bandit';   // perto da cidade do jogador: tomado por bandidos
@@ -411,45 +494,104 @@ function poiInitOwner(p,rng){
 }
 function genWorldPois(cities,taken){
   if(WORLD.showcaseMode){poiShowcaseGen();return}
-  const rng=new RNG((WORLD.seed*131+7)>>>0);WORLD.pois=[];let id=300;
+  const rng=new RNG((WORLD.seed*131+7)>>>0);WORLD.pois=[];let id=300;const tc={},bc={},G=POI_GEN;let cap=true;
   const add=(type,x,z,y,extra)=>{
     const d=POI_DEFS[type],p=Object.assign({id:id++,type,cx:x,cz:z,y,biome:B[z*W+x],owner:'bandit'},extra||{});
-    p.owner=poiInitOwner(p,rng);flattenArea(x,z,d.r,y);taken.push({x,z,r:d.r});poiBuild(p);WORLD.pois.push(p);return p;
+    p.owner=poiInitOwner(p,rng);flattenArea(x,z,d.r,y,POI_BIG[type]?4:3);taken.push({x,z,r:d.r,poi:true});poiBuild(p);WORLD.pois.push(p);tc[type]=(tc[type]||0)+1;bc[p.biome+':'+type]=(bc[p.biome+':'+type]||0)+1;return p;
   };
   const nearestCity=(x,z)=>{let nc=null,bd=1e9;for(const k of cities){const d=Math.hypot(k.cx-x,k.cz-z);if(d<bd){bd=d;nc=k}}return nc};
-  const place=(type,pass,pick)=>{   // acha um lugar para o tipo; pick() devolve [x,z] sorteado
-    const d=POI_DEFS[type];
-    for(let t=0;t<260;t++){
-      const [x,z]=pick();if(x<40||z<40||x>W-40||z>W-40)continue;
-      if((!pass||type==='tavern')&&!POI_PRED[type](x,z))continue;
-      const y=spotOK(x,z,d.r+1,taken,d.r+POI_GAP,(POI_RANGE[type]||4)+(t>100?4:0)+(t>190?6:0));if(y===null)continue;   // o desnível aceito sobe se não achar lugar
-      return{x,z,y};
+  const wpick=o=>{let s=0;for(const e of o)s+=e[1];let r=rng.next()*s;for(const e of o){r-=e[1];if(r<0)return e[0]}return o[o.length-1][0]};
+  const choose=(x,z,place)=>{   // sorteia o tipo pelo bioma do ponto; fora do sorteio: tipo no limite ou cujas regras o lugar não cumpre
+    const w=POI_W[B[z*W+x]]||{},o=[];
+    for(const t of POI_SORT){
+      if((tc[t]||0)>=(G.limit[t]||99)||!poiRuleOK(t,x,z,place))continue;
+      if((t==='tavern'||t==='post')&&(tc.tavern||0)+(tc.post||0)>=G.tavpost[1])continue;
+      const b=B[z*W+x],bcap=(G.biomeCap[b]||{})[t]||(b===BIO_SNOW||b===BIO_DESERT?G.snowCap:99);if((bc[b+':'+t]||0)>=bcap)continue;
+      o.push([t,place==='road'&&(t==='tavern'||t==='post')?G.roadW:(w[t]||1)]);
+    }
+    const out=[];while(o.length){const t=wpick(o);out.push(t);o.splice(o.findIndex(e=>e[0]===t),1)}
+    return out;   // tipos na ordem sorteada: se o primeiro não cabe no terreno, tenta o seguinte
+  };
+  // folga: cidades, região das dungeons e outros POIs pedem POI_GAP (a guerra é uma viagem); acampamentos, grutas e baús perdidos só não podem encostar
+  const crowd=(x,z,d)=>{for(let i=0;i<taken.length;i++){const t=taken[i],g=i<=cities.length||t.poi?POI_GAP:t.r>6?8:4;if(Math.hypot(t.x-x,t.z-z)<t.r+d.r+g)return true}return false};
+  const tryAt=(x,z,place,off,t,want)=>{   // off: o ponto é da estrada, e o POI fica ao lado dela; t: tentativa (o desnível aceito sobe com ela); want: tipo sorteado que se insiste em colocar (sem isso os tipos pequenos, que cabem em qualquer lugar, venceriam sempre)
+    x=Math.round(x);z=Math.round(z);if(x<40||z<40||x>W-40||z>W-40||(cap&&WORLD.pois.length>=G.maxTyped))return null;
+    const ox=x,oz=z;
+    let list=choose(ox,oz,place);if(want&&t<WANT_TRIES*(place==='interior'?6:1))list=list.includes(want)?[want]:[];
+    for(const type of list){
+      const d=POI_DEFS[type];x=ox;z=oz;
+      if(off){const a=rng.range(0,6.283),k=d.r+off+rng.range(0,9);x=Math.round(ox+Math.cos(a)*k);z=Math.round(oz+Math.sin(a)*k)}
+      if(x<40||z<40||x>W-40||z>W-40||crowd(x,z,d))continue;
+      const y=spotOK(x,z,d.r+(POI_BIG[type]?2:1),[],0,(POI_RANGE[type]||4)+(t>10?4:0)+(t>25?4:0)+(t>45?6:0),POI_BIG[type]?0.15:0);
+      if(y!==null)return{type,x,z,y};
     }
     return null;
   };
-  // 1 a 4 POIs por cidade (distribuição desigual de propósito), longe da muralha, de tipos que combinem com o terreno
-  const tc={},counts=[1,2,2,3,3,4],pool0=POI_TYPES.filter(t=>t!=='bridge'&&t!=='ruins');
-  for(const c of cities){
-    const n=rng.pick(counts),pool=rng.shuffle(pool0.slice()).sort((a,b)=>(tc[a]||0)-(tc[b]||0));let made=0;const mine=new Set();if(rng.chance(0.55)){pool.splice(pool.indexOf('fort'),1);pool.unshift('fort')}   // tipos menos usados no mapa primeiro (sem encher o mundo de torres)
-    for(const pass of[0,1])for(const type of pool){   // 2ª passada: o que não achou terreno ideal aceita qualquer lugar plano (menos mina e serraria, que dependem do terreno)
-      if(made>=n)break;if(mine.has(type)||(pass&&(type==='mine'||type==='sawmill')))continue;
-      const d=POI_DEFS[type],s=place(type,pass,()=>{const a=rng.range(0,6.283),dist=rng.range(c.half+d.r+POI_GAP+10,c.half+d.r+POI_GAP+130);return[Math.round(c.cx+Math.cos(a)*dist),Math.round(c.cz+Math.sin(a)*dist)]});
-      if(s){add(type,s.x,s.z,s.y,{cityId:c.id});mine.add(type);made++;tc[type]=(tc[type]||0)+1}
+  const roadPools=[];
+  const fst=G.first[WORLD.dominant];   // 0) o tipo principal do bioma dominante, no anel de cidades sorteadas
+  if(fst)for(let k=0;k<fst[1];k++)for(let t=0;t<250;t++){
+    const c=rng.pick(cities),a=rng.range(0,6.283),dist=c.half+16+rng.range(G.ringMin,G.ringMax+30);
+    const s=tryAt(c.cx+Math.cos(a)*dist,c.cz+Math.sin(a)*dist,'ring',0,t/2,fst[0]);if(s){add(s.type,s.x,s.z,s.y,{cityId:c.id});break}
+  }
+  // 1) estrada: 1 POI na beira de cada estrada longa entre duas cidades ligadas, perto do meio do caminho
+  for(const lk of WORLD.links||[]){
+    const A=cities[lk[0]],Bc=cities[lk[1]];if(!A||!Bc)continue;
+    const dab=Math.hypot(A.cx-Bc.cx,A.cz-Bc.cz);if(dab-A.half-Bc.half<G.roadMin)continue;
+    const cand=[],x0=Math.max(8,Math.min(A.cx,Bc.cx)-40),x1=Math.min(W-8,Math.max(A.cx,Bc.cx)+40);
+    const z0=Math.max(8,Math.min(A.cz,Bc.cz)-40),z1=Math.min(W-8,Math.max(A.cz,Bc.cz)+40);
+    for(let z=z0;z<z1;z+=3)for(let x=x0;x<x1;x+=3){
+      if(T[z*W+x]!==T_ROAD)continue;const da=Math.hypot(x-A.cx,z-A.cz),db=Math.hypot(x-Bc.cx,z-Bc.cz);
+      if(da+db>dab*1.15||da<A.half+POI_GAP+25||db<Bc.half+POI_GAP+25)continue;cand.push([x,z,Math.abs(da-db)]);
+    }
+    cand.sort((a,b)=>a[2]-b[2]);const pool=cand.filter(c=>c[2]<dab*0.3);   // o miolo do caminho
+    roadPools.push({A,Bc,pool});let want=null;
+    for(let t=0;t<200&&pool.length;t++){
+      const c=pool[t<Math.min(12,pool.length)?t:rng.int(0,pool.length-1)];if(!want)want=choose(c[0],c[1],'road')[0];
+      const s=tryAt(c[0],c[1],'road',7,t,want);
+      if(s){add(s.type,s.x,s.z,s.y,{cityId:nearestCity(s.x,s.z).id,road:[A.id,Bc.id]});break}
     }
   }
-  // o ideal é ter mais POIs do que cidades: se faltou, completa com sorteio no mapa todo
-  for(let guard=0;WORLD.pois.length<cities.length*2+2&&guard<40;guard++){
-    const type=pool0.slice().sort((a,b)=>(tc[a]||0)-(tc[b]||0))[guard%3],d=POI_DEFS[type],s=place(type,guard>pool0.length?1:0,()=>[rng.int(40,W-40),rng.int(40,W-40)]);
-    if(s){const nc=nearestCity(s.x,s.z);add(type,s.x,s.z,s.y,{cityId:nc?nc.id:undefined});tc[type]=(tc[type]||0)+1}
+  // 2) anel: de 1 a 3 por cidade (desigual de propósito), de 30 a 70 blocos da muralha, de preferência virados para uma cidade vizinha
+  for(const c of cities){
+    const nb=(WORLD.links||[]).filter(l=>cities[l[0]]===c||cities[l[1]]===c).map(l=>cities[l[0]]===c?cities[l[1]]:cities[l[0]]);
+    for(let k=0,n=rng.pick(G.ring);k<n;k++)for(let t=0,want=null;t<160;t++){
+      const o=nb.length&&rng.chance(0.6)?rng.pick(nb):null,a=o?Math.atan2(o.cz-c.cz,o.cx-c.cx)+rng.range(-0.7,0.7):rng.range(0,6.283);
+      const dist=c.half+16+rng.range(G.ringMin,G.ringMax),px=Math.round(c.cx+Math.cos(a)*dist),pz=Math.round(c.cz+Math.sin(a)*dist);
+      if(!want&&px>=40&&pz>=40&&px<=W-40&&pz<=W-40)want=choose(px,pz,'ring')[0];
+      const s=tryAt(px,pz,'ring',0,t,want);
+      if(s){add(s.type,s.x,s.z,s.y,{cityId:c.id});break}
+    }
   }
-  // fortes devem aparecer mais: pelo menos um para cada duas cidades
-  for(let guard=0;WORLD.pois.filter(p=>p.type==='fort').length<Math.ceil(cities.length/2)&&guard<14;guard++){
-    const s=place('fort',guard>4?1:0,()=>[rng.int(40,W-40),rng.int(40,W-40)]);
-    if(s){const nc=nearestCity(s.x,s.z);add('fort',s.x,s.z,s.y,{cityId:nc?nc.id:undefined});tc.fort=(tc.fort||0)+1}
+  // 3) interior: de 2 a 4, longe das estradas
+  for(let k=0,n=rng.int(G.interior[0],G.interior[1]);k<n;k++)for(let t=0,want=null;t<600;t++){
+    const x=rng.int(40,W-40),z=rng.int(40,W-40);
+    if(poiNearR(x,z,G.sancRoad,i=>T[i]===T_ROAD))continue;
+    if(!want)want=choose(x,z,'interior')[0];
+    const s=tryAt(x,z,'interior',0,t/6,want);if(s){add(s.type,s.x,s.z,s.y,{cityId:nearestCity(s.x,s.z).id});break}
   }
+  // 4) preenchimento: se o mapa ficou com poucos POIs, tenta mais lugares de interior/anel até o mínimo (cidades × fill + 4)
+  for(let t=0,want=null;WORLD.pois.length<Math.min(cities.length*G.fill+4,G.maxTyped)&&t<800;t++){
+    const x=rng.int(40,W-40),z=rng.int(40,W-40);if(t%100===0)want=null;if(!want)want=choose(x,z,'interior')[0];
+    const s=tryAt(x,z,'interior',0,t/8,want);if(s)add(s.type,s.x,s.z,s.y,{cityId:nearestCity(s.x,s.z).id});
+  }
+  // 5) mínimos: tipo abaixo do mínimo tenta de novo, mesmo acima do teto de sorteados (a variedade vale mais)
+  cap=false;
+  for(const type in G.min)for(let t=0;(tc[type]||0)<G.min[type]&&t<500;t++){
+    const s=tryAt(rng.int(40,W-40),rng.int(40,W-40),'interior',0,t/6,type);if(s)add(s.type,s.x,s.z,s.y,{cityId:nearestCity(s.x,s.z).id});
+  }
+  for(let guard=0;(tc.tavern||0)+(tc.post||0)<G.tavpost[0]&&guard<2;guard++){   // Taverna/Entreposto: numa estrada que ainda não tem nenhum dos dois
+    for(const rp of rng.shuffle(roadPools.slice())){
+      if((tc.tavern||0)+(tc.post||0)>=G.tavpost[0])break;
+      if(WORLD.pois.some(p=>(p.type==='tavern'||p.type==='post')&&p.road&&p.road[0]===rp.A.id&&p.road[1]===rp.Bc.id)||!rp.pool.length)continue;
+      const want=rng.pick(['tavern','post']);
+      for(let t=0;t<150;t++){const c=rng.pick(rp.pool),s=tryAt(c[0],c[1],'road',7,t,want);
+        if(s){add(s.type,s.x,s.z,s.y,{cityId:nearestCity(s.x,s.z).id,road:[rp.A.id,rp.Bc.id]});break}}
+    }
+  }
+  cap=true;
   // ruínas soltas pelo mapa
-  for(let k=0,n=rng.int(3,5);k<n;k++){const s=findSpot(rng,POI_DEFS.ruins.r+1,POI_DEFS.ruins.r+POI_GAP,4,taken,3000);if(s)add('ruins',s.x,s.z,s.y)}
-  // pontes: postos de pedágio em trechos de ponte da estrada (até 2, afastados entre si)
+  for(let k=0,n=rng.int(2,3);k<n;k++){const s=findSpot(rng,POI_DEFS.ruins.r+1,POI_DEFS.ruins.r+POI_GAP,4,taken,3000);if(s)add('ruins',s.x,s.z,s.y)}
+  // pontes (independentes das regras acima): postos de pedágio em trechos de ponte da estrada (até 2, afastados entre si)
   const bt=[];for(let z=6;z<W-6;z+=3)for(let x=6;x<W-6;x+=3)if(T[z*W+x]===T_BRIDGE)bt.push([x,z]);
   rng.shuffle(bt);
   for(const [x,z] of bt){
@@ -458,22 +600,26 @@ function genWorldPois(cities,taken){
     if(taken.some(t=>Math.hypot(t.x-x,t.z-z)<t.r+14))continue;
     const roadZ=[T_ROAD,T_BRIDGE].includes(getT(x,z+4))&&[T_ROAD,T_BRIDGE].includes(getT(x,z-4));
     const roadX=[T_ROAD,T_BRIDGE].includes(getT(x+4,z))&&[T_ROAD,T_BRIDGE].includes(getT(x-4,z));
-    if(!roadZ&&!roadX)continue;
-    const y=H[z*W+x],p={id:id++,type:'bridge',cx:x,cz:z,y,biome:B[z*W+x],owner:'bandit',axis:roadZ?'z':'x'};
+    if(!roadX&&!roadZ)continue;
+    const y=H[z*W+x],p={id:id++,type:'bridge',cx:x,cz:z,y,biome:B[z*W+x],owner:'bandit',axis:roadZ?'z':'x',cityId:nearestCity(x,z).id};
     p.owner=poiInitOwner(p,rng);taken.push({x,z,r:POI_DEFS.bridge.r});poiBuild(p);WORLD.pois.push(p);   // (sem aplainar: o terreno da ponte já é a estrada)
   }
-  // estradas: cada POI (menos ruínas e pontes) ganha uma estrada até a cidade que o originou (o traçado reaproveita as estradas que já existem)
+  // estradas de ligação: só Fazenda, Taverna e Entreposto (a ponte já está na estrada). Vão até a estrada MAIS PRÓXIMA, não até a cidade
   const pseudo=q=>({cx:q.cx,cz:q.cz,half:POI_DEFS[q.type].r,gates:[]});
   for(const p of WORLD.pois){
-    if(p.type==='ruins'||p.type==='bridge'||p.cityId===undefined)continue;
-    const city=cities.find(k=>k.id===p.cityId);if(!city)continue;
-    carveRoad(pseudo(p),{cx:city.cx,cz:city.cz,half:city.half,gates:[]},cities.filter(k=>k!==city).concat(WORLD.pois.filter(q=>q!==p&&q.type!=='bridge').map(pseudo)));
+    if(p.type!=='farm'&&p.type!=='tavern'&&p.type!=='post')continue;
+    let best=null,bd=1e9;
+    for(let z=6;z<W-6;z+=3)for(let x=6;x<W-6;x+=3){
+      const k=T[z*W+x];if(k!==T_ROAD&&k!==T_BRIDGE)continue;const d=Math.hypot(x-p.cx,z-p.cz);if(d<bd){bd=d;best=[x,z]}
+    }
+    if(!best||bd<POI_DEFS[p.type].r+6)continue;
+    carveRoad(pseudo(p),{cx:best[0],cz:best[1],half:-3,gates:[]},cities.concat(WORLD.pois.filter(q=>q!==p&&q.type!=='bridge').map(pseudo)));
   }
   poiApply();
 }
 
 // ---------- mapa manual: todos os POIs lado a lado (abra com ?cenario=pois) ----------
-// Em ?cenario=pois o mundo inteiro nasce plano (sem relevo, água nem árvores) e os 13 POIs são construídos no centro ANTES da malha do terreno, cada um com uma placa
+// Em ?cenario=pois o mundo inteiro nasce plano (sem relevo, água nem árvores) e os 11 POIs são construídos no centro ANTES da malha do terreno, cada um com uma placa
 // com o nome e o dono (por isso a trincheira pode ser escavada de verdade). As cidades ficam fora da área.
 function poiShowcaseGen(){
   const types=POI_TYPES.concat(['fortcamp','trench']),cols=5,gx=44,gz=44,rows=Math.ceil(types.length/cols);

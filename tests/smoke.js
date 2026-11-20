@@ -50,6 +50,70 @@ const T={
     const title=document.getElementById('svctitle').textContent;SVC=null;closePanel();
     return ok?(title?'':'painel sem título'):'o painel de serviço não abriu (G.panel='+G.panel+')';
   },
+  hunters:()=>{   // caçadores: baú de carne (1 a 3, uma vez só) e nível do jogador
+    const p=WORLD.pois.find(q=>q.type==='hunters');if(!p)return 'sem POI de caçadores';
+    if(!p.chestPos)return 'sem posição do baú';
+    p.owner='bandit';poiHuntLoot(p);const ch=p.huntChest;
+    if(!ch||!WORLD.chests.includes(ch))return 'o baú não nasceu';
+    const n=ch.fixedLoot[0][1];if(n<1||n>3)return 'carne fora de 1 a 3: '+n;
+    const k=WORLD.chests.length;poiHuntLoot(p);if(WORLD.chests.length!==k)return 'o baú nasceu duas vezes';
+    STATE.rd.lvl=3;return poiLvl('player')===3?'':'poiLvl do jogador errado';
+  },
+  sanctuary:()=>{   // santuário: peregrinos só com dono amigo; paz e adiamento só com Santuário do dono
+    const p=WORLD.pois.find(q=>q.type==='sanctuary');if(!p)return 'sem santuário';
+    const X=poiX(),go=o=>{poiSetOwner(p,o);if(X.since)delete X.since[p.id];poiCivSync(p)};
+    go('bandit');if(p.civ)return 'santuário de bandidos não pode ter moradores';
+    go('player');if(!p.civ||!p.civ.npcs.some(n=>n.role==='civ')||!p.civ.npcs.some(n=>n.role==='guard'))return 'faltaram civis ou guardas';
+    const old=Math.random,sh=p.show;p.show=false;Math.random=()=>0;const a=poiSancPeace('player')&&poiSancDelay('player');
+    Math.random=()=>0.99;const b=poiSancPeace('player')||poiSancDelay('player');Math.random=old;
+    if(!a||b)return 'sorteio de paz/adiamento errado';
+    go('bandit');Math.random=()=>0;const c=poiSancPeace('player');Math.random=old;p.show=sh;
+    return c?'sem Santuário do dono não pode haver paz':'';
+  },
+  ruins:()=>{   // ruínas: guardiões derrotados voltam na rodada seguinte; o baú abre uma vez e não volta
+    const p=WORLD.pois.find(q=>q.type==='ruins');if(!p||p.show)return 'sem ruínas de mapa (só no cenário manual)';
+    poiGarrisonSync(p);if(!p.gar)return 'sem guardiões';
+    poiGarrisonCleared(p.gar);if(p.gar)return 'guardiões não saíram';
+    Hooks.emit('round',STATE.round);if(!p.gar)return 'guardiões não voltaram na rodada';
+    return p.chest&&p.chest.lockedBy===p.gar?'':'o baú devia trancar de novo enquanto não foi aberto';
+  },
+  tavernNpcs:()=>{   // taverna: ferreiro em qualquer dono amigo; mercenário só na do jogador; bandidos sem moradores
+    const p=WORLD.pois.find(q=>q.type==='tavern');if(!p)return 'sem taverna';
+    const X=poiX(),go=o=>{poiSetOwner(p,o);if(X.since)delete X.since[p.id];poiCivSync(p)};
+    go('player');if(!(p.civ&&p.civ.svc.smith&&p.civ.svc.merc))return 'na taverna do jogador faltou o ferreiro ou o mercenário';
+    const f=(WORLD.factions||[]).find(q=>!q.player);
+    if(f){go(f.id);if(!(p.civ&&p.civ.svc.smith))return 'na taverna de facção faltou o ferreiro';if(p.civ.svc.merc)return 'a taverna de facção não pode ter mercenário'}
+    go('bandit');if(p.civ)return 'taverna de bandidos com moradores';
+    return '';
+  },
+  post:()=>{   // entreposto: lojista só com dono amigo; renda por caravana sua; bloqueio só em guerra
+    const p=WORLD.pois.find(q=>q.type==='post');if(!p)return 'sem entreposto';
+    const X=poiX(),go=o=>{poiSetOwner(p,o);if(X.since)delete X.since[p.id];poiCivSync(p)};
+    go('bandit');if(p.civ)return 'entreposto de bandidos com lojista';
+    go('player');if(!(p.civ&&p.civ.svc.shop))return 'sem lojista no entreposto do jogador';
+    const A=WORLD.home,B=WORLD.cities.find(c=>c.owner!=='player'&&c.fid);if(!B)return 'sem cidade de facção';
+    const sv={cx:p.cx,cz:p.cz,show:p.show,routes:STATE.rd.routes.slice()},rl=relOf(B.fid),war0=rl.war;let why='';
+    try{
+      p.show=false;p.cx=(A.cx+B.cx)/2;p.cz=(A.cz+B.cz)/2;STATE.rd.routes=[{a:A.id,b:B.id}];rl.war=false;
+      const inc=poiPostIncome();
+      if(inc.length!==1||inc[0].gold!==POIX.post.income*poiLvl('player'))why='renda errada: '+JSON.stringify(inc.map(i=>i.gold));
+      else if(poiRouteBlocked({a:A.id,b:B.id}))why='rota bloqueada sem guerra';
+      else{rl.war=true;
+        if(!poiRouteBlocked({a:A.id,b:B.id}))why='entreposto seu não bloqueou a facção em guerra';
+        else{go(B.fid);if(!poiRouteBlocked({a:A.id,b:B.id}))why='entreposto inimigo não bloqueou a rota do jogador';
+          else{go('bandit');if(poiRouteBlocked({a:A.id,b:B.id}))why='entreposto de bandidos não deve bloquear'}}}
+    }finally{rl.war=war0;Object.assign(p,{cx:sv.cx,cz:sv.cz,show:sv.show});STATE.rd.routes=sv.routes}
+    return why;
+  },
+  vest:()=>{   // quartel: reparo do colete com ouro e com couro (qualquer cidade sua)
+    const c=WORLD.home;openBarracks(c);if(G.panel!=='barracks')return 'o quartel não abriu';
+    P.coins=5000;P.armor=40;const q=vestRepairQuote(),g0=P.coins;
+    if(!document.getElementById('bkbody').textContent.includes('Reparar o seu colete'))return 'sem o cartão de reparo';
+    if(!vestRepair(false)||P.armor!==100||g0-P.coins!==q.gold)return 'reparo em ouro errado';
+    P.armor=40;invGive([['couro',q.lea]]);const g1=P.coins,l0=invCount('couro');
+    if(!vestRepair(true)||P.armor!==100||g1-P.coins!==q.goldLea||l0-invCount('couro')!==q.lea)return 'reparo com couro errado';
+    closePanel();return '';
+  },
   binoc:()=>{   // usa o binóculo de uma torre (ou de qualquer POI, se não houver torre)
     const p=WORLD.pois.find(q=>q.type==='tower')||WORLD.pois[0],X=poiX();
     const n0=X.bin&&X.bin.r===STATE.round?X.bin.n:0;poiBinoc(p);
@@ -106,6 +170,7 @@ const T={
     report(!g.errs.length,'seed 11: sem erros ao carregar',g.errs.join(' | ').slice(0,300));
     await check(g,'seed 11: POIs gerados',T.pois);
     await check(g,'seed 11: binóculo (poiBinoc)',T.binoc);
+    await check(g,'seed 11: ruínas (guardiões voltam, baú não)',T.ruins);
     await check(g,'seed 11: conquista na rodada N sem moradores',T.civStart);
     await check(g,'seed 11: moradores na rodada N+1',T.civNext);
     await check(g,'seed 11: Negociação (livro na aba facs, todas as telas)',T.neg);
@@ -115,8 +180,13 @@ const T={
     g=await openGame(browser,base,'cenario=pois&auto=1&mute=1');
     report(!g.errs.length,'pois: sem erros ao carregar',g.errs.join(' | ').slice(0,300));
     await check(g,'pois: POIs gerados',T.pois);
-    for(const [type,fn] of [['forge','svcSmith'],['forge','svcAnvil'],['tannery','svcTanner'],['tavern','svcTavern']])
+    for(const [type,fn] of [['tavern','svcSmith'],['tavern','svcMerc'],['tavern','svcTavern'],['post','svcPost']])
       await check(g,'pois: '+fn+' abre sem erro',T.svc,[type,fn]);
+    await check(g,'quartel: reparo do colete (ouro e couro)',T.vest);
+    await check(g,'pois: entreposto (lojista, renda, bloqueio em guerra)',T.post);
+    await check(g,'pois: taverna (ferreiro, mercenário, bandidos)',T.tavernNpcs);
+    await check(g,'pois: caçadores (baú de carne e nível)',T.hunters);
+    await check(g,'pois: santuário (peregrinos, paz, adiamento)',T.sanctuary);
     await check(g,'pois: binóculo (poiBinoc)',T.binoc);
     await check(g,'pois: Negociação (livro na aba facs, todas as telas)',T.neg);
     await g.page.close();

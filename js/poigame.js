@@ -5,23 +5,25 @@
 // Números juntos aqui (como ECON, POL, RAID_WAVES). Ver docs/fase-6-guerra.md.
 const POIX={
   reveal:80,         // a que distância (blocos) um POI aparece no mapa (fora do modo criativo, o mapa começa sem POIs)
-  prod:3,            // unidades por rodada de fazenda (comida), mina (minério), serraria (madeira) e curtume (couro), no armazém
-  toll:30,           // ◉ por rodada da ponte (pedágio)
+  prod:{base:1,perLvl:1},   // unidades por rodada de fazenda (comida), mina (minério), serraria (madeira) e caçadores (couro), no armazém: base + perLvl × nível (poiLvl)
+  toll:20,           // ◉ por rodada da ponte (pedágio) × nível (poiLvl)
+  sanc:{peace:0.5,delay:0.3},   // santuário: chance de a cidade sem suprimento não ficar Descontente; chance de a rebelião ser adiada 1 rodada (sem acumular)
+  post:{income:40,markup:0.10,reach:45},   // entreposto: ◉ por caravana sua que passa por ele × nível (poiLvl); preço da loja +10% (soma com a relação); até onde (blocos) da linha entre as duas cidades da rota ele conta como "no caminho"
+  hunt:{pen:0.08,meat:[1,3]},   // caçadores: em guerra, −0,08 na pontuação de couro de cada facção inimiga por acampamento seu (facsupply.js); baú da conquista: 1 a 3 carnes
   retake:{base:0.03,per:0.0015,far:150,max:0.75},   // chance por rodada de os bandidos retomarem um POI seu: base + (distância da sua cidade mais próxima − far) × per, teto de 75% (POI longe das suas cidades fica inviável)
-  forgeDisc:0.15,forgeMax:2,   // ferraria: −15% no reparo de armas, até 2 ferrarias
-  granaryNeed:0.95,granaryMax:3,   // celeiro: −5% nas necessidades de suprimento de todas as cidades suas, até 3 celeiros
   fortMax:3,         // forte: +1 soldado de batalha, até 3 fortes
-  roomCost:20,       // ◉ do quarto da taverna
+  roomMul:1.1,       // quarto da taverna = preço de curar toda a vida (clínica) × isto; em cidade NPC leva a relação
   vigilHours:4,      // "Fazer vigia" avança o relógio
-  ruinRelic:0.10,    // chance de artefato (relíquia) no baú das ruínas
+  ruinRelic:0.30,    // chance de artefato (relíquia) no baú das ruínas (o baú não volta; os guardiões voltam a cada rodada)
   garrison:{min:10,max:22,by:{fort:12,fortcamp:11},perDist:140,tierStep:200,hpDist:600},   // bandidos por POI: no mínimo 10 (forte 12) e +1 a cada 140 blocos da sua capital; a cada 200 blocos sobe o nível (brutamontes, robôs, franco-atiradores) e a vida cresce até +120%
   sellMin:3000,      // venda a uma facção: ver POI_PRICE
   binoc:{range:300,hours:1,max:3,w:{poi:10,ruins:15,chest:20,portal:25,camp:30}},   // alcance (blocos), horas por uso, usos por rodada e peso de cada achado (do mais raro ao mais comum)
   civDelay:1,   // moradores aparecem N rodadas depois da conquista (conquistou na rodada N, aparecem na N+1)
   guards:{fort:4,fortcamp:4,bridge:3,tower:2,def:2},   // soldados que moram no POI (a ponte tem só soldados)
-  civ:{farm:3,mine:3,sawmill:3,tannery:2,granary:3,forge:1,fort:3,tavern:0,tower:0,bridge:0,fortcamp:0,trench:0},   // civis que andam pelo POI (fora os de serviço e os da taverna)
-  anvil:[3,3,7,5,12,18],   // sucata para reparar 100% da durabilidade de cada arma na bigorna (proporcional ao que falta, no mínimo 1)
-  vest:{base:180,leather:5}   // reparo do colete no curtume: 35% do preço de um colete novo (como as armas) em ◉, ou este tanto de couro para 100%
+  civ:{farm:3,mine:3,sawmill:3,hunters:2,sanctuary:5,post:2,fort:3,tavern:0,tower:0,bridge:0,fortcamp:0,trench:0},   // civis que andam pelo POI (fora os de serviço e os da taverna)
+  anvil:[3,3,7,5,12,18],   // sucata para reparar 100% da durabilidade de cada arma no ferreiro (proporcional ao que falta, no mínimo 1)
+  smith:{goldPct:0.6},     // pagando com sucata, o ferreiro ainda cobra esta fração do preço em ◉ (a sucata cobre o resto)
+  vest:{base:180,leather:5,pct:0.35,goldPct:0.6}   // reparo do colete no Quartel (allies.js): 35% do preço de um colete novo em ◉; com couro (5 para 100%) cobra 60% disso em ◉
 };
 Hooks.on('resetState',()=>{STATE.poiX={clr:{},defer:{},vigil:-1,room:null,done:{},seen:{}}});
 const poiX=()=>{const X=STATE.poiX||(STATE.poiX={clr:{},defer:{},vigil:-1,room:null,done:{},seen:{}});if(!X.done)X.done={};if(!X.seen)X.seen={};return X};
@@ -29,7 +31,13 @@ const poiVisible=p=>(p.show||G.creative||!!poiX().seen[p.id])&&poiLive(p);   // 
 let POI_READY=false;
 const poiMine=type=>(WORLD.pois||[]).filter(p=>!p.show&&p.owner==='player'&&poiLive(p)&&(!type||p.type===type));
 const poiCount=type=>poiMine(type).length;
-const poiNeedMul=(c,res)=>c&&c.owner==='player'?Math.pow(POIX.granaryNeed,Math.min(POIX.granaryMax,poiCount('granary'))):1;   // usado por needOf (econ.js)
+// nível usado por produção, pedágio e Entreposto: jogador = nível do líder; facção NPC = maior nível entre as cidades dela (a regra muda só aqui)
+const poiLvl=o=>{
+  if(o==='player'||o===0)return STATE.rd.lvl||1;
+  if(typeof o!=='number')return 1;
+  let m=1;for(const c of WORLD.cities||[])if(c.fid===o)m=Math.max(m,Math.ceil((c.rank||1)/2));
+  return m;
+};   // (mesma conta de factions.js: nível da cidade NPC = ceil(rank/2))
 
 // ---------- POIs de guerra: só existem durante a guerra ----------
 // (acampamento fortificado e trincheira): sem guerra não contam, não rendem, não aparecem nos mapas nem têm guarnição. No mapa manual (?cenario=pois) ficam ligados para teste.
@@ -72,13 +80,32 @@ function poiGarrisonSync(p){   // POI de guerra fora da guerra fica sem bandidos
   if(!p.show){const want=poiLive(p)&&(p.type==='ruins'?!poiX().done[p.id]:p.owner==='bandit');if(want)poiGarrisonPopulate(p);else poiGarrisonRemove(p)}
   poiCivSync(p);
 }
-function poiPopulateAll(){POI_READY=true;for(const p of WORLD.pois||[])poiGarrisonSync(p)}   // chamado por populateWild (poi.js) e depois de carregar um salvamento (poiApply)
+function poiPopulateAll(){POI_READY=true;for(const p of WORLD.pois||[]){poiGarrisonSync(p);poiHuntChest(p)}}   // chamado por populateWild (poi.js) e depois de carregar um salvamento (poiApply)
 function poiGarrisonCleared(c){
   const p=c.poi;c.state='cleared';if(!p)return;if(c._ally){c._ally=false;armyConquered(WORLD.home)}   // os soldados voltam para casa
-  if(p.type==='ruins'){poiX().done[p.id]=true;poiGarrisonRemove(p);sfx('win',0);toast('🏛 As ruínas estão livres: o baú foi destrancado.',4000);return}
+  if(p.type==='ruins'){poiX().done[p.id]=true;poiGarrisonRemove(p);sfx('win',0);toast('🏛 Guardiões das ruínas derrotados: o baú foi destrancado. Eles voltam na próxima rodada.',4500);return}
   if(p.owner!=='bandit')return;
+  poiHuntLoot(p);
   poiGarrisonRemove(p);poiSetOwner(p,'free');poiX().clr[p.id]=STATE.round;sfx('win',0);
   toast('🏴 '+POI_DEFS[p.type].n+' limpo! Na próxima rodada o líder decide o que fazer com ele.',4500);
+}
+
+// ---------- santuário: paz e rebelião adiada (rounds.js, facsupply.js, rebellion.js) ----------
+// vale para o dono do Santuário (você ou uma facção); com bandidos ou livre, nada. Um sorteio só, não importa quantos santuários o dono tenha.
+const poiHasSanc=o=>(WORLD.pois||[]).some(p=>!p.show&&p.type==='sanctuary'&&p.owner===o);
+const poiSancPeace=o=>poiHasSanc(o)&&Math.random()<POIX.sanc.peace;   // cidade sem suprimento: o humor não fica em Descontente
+const poiSancDelay=o=>poiHasSanc(o)&&Math.random()<POIX.sanc.delay;   // cidade que ia se rebelar: adia 1 rodada (a contagem de rodadas sem suprimento não muda)
+
+// ---------- caçadores: baú com carne ao limpar os bandidos (uma vez só) ----------
+function poiHuntChest(p){   // cria o baú pendente (também depois de carregar um salvamento, em que o baú ainda não foi aberto)
+  const n=poiX().hunt&&poiX().hunt[p.id];if(!n||p.huntChest||!p.chestPos)return;
+  const q=p.chestPos,ch=addChest(q.x,q.y,q.z,0,0,null);ch.fixedLoot=[['carne',n]];p.huntChest=ch;
+  ch.onOpen=()=>{delete poiX().hunt[p.id];p.huntChest=null};
+}
+function poiHuntLoot(p){
+  const X=poiX();if(p.type!=='hunters'||X.done[p.id])return;
+  const M=POIX.hunt.meat;X.done[p.id]=true;(X.hunt||(X.hunt={}))[p.id]=M[0]+Math.floor(Math.random()*(M[1]-M[0]+1));
+  poiHuntChest(p);toast('🥩 Os caçadores deixaram um baú com carne no acampamento.',4000);
 }
 
 // ---------- cartão "Terras livres" (anexar, doar, vender ou deixar) ----------
@@ -98,7 +125,7 @@ function poiFacList(p){   // facções com cidades e fora de guerra com você, d
   }
   return out.sort((a,b)=>a.dist-b.dist).slice(0,4);
 }
-const POI_PRICE={fort:4500,mine:4000,bridge:4000,farm:3500,sawmill:3500,tannery:3500,granary:3500,forge:3500,tavern:3500,tower:3200,fortcamp:3000,trench:3000};   // mínimo de ◉3000
+const POI_PRICE={fort:4500,mine:4000,bridge:4000,farm:3500,sawmill:3500,hunters:3500,sanctuary:3500,post:4500,tavern:3500,tower:3200,fortcamp:3000,trench:3000};   // mínimo de ◉3000
 const poiSellPrice=(p,dist)=>Math.round((POI_PRICE[p.type]||3000)*(1+Math.max(0,200-dist)/400)/100)*100;   // quem está perto paga até +50%
 const poiDone=(x,p,msg)=>{   // anexar, doar ou vender: só um POI por rodada (os outros cartões somem e voltam na rodada seguinte)
   const X=poiX();delete X.clr[p.id];delete X.defer[p.id];G.poiFocus=null;X.decided=STATE.round;
@@ -155,13 +182,55 @@ Hooks.on('round',()=>{
   for(const a of ALLIES)if(a.poiFort&&a.alive){a.alive=false;a.gone=true;scene.remove(a.group)}   // soldados extras dos fortes valem só numa batalha da rodada
   const home=playerCities()[0],gain={};
   for(const p of poiMine()){
-    const res={farm:'food',mine:'ore',sawmill:'wood',tannery:'leather'}[p.type];
-    if(res&&home){const g=prodAdd(home,res,POIX.prod);if(g>0)gain[res]=(gain[res]||0)+g}
-    if(p.type==='bridge'){shOf().vault+=POIX.toll;rdNow('🌉 Pedágio da ponte: +◉'+POIX.toll+' no cofre.')}
+    const res={farm:'food',mine:'ore',sawmill:'wood',hunters:'leather'}[p.type];
+    if(res&&home){const g=prodAdd(home,res,POIX.prod.base+POIX.prod.perLvl*poiLvl('player'));if(g>0)gain[res]=(gain[res]||0)+g}
+    if(p.type==='bridge'){const t=POIX.toll*poiLvl('player');shOf().vault+=t;rdNow('🌉 Pedágio da ponte: +◉'+t+' no cofre.')}
     if(Math.random()<poiRetakeChance(p)){poiSetOwner(p,'bandit');poiGarrisonSync(p);rdNow('🏴 Bandidos retomaram '+POI_DEFS[p.type].n+', longe demais das suas cidades.')}
   }
   for(const r in gain)rdNow('⛏ POIs: +'+gain[r]+' de '+resName(r).toLowerCase()+' na reserva do armazém.');
 });
+
+// ---------- entreposto comercial: renda das caravanas que passam por ele e bloqueio em guerra ----------
+// "Passa por ele" = o entreposto fica perto da linha entre as duas cidades da rota (p.road = [idA, idB], se a geração gravar a estrada em que ele nasceu, vale no lugar da distância).
+// Dono bandido: sem lojista (poiCivSync) e sem renda. Só há guerra entre você e uma facção: o entreposto de um lado impede as caravanas do outro que passariam por ele.
+const poiPosts=()=>(WORLD.pois||[]).filter(p=>!p.show&&p.type==='post'&&poiLive(p));
+function poiOnRoute(p,A,B){
+  if(p.road)return (p.road[0]===A.id&&p.road[1]===B.id)||(p.road[0]===B.id&&p.road[1]===A.id);
+  const dx=B.cx-A.cx,dz=B.cz-A.cz,t=Math.max(0,Math.min(1,((p.cx-A.cx)*dx+(p.cz-A.cz)*dz)/(dx*dx+dz*dz||1)));
+  return Math.hypot(p.cx-(A.cx+dx*t),p.cz-(A.cz+dz*t))<=POIX.post.reach;
+}
+function poiRouteBlocked(r){   // a rota {a,b} (ids de cidades) passa por um entreposto do lado inimigo, com guerra declarada?
+  const A=WORLD.cities[r.a],B=WORLD.cities[r.b];if(!A||!B)return false;
+  const mine=A.owner==='player'||B.owner==='player',others=[A,B].filter(c=>c.owner!=='player'&&c.fid).map(c=>c.fid);
+  for(const p of poiPosts()){
+    const o=p.owner;if(!poiOnRoute(p,A,B))continue;
+    if(o==='player'?others.some(f=>relOf(f).war):(typeof o==='number'&&mine&&relOf(o).war))return true;
+  }
+  return false;
+}
+const poiPostIncome=()=>{   // renda por rodada de um entreposto seu: ◉ por caravana sua que passa por ele × nível
+  const rd=STATE.rd,out=[];
+  for(const p of poiMine('post')){
+    let n=0;for(const r of rd.routes.concat(rd.nroutes||[])){const A=WORLD.cities[r.a],B=WORLD.cities[r.b];if(A&&B&&poiOnRoute(p,A,B))n+=(A.owner==='player')+(B.owner==='player')}
+    if(n)out.push({p,n,gold:POIX.post.income*poiLvl('player')*n});
+  }
+  return out;
+};
+Hooks.on('round',()=>{
+  if(!WORLD.pois||STATE.round<1)return;
+  const rd=STATE.rd,n0=rd.routes.length+(rd.nroutes||[]).length;   // a guerra ou a conquista de um entreposto desfaz as rotas que ele impede
+  rd.routes=rd.routes.filter(r=>!poiRouteBlocked(r));if(rd.nroutes)rd.nroutes=rd.nroutes.filter(r=>!poiRouteBlocked(r));
+  if(rd.routes.length+(rd.nroutes||[]).length!==n0){rebuildCaravans();computeBuffs()}
+  for(const i of poiPostIncome())shOf().vault+=i.gold;
+});
+// aba Efeitos do livro (meetfx.js): o que os entrepostos dão e tiram agora
+function poiPostEffects(good,bad){
+  const inc=poiPostIncome(),tot=inc.reduce((s,i)=>s+i.gold,0),n=inc.reduce((s,i)=>s+i.n,0);
+  if(tot)good.push('🏪 Entreposto comercial: +◉'+tot+' por rodada no cofre ('+n+' caravana'+(n>1?'s':'')+' sua'+(n>1?'s':'')+' passa'+(n>1?'m':'')+' por ele)');
+  const war=(WORLD.factions||[]).filter(f=>!f.player&&relOf(f.id).war);
+  if(war.length&&poiCount('post'))good.push('🏪 Entreposto comercial: impede as caravanas de '+war.map(f=>f.name).join(', ')+' que passariam por ele');
+  for(const f of war)if(poiPosts().some(p=>p.owner===f.id))bad.push('🏪 Entreposto de '+f.name+': impede as suas caravanas que passariam por ele');
+}
 
 // ---------- fortes: +1 soldado (temporário) por forte em cada batalha ----------
 const _armyAssault=armyAssault;
@@ -174,9 +243,6 @@ armyAssault=function(c,msg,only){
   }
   return _armyAssault(c,msg,only);
 };
-
-// ---------- ferraria: reparo mais barato ----------
-addPriceFx('poi',ctx=>{const n=Math.min(POIX.forgeMax,poiCount('forge'));return ctx.kind==='repair'&&n?[{txt:'Ferraria sua (−'+Math.round(POIX.forgeDisc*n*100)+'%)',mul:1-POIX.forgeDisc*n}]:[]},81);
 
 // ---------- ruínas: baú com chance de artefato ----------
 function poiRuinLoot(p){if(Math.random()<POIX.ruinRelic){const t=invGive([['reliquia',1]]);toast('🏺 Entre os destroços havia um artefato! '+(t||''),4500)}}
@@ -200,15 +266,16 @@ function poiCivSync(p){
   for(let i=0;i<ng;i++){const w=ring(i,ng,0.45);spawnNpc(p.civ,{role:'guard',x:w.x,z:w.z,y:p.y,yaw:w.a,stationary:true})}
   for(let i=0;i<(POIX.civ[p.type]||0);i++){const w=ring(i*2+1,Math.max(6,(POIX.civ[p.type]||0)*2),0.3+0.15*(i%2));spawnNpc(p.civ,{role:'civ',x:w.x,z:w.z,y:p.y,yaw:w.a})}
   p.civ.svc={};
-  for(const s of p.svcSpec||[])p.civ.svc[s.kind]=spawnNpc(p.civ,{role:s.role,x:s.x,z:s.z,y:p.y,yaw:s.yaw||0,stationary:true});
-  if(p.type==='tavern')for(const k of p.keepers||[])spawnNpc(p.civ,{role:k.role,x:k.x,z:k.z,y:p.y,yaw:k.yaw,stationary:true,sit:k.sit});
+  for(const s of p.svcSpec||[]){if(s.seat)continue;p.civ.svc[s.kind]=spawnNpc(p.civ,{role:s.role,x:s.x,z:s.z,y:p.y,yaw:s.yaw||0,stationary:true})}
+  if(p.type==='tavern')for(const k of p.keepers||[]){
+    const merc=k.merc&&o==='player',n=spawnNpc(p.civ,{role:merc?'merc':k.role,x:k.x,z:k.z,y:p.y,yaw:k.yaw,stationary:true,sit:k.sit});
+    if(merc)p.civ.svc.merc=n;   // o mercenário é o freguês sentado da mesa
+  }
 }
-Hooks.on('round',()=>{for(const p of WORLD.pois||[]){if(POI_DEFS[p.type].war)poiGarrisonSync(p);else poiCivSync(p)}});   // moradores novos aparecem no início da rodada
+Hooks.on('round',()=>{for(const p of WORLD.pois||[]){if(p.type==='ruins'&&poiX().done[p.id]){delete poiX().done[p.id];poiGarrisonSync(p)}   // ruínas: os guardiões voltam a cada rodada (done = guarnição derrotada nesta rodada); o baú não volta
+    if(POI_DEFS[p.type].war)poiGarrisonSync(p);else poiCivSync(p)}});   // moradores novos aparecem no início da rodada
 
-// pontos de serviço: o ferreiro e a bigorna na ferraria, o curtidor no curtume (posições locais do desenho; yaw: para onde olha)
-const _bForge=POI_BUILD.forge,_bTan=POI_BUILD.tannery;
-POI_BUILD.forge=function(c,rng,p){_bForge(c,rng,p);p.anvil={x:c.cx+2.55,y:c.y+0.8,z:c.cz+2.1};p.svcSpec=[{kind:'smith',role:'smith',label:'Ferreiro: pagar conserto de arma',x:c.cx+2.8,z:c.cz+4.3,yaw:Math.PI}]};
-POI_BUILD.tannery=function(c,rng,p){_bTan(c,rng,p);p.svcSpec=[{kind:'tanner',role:'tanner',label:'Curtidor: reparar o colete',x:c.cx+4.0,z:c.cz+4.8,yaw:0}]};
+// pontos de serviço: p.svcSpec = [{kind, role, label, x, z, yaw, only}] (só:'player' = só quando o POI é seu). A taverna traz o ferreiro e o mercenário
 
 // ---------- cidade de referência para preços e serviço disponível ----------
 function poiPriceCity(p){
@@ -221,7 +288,7 @@ function poiSvcOk(p){   // serviços: POI seu ou de uma facção que não é ini
   if(p.owner==='player')return true;
   return typeof p.owner==='number'&&relStatus(p.owner)!=='war'&&relStatus(p.owner)!=='enemy';
 }
-const poiRoomCost=p=>Math.max(1,Math.round(priceOf(POIX.roomCost,{city:poiPriceCity(p),kind:'tavern'})));
+const poiRoomCost=p=>Math.max(1,Math.round(clinicCost(P.maxhp,poiPriceCity(p))*POIX.roomMul));   // preço da cura completa + 10% (clinicCost: game.js)
 
 // ---------- painel de serviço (tela simples, como a clínica) ----------
 let SVC=null;
@@ -240,47 +307,71 @@ const svcWeaponRows=(body,extra)=>{   // uma carta por arma que você tem
   });
 };
 
-// ferreiro: paga o conserto (mesmo preço e efeitos do armeiro)
+// ferreiro da taverna: conserta em ouro (preço normal) ou com sucata + 60% do preço em ouro; em taverna de facção o preço leva a relação (poiPriceCity)
+const anvilParts=i=>Math.max(1,Math.ceil((POIX.anvil[i]||6)*(100-durOf(i))/100));
+function repairWeaponScrap(i,c){   // como repairWeapon: sem saldo o ouro vira dívida
+  const cost=repairCost(i,c);if(cost<=0)return false;
+  const n=anvilParts(i),gold=Math.max(1,Math.round(cost*POIX.smith.goldPct));
+  if(invCount('sucata')<n){toast('Sucata insuficiente: faltam '+(n-invCount('sucata'))+'.',2500);return false}
+  invRemove('sucata',n);let debt=false;
+  if(!Ledger.spend({gold})){Ledger.borrow({gold});debt=true}
+  STATE.dur[i]=100;sfx('coin',0);toast('🔧 '+wName(i)+' consertada (−'+n+' sucata, −◉'+gold+')'+(debt?' — ⚠ você ficou em dívida!':'.'),3000);return true;
+}
 function svcSmith(p){
   const c=poiPriceCity(p);
   svcOpen('⚒ FERREIRO',(txt,body)=>{
-    txt.innerHTML='— Traga a arma que eu devolvo como nova. Moedas: <b>◉ '+P.coins+'</b>'+(p.owner==='player'?'<br><small>Dica: a bigorna da sua ferraria conserta de graça com sucata.</small>':'');
+    txt.innerHTML='— Traga a arma que eu devolvo como nova. Moedas: <b>◉ '+P.coins+'</b> • Sucata: <b>🔩 '+invCount('sucata')+'</b>';
     svcWeaponRows(body,(card,i)=>{
-      const cost=repairCost(i,c),dmg=durOf(i)<100;
+      const cost=repairCost(i,c),dmg=durOf(i)<100,n=anvilParts(i),gold=Math.max(1,Math.round(cost*POIX.smith.goldPct));
       if(dmg)card.insertAdjacentHTML('beforeend',tagLine(priceTag(c,'repair','Conserto')));
       const b=UI.button(dmg?'🔧 Consertar ◉'+cost+(P.coins<cost?' (gera dívida)':''):'Em perfeito estado','gold',()=>{repairWeapon(i,c);svcRender()});
       b.disabled=!dmg;card.appendChild(b);
+      const b2=UI.button(dmg?'🔩 '+n+' sucata + ◉'+gold:'—','gold',()=>{repairWeaponScrap(i,c);svcRender()});
+      b2.disabled=!dmg||invCount('sucata')<n;card.appendChild(b2);
     });
   });
 }
-// bigorna da ferraria sua: conserta gastando sucata
-const anvilParts=i=>Math.max(1,Math.ceil((POIX.anvil[i]||6)*(100-durOf(i))/100));
-function svcAnvil(p){
-  svcOpen('🔨 BIGORNA',(txt,body)=>{
-    txt.innerHTML='Martele a arma com peças de metal. Sucata na bolsa: <b>🔩 '+invCount('sucata')+'</b>';
-    svcWeaponRows(body,(card,i)=>{
-      const n=anvilParts(i),dmg=durOf(i)<100;
-      card.insertAdjacentHTML('beforeend','<div class="st">Custo para consertar tudo: '+(dmg?'<b>🔩 '+n+'</b>':'—')+' (100% = '+(POIX.anvil[i]||6)+')</div>');
-      const b=UI.button(dmg?'🔨 Reparar com '+n+' sucata'+(n>1?'s':''):'Em perfeito estado','gold',()=>{
-        if(invCount('sucata')<n){toast('Sucata insuficiente: faltam '+(n-invCount('sucata'))+'.',2500);return}
-        invRemove('sucata',n);STATE.dur[i]=100;sfx('coin',0);toast('🔨 '+wName(i)+' reparada na bigorna (−'+n+' sucata).',2500);svcRender();
-      });
-      b.disabled=!dmg||invCount('sucata')<n;card.appendChild(b);
+// mercenário (só na taverna do jogador): recruta soldados como o Quartel, pelo preço da capital
+function svcMerc(p){
+  const c=WORLD.home;ARMY.city=c;
+  svcOpen('⚔ MERCENÁRIO',(txt,body)=>{
+    const cost=bp(ARMY.recruitCost,'recruit'),full=armyTotal()>=ARMY.max;
+    txt.innerHTML='— Espada de aluguel, a seu serviço. Soldados: <b>'+armyTotal()+'/'+ARMY.max+'</b> • Moedas: <b>◉ '+P.coins+'</b>';
+    body.insertAdjacentHTML('beforeend',tagLine(priceTag(c,'recruit')));
+    const b=UI.button(full?'Exército completo':'Recrutar soldado ◉'+cost,'gold',()=>{
+      if(recruitAlly(c))toast('⚔ Um mercenário se juntou ao seu exército.',2500);else toast('Não foi possível recrutar.',2000);svcRender();
     });
+    b.disabled=full||P.coins<cost;body.appendChild(b);
   });
 }
-// curtume: repara o colete (em ◉ ou em couro)
-function svcTanner(p){
+// lojista do entreposto: comida, munição, remédios e materiais, 10% acima (soma com a relação da cidade de referência, se o dono for outra facção)
+const postPrice=(base,c,kind)=>Math.max(1,Math.round(base*priceMulOf(priceExplain({city:c,kind}).concat([{txt:'Entreposto',mul:1+POIX.post.markup}]))));
+function svcPost(p){
   const c=poiPriceCity(p);
-  svcOpen('🟤 CURTIDOR',(txt,body)=>{
-    const miss=Math.max(0,Math.ceil(100-P.armor)),gold=Math.max(5,Math.round(priceOf(Math.max(5,Math.round(POIX.vest.base*0.35*miss/100)),{city:c,kind:'vest'}))),lea=Math.max(1,Math.ceil(POIX.vest.leather*miss/100));
-    txt.innerHTML='— Couro bom aguenta muito tiro. Colete: <b>'+Math.ceil(P.armor)+'/100</b> • Moedas: <b>◉ '+P.coins+'</b> • Couro na bolsa: <b>🟤 '+invCount('couro')+'</b>';
-    if(miss<=0){body.innerHTML='<p>O seu colete está inteiro (ou você não tem um: compre no armeiro).</p>';return}
-    body.insertAdjacentHTML('beforeend',tagLine(priceTag(c,'vest','Colete')));
-    const b1=UI.button('🛡 Reparar com ouro ◉'+gold,'gold',()=>{if(!Ledger.spend({gold})){toast('Ouro insuficiente.',2000);return}P.armor=100;sfx('coin',0);toast('🛡 Colete reparado (−◉'+gold+').',2500);svcRender()});
-    b1.disabled=P.coins<gold||Ledger.anyDebt();body.appendChild(b1);
-    const b2=UI.button('🟤 Reparar com '+lea+' couro','gold',()=>{if(invCount('couro')<lea){toast('Couro insuficiente.',2000);return}invRemove('couro',lea);P.armor=100;sfx('coin',0);toast('🛡 Colete reparado (−'+lea+' couro).',2500);svcRender()});
-    b2.disabled=invCount('couro')<lea;body.appendChild(b2);
+  svcOpen('🏪 ENTREPOSTO',(txt,body)=>{
+    txt.innerHTML='— Do que precisa? Preços '+Math.round(POIX.post.markup*100)+'% acima. Moedas: <b>◉ '+P.coins+'</b>';
+    const sec=t=>body.insertAdjacentHTML('beforeend','<h4>'+t+'</h4>'),debt=Ledger.anyDebt();
+    const item=(d,kind)=>{   // um item da bolsa por clique
+      const pr=postPrice(d.price,c,kind),b=UI.button(d.icon+' '+d.name+' ◉'+pr,'gold',()=>{
+        if(invRoomFor(d.id)<1)toast('Bolsa cheia! Descarte algo antes de comprar.',2000);
+        else if(Ledger.spend({gold:pr})){invGive([[d.id,1]]);sfx('coin',0)}
+        svcRender();
+      });
+      b.disabled=debt||P.coins<pr;b.title=d.desc;body.appendChild(b);
+    };
+    const items=shop=>Object.values(DATA.items).filter(d=>d.shop===shop&&!d.rod);
+    sec('🍲 Comida');items('tavern').forEach(d=>item(d,'tavern'));
+    sec('🔫 Munição');
+    WEAPONS.forEach((w,i)=>{
+      if(!WS.owned[i])return;
+      const pk=postPrice(w.packCost,c,'ammo'),full=WS.reserve[i]>=w.pack*8;
+      const b=UI.button('+'+w.pack+' '+w.name+' ◉'+pk+' ('+WS.reserve[i]+')','gold',()=>{
+        if(Ledger.spend({gold:pk})){WS.reserve[i]=Math.min(WS.reserve[i]+w.pack,w.pack*8);sfx('coin',0)}svcRender();
+      });
+      b.disabled=debt||full||P.coins<pk;body.appendChild(b);
+    });
+    sec('🩹 Remédios');items('clinic').forEach(d=>item(d,'heal'));
+    sec('📦 Materiais');items('store').forEach(d=>item(d,'buy'));
   });
 }
 // taverneiro: comida e quarto
@@ -288,8 +379,9 @@ function svcTavern(p){
   const c=poiPriceCity(p);
   svcOpen('🍺 TAVERNEIRO',(txt,body)=>{
     const X=poiX(),r=X.room,has=r&&r.poi===p.id&&r.round===STATE.round,cost=poiRoomCost(p);
-    txt.innerHTML='— Sente-se! Comida quente ou uma cama? Moedas: <b>◉ '+P.coins+'</b>';
+    txt.innerHTML='— Sente-se! Comida quente ou uma cama? (o quarto custa a cura completa + 10%) Moedas: <b>◉ '+P.coins+'</b>';
     body.appendChild(UI.button('🍲 Comprar comida','gold',()=>openStore(c,'tavern')));
+    body.insertAdjacentHTML('beforeend',tagLine(priceTag(c,'healhp','Quarto')));
     const b=UI.button(has?'🛏 Quarto reservado (porta aberta, andar de cima)':'🛏 Alugar quarto ◉'+cost,'gold',()=>{
       if(!Ledger.spend({gold:cost})){toast('Ouro insuficiente para o quarto (◉'+cost+').',2500);return}
       X.room={poi:p.id,round:STATE.round};sfx('coin',0);toast('🛏 Quarto reservado (−◉'+cost+'). É o da porta aberta, no andar de cima.',4500);svcRender();
@@ -299,20 +391,20 @@ function svcTavern(p){
   });
 }
 
-// ---------- interações: vigia e binóculo da torre, balcão e cama da taverna, ferreiro, bigorna e curtidor ----------
+// ---------- interações: vigia e binóculo da torre, balcão e cama da taverna, ferreiro e lojista ----------
 function poiScan(lines){
   for(const p of WORLD.pois||[]){
     const own=p.owner==='player',svc=poiSvcOk(p);if(!own&&!svc)continue;   // vigia e binóculo só nos seus; taverneiro e cama também nos de facções amigas
     if(own&&p.vigilPos&&Math.hypot(P.x-p.vigilPos.x,P.z-p.vigilPos.z)<2.6&&Math.abs(P.y-p.y)<2.6){G.target={type:'poivigil',p};lines.push('[E] Fazer vigia (avança '+POIX.vigilHours+' h e marca um ponto de interesse)'+(poiX().vigil===STATE.round?' — já feito nesta rodada':''))}
     if(own&&p.binoc&&Math.hypot(P.x-p.binoc.x,P.z-p.binoc.z)<1.8&&Math.abs(P.y-p.binoc.y)<3){G.target={type:'poibinoc',p};lines.push('[E] Usar o binóculo (acha POIs, ruínas, baús, portais e acampamentos num raio de '+POIX.binoc.range+' blocos)')}
     if(svc&&p.tavern&&Math.hypot(P.x-p.tavern.x,P.z-p.tavern.z)<3.2&&Math.abs(P.y-p.y)<2.6){G.target={type:'poibar',p};lines.push('[E] Taverneiro: comida e quarto')}
+    if(own&&p.stove&&Math.hypot(P.x-p.stove.x,P.z-p.stove.z)<3.0&&Math.abs(P.y-p.y)<2.6){G.target={type:'stove',p};lines.push('[E] Fogão: cozinhar')}   // igual ao da taverna da cidade (game.js: openCooking), só na taverna sua
     if(svc&&p.bed&&Math.hypot(P.x-p.bed.x,P.z-p.bed.z)<2.4&&Math.abs(P.y-p.bed.y)<2.6){G.target={type:'poibed',p};const r=poiX().room;lines.push(r&&r.poi===p.id&&r.round===STATE.round?'[E] Dormir (noite vira manhã; dia vira noite)':'🔒 Cama: reserve o quarto com o taverneiro')}
   }
   let best=null;   // o serviço mais perto de você (o ferreiro e a bigorna ficam próximos)
   const cand=(p,x,z,tg,txt,r)=>{const d=Math.hypot(P.x-x,P.z-z);if(d<r&&Math.abs(P.y-p.y)<2.6&&(!best||d<best.d))best={d,tg,txt}};
   for(const p of WORLD.pois||[]){
     for(const s of p.svcSpec||[])if(poiSvcOk(p)&&p.civ.svc&&p.civ.svc[s.kind]&&p.civ.svc[s.kind].alive)cand(p,s.x,s.z,{type:'poisvc',p,s},s.label,2.4);
-    if(p.anvil&&p.owner==='player')cand(p,p.anvil.x,p.anvil.z,{type:'poianvil',p},'Bigorna: reparar arma gastando sucata',2.0);
   }
   if(best){G.target=best.tg;lines.push('[E] '+best.txt)}
 }
@@ -320,8 +412,7 @@ function poiAct(t){
   const p=t.p,X=poiX();
   if(t.type==='poibinoc')return poiBinoc(p);
   if(t.type==='poibar')return svcTavern(p);
-  if(t.type==='poisvc')return t.s.kind==='smith'?svcSmith(p):svcTanner(p);
-  if(t.type==='poianvil')return svcAnvil(p);
+  if(t.type==='poisvc')return t.s.kind==='smith'?svcSmith(p):t.s.kind==='merc'?svcMerc(p):svcPost(p);
   if(t.type==='poivigil'){
     if(STATE.phase!=='commander')return toast('A vigia é feita no turno do comandante.',2500);
     if(X.vigil===STATE.round)return toast('Você já fez a vigia nesta rodada.',2500);
