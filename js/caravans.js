@@ -118,7 +118,7 @@ const CARAVANS=[];
 function roadSpot(ax,az,bx,bz,t){
   const x0=ax+(bx-ax)*t,z0=az+(bz-az)*t,toB=Math.atan2(bx-ax,bz-az);
   const nearCity=(x,z)=>WORLD.cities.some(c=>Math.max(Math.abs(c.cx-x),Math.abs(c.cz-z))<c.half+12);
-  const isRoad=(x,z)=>{x=Math.floor(x);z=Math.floor(z);return x>=0&&z>=0&&x<W&&z<W&&(T[z*W+x]===T_ROAD||T[z*W+x]===T_BRIDGE)};
+  const isRoad=(x,z)=>{x=Math.floor(x);z=Math.floor(z);return x>=0&&z>=0&&x<W&&z<W&&T[z*W+x]===T_ROAD};   // só estrada de terra: caravana não para em ponte (por enquanto)
   const dirAt=(x,z)=>{   // direção da estrada: a que tem mais trechos de estrada à frente e atrás
     let best=0,bc=-1;
     for(let k=0;k<8;k++){const a=k*Math.PI/8;let n=0;for(let s=-7;s<=7;s++)if(s&&isRoad(x+Math.sin(a)*s,z+Math.cos(a)*s))n++;if(n>bc){bc=n;best=a}}

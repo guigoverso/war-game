@@ -5,7 +5,7 @@ Bilhete de passagem entre sessões e PCs: **leia no início, atualize no fim** (
 ## Agora
 - **Branch:** `factions-update`. **Save:** `SAVE_VERSION = 21`.
 - **Fase atual:** 6 (guerra), revisão dos POIs em andamento (`docs/features/3_tarefas.md`: tarefas 1 a 9 feitas; falta só a 10, fechamento). Fases 4 (rodadas) e 5 (facções) prontas.
-- **Última atualização:** 2026-11-20: geração nova dos POIs (tarefa 9): anel, estrada e interior, tipo por bioma, limites e mínimos por tipo, tipo principal do bioma dominante primeiro (`POI_GEN`, `POI_W`, `poiRuleOK` em `pois.js`). De 23 a 29 POIs em 18 testes (6 sementes × 3 biomas). Antes: Entreposto, colete no Quartel, Santuário, Ruínas. Smoke passa.
+- **Última atualização:** 2026-11-20 (sessão local): estradas sobre a água e pontes (`docs/features/5_pontes.md`, tarefas 1 a 5): estrada atravessa água (`ROAD_WATER`), pontes de 5 blocos com tabuleiro aberto, pilares, corrimão com colisão e cabeceiras (`world.js`), `WORLD.bridges`, pedágio só em trecho reto, até 3 por mapa (`bridgeSpots`, `pois.js`), caravanas decorativas não param em ponte. Antes: geração nova dos POIs (tarefa 9).
 - **Teste de fumaça:** `node tests/smoke.js` (instalação: ver `CLAUDE.md`). Rode depois de mexer em POIs, serviços, rodadas ou Negociação.
 
 ## Onde está o histórico
@@ -22,6 +22,8 @@ Bilhete de passagem entre sessões e PCs: **leia no início, atualize no fim** (
 - **Pendente do usuário:** lista de novas mecânicas de caravana e desenho do espião.
 - Detalhes por fase: seções "Pendências" em `docs/fase-4-testes.md` e `docs/fase-5-facoes.md`; "Falta jogar"/"Pontas soltas" em `docs/fase-6-guerra.md`; `docs/futuras-correcoes.md`.
 
+- **Pontes:** feitas e vistas na tela só na seed 11 (floresta); 0 furos no terreno por raios em 5 sementes. Falta jogar: andar e correr na ponte, NPCs no corrimão (colisão de 2,4), nadar por baixo (coluna invisível), pesca perto. Mapas com 0 a 3 pedágios (pontes curtas ou tortas ficam sem). Saves antigos: o mundo é regenerado pela semente, então estradas e POIs mudam de lugar (sem `SAVE_VERSION`).
+- **Smoke intermitente:** "moradores na rodada N+1" falha de vez em quando num POI de mina (`civNext`); não investigado, parece independente das pontes.
 - **Geração de POIs:** Mina quase não nasce em planície (sem pedra), Serraria e Entreposto saem pouco; ajuste `POI_GEN`/`POI_RANGE`. Mapas de 6 cidades ficam em ~23. Dá para jogar com `?seed=11&bio=plains` (o bioma é nome: `plains`, `forest`, `mountain`, `snow`, `desert`).
 
 ## Próximo passo

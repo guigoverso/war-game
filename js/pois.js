@@ -387,23 +387,21 @@ poiPath(c,0,R+1,0,4);poiBrazier(c,-3.4,R+1.6);poiBrazier(c,3.4,R+1.6);
     poiFlag(c,p,-10,5,6);
   },
 
-  bridge(c,rng,p){   // posto de pedágio de aço: tabuleiro metálico com guarda-corpo, pórtico, cancela (com colisão) e guarita mobiliada sobre base própria (p.axis: direção da estrada)
-    const A=p.axis==='x',Q=(u0,v0,u1,v1,y0,y1,col,s,o)=>A?pBc(c,v0,y0,u0,v1,y1,u1,col,s,o):pBc(c,u0,y0,v0,u1,y1,v1,col,s,o);   // u: de lado a lado da estrada; v: ao longo dela
-    for(let v=-12;v<=12;v++){   // tabuleiro de chapas de aço e guarda-corpo, acompanhando a altura de cada trecho da estrada
-      const tx=Math.round(c.cx+(A?v:0)),tz=Math.round(c.cz+(A?0:v));
-      for(let u=-1;u<=1;u++){const ix=A?tx:tx+u,iz=A?tz+u:tz,tt=T[iz*W+ix];if(tt!==T_ROAD&&tt!==T_BRIDGE)continue;const hy=H[iz*W+ix]-c.y;
-        pBc(c,ix-c.cx,hy,iz-c.cz,ix-c.cx+1,hy+0.16,iz-c.cz+1,(v+u+9)%2?0x4a5058:0x5c636e,false,{j:0.01});
-        if(!((v+u+9)%3))pBc(c,ix-c.cx+0.35,hy+0.16,iz-c.cz+0.35,ix-c.cx+0.65,hy+0.2,iz-c.cz+0.65,0x8a929c,false,{j:0})}   // rebites
-      const hc=H[tz*W+tx]-c.y;for(const s of[-1,1]){const u=s*2.6;Q(u-0.07,v,u+0.07,v+1,hc+0.9,hc+1.05,0x6a727c,true,{j:0});Q(u-0.07,v,u+0.07,v+1,hc+0.3,hc+0.42,0x6a727c,true,{j:0});if(v%3===0)Q(u-0.1,v,u+0.1,v+0.2,hc,hc+1.1,0x7a828c,true,{j:0})}}
-    for(const s of[-1,1]){Q(s*3.6-0.9,-0.9,s*3.6+0.9,0.9,-4,6,0x8a8a90,true,{j:0.04});Q(s*3.6-1.1,-1.1,s*3.6+1.1,1.1,5.6,6.2,0x7a7a82,false,{j:0.03});Q(s*3.6-0.3,-0.95,s*3.6+0.3,-0.9,1.2,3.0,0x1a1a1a,false,{j:0});Q(s*3.6-0.15,-1.4,s*3.6+0.15,-0.9,3.2,3.7,0xffe9a0,false,{j:0})}
-    Q(-3.8,-0.5,3.8,0.5,5.2,6,0x6b4a2a,false,{j:0.03});
-    Q(-3.2,1.2,0,1.5,1.0,1.2,0xc03a3a,true,{j:0});Q(-3.2,1.2,-2.6,1.5,0,1.2,0x4a3320,true,{j:0});   // cancela levantada pela metade da pista (a outra metade fica livre), com colisão
-    const hx=A?-3:6,hz=A?6:-3,hw=5;
-    poiLand(c,hx-2,hz-2,hx+hw+2,hz+hw+2);pBc(c,hx,-8,hz,hx+hw+0.5,0,hz+hw+0.5,0x6a5a40,true,{j:0.02});   // nivela a terra e dá uma base de terra: a guarita nunca fica no ar nem enterrada
-    poiHut(c,hx,hz,hw,hw,A?'N':'W',{h:3.6,wall:0x9a8a7a,roof:0x4a3a2a,timber:true},rng);
-    Q(5.6,2.2,7.2,3.2,0,0.9,0x7a5a30,true,{j:0.04});Q(7.6,2.4,8.6,3.2,0,1.3,0x8a6a3a,true,{j:0.04});Q(-8.5,2.5,-6,4.5,0,1,0x6b4a2a,true,{j:0.05});
-    Q(-6,1,-4.9,2.2,0,0.8,0x8a8a90,true,{j:0.04});
-    const fx=A?0:-3.6,fz=A?-3.6:0;poiFlag(c,p,fx,fz,8);
+  bridge(c,rng,p){   // posto de pedágio sobre a ponte da estrada (tabuleiro, corrimão e pilares vêm do terreno, `meshTerrain`): pórtico com uma cancela de cada lado (sobra um vão no meio para 2 passarem) e guarita ligada à ponte, afastada do pórtico (p.axis: direção da estrada)
+    const A=p.axis==='x',o=0.5,   // o tabuleiro tem 5 tiles (u de -2 a 3 no mapa), então o eixo da pista fica em 0,5
+      Q=(u0,v0,u1,v1,y0,y1,col,s,q)=>A?pBc(c,v0+o,y0,u0+o,v1+o,y1,u1+o,col,s,q):pBc(c,u0+o,y0,v0+o,u1+o,y1,v1+o,col,s,q);   // u: de lado a lado da estrada; v: ao longo dela
+    for(const s of[-1,1]){Q(s*3.5-0.9,-0.9,s*3.5+0.9,0.9,-14,6,0x8a8a90,true,{j:0.04});Q(s*3.5-1.1,-1.1,s*3.5+1.1,1.1,5.6,6.2,0x7a7a82,false,{j:0.03});Q(s*3.5-0.3,-0.95,s*3.5+0.3,-0.9,1.2,3.0,0x1a1a1a,false,{j:0});Q(s*3.5-0.15,-1.4,s*3.5+0.15,-0.9,3.2,3.7,0xffe9a0,false,{j:0})}
+    Q(-4.1,-0.5,4.1,0.5,5.2,6,0x6b4a2a,false,{j:0.03});
+    for(const s of[-1,1]){const u0=s<0?-2.4:0.9,u1=s<0?-0.9:2.4;Q(u0,1.2,u1,1.5,1.0,1.2,0xc03a3a,true,{j:0});Q(s*2.4-0.15,1.1,s*2.4+0.15,1.6,0,1.2,0x4a3320,true,{j:0})}   // uma cancela de cada lado, com colisão
+    // guarita no lado + da pista, a 5 blocos do pórtico, no sentido p.vs; a base de pedra desce até o leito e encosta no tabuleiro; a porta olha para a pista
+    // e só ali o corrimão abre (3 tiles). p.vs: a guarita fica do lado +v (1) ou -v (-1) do pórtico
+    const hw=5,vs=p.vs||1,hv=vs>0?5:-5-hw,hu=3.0,hx=A?hv:hu,hz=A?hu:hv;
+    poiLand(c,hx-2,hz-2,hx+hw+2,hz+hw+2);
+    Q(2.4,hv,hu+hw,hv+hw,-14,0,0x6a5a40,true,{j:0.02});
+    poiHut(c,hx+o,hz+o,hw,hw,A?'N':'W',{h:3.6,wall:0x9a8a7a,roof:0x4a3a2a,timber:true},rng);
+    const vc=hv+hw/2+o;   // centro da guarita ao longo da pista
+    for(let tv=Math.floor(vc-1.5);tv<=Math.floor(vc+1.5);tv++)for(let u=0;u<=3;u++){const tx=Math.floor(c.cx+(A?tv:u)),tz=Math.floor(c.cz+(A?u:tv));WORLD.noRail.add(tz*W+tx)}   // vão do corrimão só em frente à porta
+    poiFlag(c,p,A?o:-3.0,A?-3.0:o,8);
   },
   fortcamp(c,rng,p){   // acampamento fortificado: paliçada com torre de vigia, portão, tendas (uma de comando), fogueira, caixas, armas e bandeiras
     const R=10;
@@ -458,10 +456,24 @@ function ambClash(x,z,lax){
 const POI_GAP=30;   // folga mínima, em blocos, entre a borda de um POI e a muralha de uma cidade ou a borda de outro POI: conquistá-lo na guerra tem de ser uma viagem
 const poiNearR=(x,z,R,f)=>{for(let dz=-R;dz<=R;dz+=6)for(let dx=-R;dx<=R;dx+=6){const i=(z+dz)*W+x+dx;if(i>=0&&i<W*W&&f(i))return true}return false};
 const poiNear=(x,z,f)=>{for(let dz=-18;dz<=18;dz+=9)for(let dx=-18;dx<=18;dx+=9){const i=(z+dz)*W+x+dx;if(i>=0&&i<W*W&&f(i))return true}return false};
+// lugares possíveis para o pedágio no trecho de água de uma ponte (WORLD.bridges), do meio para as pontas: {x,z,axis,vs}.
+// Exige ponte RETA (mesmo x ou mesmo z) de 2 tiles antes do pórtico até 11 depois, para a guarita caber ao lado do tabuleiro;
+// vs (+1/-1) é o sentido, ao longo da estrada, em que a guarita fica.
+function bridgeSpots(br){
+  const T0=br.tiles,n=T0.length,mid=(br.wi+br.we)>>1,span=(br.we-br.wi)>>1,out=[];
+  for(let o=0;o<=span;o++)for(const sg of o?[-1,1]:[1])for(const dir of[1,-1]){
+    const i=mid+o*sg,c=T0[i],e=T0[i+11*dir],b0=T0[i-2*dir];if(!c||!e||!b0)continue;
+    let sx=true,sz=true;for(let k=-2;k<=11;k++){const q=T0[i+k*dir];if(q.x!==c.x)sx=false;if(q.z!==c.z)sz=false}
+    if(!sx&&!sz)continue;
+    out.push({x:c.x,z:c.z,axis:sz?'x':'z',vs:Math.sign(sz?e.x-c.x:e.z-c.z)||1});
+  }
+  return out;
+}
 // ---------- geração por lugar (tarefa 9): anel, estrada e interior; tipo sorteado pelo bioma ----------
 // Números de balanceamento: ring = quantos POIs por cidade; ringMin/Max = distância da muralha; roadMin = estrada curta fica sem POI;
 // roadW = peso da Taverna e do Entreposto no lugar de estrada; sancRoad = distância mínima do Santuário a estradas; limit = máximo no mapa.
-const POI_GEN={ring:[2,2,3,3],ringMin:30,ringMax:70,roadMin:80,interior:[3,5],fill:3,roadW:4,sancRoad:40,maxTyped:25,   // maxTyped: teto de POIs sorteados (com ruínas e pontes o mapa fecha em até 30)
+const POI_GEN={ring:[2,2,3,3],ringMin:30,ringMax:70,roadMin:80,interior:[3,5],fill:3,roadW:4,sancRoad:40,maxTyped:25,   // maxTyped: teto de POIs sorteados (com ruínas e pedágios o mapa fecha em até 30)
+  bridgeToll:3,bridgeMin:12,bridgeGap:90,   // pontes com pedágio: no máximo, vão mínimo (blocos) e distância mínima entre elas
   limit:{farm:5,mine:4,sawmill:4,hunters:3,sanctuary:3,fort:3,tower:4,tavern:3,post:3},tavpost:[2,5],   // máximo por tipo no mapa; Taverna+Entreposto juntos
   min:{farm:2,mine:1,sawmill:1,hunters:2,sanctuary:1,fort:1,tower:2},   // mínimo por tipo (se houver lugar válido)
   biomeCap:{[BIO_PLAINS]:{farm:5},[BIO_FOREST]:{sawmill:4},[BIO_ROCK]:{mine:4}},snowCap:2,
@@ -591,18 +603,15 @@ function genWorldPois(cities,taken){
   cap=true;
   // ruínas soltas pelo mapa
   for(let k=0,n=rng.int(2,3);k<n;k++){const s=findSpot(rng,POI_DEFS.ruins.r+1,POI_DEFS.ruins.r+POI_GAP,4,taken,3000);if(s)add('ruins',s.x,s.z,s.y)}
-  // pontes (independentes das regras acima): postos de pedágio em trechos de ponte da estrada (até 2, afastados entre si)
-  const bt=[];for(let z=6;z<W-6;z+=3)for(let x=6;x<W-6;x+=3)if(T[z*W+x]===T_BRIDGE)bt.push([x,z]);
-  rng.shuffle(bt);
-  for(const [x,z] of bt){
-    if(WORLD.pois.filter(p=>p.type==='bridge').length>=2)break;
-    if(WORLD.pois.some(p=>p.type==='bridge'&&Math.hypot(p.cx-x,p.cz-z)<90))continue;
-    if(taken.some(t=>Math.hypot(t.x-x,t.z-z)<t.r+14))continue;
-    const roadZ=[T_ROAD,T_BRIDGE].includes(getT(x,z+4))&&[T_ROAD,T_BRIDGE].includes(getT(x,z-4));
-    const roadX=[T_ROAD,T_BRIDGE].includes(getT(x+4,z))&&[T_ROAD,T_BRIDGE].includes(getT(x-4,z));
-    if(!roadX&&!roadZ)continue;
-    const y=H[z*W+x],p={id:id++,type:'bridge',cx:x,cz:z,y,biome:B[z*W+x],owner:'bandit',axis:roadZ?'z':'x',cityId:nearestCity(x,z).id};
-    p.owner=poiInitOwner(p,rng);taken.push({x,z,r:POI_DEFS.bridge.r});poiBuild(p);WORLD.pois.push(p);   // (sem aplainar: o terreno da ponte já é a estrada)
+  // pontes com pedágio (independentes das regras acima): só as mais longas, no máximo POI_GEN.bridgeToll; as outras pontes ficam sem POI
+  const cand=WORLD.bridges.filter(br=>br.len>=POI_GEN.bridgeMin).sort((p,q)=>q.len-p.len);
+  for(const br of cand){
+    if(WORLD.pois.filter(p=>p.type==='bridge').length>=POI_GEN.bridgeToll)break;
+    const sp=bridgeSpots(br).find(q=>!WORLD.pois.some(p=>p.type==='bridge'&&Math.hypot(p.cx-q.x,p.cz-q.z)<POI_GEN.bridgeGap)
+      &&!taken.some(t=>Math.hypot(t.x-q.x,t.z-q.z)<t.r+14));   // (a região das dungeons e os POIs vizinhos também contam)
+    if(!sp)continue;
+    const y=H[sp.z*W+sp.x],p={id:id++,type:'bridge',cx:sp.x,cz:sp.z,y,biome:B[sp.z*W+sp.x],owner:'bandit',axis:sp.axis,vs:sp.vs,cityId:nearestCity(sp.x,sp.z).id};
+    p.owner=poiInitOwner(p,rng);taken.push({x:sp.x,z:sp.z,r:POI_DEFS.bridge.r});poiBuild(p);WORLD.pois.push(p);br.toll=p.id;
   }
   // estradas de ligação: só Fazenda, Taverna e Entreposto (a ponte já está na estrada). Vão até a estrada MAIS PRÓXIMA, não até a cidade
   const pseudo=q=>({cx:q.cx,cz:q.cz,half:POI_DEFS[q.type].r,gates:[]});
@@ -613,7 +622,7 @@ function genWorldPois(cities,taken){
       const k=T[z*W+x];if(k!==T_ROAD&&k!==T_BRIDGE)continue;const d=Math.hypot(x-p.cx,z-p.cz);if(d<bd){bd=d;best=[x,z]}
     }
     if(!best||bd<POI_DEFS[p.type].r+6)continue;
-    carveRoad(pseudo(p),{cx:best[0],cz:best[1],half:-3,gates:[]},cities.concat(WORLD.pois.filter(q=>q!==p&&q.type!=='bridge').map(pseudo)));
+    carveRoad(pseudo(p),{cx:best[0],cz:best[1],half:-3,gates:[]},cities.concat(WORLD.pois.filter(q=>q!==p&&q.type!=='bridge').map(pseudo)),{water:ROAD_WATER_OLD});   // só por terra
   }
   poiApply();
 }

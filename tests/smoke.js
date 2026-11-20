@@ -41,6 +41,14 @@ async function check(g,name,fn,arg){
 
 // ---------- verificações (rodam dentro da página) ----------
 const T={
+  bridges:()=>{   // pontes: registro, no máximo POI_GEN.bridgeToll com pedágio, pedágio só em ponte registrada, tabuleiro em T_BRIDGE
+    if(!Array.isArray(WORLD.bridges))return 'sem WORLD.bridges';
+    const tolls=WORLD.pois.filter(p=>p.type==='bridge');
+    if(tolls.length>POI_GEN.bridgeToll)return tolls.length+' pedágios (máximo '+POI_GEN.bridgeToll+')';
+    if(WORLD.bridges.filter(b=>b.toll!==null).length!==tolls.length)return 'pedágios e registros não batem';
+    for(const b of WORLD.bridges)if(!b.tiles.length||!b.tiles.some(t=>T[t.z*W+t.x]===T_BRIDGE))return 'ponte '+b.id+' sem tile T_BRIDGE';
+    return '';
+  },
   pois:()=>{const n=WORLD.pois.length;return n>0?'':'nenhum POI em WORLD.pois'},
   svc:([type,fn])=>{   // abre o serviço num POI do tipo pedido (seu, para o preço sair da capital)
     const p=WORLD.pois.find(q=>q.type===type);if(!p)return 'sem POI do tipo '+type;
@@ -120,7 +128,7 @@ const T={
     return X.bin&&X.bin.r===STATE.round&&X.bin.n===n0+1?'':'o uso do binóculo não foi contado';
   },
   civStart:()=>{   // conquista um POI de bandidos (fora do mapa manual) na rodada N: ainda sem moradores
-    const p=WORLD.pois.find(q=>!q.show&&!POI_DEFS[q.type].war&&q.type!=='ruins'&&q.owner==='bandit');if(!p)return 'sem POI de bandidos para conquistar';
+    const p=WORLD.pois.find(q=>!q.show&&!POI_DEFS[q.type].war&&q.type!=='ruins'&&POIX.civ[q.type]>0&&q.owner==='bandit');if(!p)return 'sem POI de bandidos para conquistar';
     if(p.gar)for(const e of p.gar.enemies||[])e.alive=false;
     poiSetOwner(p,'player');window.__civ={id:p.id,round:STATE.round};
     return p.civ?'moradores apareceram já na rodada da conquista ('+STATE.round+')':'';
@@ -130,7 +138,7 @@ const T={
     if(STATE.phase==='leader')finishLeaderTurn();
     if(!endRound(WORLD.home))return 'endRound recusou fechar a rodada';
     if(STATE.round!==s.round+1)return 'rodada '+STATE.round+', esperada '+(s.round+1);
-    return p.civ&&p.civ.npcs.length?'':'sem moradores na rodada '+STATE.round;
+    return p.civ&&p.civ.npcs.length?'':'sem moradores na rodada '+STATE.round+' (POI '+p.type+' '+p.id+')';
   },
   neg:()=>{   // abre o livro na aba Facções e percorre todas as telas da Negociação (sem fechar acordo nem declarar guerra)
     const f=(WORLD.factions||[]).find(x=>!x.player);if(!f)return 'sem facções';
@@ -169,6 +177,7 @@ const T={
     let g=await openGame(browser,base,'auto=1&mute=1&seed=11');
     report(!g.errs.length,'seed 11: sem erros ao carregar',g.errs.join(' | ').slice(0,300));
     await check(g,'seed 11: POIs gerados',T.pois);
+    await check(g,'seed 11: pontes (registro e pedágios no máximo 3)',T.bridges);
     await check(g,'seed 11: binóculo (poiBinoc)',T.binoc);
     await check(g,'seed 11: ruínas (guardiões voltam, baú não)',T.ruins);
     await check(g,'seed 11: conquista na rodada N sem moradores',T.civStart);

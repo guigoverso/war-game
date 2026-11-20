@@ -3,6 +3,9 @@
 const T_NAT=0,T_ROAD=1,T_STREET=2,T_PLAZA=3,T_FLOOR=4,T_BRIDGE=5,T_GARDEN=6,T_SOIL=7,T_WHEAT=8;
 const BIO_PLAINS=0,BIO_FOREST=1,BIO_DESERT=2,BIO_SNOW=3,BIO_ROCK=4;
 const WORLD={cities:[],seed:0,home:null,chunkMeshes:[],mapCanvas:null,windmills:[]};
+// Estradas sobre a água (números de balanceamento): custo extra do A* por célula de água (antes 6 = quase sempre contornava),
+// vão máximo de água seguida (blocos; acima disso a estrada refaz o trajeto com o custo antigo) e cabeceira (blocos de terra com tabuleiro em cada ponta).
+const ROAD_WATER=1,ROAD_WATER_OLD=6,ROAD_SPAN_MAX=48,BRIDGE_HEAD=3,BRIDGE_R=2.5;   // BRIDGE_R: raio do tabuleiro (5 blocos de largura: cabem 2 personagens lado a lado)
 const CHUNKS=[];
 function chunkOf(x,z){const cx=clamp(Math.floor(x/CHK),0,NCH-1),cz=clamp(Math.floor(z/CHK),0,NCH-1);return CHUNKS[cz*NCH+cx]}
 // Caixa estática (malha + colisão opcional) em coordenadas de mundo
@@ -61,7 +64,7 @@ const DOM_NAMES={plains:'Planícies',forest:'Florestas',mountain:'Montanhas',sno
 async function genWorld(seed,status,dominant){
   // bioma dominante: escolhido pelo jogador ou sorteado pela semente
   if(!DOM_NAMES[dominant])dominant=['plains','forest','mountain','snow','desert'][new RNG(seed+999).int(0,4)];
-  WORLD.dominant=dominant;WORLD.seed=seed;WORLD.cities=[];WORLD.chunkMeshes=[];WORLD.windmills=[];WORLD.showcaseMode=new URLSearchParams(location.search).get('cenario')==='pois';
+  WORLD.dominant=dominant;WORLD.seed=seed;WORLD.cities=[];WORLD.chunkMeshes=[];WORLD.windmills=[];WORLD.bt=new Map();WORLD.bridges=[];WORLD.noRail=new Set();WORLD.showcaseMode=new URLSearchParams(location.search).get('cenario')==='pois';
   Col.map.clear();Col.all.length=0;for(const a of CRITTERS)scene.remove(a.g);CRITTERS.length=0;
   const rng=new RNG(seed);
   const nz=new Noise(seed),nt=new Noise(seed+11),nm=new Noise(seed+23),nr=new Noise(seed+37),nd=new Noise(seed+51),nj=new Noise(seed+77);TNOISE=new Noise(seed+303);
@@ -283,8 +286,8 @@ async function genWorld(seed,status,dominant){
   return WORLD;
 }
 
-function carveRoad(a,b,cities){
-  const C=4,N=W/C;
+function carveRoad(a,b,cities,opts){
+  const C=4,N=W/C,wc0=(opts&&opts.water!==undefined)?opts.water:ROAD_WATER;
   const gate=(c,o)=>{const dx=o.cx-c.cx,dz=o.cz-c.cz;
     if(Math.abs(dx)>Math.abs(dz)){const s=Math.sign(dx);c.gates.push({dir:s>0?'E':'W'});return{x:c.cx+s*(c.half+3),z:c.cz}}
     const s=Math.sign(dz);c.gates.push({dir:s>0?'S':'N'});return{x:c.cx,z:c.cz+s*(c.half+3)}};
@@ -292,23 +295,31 @@ function carveRoad(a,b,cities){
   const cityPen=(x,z)=>{let p=0;for(const c of cities){const d=Math.max(Math.abs(x-c.cx),Math.abs(z-c.cz));
     if(c===a||c===b){if(d<c.half+2)p+=30}else if(d<c.half+9)p+=30}return p};
   const s=((ga.z/C)|0)*N+((ga.x/C)|0),goal=((gb.z/C)|0)*N+((gb.x/C)|0),gx=goal%N,gz=(goal/N)|0;
-  const g=new Float32Array(N*N).fill(1e9),came=new Int32Array(N*N).fill(-1),closed=new Uint8Array(N*N);
-  const hp=new Heap();g[s]=0;hp.push(0,s);
-  while(hp.size){
-    const u=hp.pop()[1];if(closed[u])continue;closed[u]=1;if(u===goal)break;
-    const ux=u%N,uz=(u/N)|0;
-    for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++){
-      if(!dx&&!dz)continue;const vx=ux+dx,vz=uz+dz;if(vx<1||vz<1||vx>=N-1||vz>=N-1)continue;
-      const v=vz*N+vx;if(closed[v])continue;
-      const hx=vx*C+2,hz=vz*C+2,hv=H[hz*W+hx],hu=H[(uz*C+2)*W+ux*C+2];
-      let cost=(dx&&dz?1.414:1)*C;const dh=Math.abs(hv-hu);
-      cost*=1+dh*dh*0.9+(hv<SEA?6:0)+cityPen(hx,hz);
-      if(T[hz*W+hx]===T_ROAD)cost*=0.35;
-      const ng=g[u]+cost;
-      if(ng<g[v]){g[v]=ng;came[v]=u;hp.push(ng+Math.hypot(gx-vx,gz-vz)*C*0.35,v)}
+  const eh=v=>Math.max(v,SEA+1);   // a água conta como altura de ponte: o fundo do lago não vira "ribanceira" no custo
+  // A* na grade de 4 blocos; wc = custo extra por célula de água
+  const route=wc=>{
+    const g=new Float32Array(N*N).fill(1e9),came=new Int32Array(N*N).fill(-1),closed=new Uint8Array(N*N);
+    const hp=new Heap();g[s]=0;hp.push(0,s);
+    while(hp.size){
+      const u=hp.pop()[1];if(closed[u])continue;closed[u]=1;if(u===goal)break;
+      const ux=u%N,uz=(u/N)|0;
+      for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++){
+        if(!dx&&!dz)continue;const vx=ux+dx,vz=uz+dz;if(vx<1||vz<1||vx>=N-1||vz>=N-1)continue;
+        const v=vz*N+vx;if(closed[v])continue;
+        const hx=vx*C+2,hz=vz*C+2,hv=H[hz*W+hx],hu=H[(uz*C+2)*W+ux*C+2];
+        let cost=(dx&&dz?1.414:1)*C;const dh=Math.abs(eh(hv)-eh(hu));
+        cost*=1+dh*dh*0.9+(hv<SEA?wc:0)+cityPen(hx,hz);
+        if(T[hz*W+hx]===T_ROAD)cost*=0.35;
+        const ng=g[u]+cost;
+        if(ng<g[v]){g[v]=ng;came[v]=u;hp.push(ng+Math.hypot(gx-vx,gz-vz)*C*0.35,v)}
+      }
     }
-  }
-  const cells=[];for(let u=goal;u!==-1&&u!==undefined;u=came[u])cells.push(u);cells.reverse();
+    const cl=[];for(let u=goal;u!==-1&&u!==undefined;u=came[u])cl.push(u);return cl.reverse();
+  };
+  // maior trecho de água seguida (em blocos) de um trajeto de células
+  const maxWet=cl=>{let m=0,r=0;for(const u of cl){if(H[(((u/N)|0)*C+2)*W+(u%N)*C+2]<SEA){r++;if(r>m)m=r}else r=0}return m*C};
+  let cells=route(wc0);
+  if(wc0<ROAD_WATER_OLD&&maxWet(cells)>ROAD_SPAN_MAX)cells=route(ROAD_WATER_OLD);   // vão grande demais: volta ao custo antigo (contorna se der)
   const pts=[ga];
   for(let k=1;k<cells.length-1;k++)pts.push({x:(cells[k]%N)*C+2,z:((cells[k]/N)|0)*C+2});
   pts.push(gb);
@@ -326,14 +337,30 @@ function carveRoad(a,b,cities){
   for(let i=0;i<n;i++)if(bridge[i])hs[i]=Math.max(hs[i],SEA+1);
   for(let i=1;i<n;i++)hs[i]=clamp(hs[i],hs[i-1]-1,hs[i-1]+1);
   for(let i=n-2;i>=0;i--)hs[i]=clamp(hs[i],hs[i+1]-1,hs[i+1]+1);
+  const BT=WORLD.bt;
   for(let i=0;i<n;i++){
     const h=hs[i],px=tiles[i].x,pz=tiles[i].z;
     for(let dz=-2;dz<=2;dz++)for(let dx=-2;dx<=2;dx++){
       const x=px+dx,z=pz+dz;if(x<1||z<1||x>=W-1||z>=W-1)continue;
       const d=Math.hypot(dx,dz),k=z*W+x;
-      if(d<=1.5){if(T[k]!==T_ROAD&&T[k]!==T_BRIDGE){H[k]=h;T[k]=bridge[i]?T_BRIDGE:T_ROAD}}
-      else if(d<=2.6&&T[k]===T_NAT)H[k]=clamp(H[k],h-1,h+1);
+      if(d<=(bridge[i]?BRIDGE_R:1.5)){if(T[k]!==T_ROAD&&T[k]!==T_BRIDGE){if(bridge[i])BT.set(k,{h0:H[k]});H[k]=h;T[k]=bridge[i]?T_BRIDGE:T_ROAD}}
+      else if(d<=2.6&&T[k]===T_NAT&&!bridge[i]&&H[k]>=SEA)H[k]=clamp(H[k],h-1,h+1);   // (sobre a água não há barranco: o vão fica aberto)
     }
+  }
+  // pontes: cada trecho de água vira um registro (WORLD.bridges) e ganha cabeceira de BRIDGE_HEAD blocos de terra em cada ponta
+  for(let i=0;i<n;i++){
+    if(!bridge[i]||(i>0&&bridge[i-1]))continue;
+    let e=i;while(e+1<n&&bridge[e+1])e++;
+    const s0=Math.max(0,i-BRIDGE_HEAD),e0=Math.min(n-1,e+BRIDGE_HEAD);
+    for(let j=s0;j<=e0;j++){if(bridge[j])continue;
+      for(let dz=-2;dz<=2;dz++)for(let dx=-2;dx<=2;dx++){
+        const x=tiles[j].x+dx,z=tiles[j].z+dz;if(x<1||z<1||x>=W-1||z>=W-1||Math.hypot(dx,dz)>BRIDGE_R)continue;
+        const k=z*W+x;   // a cabeceira é tão larga quanto a ponte: pega também um pouco de terra ao lado da estrada
+        if(T[k]===T_ROAD){BT.set(k,{h0:H[k]});T[k]=T_BRIDGE}else if(T[k]===T_NAT){BT.set(k,{h0:H[k]});H[k]=hs[j];T[k]=T_BRIDGE}
+      }}
+    WORLD.bridges.push({id:WORLD.bridges.length,tiles:tiles.slice(s0,e0+1).map(t=>({x:t.x,z:t.z})),len:e-i+1,
+      wi:i-s0,we:e-s0,road:[a.id===undefined?-1:a.id,b.id===undefined?-1:b.id],toll:null});
+    i=e;
   }
 }
 
@@ -530,17 +557,60 @@ function tileColor(x,z,i){
   const t=T[i],b=B[i],r=hash2(x,z,3),v=0.9+r*0.2;
   let c;
   if(t===T_STREET||t===T_PLAZA||t===T_FLOOR||t===T_CAVE)c=0x777777;
-  else if(t===T_BRIDGE)c=0x5e4326;
+  else if(t===T_BRIDGE)c=0x7d7d84;   // lado da cabeceira (a ponte em terra): pedra
   else if(b===BIO_DESERT)c=0xc9b777;
   else if(b===BIO_ROCK)c=0x777777;
   else c=0x7a5636;
   return shadec(c,v);
 }
+// ---------- Pontes (visual): a física continua na coluna de terra (H); aqui só se desenha o tabuleiro, o corrimão e os pilares ----------
+const BR_DIRS=[[1,0,0],[-1,0,1],[0,1,4],[0,-1,5]];
+// corrimão fino nas bordas do tabuleiro (onde o vizinho não é ponte nem estrada); a boca da ponte fica aberta
+function bridgeRails(bt,x,z,i,h){
+  const G=WORLD.bt;
+  for(const d of BR_DIRS){
+    const nx=x+d[0],nz=z+d[1];if(nx<0||nz<0||nx>=W||nz>=W)continue;
+    const ni=nz*W+nx,t=T[ni];if(WORLD.noRail.has(i)||G.has(ni)||t===T_ROAD||t===T_STREET||t===T_PLAZA||t===T_FLOOR)continue;
+    const X=d[0]?[d[0]>0?x+0.88:x,d[0]>0?x+1:x+0.12]:[x,x+1],Z=d[1]?[d[1]>0?z+0.88:z,d[1]>0?z+1:z+0.12]:[z,z+1];
+    Col.add({x0:X[0],y0:h,z0:Z[0],x1:X[1],y1:h+2.4,z1:Z[1]});   // o corrimão barra o caminho (a caixa é mais alta que o desenho: NPCs e jogador não sobem nela nem pulam para a água)
+    bt.box(X[0],h+0.78,Z[0],X[1],h+0.92,Z[1],0x6a4a28,{j:0.03});
+    bt.box(X[0],h+0.38,Z[0],X[1],h+0.46,Z[1],0x6a4a28,{j:0.03});
+    if((x+z)%2===0){const px=d[0]?X:[x+0.43,x+0.57],pz=d[1]?Z:[z+0.43,z+0.57];bt.box(px[0],h,pz[0],px[1],h+0.92,pz[1],0x5e4326,{j:0.03})}
+  }
+}
+// tile de ponte sobre a água: tabuleiro de tábuas (topo, bordas e fundo), leito visível por baixo, pilares nas bordas e corrimão
+function meshBridgeWater(bt,x,z,i,h,bi){
+  const G=WORLD.bt,tc=hex2rgb(tileColor(x,z,i)),sd=hex2rgb(0x6a4c2a),bed=hex2rgb(natCol(bi.h0,B[i])),th=0.45;
+  bt.face(2,x,h,z,x+1,h,z+1,tc[0],tc[1],tc[2]);
+  bt.face(3,x,h-th,z,x+1,h-th,z+1,sd[0]*0.7,sd[1]*0.7,sd[2]*0.7);
+  bt.face(2,x,bi.h0,z,x+1,bi.h0,z+1,bed[0],bed[1],bed[2]);
+  let edge=false;
+  for(const d of BR_DIRS){
+    const nx=x+d[0],nz=z+d[1];if(nx<0||nz<0||nx>=W||nz>=W)continue;
+    if(G.has(nz*W+nx))continue;edge=true;
+    bt.face(d[2],x,h-th,z,x+1,h,z+1,sd[0],sd[1],sd[2]);
+  }
+  for(const d of BR_DIRS){   // paredes do vizinho que ficam voltadas para o vão (a coluna de terra não existe mais: sem isto o vizinho mais alto fica furado)
+    const nx=x+d[0],nz=z+d[1];if(nx<0||nz<0||nx>=W||nz>=W)continue;
+    const ni=nz*W+nx,nb=G.get(ni),nh=(nb&&nb.h0<SEA&&T[ni]===T_BRIDGE)?nb.h0:H[ni],top=Math.min(nh,h);if(top<=bi.h0)continue;
+    const c=hex2rgb(H[ni]>=SEA?subColor(nx,nz,ni):natCol(nh,B[ni])),opp=[1,0,0,0,5,4][d[2]];
+    bt.face(opp,nx,bi.h0,nz,nx+1,top,nz+1,c[0],c[1],c[2]);
+  }
+  for(const d of BR_DIRS){   // parede do leito voltada para um vizinho mais fundo (que não é ponte): sem ela o fundo fica aberto e se vê através do terreno
+    const nx=x+d[0],nz=z+d[1];if(nx<0||nz<0||nx>=W||nz>=W)continue;
+    const ni=nz*W+nx,nb=G.get(ni);if(nb&&nb.h0<SEA&&T[ni]===T_BRIDGE)continue;
+    if(H[ni]<bi.h0)bt.face(d[2],x,H[ni],z,x+1,bi.h0,z+1,bed[0]*0.85,bed[1]*0.85,bed[2]*0.85);
+  }
+  if(edge&&(x+z)%6===0)bt.box(x+0.12,bi.h0,z+0.12,x+0.88,h-th,z+0.88,0x6d4f2c,{j:0.03});
+  bridgeRails(bt,x,z,i,h);
+}
 function meshTerrain(){
   for(let cz=0;cz<NCH;cz++)for(let cx=0;cx<NCH;cx++){
     const bt=CHUNKS[cz*NCH+cx];
     for(let z=cz*CHK;z<(cz+1)*CHK;z++)for(let x=cx*CHK;x<(cx+1)*CHK;x++){
-      const i=z*W+x,h=H[i],tc=hex2rgb(tileColor(x,z,i));
+      const i=z*W+x,h=H[i],bi=T[i]===T_BRIDGE?WORLD.bt.get(i):null;
+      if(bi&&bi.h0<SEA){meshBridgeWater(bt,x,z,i,h,bi);continue}   // ponte sobre a água: tabuleiro aberto, sem coluna de terra
+      const tc=hex2rgb(tileColor(x,z,i));
       bt.face(2,x,h,z,x+1,h,z+1,tc[0],tc[1],tc[2]);
       const dirs=[[1,0,0],[-1,0,1],[0,1,4],[0,-1,5]];
       for(const dd of dirs){
@@ -552,6 +622,7 @@ function meshTerrain(){
         else bt.face(dd[2],x,h-top,z,x+1,h,z+1,sc[0],sc[1],sc[2]);
         if(h-nh>top)bt.face(dd[2],x,nh,z,x+1,h-top,z+1,sc[0],sc[1],sc[2]);
       }
+      if(bi)bridgeRails(bt,x,z,i,h);   // cabeceira em terra: só o corrimão
     }
     const m=bt.toMesh(MAT_TERRAIN);
     if(m){m.userData.cx=(cx+0.5)*CHK;m.userData.cz=(cz+0.5)*CHK;scene.add(m);WORLD.chunkMeshes.push(m)}

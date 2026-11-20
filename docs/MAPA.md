@@ -16,7 +16,7 @@ Código no topo de um arquivo só pode usar o que veio antes; dentro de funçõe
 - `render` — cena Three.js e cache de materiais/geometria: `scene`, `mat`, `part`, `GEO_BOX`, `makeSign`.
 - `voxel` — modelos voxel de humanos e animais: `buildHuman`, `vpart`, `faceMaterial`, `buildQuad`, `buildBearV`.
 - `phys` — colisão e raios: `W` (tamanho do mapa), `Col`, `rayWorld`, `losClear`, `moveXZ`, `moveY`.
-- `world` — terreno por semente, biomas, árvores, minimapa: `WORLD`, `biomeAt`, `carveRoad`, `meshTerrain`, `makeMapCanvas`, `cityName`.
+- `world` — terreno por semente, biomas, árvores, minimapa: `WORLD`, `biomeAt`, `carveRoad` (estradas; `ROAD_WATER`, `ROAD_SPAN_MAX`, `BRIDGE_HEAD`), pontes: `WORLD.bridges`/`WORLD.bt`, `meshBridgeWater`, `bridgeRails`; `meshTerrain`, `makeMapCanvas`, `cityName`.
 - `city` — cidades e prédios: `buildCity`, `makeBuilding`, `buildHall`, `buildWarehouse`, `buildStore`, `buildTavern`, `cityDecor`.
 - `nav` — grade de navegação e caminhos: `NAV`, `buildNav`, `findPath`, `navMove`.
 
@@ -63,7 +63,7 @@ Código no topo de um arquivo só pode usar o que veio antes; dentro de funçõe
 - `missions` — missões (quadro do salão e de facções): `MS`, `msBoard`, `msAdd`, `msComplete`, `msDeliver`, `openQuests`, `msBookPages`.
 
 **POIs da Fase 6**
-- `pois` — tipos e construção dos POIs no mundo: `POI_DEFS`, `POI_TYPES` (fazenda, mina, serraria, caçadores, santuário, ponte, forte, torre, taverna, entreposto, ruínas), `POI_BUILD`, `poiBuild`, `genWorldPois` (anel, estrada e interior; números em `POI_GEN`, pesos por bioma em `POI_W`, regras de lugar em `poiRuleOK`, `POI_RANGE`/`POI_BIG`: desnível e terreno dos grandes, `POI_GEN.limit`/`min`/`biomeCap`/`first`: limites, mínimos e tipo principal do bioma), `poiSetOwner`, `poiNear`, `poiShowcase`.
+- `pois` — tipos e construção dos POIs no mundo: `POI_DEFS`, `POI_TYPES` (fazenda, mina, serraria, caçadores, santuário, ponte, forte, torre, taverna, entreposto, ruínas), `POI_BUILD`, `poiBuild`, `genWorldPois` (anel, estrada e interior; números em `POI_GEN`, pesos por bioma em `POI_W`, regras de lugar em `poiRuleOK`, `POI_RANGE`/`POI_BIG`: desnível e terreno dos grandes, `POI_GEN.limit`/`min`/`biomeCap`/`first`: limites, mínimos e tipo principal do bioma), `bridgeSpots` (lugar do pedágio na ponte; `POI_GEN.bridgeToll/bridgeMin/bridgeGap`), `poiSetOwner`, `poiNear`, `poiShowcase`.
 - `poigame` — regras dos POIs (guarnição, anexação, renda, preço): `POIX`, `POI_PRICE`, `poiMine`, `poiLvl` (nível do dono: produção e pedágio), `poiGarrisonSync`, `poiScan`, `poiAct`, `poiTick`; moradores e serviços (ferreiro, mercenário, taverneiro, lojista do entreposto), binóculo: `SVC`, `svcOpen`, `svcSmith`, `svcMerc`, `svcTavern`, `svcPost`, `poiBinoc`.
   Entreposto: `poiPosts`, `poiOnRoute` (`p.road` opcional), `poiRouteBlocked` (usado em `caravans.js`, `bookmap.js`, `facgraph.js`), `poiPostIncome`, `poiPostEffects` (aba Efeitos, `meetfx.js`), `postPrice`; números em `POIX.post`.
   Santuário: `poiHasSanc`, `poiSancPeace` (usado em `rounds.js` e `facsupply.js`), `poiSancDelay` (`rounds.js` e `rebellion.js`); números em `POIX.sanc`. Ruínas: guardiões voltam a cada rodada (gancho `round` de `poigame`), baú não volta (`POIX.ruinRelic`). Caçadores: `poiHuntLoot`, `poiHuntPen` (`facsupply.js`).
