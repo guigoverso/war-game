@@ -280,7 +280,10 @@ function genPOIs(rng,cities){
   WORLD.camps=[];WORLD.caves=[];WORLD.chests=[];FIRES.length=0;
   const taken=cities.map(c=>({x:c.cx,z:c.cz,r:c.half+8}));
   genDungeons(rng,cities,taken);   // região reservada num canto do mapa (antes de qualquer outro ponto de interesse)
-  if(typeof genWorldPois==='function')genWorldPois(cities,taken);   // POIs permanentes da Fase 6 (pois.js) antes dos extras: acampamentos, grutas e baús é que se desviam deles
+  if(typeof genWorldPois==='function'){   // POIs permanentes da Fase 6 (pois.js) antes dos extras: acampamentos, grutas e baús é que se desviam deles
+    const h0=H.slice(),t0=T.slice();genWorldPois(cities,taken);
+    const sn=WORLD.snap;if(sn)for(let k=0;k<W*W;k++)if(H[k]!==h0[k]||T[k]!==t0[k]){sn.H[k]=H[k];sn.T[k]=T[k];sn.B[k]=B[k]}   // o mapa (makeMapCanvas) usa a cópia de antes dos extras: estradas de ligação e nivelamento dos POIs entram nela
+  }
   const nCamps=rng.int(14,18);
   for(let i=0;i<nCamps;i++){
     const s=findSpot(rng,10,10+AMB_GAP,6,taken.concat(cities.map(k=>({x:k.cx,z:k.cz,r:k.half+8}))),3500);   // folga AMB_GAP (pois.js) da muralha e dos outros
