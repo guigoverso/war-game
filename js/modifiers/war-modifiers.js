@@ -42,8 +42,9 @@ const WAR = {
   // quando; pacífica nunca declara). Padrão: agressiva 0.9, neutra 0.3, pacífica 0
   attackChance: { aggressive: 0.9, neutral: 0.3, peaceful: 0 },
   // Cenário ?cenario=guerra: rodada inicial, ouro, nível da facção, cidades conquistadas além da capital e comida/minério.
-  // Padrão: rodada 3, ◉20000, nível 3, 1 cidade extra, 40 e 40
-  scenario: { round: 3, coins: 20000, lvl: 3, extraCities: 1, food: 40, ore: 40 }
+  // Padrão: rodada 3, ◉20000, nível 3, 1 cidade extra, 40 e 40.
+  // startAtWar: true começa com a guerra já declarada; false começa em paz e você declara pela tela de Negociações. Padrão: true
+  scenario: { round: 3, coins: 20000, lvl: 3, extraCities: 1, food: 40, ore: 40, startAtWar: true }
 };
 
 // Cenário de guerra: quantos POIs permanentes ficam com o jogador entre n no total. Metade, arredondada para baixo

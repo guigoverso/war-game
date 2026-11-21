@@ -44,6 +44,7 @@ function warScenario() {
   }
   STATE.rd.lvl = S.lvl; STATE.rd.actions = maxActions(); computeBuffs();
   warSplitPois(en.id);
+  if (!S.startAtWar) return;   // em paz: a declaração fica por sua conta (Negociações)
   facDeclareWar(en.id, false);
   warX().camps[en.id] = { kind: 'attack', since: STATE.round, allies: { player: [], enemy: [] } };
 }
