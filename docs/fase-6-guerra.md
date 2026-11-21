@@ -16,7 +16,7 @@ A guerra é uma **campanha**: o **Líder planeja** operações com pontos de lí
 - **Efeitos já decididos:** crime em cidade em guerra vale como crime (guardas atiram, 3× de dano no jogador, sem conquista, sem soldados, sem serviços). A invasão antiga de cidades está **desativada** (o código continua); a guerra é o caminho para conquistar.
 
 ## O ciclo da rodada
-**Turno do Líder (planejar).** Gasta **pontos de líder** em operações. Pontos = **nível do líder**: começa em 1 e ganha **+1 durante a guerra** (perde ao acabar). Pode fazer mais de uma operação por rodada.
+**Turno do Líder (planejar).** Gasta **pontos de líder** em operações. Pontos = **nível da facção** (`facLvl()`): começa em 1 e ganha **+1 durante a guerra** (perde ao acabar). Pode fazer mais de uma operação por rodada.
 - **Ataque:** alvo é um POI ou a cidade. Custa 1 ponto (a cidade final custa mais e exige controlar a **maioria** dos POIs).
 - **Defesa:** só aparece quando o inimigo atacou; custa 1 ponto. Se o jogador não escolher: POI tomado, caravana desfeita.
 - **Sabotagem:** não toma POI, aplica **debuff** a soldados, POIs ou cidades, e pode desfazer caravanas. Custa 1 ponto, **resolve sozinha** com chance (ver Espiões).
@@ -182,7 +182,7 @@ Legenda: ✅ implementado · 🔶 parcial · ⬜ não implementado. (Atualizado 
 
 **A. Fundação**
 1. ✅ POIs permanentes com dono, efeito e uso na paz
-2. ⬜ Nível do líder e da facção como número com efeito (hoje só `poiLvl`, que usa `rd.lvl` e o maior nível das cidades)
+2. ✅ Nível da facção (1 a 5, `rd.lvl`) e nível de cada cidade sua (1 a 5, `rd.clv`) com efeito; evoluir pelo livro (2026-11-21, ver features 16 e 35). Os pontos de líder da guerra ainda faltam (usarão `facLvl()`)
 3. ⬜ Objeto `WAR` e estado de guerra (exige somar 1 ao `SAVE_VERSION` e passo em `migrateSave`)
 4. ⬜ Cenário `?cenario=guerra` (rota fechada)
 
@@ -232,7 +232,7 @@ Legenda: ✅ implementado · 🔶 parcial · ⬜ não implementado. (Atualizado 
 | 13 | Reparo do colete no Quartel | ✅ | Ok |
 | 14 | Pontes sobre a água (estrada atravessa, pilares, corrimão, pedágio em trecho reto) | ✅ | Ok |
 | 15 | Negociação (menu estilo celular: aliança, relação, paz, guerra) | ✅ | Menu de POIs |
-| 16 | Nível do líder com efeito (pontos de líder, +1 em guerra) | ⬜ | Tudo |
+| 16 | Nível da facção com efeito (ações por rodada; pontos de líder, +1 em guerra) | 🔶 | Ações por rodada prontas; faltam os pontos de líder da guerra |
 | 17 | Objeto `WAR` e estado de guerra | ⬜ | Tudo |
 | 18 | Cenário `?cenario=guerra` | ⬜ | Tudo |
 | 19 | Operações no turno do Líder (ataque, defesa, sabotagem, reduzir fadiga) | ⬜ | Tudo |
@@ -251,7 +251,7 @@ Legenda: ✅ implementado · 🔶 parcial · ⬜ não implementado. (Atualizado 
 | 32 | Condição de derrota | ⬜ | Definir regras |
 | 33 | Novas mecânicas de caravana | ⬜ | Falta a lista do usuário |
 | 34 | Mover declaração de guerra e paz das políticas para a Negociação | 🔶 | Já estão na Negociação; falta remover as políticas antigas |
-| 35 | Mudança na mecânica de evolução no nível do líder | ⬜ | Tudo. Especificado abaixo.
+| 35 | Evolução da facção e das cidades | ✅ | Balancear `LVL` jogando. Regras abaixo.
 
 ### Descrição e regras das features
 4. Os bandidos podem tomar os POIs nas seguintes condições:
@@ -264,6 +264,13 @@ Exemplo 2: na rodada 3 o Comandante conquistou uma Taverna perto de uma cidade s
 - Simplesmente tomarem por sorteio. O cálculo já existe no código. Inclusive esse sorteio deve acontecer na guerra também (com chances menores), afetando os lados.
 
 8. A torre de vigia atualmente está podendo encontrar 3 POIs por rodadas. Se eu tiver 2, posso encontrar 6. Quero limita-la para apenas 1 por torre por rodada. Então cada torre poderá ser usada apenas uma vez. Se o jogador tiver 2 torres, poderá ir em uma, marcar o POI, então ela ficará inutilizável, depois ir em outra e fazer o mesmo.
+
+16 e 35. **Evolução da facção e das cidades (2026-11-21; plano em `docs/features/2_evolucao-faccao-cidade.md`).**
+- **Facção (nível 1 a 5, `rd.lvl`, `LVL.facMax`):** dá +1 ação do líder por rodada por nível (`maxActions()`), a partir da próxima rodada. Subir custa ouro e recursos (`LVL.facCost`) e exige (`LVL.facReq`, soma os anteriores): 2→3 **2 POIs**; 3→4 **3 cidades** (com a capital); 4→5 **3 cidades no nível máximo**. Até a guerra existir, 3→4 e 4→5 só no modo criativo (`polTakeCity`). Regras em `modifiers.js`: `facReqState`, `facUpWhy`, `canFacUp`, `facCostOf`.
+- **Cidade (nível 1 a 5, `rd.clv[id]`, `LVL.cityMax`):** só do jogador, capital incluída (NPC não evolui). Visual: 1 sem muros, 2 cerca, 3 paliçada sem atiradores, 4 paliçada com atiradores, 5 muralha de pedra com atiradores (`CITY_WALL_BY_LEVEL`, `CITY_SENTRY_COUNT`). Cada nível acima do 1 dá +`LVL.cityProd` de produção e +◉`LVL.cityTax` de imposto (também no estoque da loja e no poder). Custo: `CITY_UP_COST` (`cityCostOf`). Capital sem entrada em `clv` herda o `rd.lvl` antigo.
+- **Limites:** 1 nível de facção por rodada (`rd.facUpR`) e 1 nível de cidade por rodada, em 1 cidade só (`rd.cityUpR`); cada evolução gasta 1 ação do líder (`ECON.act.capital`/`city`), só no turno do Líder e sem dívida. Pode evoluir facção e cidade na mesma rodada.
+- **Telas:** aba **Facção** (checklist ✔/✘ de custo e requisitos, botão `cap`) e aba **Cidades** (bloco "Evoluir a cidade", botão `cityup`, que refaz o muro na hora com `cityWallRebuild`). Avisos: toast ao clicar e linha no relatório da rodada (`rdNow`); textos em `texts.js`.
+- **Como testar:** `?auto=1&mute=1&seed=11`, turno do Líder: evoluir a capital (muro novo, ouro e recursos gastos, `rd.cityUpR`); tentar uma 2ª cidade na mesma rodada (bloqueia) e na seguinte (pode); facção 2→3 sem POIs (bloqueia com "Faltam requisitos"), anexar POIs/cidades e subir; nível máximo (sem botão); save antigo (capital nível 3 vira 3). Smoke: `lvl`, `lvlFx`, `cityUp`, `facUp`. Falta jogar uma partida (rodadas 1 a 5) para calibrar `LVL`/`CITY_UP_COST` contra a renda.
 
 9. O estoque deve ser limitado, menor que os das lojas inclusive.
 

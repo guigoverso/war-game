@@ -5,7 +5,7 @@ Bilhete de passagem entre sessões e PCs: **leia no início, atualize no fim** (
 ## Agora
 - **Branch:** `factions-update`. **Save:** `SAVE_VERSION = 21`.
 - **Fase atual:** 6 (guerra), revisão dos POIs pronta; "Atualizações dos POIs" (`docs/features/1_atualizacoes-POIs.md`) com as tarefas 1 a 5 feitas. Fases 4 (rodadas) e 5 (facções) prontas.
-- **Última atualização:** 2026-11-20 (sessão local): Atualizações dos POIs: retomada de POI livre sem decisão (50% bandidos/50% facção) e redutor de guerra na retomada; torre com "Fazer vigia" único (`poiVigil`, 1 uso por torre por rodada, marca o POI mais perto, "?" salvos em `STATE.poiX.marks`); entreposto com estoque limitado, abas, Venda e "?" de preço (`postStockLeft`, `postSellTab`, `postPriceTag`); moradores contados da rodada da limpeza (`STATE.poiX.conq`). Números novos em `js/modifiers.js`, textos em `js/texts.js`. Evolução da facção/cidades (`docs/features/2_evolucao-faccao-cidade.md`): tarefa 3 feita (muro por nível 1-5 em malha própria, `cityWallRebuild(c)`, atiradores de torre do jogador nos níveis 4-5; capital nasce sem cerca; falta a tela/ação da tarefa 4). Antes: pontes.
+- **Última atualização:** 2026-11-21 (sessão local): Evolução da facção e das cidades (`docs/features/2_evolucao-faccao-cidade.md`, tarefas 1 a 6 feitas): níveis 1 a 5 de facção e de cidade, efeito em produção/imposto, muros e atiradores por nível, telas de evolução no livro (1 cidade e 1 facção por rodada). Regras em `docs/fase-6-guerra.md` (features 16 e 35).
 - **Teste de fumaça:** `node tests/smoke.js` (instalação: ver `CLAUDE.md`). Rode depois de mexer em POIs, serviços, rodadas ou Negociação.
 
 ## Onde está o histórico
@@ -17,6 +17,7 @@ Bilhete de passagem entre sessões e PCs: **leia no início, atualize no fim** (
 - **Quase tudo foi checado só por script/console; falta jogar na tela:** POIs (bandidos novos atirando, interiores, forte, balanceamento de renda e preços), F5d (destruição, stamina, queda, pulo, sala do líder), guardas de caravana, missões, rebelião, eventos NPC, reuniões, eventos globais, `carry`, divisão de `rounds.js`.
 - **Entreposto:** "no caminho" = a até `POIX.post.reach` (45) da linha entre as cidades; a geração grava `p.road=[idA,idB]` nos POIs de estrada. Estoque, abas e venda do lojista: `docs/fase-6-guerra.md`. A venda usa o comprador (`getVendor`) da cidade de referência, sem desconto próprio.
 - **POIs:** negociar POIs na tela de Negociação (falta o menu); POIs de guerra nos buracos do mapa (com a guerra); POI de guerra sem guerra não testado.
+- **Evolução:** falta jogar rodadas 1 a 5 para calibrar `LVL`, `CITY_UP_COST` e a renda; olhar muro novo de dentro/fora, portão e raid. Facção 3→4 e 4→5 só no criativo até a guerra anexar cidades. `docs/fase-4-testes.md` não existe mais (o histórico foi para `docs/fase-6-guerra.md`).
 - **Raids fáceis demais** (ideias em `docs/fase-4-testes.md`, "Pendências da fase"); mudanças recentes de raid não testadas.
 - Humor nos níveis 0 e −1 igual ao nível 1. Contador "16/36" na batalha de rebelião sem causa achada.
 - **Pendente do usuário:** lista de novas mecânicas de caravana e desenho do espião.
@@ -28,7 +29,7 @@ Bilhete de passagem entre sessões e PCs: **leia no início, atualize no fim** (
 
 ## Próximo passo
 1. **Jogar** POIs, rebelião e eventos NPC para balancear (`POIX`, `REB`, `rebWaveSpec`, `FEV`, `FSUP`, `ECON`).
-2. **Guerra (Fase 6):** nível do líder com efeito, objeto `WAR` (migração de save), `?cenario=guerra`, operações, cabo de guerra, fadiga, espiões, aliados (ordem em `docs/fase-6-guerra.md`).
+2. **Guerra (Fase 6):** pontos de líder (= `facLvl()`), objeto `WAR` (migração de save), `?cenario=guerra`, operações, cabo de guerra, fadiga, espiões, aliados (ordem em `docs/fase-6-guerra.md`).
 
 Roteiro rápido: `index.html?auto=1&mute=1&seed=11` (criativo), `?cenario=pois&auto=1&mute=1` (POIs), `?cenario=caravanas&mute=1` (caravanas). Recarregue com Ctrl+F5.
 
