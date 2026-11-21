@@ -224,7 +224,7 @@ function facDeclareWar(fid,byThem){
   facCutCaravans(fid);relEffects(fid,before,'war');
   for(const c of WORLD.cities)if(c.fid===fid&&c.owner==='enemy'&&c.state==='idle')facRespawnGuards(c);   // a guerra começa com a cidade guarnecida de novo
 }
-function facPeace(fid){const r=relOf(fid);r.war=false;r.v=REL_START;r.warAt=null;facNote('🕊 Paz com '+facOf(fid).name+' (relação 5).')}   // a paz de verdade é da Fase 6; hoje só pelo modo criativo
+function facPeace(fid){warFrontClear(fid);const r=relOf(fid);r.war=false;r.v=REL_START;r.warAt=null;facNote('🕊 Paz com '+facOf(fid).name+' (relação 5).')}   // a paz de verdade é da Fase 6; hoje só pelo modo criativo
 // crime: o jogador feriu alguém numa cidade que não está em guerra com ele. Cai um degrau por rodada por facção:
 //  aliado → neutro(5) • favorável/neutro/desfavorável → inimiga(0) • inimiga → guerra na rodada seguinte (a pacífica não declara guerra)
 const REL_REP={ally:1000,fav:1500,neutral:2000,unfav:2000,enemy:4000};

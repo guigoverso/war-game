@@ -62,6 +62,7 @@ const T={
     const f=WARSCN.fid,L=warPois(),a=()=>L.filter(p=>p.owner==='player').length,b=()=>L.filter(p=>p.owner===f).length;
     if(!relOf(f).war)return 'sem guerra declarada';
     if(!warActive())return 'sem campanha';
+    warSplitPois(f);   // o cenário já não divide os POIs por padrão (WAR.scenario.splitPois=false): o teste divide
     if(a()!==Math.floor(L.length/2)||b()<a())return 'divisão errada: '+a()+' x '+b()+' de '+L.length;
     const a0=a(),b0=b();if(!b0)return 'inimigo sem POI';
     document.querySelector('[data-wsn="conq"]')||renderFacCheats();

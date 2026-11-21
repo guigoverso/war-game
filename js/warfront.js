@@ -116,7 +116,19 @@ function warFrontDraw(g, s, k) {
     g.strokeStyle = '#ffd23a'; g.beginPath(); g.arc(x, y, 11 * k, 0, 6.283); g.stroke();
     g.fillStyle = '#fff'; g.strokeStyle = '#000'; g.strokeText(i + 1, x, y + 22 * k); g.fillText(i + 1, x, y + 22 * k);
   });
+  for (const e of pl.war) {   // POIs de guerra previstos: quadrado do raio, tracejado
+    const h = POI_DEFS[e.type].r * s;
+    g.setLineDash([4 * k, 3 * k]); g.strokeStyle = '#7fd0ff'; g.lineWidth = 2 * k;
+    g.strokeRect(e.cx * s - h, e.cz * s - h, 2 * h, 2 * h);
+  }
   g.restore();
+}
+
+// Atalho de teste (console): wfBuild() constrói os POIs de guerra do último plano de wfTest; wfBuild('limpar') os remove.
+function wfBuild(q) {
+  if (q === 'limpar') return warFrontClear();
+  if (!WF.plan) return console.log('Rode wfTest(cidade) antes.');
+  console.log(warFrontBuild(WF.plan) + ' POIs de guerra construídos.');
 }
 
 // Atalho de teste (console): wfTest('Nome') ou wfTest(id) para uma cidade inimiga; sem argumento lista os nomes.
@@ -133,7 +145,7 @@ function wfTest(q) {
   if (!pl) return console.log('Sem rota para ' + c.name);
   console.log('Origem: ' + pl.origin.name + ' | rota: ' + Math.round(pl.len) + ' blocos | cadeia: ' +
     (pl.chain.map((p, i) => POI_DEFS[p.type].n + '#' + p.id + ' (' + poiOwnerName(p.owner) + ', ' +
-      Math.round(pl.ts[i] * 100) + '%)').join(' → ') || 'vazia'));
+      Math.round(pl.ts[i] * 100) + '%)').join(' → ') || 'vazia') + ' | POIs de guerra: ' + pl.war.length);
   return pl;
 }
 
@@ -173,5 +185,126 @@ function warFrontPlan(fid, kind, ref) {
   const last = wfRoute(cur, ref, blk);
   if (!last) return null;
   add(last);
-  return { kind, fid, target: ref, origin, path: full, len, chain, ts: at.map(v => v / (len || 1)), war: [] };
+  const plan = { kind, fid, target: ref, origin, path: full, len, chain, ts: at.map(v => v / (len || 1)), war: [] };
+  plan.war = wfFill(plan);
+  return plan;
+}
+
+// ---------- POIs de guerra: planejar os vazios da rota ----------
+// Ponto e direção da rota na distância s (blocos) desde a origem.
+function wfPointAt(path, s) {
+  let acc = 0;
+  for (let k = 1; k < path.length; k++) {
+    const p = path[k - 1], q = path[k], L = Math.hypot(q.x - p.x, q.z - p.z) || 1;
+    if (acc + L >= s || k === path.length - 1) {
+      const u = clamp((s - acc) / L, 0, 1);
+      return { x: p.x + (q.x - p.x) * u, z: p.z + (q.z - p.z) * u, tx: (q.x - p.x) / L, tz: (q.z - p.z) / L };
+    }
+    acc += L;
+  }
+}
+
+// O terreno em (x, z) aceita um POI de guerra de raio r? Sem água, desnível até WAR.front.slope, sem árvore, longe de
+// cidades, POIs (existentes e já planejados em 'placed') e cavernas/baús. Devolve a altura da base (o ponto mais alto) ou null.
+function wfSpotY(x, z, r, placed) {
+  if (x < r + 6 || z < r + 6 || x > W - r - 6 || z > W - r - 6) return null;
+  let lo = 1e9, hi = -1e9;
+  for (let dz = -r; dz <= r; dz += 3) for (let dx = -r; dx <= r; dx += 3) {
+    const h = H[(z + dz) * W + x + dx];
+    if (h < SEA) return null;
+    lo = Math.min(lo, h); hi = Math.max(hi, h);
+  }
+  if (hi - lo > WAR.front.slope || treeNear(x, z, r - 2)) return null;
+  for (const c of WORLD.cities) if (Math.max(Math.abs(c.cx - x), Math.abs(c.cz - z)) < c.half + r + WAR.front.gap) return null;
+  for (const p of WORLD.pois) if (Math.hypot(p.cx - x, p.cz - z) < POI_DEFS[p.type].r + r + WAR.front.gap) return null;
+  for (const q of placed) if (Math.hypot(q.cx - x, q.cz - z) < POI_DEFS[q.type].r + r + WAR.front.gap) return null;
+  return ambClash(x, z, false) ? null : hi;
+}
+
+// Preenche os vazios da rota com POIs de guerra (plano puro: {type, cx, cz, y, owner, t}). Cada vazio entre dois vizinhos
+// (cidade sua, POIs da cadeia, alvo) recebe quantos quadrados de 2 × raio + POI_GAP couberem, espaçados por igual; cada um
+// procura terreno bom até WAR.front.side blocos da rota. Tipo: warCampChance. Dono: o do vizinho mais perto se for você ou
+// o inimigo; senão pela metade da rota. No máximo WAR.front.maxWarPois.
+function wfFill(plan) {
+  const F = WAR.front, fid = plan.fid, len = plan.len, rw = POI_DEFS.fortcamp.r;
+  const rng = new RNG((WORLD.seed * 71 + fid * 13 + 7) >>> 0), out = [];
+  const tr = plan.target, nodes = [{ s: 0, r: plan.origin.half, o: 'player' }];
+  plan.chain.forEach((p, i) => nodes.push({ s: plan.ts[i] * len, r: POI_DEFS[p.type].r, o: p.owner, poi: true }));
+  nodes.push({ s: len, r: wfRad(tr), o: fid, poi: plan.kind === 'poi' });
+  for (let i = 0; i + 1 < nodes.length && out.length < F.maxWarPois; i++) {
+    const A = nodes[i], B = nodes[i + 1], from = A.s + A.r, L = B.s - B.r - from;
+    const n = Math.floor((L - F.gap) / (2 * rw + F.gap));
+    for (let k = 0; k < n && out.length < F.maxWarPois; k++) {
+      const s = from + L * (k + 1) / (n + 1), t = s / len, near = s - A.s < B.s - s ? A : B;
+      const type = rng.next() < warCampChance(t, (A.poi && A.o === fid) || (B.poi && B.o === fid)) ? 'fortcamp' : 'trench';
+      const r = POI_DEFS[type].r, c = wfPointAt(plan.path, s), cand = [];
+      for (let a = -30; a <= 30; a += 6) for (let o = -F.side; o <= F.side; o += 4) cand.push([a, o]);
+      cand.sort((u, v) => Math.hypot(u[0], u[1]) - Math.hypot(v[0], v[1]));
+      for (const [a, o] of cand) {
+        const x = Math.round(c.x + c.tx * a - c.tz * o), z = Math.round(c.z + c.tz * a + c.tx * o), y = wfSpotY(x, z, r, out);
+        if (y === null) continue;
+        const own = near.o === 'player' || near.o === fid ? near.o : (t < 0.5 ? 'player' : fid);
+        out.push({ type, cx: x, cz: z, y, owner: own, t });
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+// ---------- POIs de guerra: construir, remover e restaurar ----------
+// Cria um POI de guerra em jogo (sobre base de terra, sem mexer no terreno) e o liga ao mundo. e = {id, type, cx, cz, y, owner}.
+// O dono entra direto (sem a espera de poiOwnerChanged): os soldados da guarnição moram nele desde a declaração.
+function wfMake(e) {
+  const p = { id: e.id, type: e.type, cx: e.cx, cz: e.cz, y: e.y, biome: B[e.cz * W + e.cx], owner: e.owner, runtime: true,
+    padD: WAR.front.slope + 1 };   // base de terra tão funda quanto o desnível aceito: cobre o chão mais baixo
+  poiBuild(p);
+  WORLD.pois.push(p);
+  STATE.pois = STATE.pois || {};
+  if (STATE.pois[p.id] !== undefined) p.owner = STATE.pois[p.id]; else STATE.pois[p.id] = p.owner;
+  poiPaint(p); poiGarrisonSync(p);
+  return p;
+}
+// Constrói os POIs de guerra do plano e grava a frente em STATE.war.camps[fid].front (cria a campanha se faltar).
+function warFrontBuild(plan) {
+  const fid = plan.fid, camps = warX().camps;
+  warFrontClear(fid);
+  const used = new Set(WORLD.pois.map(p => p.id));
+  let id = 700;
+  for (const e of plan.war) { while (used.has(id)) id++; e.id = id; used.add(id); }
+  const camp = camps[fid] || (camps[fid] = { kind: 'attack', since: STATE.round, allies: { player: [], enemy: [] } });
+  camp.front = { kind: plan.kind, targetId: plan.target.id, originId: plan.origin.id,
+    path: plan.path.map(q => [Math.round(q.x), Math.round(q.z)]), chain: plan.chain.map(p => p.id),
+    war: plan.war.map(e => ({ id: e.id, type: e.type, cx: e.cx, cz: e.cz, y: e.y, owner: e.owner })) };
+  for (const e of plan.war) wfMake(e);
+  return plan.war.length;
+}
+// Remove um POI de guerra do mundo: guarnição, moradores, malha, colisões e entradas de estado.
+function wfUnmake(p) {
+  poiGarrisonRemove(p); poiCivRemove(p);
+  for (const o of p.sceneObjs || []) scene.remove(o);
+  if (p.mesh) p.mesh.geometry.dispose();
+  if (p.flagMat) p.flagMat.dispose();
+  for (const b of p.cols || []) Col.remove(b);
+  const i = WORLD.pois.indexOf(p);
+  if (i >= 0) WORLD.pois.splice(i, 1);
+  delete STATE.pois[p.id];
+  const X = poiX();
+  for (const k of ['seen', 'since', 'conq', 'clr']) if (X[k]) delete X[k][p.id];
+}
+// Remove os POIs de guerra da frente de fid (sem fid: de todas) e apaga a frente do estado. Chamada quando a guerra acaba.
+function warFrontClear(fid) {
+  const camps = warX().camps;
+  for (const f of fid === undefined ? Object.keys(camps) : [fid]) {
+    const fr = camps[f] && camps[f].front;
+    if (!fr) continue;
+    for (const e of fr.war || []) { const p = WORLD.pois.find(q => q.id === e.id); if (p) wfUnmake(p); }
+    delete camps[f].front;
+  }
+}
+// Reconstrói os POIs de guerra das frentes salvas (o mundo é refeito pela semente): applySave, depois das relações.
+function warFrontRestore() {
+  for (const fid in warX().camps) {
+    for (const e of (warX().camps[fid].front || {}).war || []) if (!WORLD.pois.some(p => p.id === e.id)) wfMake(e);
+  }
 }

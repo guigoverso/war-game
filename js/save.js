@@ -100,6 +100,7 @@ function applySave(d){
   STATE.deadFacs=s.deadFacs||[];if(s.reb)STATE.reb=s.reb;rebApply();   // facções novas e cidades trocadas (rebellion.js)
   STATE.pois=s.pois||{};STATE.poiX=Object.assign({clr:{},vigil:{},room:null,done:{},seen:{}},s.poiX||{});poiApply();warApply(s.war);   // POIs permanentes: donos que mudaram (pois.js)
   if(s.rel)STATE.rel=s.rel;   // relações com as facções NPC
+  warFrontRestore();   // POIs de guerra da frente (warfront.js): precisam das relações (poiLive) e dos donos salvos
   if(s.fac)STATE.fac=Object.assign(STATE.fac||{},s.fac);   // identidade do jogador (nome, cor, bandeira)
   if(s.rd)STATE.rd=s.rd;   // rodadas: tipos de cidade, entregas, rotas, nível da capital (o que faltar é completado por initEconomy)
   normalizeInv();refreshBuffs();   // inventário e durabilidade (salvamentos antigos usam os padrões)

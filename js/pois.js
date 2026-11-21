@@ -56,9 +56,11 @@ function poiFence(c,x0,z0,x1,z1,col){   // cerca de estacas e travessas, com col
   if(alongX)pBc(c,Math.min(x0,x1),0.35,z0-0.06,Math.max(x0,x1),1.2,z0+0.06,0x6b4a2a,true,{j:0});else pBc(c,x0-0.06,0.35,Math.min(z0,z1),x0+0.06,1.2,Math.max(z0,z1),0x6b4a2a,true,{j:0});   // as travessas formam uma barreira contínua
 }
 function poiDig(c,x0,z0,x1,z1,d){   // escava o terreno (só vale na geração, antes da malha): rebaixa d blocos e deixa terra batida
+  if(c.noDig)return;   // POI de guerra em jogo (warfront.js): a malha já existe, o chão não muda
   for(let iz=Math.floor(c.cz+z0);iz<Math.ceil(c.cz+z1);iz++)for(let ix=Math.floor(c.cx+x0);ix<Math.ceil(c.cx+x1);ix++){if(ix<1||iz<1||ix>=W-1||iz>=W-1)continue;H[iz*W+ix]=c.y-d;T[iz*W+ix]=T_WILD}
 }
 function poiLand(c,x0,z0,x1,z1){   // nivela a terra (não a água) à altura do POI
+  if(c.noDig)return;
   for(let iz=Math.floor(c.cz+z0);iz<Math.ceil(c.cz+z1);iz++)for(let ix=Math.floor(c.cx+x0);ix<Math.ceil(c.cx+x1);ix++){if(ix<1||iz<1||ix>=W-1||iz>=W-1)continue;if(H[iz*W+ix]>=SEA)H[iz*W+ix]=c.y}
 }
 function poiWell(c,x,z){   // poço de pedra com cobertura
@@ -436,9 +438,10 @@ poiPath(c,0,R+1,0,4);poiBrazier(c,-3.4,R+1.6);poiBrazier(c,3.4,R+1.6);
 // ---------- construção numa malha própria ----------
 function poiBuild(p){
   const c=poiArea(p.cx,p.cz,p.y,p.biome),rng=new RNG((WORLD.seed*53+p.id*97+3)>>>0);p.sceneObjs=[];p.c=c;
+  if(p.runtime){c.noDig=true;p.pad=true}   // POI criado em jogo (frente da guerra): sobre uma base de terra, sem mexer no terreno
   BX_CAP={batch:new BoxBatch(),cols:[]};
   try{
-    if(p.pad){const r=POI_DEFS[p.type].r;pBc(c,-r,-4,-r,r,0,r,0x6a5a40,true,{j:0.02})}   // base de terra (mapa manual: o chão não é aplainado)
+    if(p.pad){const r=POI_DEFS[p.type].r;pBc(c,-r,-(p.padD||4),-r,r,0,r,0x6a5a40,true,{j:0.02})}   // base de terra (mapa manual: o chão não é aplainado)
     POI_BUILD[p.type](c,rng,p);
   }finally{const cap=BX_CAP;BX_CAP=null;const m=cap.batch.toMesh(MAT_TERRAIN);if(m){m.userData.cx=p.cx;m.userData.cz=p.cz;scene.add(m);p.mesh=m;p.sceneObjs.push(m)}p.cols=cap.cols}
   poiPaint(p);

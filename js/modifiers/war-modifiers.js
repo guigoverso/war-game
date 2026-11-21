@@ -56,8 +56,10 @@ const WAR = {
   //  waterCost: custo extra por célula de água na busca (2: prefere terra, mas atravessa vão curto)
   //  slope: desnível máximo do terreno de um POI de guerra (os POIs de guerra não aplainam o chão em jogo) (4)
   //  maxWarPois: teto de POIs de guerra por frente (8)
-  //  side: quanto o POI de guerra pode sair da rota para achar terreno bom, em blocos (24)
-  front: { cell: 8, band: 45, avoid: 18, waterMax: 40, waterCost: 2, slope: 4, maxWarPois: 8, side: 24 }
+  //  side: quanto o POI de guerra pode sair da rota para achar terreno bom, em blocos (40)
+  //  gap: folga, borda a borda, entre um POI de guerra e cidades, POIs vizinhos e outros POIs de guerra (22; menor que POI_GAP
+  //    porque a frente enche os vazios que a geração deixou)
+  front: { cell: 8, band: 45, avoid: 18, waterMax: 40, waterCost: 2, slope: 4, maxWarPois: 8, side: 40, gap: 22 }
 };
 
 // Chance de um POI de guerra da frente ser Acampamento fortificado (senão, Trincheira). t = posição na rota (0 = cidade sua,

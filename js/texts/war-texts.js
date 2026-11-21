@@ -29,9 +29,12 @@ const TXT_WAR_FRONT_GONE = '🕊 Os acampamentos e trincheiras da frente foram d
 const txtWarChooseTarget = f => '🗺 Escolher o alvo no mapa (' + f + ')';
 
 // Cenário ?cenario=guerra: aviso ao abrir. enemy = nome da facção inimiga.
-const txtWarScnWelcome = enemy => WAR.scenario.startAtWar
-  ? '🧪 Cenário de guerra: você e ' + enemy + ' já estão em guerra e os POIs foram divididos. Pausa (Tab) → Facções tem o painel de testes.'
-  : '🧪 Cenário de guerra: os POIs foram divididos com ' + enemy + '. Declare a guerra pela tela de Negociações. Pausa (Tab) → Facções tem o painel de testes.';
+const txtWarScnWelcome = enemy => {
+  const pois = WAR.scenario.splitPois ? 'os POIs foram divididos com ' + enemy : 'os POIs ficaram como o mundo os gerou';
+  return WAR.scenario.startAtWar
+    ? '🧪 Cenário de guerra: você e ' + enemy + ' já estão em guerra e ' + pois + '. Pausa (Tab) → Facções tem o painel de testes.'
+    : '🧪 Cenário de guerra: ' + pois + '. Declare a guerra pela tela de Negociações. Pausa (Tab) → Facções tem o painel de testes.';
+};
 // Cenário de guerra: aviso quando falta POI para o botão (conquistar, perder ou ir até). Aparece como toast.
 const TXT_WAR_SCN_NO_POI = 'Nenhum POI disponível para essa ação.';
 // Cenário de guerra: aviso do botão "Conquistar POI". n = nome do POI.
