@@ -4,7 +4,7 @@ Referência rápida para achar as coisas sem varrer o código. Nomes são exatos
 Se renomear ou mover algo listado aqui, atualize esta página.
 
 ## Ordem de carga (`index.html`, fim do arquivo)
-util → modifiers → render → voxel → phys → world → city → nav → entities → weapons → allies → poi → quests → ambient → data →
+util → modifiers → texts → render → voxel → phys → world → city → nav → entities → weapons → allies → poi → quests → ambient → data →
 state → ui → inventory → store → cooking → fishing → dungeon → raids → warehouse → econ → office → caravans → book → bookmap → rounds → policies →
 factions → facgraph → facsupply → rebellion → rebmine → facevents → meetfx → meeting → globalev → flageditor →
 scenario → missions → pois → poigame → negoc → save → **game** (último: laço principal e entrada).
@@ -13,6 +13,7 @@ Código no topo de um arquivo só pode usar o que veio antes; dentro de funçõe
 ## Arquivos
 **Modificadores (ajuste fácil)**
 - `modifiers` — constantes e funções de regra que o usuário altera sem pedir à IA (cada uma com comentário: para que serve e valor padrão). Novos modificadores vão aqui. Hoje: `BANDIT_RETAKE_FREE_POI`, `FACTION_TAKE_FREE_POI` (pesos de quem retoma um POI livre ignorado) e `freePoiTaker` (usada por `poiFreeRetake` em `poigame.js`); `WAR_RETAKE_MULTIPLIER` (redutor da retomada dos POIs seus em guerra, usado em `poiRetakeChance`).
+- `texts` — textos do jogo que o usuário ajusta sem pedir à IA: mensagens e avisos (toast, relatório da rodada), textos de livro e cartão, e funções que devolvem string. Cada um com comentário (onde aparece e para que serve). Novos textos vão aqui. Ainda vazio.
 
 **Mundo e render**
 - `util` — utilitários (sementes, cores, interpolação): `mulberry32`, `hashStr`, `clamp`, `lerp`, `mixc`, `tick`.
@@ -67,7 +68,7 @@ Código no topo de um arquivo só pode usar o que veio antes; dentro de funçõe
 
 **POIs da Fase 6**
 - `pois` — tipos e construção dos POIs no mundo: `POI_DEFS`, `POI_TYPES` (fazenda, mina, serraria, caçadores, santuário, ponte, forte, torre, taverna, entreposto, ruínas), `POI_BUILD`, `poiBuild`, `genWorldPois` (anel, estrada e interior; números em `POI_GEN`, pesos por bioma em `POI_W`, regras de lugar em `poiRuleOK`, `POI_RANGE`/`POI_BIG`: desnível e terreno dos grandes, `POI_GEN.limit`/`min`/`biomeCap`/`first`: limites, mínimos e tipo principal do bioma), `bridgeSpots` (lugar do pedágio na ponte; `POI_GEN.bridgeToll/bridgeMin/bridgeGap`), `poiSetOwner`, `poiNear`, `poiShowcase`.
-- `poigame` — regras dos POIs (guarnição, anexação, renda, preço): `POIX`, `POI_PRICE`, `poiMine`, `poiLvl` (nível do dono: produção e pedágio), `poiGarrisonSync`, `poiScan`, `poiAct`, `poiTick`; moradores e serviços (ferreiro, mercenário, taverneiro, lojista do entreposto), binóculo: `SVC`, `svcOpen`, `svcSmith`, `svcMerc`, `svcTavern`, `svcPost`, `poiBinoc`.
+- `poigame` — regras dos POIs (guarnição, anexação, renda, preço): `POIX`, `POI_PRICE`, `poiMine`, `poiLvl` (nível do dono: produção e pedágio), `poiGarrisonSync`, `poiScan`, `poiAct`, `poiTick`; moradores e serviços (ferreiro, mercenário, taverneiro, lojista do entreposto), binóculo: `SVC`, `svcOpen`, `svcSmith`, `svcMerc`, `svcTavern`, `svcPost`, `poiVigil` (vigia da torre; marcas `STATE.poiX.marks`, `poiMarkCheck`; desenho `drawQuery` em `quests.js`; textos `TXT_VIGIL_*` em `texts.js`).
   Entreposto: `poiPosts`, `poiOnRoute` (`p.road` opcional), `poiRouteBlocked` (usado em `caravans.js`, `bookmap.js`, `facgraph.js`), `poiPostIncome`, `poiPostEffects` (aba Efeitos, `meetfx.js`), `postPrice`; números em `POIX.post`.
   Santuário: `poiHasSanc`, `poiSancPeace` (usado em `rounds.js` e `facsupply.js`), `poiSancDelay` (`rounds.js` e `rebellion.js`); números em `POIX.sanc`. Ruínas: guardiões voltam a cada rodada (gancho `round` de `poigame`), baú não volta (`POIX.ruinRelic`). Caçadores: `poiHuntLoot`, `poiHuntPen` (`facsupply.js`).
 - `negoc` — Negociação (entrada no caderno): `negOpen`, `negPage`, `negClick`, `negEntryHtml`.
@@ -101,13 +102,14 @@ Código no topo de um arquivo só pode usar o que veio antes; dentro de funçõe
 `stove`/`fire`→`openCooking`, `npc`→`npcTalk`, `chest`→`openChest`, `cage`→`openCage`, `dgcage`→`gevCageOpen`,
 `portal`→`enterDungeon`, `dgexit`→`leaveDungeon`, `vein`→`mineVein`, `book`→`openBook`, `leader`→`hallRoundAction`,
 `warehouse`→`openWarehouse`, `loot`→`lootCaravan`, `msdeliver`→`msDeliver`, `poi*`→`poiAct` (`poigame.js`).
-Alvos `poi*`: `poibar`, `poibed`, `poibinoc`, `poivigil`, `poisvc` (ferreiro, mercenário, lojista do entreposto) (`poiScan`, poigame).
+Alvos `poi*`: `poibar`, `poibed`, `poivigil`, `poisvc` (ferreiro, mercenário, lojista do entreposto) (`poiScan`, poigame).
 Raid ativa bloqueia via `raidLocked(t.c)`. No escritório/salão: `meetInteract` (meeting) ou `nearBook`→`openBook`.
 
 ## Números de balanceamento
 - `ECON` (`econ.js`) — necessidades, saque de caravana (`ECON.loot`), produção, impostos, caravana (`CARAVAN_COST=ECON.caravan`), evolução de cidade.
 - `POL` (`policies.js`) — chance e duração das políticas; definições via `definePolicy`.
 - `POI_GEN`, `POI_W`, `POI_RANGE` (`pois.js`) — quantidade, pesos por bioma, limites e mínimos dos POIs gerados.
+- **`texts.js`** — textos novos (mensagens e funções de texto): olhar aqui antes de escrever string na lógica.
 - **`modifiers.js`** — modificadores novos (a partir da feature Atualizações dos POIs): olhar primeiro aqui antes de criar constante nova.
 - `POIX` e `POI_PRICE` (`poigame.js`) — guarnição, produção e pedágio por nível, santuário (`sanc`), caçadores (`hunt`), entreposto (`post`), colete (`vest`), retomada e preço dos POIs.
 - `RAID_WAVES`, `RAID_GAP`, `RAID_TIME`, `RAID_LOSS_*` (`raids.js`).

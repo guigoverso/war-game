@@ -17,7 +17,7 @@ const POIX={
   ruinRelic:0.30,    // chance de artefato (relíquia) no baú das ruínas (o baú não volta; os guardiões voltam a cada rodada)
   garrison:{min:10,max:22,by:{fort:12,fortcamp:11},perDist:140,tierStep:200,hpDist:600},   // bandidos por POI: no mínimo 10 (forte 12) e +1 a cada 140 blocos da sua capital; a cada 200 blocos sobe o nível (brutamontes, robôs, franco-atiradores) e a vida cresce até +120%
   sellMin:3000,      // venda a uma facção: ver POI_PRICE
-  binoc:{range:300,hours:1,max:3,w:{poi:10,ruins:15,chest:20,portal:25,camp:30}},   // alcance (blocos), horas por uso, usos por rodada e peso de cada achado (do mais raro ao mais comum)
+  binoc:{range:300},   // alcance da vigia (blocos); ela marca o ponto não descoberto mais perto da torre
   civDelay:1,   // moradores aparecem N rodadas depois da conquista (conquistou na rodada N, aparecem na N+1)
   guards:{fort:4,fortcamp:4,bridge:3,tower:2,def:2},   // soldados que moram no POI (a ponte tem só soldados)
   civ:{farm:3,mine:3,sawmill:3,hunters:2,sanctuary:5,post:2,fort:3,tavern:0,tower:0,bridge:0,fortcamp:0,trench:0},   // civis que andam pelo POI (fora os de serviço e os da taverna)
@@ -25,8 +25,9 @@ const POIX={
   smith:{goldPct:0.6},     // pagando com sucata, o ferreiro ainda cobra esta fração do preço em ◉ (a sucata cobre o resto)
   vest:{base:180,leather:5,pct:0.35,goldPct:0.6}   // reparo do colete no Quartel (allies.js): 35% do preço de um colete novo em ◉; com couro (5 para 100%) cobra 60% disso em ◉
 };
-Hooks.on('resetState',()=>{STATE.poiX={clr:{},vigil:-1,room:null,done:{},seen:{}}});
-const poiX=()=>{const X=STATE.poiX||(STATE.poiX={clr:{},vigil:-1,room:null,done:{},seen:{}});if(!X.done)X.done={};if(!X.seen)X.seen={};return X};
+Hooks.on('resetState',()=>{STATE.poiX={clr:{},vigil:{},room:null,done:{},seen:{}}});
+const poiX=()=>{const X=STATE.poiX||(STATE.poiX={clr:{},vigil:{},room:null,done:{},seen:{}});if(!X.vigil||typeof X.vigil!=='object')X.vigil={};if(!X.marks)X.marks=[];   // vigil: rodada do último uso por torre; marks: "?" da vigia (salvos)
+  if(!X.done)X.done={};if(!X.seen)X.seen={};return X};
 const poiVisible=p=>(p.show||G.creative||!!poiX().seen[p.id])&&poiLive(p);   // fora do modo criativo, o POI só aparece nos mapas depois que você chega perto
 let POI_READY=false;
 const poiMine=type=>(WORLD.pois||[]).filter(p=>!p.show&&p.owner==='player'&&poiLive(p)&&(!type||p.type===type));
@@ -198,7 +199,7 @@ function poiRetakeChance(p){   // POI seu: base + distância, teto; em guerra ve
 }
 Hooks.on('round',()=>{
   if(!WORLD.pois||STATE.round<1)return;
-  G.poiMark=null;
+  poiX().marks=[];
   for(const a of ALLIES)if(a.poiFort&&a.alive){a.alive=false;a.gone=true;scene.remove(a.group)}   // soldados extras dos fortes valem só numa batalha da rodada
   const home=playerCities()[0],gain={};
   for(const p of poiMine()){
@@ -415,8 +416,9 @@ function svcTavern(p){
 function poiScan(lines){
   for(const p of WORLD.pois||[]){
     const own=p.owner==='player',svc=poiSvcOk(p);if(!own&&!svc)continue;   // vigia e binóculo só nos seus; taverneiro e cama também nos de facções amigas
-    if(own&&p.vigilPos&&Math.hypot(P.x-p.vigilPos.x,P.z-p.vigilPos.z)<2.6&&Math.abs(P.y-p.y)<2.6){G.target={type:'poivigil',p};lines.push('[E] Fazer vigia (avança '+POIX.vigilHours+' h e marca um ponto de interesse)'+(poiX().vigil===STATE.round?' — já feito nesta rodada':''))}
-    if(own&&p.binoc&&Math.hypot(P.x-p.binoc.x,P.z-p.binoc.z)<1.8&&Math.abs(P.y-p.binoc.y)<3){G.target={type:'poibinoc',p};lines.push('[E] Usar o binóculo (acha POIs, ruínas, baús, portais e acampamentos num raio de '+POIX.binoc.range+' blocos)')}
+    const atVigil=(p.vigilPos&&Math.hypot(P.x-p.vigilPos.x,P.z-p.vigilPos.z)<2.6&&Math.abs(P.y-p.y)<2.6)
+      ||(p.binoc&&Math.hypot(P.x-p.binoc.x,P.z-p.binoc.z)<1.8&&Math.abs(P.y-p.binoc.y)<3);   // base da torre ou binóculo no tripé
+    if(own&&atVigil){G.target={type:'poivigil',p};lines.push(TXT_VIGIL_HINT)}
     if(svc&&p.tavern&&Math.hypot(P.x-p.tavern.x,P.z-p.tavern.z)<3.2&&Math.abs(P.y-p.y)<2.6){G.target={type:'poibar',p};lines.push('[E] Taverneiro: comida e quarto')}
     if(own&&p.stove&&Math.hypot(P.x-p.stove.x,P.z-p.stove.z)<3.0&&Math.abs(P.y-p.y)<2.6){G.target={type:'stove',p};lines.push('[E] Fogão: cozinhar')}   // igual ao da taverna da cidade (game.js: openCooking), só na taverna sua
     if(svc&&p.bed&&Math.hypot(P.x-p.bed.x,P.z-p.bed.z)<2.4&&Math.abs(P.y-p.bed.y)<2.6){G.target={type:'poibed',p};const r=poiX().room;lines.push(r&&r.poi===p.id&&r.round===STATE.round?'[E] Dormir (noite vira manhã; dia vira noite)':'🔒 Cama: reserve o quarto com o taverneiro')}
@@ -430,55 +432,46 @@ function poiScan(lines){
 }
 function poiAct(t){
   const p=t.p,X=poiX();
-  if(t.type==='poibinoc')return poiBinoc(p);
   if(t.type==='poibar')return svcTavern(p);
   if(t.type==='poisvc')return t.s.kind==='smith'?svcSmith(p):t.s.kind==='merc'?svcMerc(p):svcPost(p);
-  if(t.type==='poivigil'){
-    if(STATE.phase!=='commander')return toast('A vigia é feita no turno do comandante.',2500);
-    if(X.vigil===STATE.round)return toast('Você já fez a vigia nesta rodada.',2500);
-    X.vigil=STATE.round;
-    {const dt=POIX.vigilHours/24;DN.t+=dt;if(DN.t>=1){DN.t-=1;DN.days++}}
-    const cand=[];
-    for(const k of WORLD.camps)if(!k.gone&&k.state!=='cleared'&&Math.hypot(k.cx-p.cx,k.cz-p.cz)<400)cand.push({x:k.cx,z:k.cz,label:'Acampamento de bandidos'});
-    for(const q of WORLD.pois)if(!q.show&&q!==p&&q.type!=='ruins'&&q.owner==='bandit'&&Math.hypot(q.cx-p.cx,q.cz-p.cz)<400)cand.push({x:q.cx,z:q.cz,label:'Bandidos em '+POI_DEFS[q.type].n});
-    for(const q of WORLD.pois)if(!q.show&&q.type==='ruins'&&Math.hypot(q.cx-p.cx,q.cz-p.cz)<400)cand.push({x:q.cx,z:q.cz,label:'Ruínas antigas'});
-    if(cand.length){const m=cand[Math.floor(Math.random()*cand.length)];G.poiMark=m;toast('🔭 Vigia feita ('+POIX.vigilHours+' h). Ponto de interesse marcado no mapa: '+m.label+'.',5000)}
-    else toast('🔭 Vigia feita ('+POIX.vigilHours+' h). Nada de novo no horizonte.',4000);
-  }else if(t.type==='poibed'){
+  if(t.type==='poivigil')return poiVigil(p);
+  if(t.type==='poibed'){
     if(!(X.room&&X.room.poi===p.id&&X.room.round===STATE.round))return toast('Reserve o quarto com o taverneiro primeiro.',2500);
     X.room=null;const night=DN.t<0.25||DN.t>0.75;
     if(night){if(DN.t>0.75)DN.days++;DN.t=0.3}else DN.t=0.85;   // noite vira manhã (7h12); dia vira noite (20h24)
     P.hp=P.maxhp;toast(night?'😴 Você dormiu até de manhã. Vida recuperada.':'😴 Você descansou até anoitecer. Vida recuperada.',4000);
   }
 }
-// marca de interesse da vigia nos mapas (estrela laranja); some perto dela ou na rodada seguinte
-function poiMarkCheck(){const m=G.poiMark;if(m&&Math.hypot(P.x-m.x,P.z-m.z)<15){G.poiMark=null;toast('🔭 Você chegou ao ponto de interesse.',2500)}}
+// marcas "?" da vigia nos mapas (STATE.poiX.marks, salvas com o jogo); cada uma some perto dela (15 blocos) ou na rodada seguinte
+function poiMarkCheck(){
+  const ms=poiX().marks;if(!ms.length)return;
+  const left=ms.filter(m=>Math.hypot(P.x-m.x,P.z-m.z)>=15);
+  if(left.length!==ms.length){poiX().marks=left;toast(TXT_VIGIL_ARRIVED,2500)}
+}
 
-// ---------- binóculo da torre: acha coisas num raio; quanto mais raro, menor a chance ----------
-// peso (chance): POI < ruínas < baú escondido < portal de dungeon < acampamento de bandidos / caverna de animais
-function poiBinoc(p){
-  const X=poiX(),B=POIX.binoc,rg=B.range;
-  if(!X.bin||X.bin.r!==STATE.round)X.bin={r:STATE.round,n:0,f:{}};
-  if(X.bin.n>=B.max)return toast('🔭 Seus olhos cansaram: o binóculo só pode ser usado '+B.max+' vezes por rodada.',3500);
+// ---------- "Fazer vigia" (única ação da torre): avança horas e marca o ponto mais perto no raio ----------
+function poiVigil(p){
+  const X=poiX(),rg=POIX.binoc.range;
+  if(STATE.phase!=='commander')return toast(TXT_VIGIL_WRONG_PHASE,2500);
+  if(X.vigil[p.id]===STATE.round)return toast(TXT_VIGIL_USED,2500);
+  if(!X.bin||X.bin.r!==STATE.round)X.bin={r:STATE.round,f:{}};   // achados da rodada, compartilhados por todas as torres
   const near=(x,z)=>Math.hypot(x-p.cx,z-p.cz)<rg,fresh=k=>!X.bin.f[k],pool={poi:[],ruins:[],chest:[],portal:[],camp:[]};
   for(const q of WORLD.pois||[]){
     if(q.show||q===p||!poiLive(q)||!near(q.cx,q.cz))continue;
-    if(q.type==='ruins'){if(fresh('r'+q.id))pool.ruins.push({k:'r'+q.id,x:q.cx,z:q.cz,label:'Ruínas antigas'})}
-    else if(!X.seen[q.id]&&fresh('p'+q.id))pool.poi.push({k:'p'+q.id,x:q.cx,z:q.cz,q,label:POI_DEFS[q.type].ic+' '+POI_DEFS[q.type].n});
+    if(q.type==='ruins'){if(fresh('r'+q.id))pool.ruins.push({k:'r'+q.id,x:q.cx,z:q.cz})}
+    else if(!X.seen[q.id]&&fresh('p'+q.id))pool.poi.push({k:'p'+q.id,x:q.cx,z:q.cz,q});
   }
-  WORLD.chests.forEach((ch,i)=>{if(ch.lost&&!ch.opened&&near(ch.x,ch.z)&&fresh('c'+i))pool.chest.push({k:'c'+i,x:ch.x,z:ch.z,label:'Baú escondido'})});
-  for(const pt of STATE.portals||[])if(!pt.claimed&&near(pt.x,pt.z)&&fresh('g'+pt.id))pool.portal.push({k:'g'+pt.id,x:pt.x,z:pt.z,label:'Portal de dungeon'});
-  for(const k of WORLD.camps)if(!k.gone&&k.state!=='cleared'&&near(k.cx,k.cz)&&fresh('k'+k.id))pool.camp.push({k:'k'+k.id,x:k.cx,z:k.cz,label:'Acampamento de bandidos'});
-  for(const k of WORLD.caves)if(!k.gone&&k.state!=='cleared'&&near(k.cx,k.cz)&&fresh('v'+k.id))pool.camp.push({k:'v'+k.id,x:k.cx,z:k.cz,label:'Caverna de animais'});
-  X.bin.n++;{const dt=B.hours/24;DN.t+=dt;if(DN.t>=1){DN.t-=1;DN.days++}}
-  const kinds=Object.keys(pool).filter(k=>pool[k].length);
-  if(!kinds.length)return toast('🔭 Você varre o horizonte ('+B.hours+' h) e não vê nada de novo.',3500);
-  let r=Math.random()*kinds.reduce((s,k)=>s+B.w[k],0),kind=kinds[0];
-  for(const k of kinds){r-=B.w[k];if(r<=0){kind=k;break}}
-  const arr=pool[kind],f=arr[Math.floor(Math.random()*arr.length)];
-  X.bin.f[f.k]=true;G.poiMark={x:f.x,z:f.z,label:f.label};
-  if(f.q){X.seen[f.q.id]=true}   // POI achado passa a aparecer no mapa
-  toast('🔭 Pelo binóculo você avistou: '+f.label+' (marcado no mapa).',5000);
+  WORLD.chests.forEach((ch,i)=>{if(ch.lost&&!ch.opened&&near(ch.x,ch.z)&&fresh('c'+i))pool.chest.push({k:'c'+i,x:ch.x,z:ch.z})});
+  for(const pt of STATE.portals||[])if(!pt.claimed&&near(pt.x,pt.z)&&fresh('g'+pt.id))pool.portal.push({k:'g'+pt.id,x:pt.x,z:pt.z});
+  for(const k of WORLD.camps)if(!k.gone&&k.state!=='cleared'&&near(k.cx,k.cz)&&fresh('k'+k.id))pool.camp.push({k:'k'+k.id,x:k.cx,z:k.cz});
+  for(const k of WORLD.caves)if(!k.gone&&k.state!=='cleared'&&near(k.cx,k.cz)&&fresh('v'+k.id))pool.camp.push({k:'v'+k.id,x:k.cx,z:k.cz});
+  X.vigil[p.id]=STATE.round;{const dt=POIX.vigilHours/24;DN.t+=dt;if(DN.t>=1){DN.t-=1;DN.days++}}
+  const all=Object.values(pool).flat();   // acha o ponto ainda não descoberto/limpado mais perto da torre
+  if(!all.length)return toast(TXT_VIGIL_NOTHING,3500);
+  const f=all.reduce((m,c)=>Math.hypot(c.x-p.cx,c.z-p.cz)<Math.hypot(m.x-p.cx,m.z-p.cz)?c:m);
+  X.bin.f[f.k]=true;X.marks.push({x:f.x,z:f.z});
+  if(f.q)X.seen[f.q.id]=true;   // POI achado passa a aparecer no mapa
+  toast(TXT_VIGIL_FOUND,4000);
 }
 
 // ---------- batalha no POI: seus soldados aparecem; o POI surge no mapa quando você chega perto ----------

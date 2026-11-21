@@ -97,7 +97,7 @@ function applySave(d){
   if(s.frel)STATE.frel=s.frel;if(s.flog)STATE.flog=s.flog;
   if(s.fev)STATE.fev=s.fev;if(s.meet)STATE.meet=s.meet;if(s.gev)STATE.gev=s.gev;   // eventos entre facções NPC e reuniões   // eventos entre facções NPC (facevents.js)
   STATE.deadFacs=s.deadFacs||[];if(s.reb)STATE.reb=s.reb;rebApply();   // facções novas e cidades trocadas (rebellion.js)
-  STATE.pois=s.pois||{};STATE.poiX=Object.assign({clr:{},vigil:-1,room:null,done:{},seen:{}},s.poiX||{});poiApply();   // POIs permanentes: donos que mudaram (pois.js)
+  STATE.pois=s.pois||{};STATE.poiX=Object.assign({clr:{},vigil:{},room:null,done:{},seen:{}},s.poiX||{});poiApply();   // POIs permanentes: donos que mudaram (pois.js)
   if(s.rel)STATE.rel=s.rel;   // relações com as facções NPC
   if(s.fac)STATE.fac=Object.assign(STATE.fac||{},s.fac);   // identidade do jogador (nome, cor, bandeira)
   if(s.rd)STATE.rd=s.rd;   // rodadas: tipos de cidade, entregas, rotas, nível da capital (o que faltar é completado por initEconomy)

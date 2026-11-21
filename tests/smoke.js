@@ -122,10 +122,19 @@ const T={
     if(!vestRepair(true)||P.armor!==100||g1-P.coins!==q.goldLea||l0-invCount('couro')!==q.lea)return 'reparo com couro errado';
     closePanel();return '';
   },
-  binoc:()=>{   // usa o binóculo de uma torre (ou de qualquer POI, se não houver torre)
-    const p=WORLD.pois.find(q=>q.type==='tower')||WORLD.pois[0],X=poiX();
-    const n0=X.bin&&X.bin.r===STATE.round?X.bin.n:0;poiBinoc(p);
-    return X.bin&&X.bin.r===STATE.round&&X.bin.n===n0+1?'':'o uso do binóculo não foi contado';
+  binoc:()=>{   // "Fazer vigia": 1 uso por torre por rodada; duas torres = dois "?"; sem candidatos = aviso
+    const towers=WORLD.pois.filter(q=>q.type==='tower'),p=towers[0]||WORLD.pois[0],X=poiX(),ph=STATE.phase,old=Math.random;
+    let why='';
+    try{
+      STATE.phase='commander';X.marks=[];X.bin=null;delete X.vigil[p.id];
+      const m0=X.marks.length,t0=DN.t+DN.days;poiVigil(p);
+      if(X.vigil[p.id]!==STATE.round)why='o uso da vigia não foi contado';
+      else if(DN.t+DN.days<=t0)why='a vigia não avançou o relógio';
+      const n1=X.marks.length;poiVigil(p);
+      if(!why&&X.marks.length!==n1)why='a mesma torre usou duas vezes na rodada';
+      if(!why&&towers[1]){delete X.vigil[towers[1].id];poiVigil(towers[1]);if(X.marks.length>m0+2)why='mais "?" do que usos'}
+    }finally{Math.random=old;STATE.phase=ph;X.marks=[]}
+    return why;
   },
   freeRetake:()=>{   // POI livre sem decisão: ao encerrar o turno do líder, sempre retomado (50% bandidos, 50% facção mais perto)
     const p=WORLD.pois.find(q=>!q.show&&!POI_DEFS[q.type].war&&q.type!=='ruins'&&q.owner==='bandit');if(!p)return 'sem POI de bandidos';
@@ -203,7 +212,7 @@ const T={
     report(!g.errs.length,'seed 11: sem erros ao carregar',g.errs.join(' | ').slice(0,300));
     await check(g,'seed 11: POIs gerados',T.pois);
     await check(g,'seed 11: pontes (registro e pedágios no máximo 3)',T.bridges);
-    await check(g,'seed 11: binóculo (poiBinoc)',T.binoc);
+    await check(g,'seed 11: vigia da torre (poiVigil)',T.binoc);
     await check(g,'seed 11: POI livre sem decisão (retomada ao encerrar o líder)',T.freeRetake);
     await check(g,'seed 11: retomada dos POIs seus em guerra (redutor)',T.warRetake);
     await check(g,'seed 11: ruínas (guardiões voltam, baú não)',T.ruins);
@@ -223,7 +232,7 @@ const T={
     await check(g,'pois: taverna (ferreiro, mercenário, bandidos)',T.tavernNpcs);
     await check(g,'pois: caçadores (baú de carne e nível)',T.hunters);
     await check(g,'pois: santuário (peregrinos, paz, adiamento)',T.sanctuary);
-    await check(g,'pois: binóculo (poiBinoc)',T.binoc);
+    await check(g,'pois: vigia da torre (poiVigil)',T.binoc);
     await check(g,'pois: Negociação (livro na aba facs, todas as telas)',T.neg);
     await g.page.close();
   }catch(e){report(false,'execução',e.message.split('\n')[0])}

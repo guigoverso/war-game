@@ -581,7 +581,7 @@ function drawMinimap(){
       for(const ic of cityIcons(c)){const dx=(ic.x-P.x)*s,dz=(ic.z-P.z)*s,rx=dx*cs-dz*sn,ry=dx*sn+dz*cs;if(Math.hypot(rx,ry)>R-16)continue;drawIcon(mmc,R+rx,R+ry,ic,7)}}}
   mmc.fillStyle='#fff';mmc.strokeStyle='#000';mmc.lineWidth=2;mmc.beginPath();mmc.moveTo(R,R-8);mmc.lineTo(R+6,R+6);mmc.lineTo(R,R+3);mmc.lineTo(R-6,R+6);mmc.closePath();mmc.fill();mmc.stroke();
   {const rm=G.dg?null:rebMarker();if(rm){const dx=(rm.x-P.x)*s,dz=(rm.z-P.z)*s,cs=Math.cos(P.yaw),sn=Math.sin(P.yaw);let rx=dx*cs-dz*sn,ry=dx*sn+dz*cs;const L=Math.hypot(rx,ry);if(L>77){rx*=77/L;ry*=77/L}drawStar(mmc,R+rx,R+ry,8,'#ff3a2a')}}   // marcador da rebelião a resolver (vermelho; no aro quando longe)
-  {const pm=G.dg?null:G.poiMark;if(pm){const dx=(pm.x-P.x)*s,dz=(pm.z-P.z)*s,cs=Math.cos(P.yaw),sn=Math.sin(P.yaw);let rx=dx*cs-dz*sn,ry=dx*sn+dz*cs;const L=Math.hypot(rx,ry);if(L>77){rx*=77/L;ry*=77/L}drawStar(mmc,R+rx,R+ry,7,'#ff9a2a')}}   // ponto de interesse da vigia
+  for(const pm of G.dg?[]:poiX().marks){{const dx=(pm.x-P.x)*s,dz=(pm.z-P.z)*s,cs=Math.cos(P.yaw),sn=Math.sin(P.yaw);let rx=dx*cs-dz*sn,ry=dx*sn+dz*cs;const L=Math.hypot(rx,ry);if(L>77){rx*=77/L;ry*=77/L}drawQuery(mmc,R+rx,R+ry,7)}}   // pontos de interesse da vigia ("?")
   {const qt=G.dg?null:questTarget();if(qt){const dx=(qt.x-P.x)*s,dz=(qt.z-P.z)*s,cs=Math.cos(P.yaw),sn=Math.sin(P.yaw);let rx=dx*cs-dz*sn,ry=dx*sn+dz*cs;const L=Math.hypot(rx,ry);if(L>77){rx*=77/L;ry*=77/L}drawStar(mmc,R+rx,R+ry,7)}}   // fora do alcance a estrela fica no aro, como a rosa dos ventos; perto, fica no local da missão. Sempre por cima de tudo
   if(!G.dg)for(const p of markedPortals()){   // portal dourado: losango que se comporta como a estrela de missão (no aro quando longe, no local quando perto; por cima de tudo)
     const dx=(p.x-P.x)*s,dz=(p.z-P.z)*s,cs=Math.cos(P.yaw),sn=Math.sin(P.yaw);let rx=dx*cs-dz*sn,ry=dx*sn+dz*cs;const L=Math.hypot(rx,ry);if(L>77){rx*=77/L;ry*=77/L}
@@ -645,7 +645,7 @@ function drawBigMap(cvArg,mk){   // cvArg: outro canvas (popup de missão); mk: 
   drawRose(g,cv.width-64*k,64*k,30*k);
   drawPickOverlay(g,s);   // modo de escolha de caravana (bookmap.js)
   {const rm=rebMarker();if(rm){drawStar(g,rm.x*s,rm.z*s,13*k,'#ff3a2a');g.fillStyle='#ff9a8a';g.strokeStyle='#000';g.lineWidth=3;g.strokeText(rm.label,rm.x*s,rm.z*s-18*k);g.fillText(rm.label,rm.x*s,rm.z*s-18*k)}}
-  {const pm=G.poiMark;if(pm){drawStar(g,pm.x*s,pm.z*s,11*k,'#ff9a2a');g.fillStyle='#ffd08a';g.strokeStyle='#000';g.lineWidth=3;g.strokeText(pm.label,pm.x*s,pm.z*s-16*k);g.fillText(pm.label,pm.x*s,pm.z*s-16*k)}}
+  for(const pm of poiX().marks)drawQuery(g,pm.x*s,pm.z*s,11*k)   // "?" da vigia, sem rótulo
   {const qt=questTarget();if(qt){drawStar(g,qt.x*s,qt.z*s,10*k);g.fillStyle='#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText('Missão ativa',qt.x*s,qt.z*s-16*k);g.fillText('Missão ativa',qt.x*s,qt.z*s-16*k)}}
   if(mk){drawStar(g,mk.x*s,mk.z*s,13*k,mk.col);g.fillStyle=mk.lcol||'#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText(mk.label,mk.x*s,mk.z*s-18*k);g.fillText(mk.label,mk.x*s,mk.z*s-18*k)}
   if(!(G.dg||G.office||P.y<UNDER_Y)){g.save();g.translate(P.x*s,P.z*s);g.rotate(-P.yaw);g.scale(k,k);g.fillStyle='#fff';g.strokeStyle='#000';g.beginPath();g.moveTo(0,-9);g.lineTo(7,8);g.lineTo(0,4);g.lineTo(-7,8);g.closePath();g.fill();g.stroke();g.restore();}   // fora do mapa (dungeon, sala do líder, sala de reuniões): sem o indicador do jogador

@@ -12,6 +12,14 @@ function drawStar(ctx,x,y,r,col){
   ctx.closePath();ctx.fillStyle=col||'#ffd23a';ctx.fill();ctx.strokeStyle='#000';ctx.lineWidth=2;ctx.stroke();ctx.restore();
 }
 
+// "?" laranja: ponto de interesse marcado pela vigia da torre (minimapa e mapa grande)
+function drawQuery(ctx,x,y,r){
+  ctx.save();ctx.translate(x,y);ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.fillStyle='#ff9a2a';ctx.fill();
+  ctx.strokeStyle='#000';ctx.lineWidth=2;ctx.stroke();
+  ctx.fillStyle='#000';ctx.font='bold '+Math.round(r*1.4)+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('?',0,1);ctx.restore();
+}
+
 // ---------- acampamento da missão ----------
 function okQuestCamp(k,c,type,anyDist){
   if(k.ambush||k.gone||k.state==='cleared'||k.questTarget)return false;
