@@ -306,6 +306,7 @@ function genPOIs(rng,cities){
     taken.push({x:s.x,z:s.z,r:4});buildHideout(s.x,s.z,s.y,rng);
   }
   genPacks(rng,cities,taken);
+  genWarSites(taken);   // terrenos de guerra (warfront.js): por último, para não mudar a posição de nada que já existia
   WORLD.areas=cities.concat(WORLD.camps,WORLD.caves,WORLD.packs);
 }
 

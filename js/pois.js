@@ -438,10 +438,10 @@ poiPath(c,0,R+1,0,4);poiBrazier(c,-3.4,R+1.6);poiBrazier(c,3.4,R+1.6);
 // ---------- construção numa malha própria ----------
 function poiBuild(p){
   const c=poiArea(p.cx,p.cz,p.y,p.biome),rng=new RNG((WORLD.seed*53+p.id*97+3)>>>0);p.sceneObjs=[];p.c=c;
-  if(p.runtime){c.noDig=true;p.pad=true}   // POI criado em jogo (frente da guerra): sobre uma base de terra, sem mexer no terreno
+  if(p.runtime){c.noDig=true;p.pad=true}   // POI criado em jogo (frente da guerra): sobre uma base de terra; o chão já foi nivelado na geração (warSites)
   BX_CAP={batch:new BoxBatch(),cols:[]};
   try{
-    if(p.pad){const r=POI_DEFS[p.type].r;pBc(c,-r,-(p.padD||4),-r,r,0,r,0x6a5a40,true,{j:0.02})}   // base de terra (mapa manual: o chão não é aplainado)
+    if(p.pad){const r=POI_DEFS[p.type].r;pBc(c,-r,-4,-r,r,0,r,0x6a5a40,true,{j:0.02})}   // base de terra (mapa manual: o chão não é aplainado)
     POI_BUILD[p.type](c,rng,p);
   }finally{const cap=BX_CAP;BX_CAP=null;const m=cap.batch.toMesh(MAT_TERRAIN);if(m){m.userData.cx=p.cx;m.userData.cz=p.cz;scene.add(m);p.mesh=m;p.sceneObjs.push(m)}p.cols=cap.cols}
   poiPaint(p);
@@ -453,6 +453,7 @@ function ambClash(x,z,lax){
   const g=lax?AMB_GAP*0.5:AMB_GAP;
   for(const p of WORLD.pois||[])if(Math.hypot(p.cx-x,p.cz-z)<POI_DEFS[p.type].r+g)return true;
   for(const q of WORLD.caves||[])if(Math.hypot(q.cx-x,q.cz-z)<11+g)return true;
+  for(const q of WORLD.warSites||[])if(Math.hypot(q.x-x,q.z-z)<POI_DEFS.fortcamp.r+g)return true;   // terrenos de guerra (warfront.js)
   for(const q of WORLD.chests||[])if(Math.hypot(q.x-x,q.z-z)<3+g)return true;
   return false;
 }

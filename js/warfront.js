@@ -167,9 +167,31 @@ function warFrontPlan(fid, kind, ref) {
     if (a.d <= WAR.front.band) list.push({ p, t: a.t });
   }
   list.sort((x, y) => x.t - y.t);
-  // A rota PASSA pelos POIs da cadeia (eles são os entrepostos): refaz trecho a trecho origem → POI 1 → ... → alvo.
-  // POI que não tem rota por terra a partir do anterior sai da cadeia.
-  const blk = wfBlockers(fid, origin, ref), full = [path[0]], chain = [], at = [];
+  // A rota PASSA pelos POIs da cadeia (eles são os entrepostos) e, depois, também pelos POIs de guerra planejados.
+  const blk = wfBlockers(fid, origin, ref);
+  const t1 = wfThread(origin, ref, blk, list.map(o => o.p));
+  if (!t1) return null;
+  const plan = { kind, fid, target: ref, origin, path: t1.path, len: t1.len, chain: t1.stops,
+    ts: t1.at.map(v => v / (t1.len || 1)), war: [] };
+  const war = wfFill(plan);
+  if (!war.length) return plan;
+  const stops = plan.chain.map((p, i) => ({ cx: p.cx, cz: p.cz, o: p, s: plan.ts[i], w: false }))
+    .concat(war.map(e => ({ cx: e.cx, cz: e.cz, o: e, s: e.t, w: true }))).sort((x, y) => x.s - y.s);
+  const t2 = wfThread(origin, ref, blk, stops);
+  if (!t2) return plan;   // sem rota passando pelos POIs de guerra: fica a rota só com a cadeia
+  plan.path = t2.path; plan.len = t2.len; plan.chain = []; plan.ts = []; plan.war = [];
+  t2.stops.forEach((st, i) => {
+    const t = t2.at[i] / (t2.len || 1);
+    if (st.w) { st.o.t = t; plan.war.push(st.o); }
+    else { plan.chain.push(st.o); plan.ts.push(t); }
+  });
+  return plan;
+}
+
+// Refaz a rota trecho a trecho: origem → parada 1 → ... → alvo. Cada parada tem cx, cz. Parada sem rota por terra a partir da
+// anterior sai. Devolve {path, len, stops (as que ficaram), at (distância de cada uma desde a origem)} ou null (sem rota ao alvo).
+function wfThread(origin, ref, blk, stops) {
+  const full = [{ x: origin.cx, z: origin.cz }], kept = [], at = [];
   let cur = origin, len = 0;
   const add = seg => {
     for (let k = 1; k < seg.length; k++) {
@@ -177,17 +199,15 @@ function warFrontPlan(fid, kind, ref) {
       len += Math.hypot(seg[k].x - q.x, seg[k].z - q.z); full.push(seg[k]);
     }
   };
-  for (const { p } of list) {
-    const seg = wfRoute(cur, p, blk);
+  for (const st of stops) {
+    const seg = wfRoute(cur, st, blk);
     if (!seg) continue;
-    add(seg); chain.push(p); at.push(len); cur = p;
+    add(seg); kept.push(st); at.push(len); cur = st;
   }
   const last = wfRoute(cur, ref, blk);
   if (!last) return null;
   add(last);
-  const plan = { kind, fid, target: ref, origin, path: full, len, chain, ts: at.map(v => v / (len || 1)), war: [] };
-  plan.war = wfFill(plan);
-  return plan;
+  return { path: full, len, stops: kept, at };
 }
 
 // ---------- POIs de guerra: planejar os vazios da rota ----------
@@ -204,27 +224,38 @@ function wfPointAt(path, s) {
   }
 }
 
-// O terreno em (x, z) aceita um POI de guerra de raio r? Sem água, desnível até WAR.front.slope, sem árvore, longe de
-// cidades, POIs (existentes e já planejados em 'placed') e cavernas/baús. Devolve a altura da base (o ponto mais alto) ou null.
-function wfSpotY(x, z, r, placed) {
-  if (x < r + 6 || z < r + 6 || x > W - r - 6 || z > W - r - 6) return null;
-  let lo = 1e9, hi = -1e9;
-  for (let dz = -r; dz <= r; dz += 3) for (let dx = -r; dx <= r; dx += 3) {
-    const h = H[(z + dz) * W + x + dx];
-    if (h < SEA) return null;
-    lo = Math.min(lo, h); hi = Math.max(hi, h);
+// Terrenos de guerra: lugares reservados na geração do mundo (chamada por genPOIs, poi.js), no fim, para não mudar nada que já
+// existia. O chão é nivelado e as árvores, pedras e plantas ficam de fora (genDecor, world.js); ficam vazios até uma guerra
+// pôr ali um POI de guerra. É a única forma de ter chão plano e limpo: depois da geração a malha do terreno não muda.
+function genWarSites(taken) {
+  const F = WAR.front, S = WORLD.warSites = [];
+  if (WORLD.showcaseMode) return;
+  const rng = new RNG((WORLD.seed * 977 + 13) >>> 0), r = POI_DEFS.fortcamp.r;
+  const big = taken.filter(q => q.r > 4), tiny = taken.filter(q => q.r <= 4);   // baús escondidos (r 4) só pedem uma folga curta
+  for (let t = 0; t < F.siteTries && S.length < F.sites; t++) {
+    const x = rng.int(30, W - 30), z = rng.int(30, W - 30);
+    const y = spotOK(x, z, r + 1, big, F.gap + r, F.siteRange + (t > F.siteTries / 2 ? 6 : 0), 0.2);   // mais tarde, aceita mais desnível; até 20% de água (poças e margem são aterradas)
+    if (y === null || tiny.some(q => Math.hypot(q.x - x, q.z - z) < q.r + r + 3)) continue;
+    flattenArea(x, z, r, y, 3);
+    const q = { x, z, r };
+    big.push(q); S.push({ x, z, y });
   }
-  if (hi - lo > WAR.front.slope || treeNear(x, z, r - 2)) return null;
-  for (const c of WORLD.cities) if (Math.max(Math.abs(c.cx - x), Math.abs(c.cz - z)) < c.half + r + WAR.front.gap) return null;
-  for (const p of WORLD.pois) if (Math.hypot(p.cx - x, p.cz - z) < POI_DEFS[p.type].r + r + WAR.front.gap) return null;
-  for (const q of placed) if (Math.hypot(q.cx - x, q.cz - z) < POI_DEFS[q.type].r + r + WAR.front.gap) return null;
-  return ambClash(x, z, false) ? null : hi;
+}
+// Terreno de guerra livre mais perto de (x, z), até WAR.front.side blocos, que não esteja em 'used'; null se não houver.
+function wfSiteNear(x, z, used) {
+  let best = null, bd = WAR.front.side;
+  for (const q of WORLD.warSites || []) {
+    const d = Math.hypot(q.x - x, q.z - z);
+    if (d >= bd || used.some(u => u.cx === q.x && u.cz === q.z) || WORLD.pois.some(p => p.cx === q.x && p.cz === q.z)) continue;
+    best = q; bd = d;
+  }
+  return best;
 }
 
 // Preenche os vazios da rota com POIs de guerra (plano puro: {type, cx, cz, y, owner, t}). Cada vazio entre dois vizinhos
-// (cidade sua, POIs da cadeia, alvo) recebe quantos quadrados de 2 × raio + POI_GAP couberem, espaçados por igual; cada um
-// procura terreno bom até WAR.front.side blocos da rota. Tipo: warCampChance. Dono: o do vizinho mais perto se for você ou
-// o inimigo; senão pela metade da rota. No máximo WAR.front.maxWarPois.
+// (cidade sua, POIs da cadeia, alvo) recebe quantos quadrados de 2 × raio + gap couberem, espaçados por igual; cada um usa o
+// terreno de guerra livre mais perto do ponto ideal. Tipo: warCampChance. Dono: o do vizinho mais perto se for você ou o
+// inimigo; senão pela metade da rota. No máximo WAR.front.maxWarPois.
 function wfFill(plan) {
   const F = WAR.front, fid = plan.fid, len = plan.len, rw = POI_DEFS.fortcamp.r;
   const rng = new RNG((WORLD.seed * 71 + fid * 13 + 7) >>> 0), out = [];
@@ -235,29 +266,22 @@ function wfFill(plan) {
     const A = nodes[i], B = nodes[i + 1], from = A.s + A.r, L = B.s - B.r - from;
     const n = Math.floor((L - F.gap) / (2 * rw + F.gap));
     for (let k = 0; k < n && out.length < F.maxWarPois; k++) {
-      const s = from + L * (k + 1) / (n + 1), t = s / len, near = s - A.s < B.s - s ? A : B;
+      const s = from + L * (k + 1) / (n + 1), t = s / len, near = s - A.s < B.s - s ? A : B, c = wfPointAt(plan.path, s);
+      const site = wfSiteNear(c.x, c.z, out);
+      if (!site) continue;   // sem terreno de guerra perto: o quadrado fica vazio
       const type = rng.next() < warCampChance(t, (A.poi && A.o === fid) || (B.poi && B.o === fid)) ? 'fortcamp' : 'trench';
-      const r = POI_DEFS[type].r, c = wfPointAt(plan.path, s), cand = [];
-      for (let a = -30; a <= 30; a += 6) for (let o = -F.side; o <= F.side; o += 4) cand.push([a, o]);
-      cand.sort((u, v) => Math.hypot(u[0], u[1]) - Math.hypot(v[0], v[1]));
-      for (const [a, o] of cand) {
-        const x = Math.round(c.x + c.tx * a - c.tz * o), z = Math.round(c.z + c.tz * a + c.tx * o), y = wfSpotY(x, z, r, out);
-        if (y === null) continue;
-        const own = near.o === 'player' || near.o === fid ? near.o : (t < 0.5 ? 'player' : fid);
-        out.push({ type, cx: x, cz: z, y, owner: own, t });
-        break;
-      }
+      const own = near.o === 'player' || near.o === fid ? near.o : (t < 0.5 ? 'player' : fid);
+      out.push({ type, cx: site.x, cz: site.z, y: site.y, owner: own, t });
     }
   }
   return out;
 }
 
 // ---------- POIs de guerra: construir, remover e restaurar ----------
-// Cria um POI de guerra em jogo (sobre base de terra, sem mexer no terreno) e o liga ao mundo. e = {id, type, cx, cz, y, owner}.
+// Cria um POI de guerra em jogo (num terreno de guerra já nivelado, sobre uma base de terra, sem mexer na malha) e o liga ao mundo. e = {id, type, cx, cz, y, owner}.
 // O dono entra direto (sem a espera de poiOwnerChanged): os soldados da guarnição moram nele desde a declaração.
 function wfMake(e) {
-  const p = { id: e.id, type: e.type, cx: e.cx, cz: e.cz, y: e.y, biome: B[e.cz * W + e.cx], owner: e.owner, runtime: true,
-    padD: WAR.front.slope + 1 };   // base de terra tão funda quanto o desnível aceito: cobre o chão mais baixo
+  const p = { id: e.id, type: e.type, cx: e.cx, cz: e.cz, y: e.y, biome: B[e.cz * W + e.cx], owner: e.owner, runtime: true };
   poiBuild(p);
   WORLD.pois.push(p);
   STATE.pois = STATE.pois || {};
