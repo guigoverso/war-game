@@ -44,8 +44,31 @@ const WAR = {
   // Cenário ?cenario=guerra: rodada inicial, ouro, nível da facção, cidades conquistadas além da capital e comida/minério.
   // Padrão: rodada 3, ◉20000, nível 3, 1 cidade extra, 40 e 40.
   // startAtWar: true começa com a guerra já declarada; false começa em paz e você declara pela tela de Negociações. Padrão: true
-  scenario: { round: 3, coins: 20000, lvl: 3, extraCities: 1, food: 40, ore: 40, startAtWar: true }
+  // splitPois: true divide os POIs permanentes entre você e o inimigo (teste do painel Conquistar POI); false deixa os POIs
+  // como o mundo os gerou (bandidos, livres, de facções), bom para testar a frente. Padrão: false
+  scenario: { round: 3, coins: 20000, lvl: 3, extraCities: 1, food: 40, ore: 40, startAtWar: true, splitPois: false },
+  // Frente da guerra (feature 36): como a rota entre a cidade sua e o alvo vira uma cadeia de POIs.
+  //  cell: tamanho da grade da busca de rota, em blocos (8)
+  //  band: distância máxima, em blocos, de um POI permanente à rota para entrar na cadeia (45)
+  //  avoid: folga, em blocos, que a rota guarda de cidades e POIs de quem está fora da guerra (18)
+  //  waterMax: vão de água, em blocos, que a rota ainda aceita atravessar; acima disso ela contorna (a água não pode ocupar o
+  //    espaço de um POI de guerra: 2 × raio + POI_GAP, ~54) (40)
+  //  waterCost: custo extra por célula de água na busca (2: prefere terra, mas atravessa vão curto)
+  //  slope: desnível máximo do terreno de um POI de guerra (os POIs de guerra não aplainam o chão em jogo) (4)
+  //  maxWarPois: teto de POIs de guerra por frente (8)
+  //  side: quanto o POI de guerra pode sair da rota para achar terreno bom, em blocos (24)
+  front: { cell: 8, band: 45, avoid: 18, waterMax: 40, waterCost: 2, slope: 4, maxWarPois: 8, side: 24 }
 };
+
+// Chance de um POI de guerra da frente ser Acampamento fortificado (senão, Trincheira). t = posição na rota (0 = cidade sua,
+// 1 = cidade-alvo); nearEnemy = há POI do inimigo colado. Perto da cidade sua: acampamento; perto dos POIs do inimigo: trincheira.
+// Padrão: 1 - t, menos 0.3 se houver POI do inimigo colado (entre 0.1 e 0.9)
+const warCampChance = (t, nearEnemy) => Math.max(0.1, Math.min(0.9, 1 - t - (nearEnemy ? 0.3 : 0)));
+// A cidade ou POI pode ser alvo de guerra? Padrão: qualquer cidade do inimigo, ou POI permanente dele (nunca ruínas, ponte de
+// aliado, POI de guerra). Aliado do inimigo não pode (só se entrar na guerra).
+const warCanTarget = (fid, kind, ref) => kind === 'city'
+  ? ref.owner === 'enemy' && ref.fid === fid && !ref.rebel
+  : ref.owner === fid && ref.type !== 'ruins' && !POI_DEFS[ref.type].war;
 
 // Cenário de guerra: quantos POIs permanentes ficam com o jogador entre n no total. Metade, arredondada para baixo
 // (com número ímpar o NPC fica com a maioria). Padrão: floor(n / 2)

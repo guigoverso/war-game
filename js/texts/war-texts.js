@@ -8,6 +8,26 @@ const TXT_WAR_MARK = ['Tropas dispostas', 'Cansaço leve', 'Cansaço forte', 'Ex
 // Livro (aba da guerra) e relatório: linha da fadiga do jogador. f = fadiga atual.
 const txtWarFatigue = f => '⚔ Fadiga de guerra: <b>' + f + '</b> / ' + WAR.fatigue.max + ' (' + TXT_WAR_MARK[warFatigueMark(f)] + ')';
 
+// Declaração de guerra (mapa): faixa em cima do mapa pedindo o alvo. enemy = nome da facção.
+const txtWarPickBanner = enemy => '⚔ <b>Guerra contra ' + enemy + '</b> — clique no mapa na <b>cidade</b> (ou em um POI) que quer conquistar. Feche o caderno (M ou E) para cancelar.';
+// Declaração de guerra: aviso ao clicar num lugar que não é alvo válido.
+const TXT_WAR_PICK_BAD = 'Escolha uma cidade (ou POI permanente) da facção inimiga.';
+// Declaração de guerra: aviso quando não há rota por terra até o alvo.
+const TXT_WAR_NO_ROUTE = 'Não há caminho por terra até esse alvo (muita água no meio).';
+// Declaração de guerra: faixa de confirmação com a previsão da frente. alvo = nome, n = POIs no caminho, w = POIs de guerra novos,
+// o = nome da cidade sua de origem, dist = distância em blocos.
+const txtWarPreview = (enemy, alvo, o, n, w, dist) => '⚔ <b>' + enemy + '</b> — alvo: <b>' + alvo + '</b>, a partir de <b>' + o
+  + '</b> (' + dist + ' blocos). No caminho: <b>' + n + '</b> POIs' + (w ? ' e <b>' + w + '</b> POIs de guerra novos' : '') + '. A linha tracejada é a frente.';
+// Declaração de guerra: botões de confirmar e escolher outro alvo.
+const TXT_WAR_CONFIRM = '⚔ Confirmar e declarar guerra';
+const TXT_WAR_RETRY = '↩ Escolher outro alvo';
+// Aviso (toast) depois de declarar a guerra com a frente montada. n = POIs de guerra criados.
+const txtWarFrontReady = n => '🗺 Frente montada' + (n ? ': ' + n + ' POIs de guerra surgiram no caminho.' : '.');
+// Aviso quando a paz desfaz a frente (os POIs de guerra somem).
+const TXT_WAR_FRONT_GONE = '🕊 Os acampamentos e trincheiras da frente foram desmontados.';
+// Negociação, tela Guerra: texto do botão que abre o mapa para escolher o alvo. f = nome da facção.
+const txtWarChooseTarget = f => '🗺 Escolher o alvo no mapa (' + f + ')';
+
 // Cenário ?cenario=guerra: aviso ao abrir. enemy = nome da facção inimiga.
 const txtWarScnWelcome = enemy => WAR.scenario.startAtWar
   ? '🧪 Cenário de guerra: você e ' + enemy + ' já estão em guerra e os POIs foram divididos. Pausa (Tab) → Facções tem o painel de testes.'
