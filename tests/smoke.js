@@ -49,6 +49,14 @@ const T={
     for(const b of WORLD.bridges)if(!b.tiles.length||!b.tiles.some(t=>T[t.z*W+t.x]===T_BRIDGE))return 'ponte '+b.id+' sem tile T_BRIDGE';
     return '';
   },
+  war:()=>{   // estado de guerra (STATE.war) e números de WAR: padrão, marcos de fadiga e save antigo
+    const W=warX();if(W.fat!==0||warActive())return 'estado inicial errado';
+    if(warFatigueMark(4)!==0||warFatigueMark(5)!==1||warFatigueMark(20)!==3)return 'marcos errados';
+    if(warSupplyBonus(10)!==WAR.fatigue.supplyBonus[1])return 'acréscimo de suprimento errado';
+    delete STATE.war;if(warX().camps===undefined)return 'warX não recriou o estado';
+    const r=JSON.parse(JSON.stringify(collectSave()));if(r.v<22||!r.state.war)return 'save sem state.war';
+    warApply(undefined);return warX().ops.length?'warApply não zerou':'';
+  },
   lvl:()=>{   // níveis da facção e das cidades (LVL): capital herda rd.lvl, limites por rodada, requisitos de POIs e cidades
     const rd=STATE.rd,h=WORLD.home,npc=WORLD.cities.find(c=>c.owner!=='player'),keep=[rd.lvl,rd.clv[h.id],rd.facUpR,rd.cityUpR,STATE.phase,rd.actions,P.coins];
     try{
@@ -246,7 +254,7 @@ const T={
     let why='';
     try{
       const seq=a=>{let i=0;Math.random=()=>a[Math.min(i++,a.length-1)]};
-      const f=poiNearestFac(p);   // os pesos vêm de modifiers.js: só testa o que está ligado
+      const f=poiNearestFac(p);   // os pesos vêm de modifiers/: só testa o que está ligado
       if(BANDIT_RETAKE_FREE_POI>0){free();seq([0]);Hooks.emit('leaderEnd');if(p.owner!=='bandit'||!p.gar)why='sorteio 0 devia trazer os bandidos de volta'}
       if(!why&&FACTION_TAKE_FREE_POI>0&&f){free();seq([0.99]);Hooks.emit('leaderEnd');if(p.owner!==f.id)why='a facção mais perto devia assumir (dono: '+p.owner+')'}
       if(!why&&!STATE.rd.now.slice(n0).some(t=>t.includes('que estava livre')))why='sem aviso no relatório';
@@ -328,6 +336,7 @@ const T={
     report(!g.errs.length,'seed 11: sem erros ao carregar',g.errs.join(' | ').slice(0,300));
     await check(g,'seed 11: POIs gerados',T.pois);
     await check(g,'seed 11: pontes (registro e pedágios no máximo 3)',T.bridges);
+    await check(g,'seed 11: estado de guerra (WAR e STATE.war)',T.war);
     await check(g,'seed 11: níveis da facção e das cidades (LVL)',T.lvl);
     await check(g,'seed 11: efeito do nível da cidade (produção, imposto, loja)',T.lvlFx);
     await check(g,'seed 11: evoluir facção pela tela (requisitos, 1 por rodada)',T.facUp);

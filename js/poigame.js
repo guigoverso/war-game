@@ -1,7 +1,7 @@
 'use strict';
 // ---------- Fase 6, POIs: bandidos, anexação, renda, moradores, serviços, binóculo e POIs de guerra ----------
 // Os POIs nascem com bandidos (owner 'bandit') ou de uma facção. Limpar os bandidos deixa o POI 'free' (cinza); na rodada seguinte o líder decide (cartão
-// "Terras livres"): anexar, doar, vender ou ignorar (ao encerrar o turno do líder, um POI livre sem decisão é retomado por bandidos ou pela facção mais perto; pesos em modifiers.js). Os POIs seus rendem, e os distantes podem ser retomados.
+// "Terras livres"): anexar, doar, vender ou ignorar (ao encerrar o turno do líder, um POI livre sem decisão é retomado por bandidos ou pela facção mais perto; pesos em modifiers/). Os POIs seus rendem, e os distantes podem ser retomados.
 // Números juntos aqui (como ECON, POL, RAID_WAVES). Ver docs/fase-6-guerra.md.
 const POIX={
   reveal:80,         // a que distância (blocos) um POI aparece no mapa (fora do modo criativo, o mapa começa sem POIs)
@@ -183,7 +183,7 @@ function poiFreeRetake(){
   const X=poiX();
   for(const p of WORLD.pois||[]){
     if(p.show||POI_DEFS[p.type].war||p.owner!=='free'||X.clr[p.id]===undefined||X.clr[p.id]>=STATE.round)continue;
-    const nf=poiNearestFac(p),who=freePoiTaker(!!nf),n=POI_DEFS[p.type].n,f=who==='faction'?nf:null;   // pesos em modifiers.js
+    const nf=poiNearestFac(p),who=freePoiTaker(!!nf),n=POI_DEFS[p.type].n,f=who==='faction'?nf:null;   // pesos em modifiers/
     if(!who)continue;   // modificadores zerados: continua livre
     delete X.clr[p.id];
     if(f){poiSetOwner(p,f.id);rdNow('🏳 '+f.name+' assumiu '+n+' que estava livre.')}
@@ -193,7 +193,7 @@ function poiFreeRetake(){
 Hooks.on('leaderEnd',poiFreeRetake);
 
 // ---------- renda, retomada pelos bandidos e fim dos efeitos temporários (início de cada rodada) ----------
-function poiRetakeChance(p){   // POI seu: base + distância, teto; em guerra vezes WAR_RETAKE_MULTIPLIER (modifiers.js)
+function poiRetakeChance(p){   // POI seu: base + distância, teto; em guerra vezes WAR_RETAKE_MULTIPLIER (modifiers/)
   const R=POIX.retake,c=Math.min(R.max,R.base+Math.max(0,poiNearestMineDist(p)-R.far)*R.per);
   return poiWarOn()?c*WAR_RETAKE_MULTIPLIER:c;
 }

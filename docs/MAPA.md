@@ -4,7 +4,7 @@ Referência rápida para achar as coisas sem varrer o código. Nomes são exatos
 Se renomear ou mover algo listado aqui, atualize esta página.
 
 ## Ordem de carga (`index.html`, fim do arquivo)
-util → modifiers → texts → render → voxel → phys → world → city → nav → entities → weapons → allies → poi → quests → ambient → data →
+util → modifiers/* → texts/* → render → voxel → phys → world → city → nav → entities → weapons → allies → poi → quests → ambient → data →
 state → ui → inventory → store → cooking → fishing → dungeon → raids → warehouse → econ → office → caravans → book → bookmap → rounds → policies →
 factions → facgraph → facsupply → rebellion → rebmine → facevents → meetfx → meeting → globalev → flageditor →
 scenario → missions → pois → poigame → negoc → save → **game** (último: laço principal e entrada).
@@ -12,8 +12,8 @@ Código no topo de um arquivo só pode usar o que veio antes; dentro de funçõe
 
 ## Arquivos
 **Modificadores (ajuste fácil)**
-- `modifiers` — constantes e funções de regra que o usuário altera sem pedir à IA (cada uma com comentário: para que serve e valor padrão). Novos modificadores vão aqui. Hoje: `BANDIT_RETAKE_FREE_POI`, `FACTION_TAKE_FREE_POI` (pesos de quem retoma um POI livre ignorado) e `freePoiTaker` (usada por `poiFreeRetake` em `poigame.js`); `WAR_RETAKE_MULTIPLIER` (redutor da retomada dos POIs seus em guerra, usado em `poiRetakeChance`).
-- `texts` — textos do jogo que o usuário ajusta sem pedir à IA: mensagens e avisos (toast, relatório da rodada), textos de livro e cartão, e funções que devolvem string. Cada um com comentário (onde aparece e para que serve). Novos textos vão aqui. Ainda vazio. Evolução de cidade: `txtWallAt`, `txtCityUpNext`, `txtLvlCostLine`, `txtCityUpToast`, `txtCityUpReport` (tela da cidade em `book.js`, botão `cityup`). Evolução da facção: `txtFacHead`, `txtFacReqLine`, `txtFacUpToast`, `txtFacUpReport` (aba Facção, botão `cap`).
+- `modifiers/` (pasta, um arquivo por categoria) — constantes e funções de regra que o usuário altera sem pedir à IA (cada uma com comentário: para que serve e valor padrão). Novos modificadores vão aqui. Hoje: `BANDIT_RETAKE_FREE_POI`, `FACTION_TAKE_FREE_POI` (pesos de quem retoma um POI livre ignorado) e `freePoiTaker` (usada por `poiFreeRetake` em `poigame.js`); `WAR_RETAKE_MULTIPLIER` (redutor da retomada dos POIs seus em guerra, usado em `poiRetakeChance`).
+- `texts/` (pasta, um arquivo por categoria) — textos do jogo que o usuário ajusta sem pedir à IA: mensagens e avisos (toast, relatório da rodada), textos de livro e cartão, e funções que devolvem string. Cada um com comentário (onde aparece e para que serve). Novos textos vão aqui. Ainda vazio. Evolução de cidade: `txtWallAt`, `txtCityUpNext`, `txtLvlCostLine`, `txtCityUpToast`, `txtCityUpReport` (tela da cidade em `book.js`, botão `cityup`). Evolução da facção: `txtFacHead`, `txtFacReqLine`, `txtFacUpToast`, `txtFacUpReport` (aba Facção, botão `cap`).
 
 **Mundo e render**
 - `util` — utilitários (sementes, cores, interpolação): `mulberry32`, `hashStr`, `clamp`, `lerp`, `mixc`, `tick`.
@@ -47,7 +47,7 @@ Código no topo de um arquivo só pode usar o que veio antes; dentro de funçõe
 - `warehouse` — armazém, cofre e suprimentos: `RES_ITEM`, `supplyOf`, `consumeSupply`, `prodAdd`, `giveResource`, `openWarehouse`, `renderWarehouse`.
 
 **Rodadas, economia e eventos**
-- `econ` — economia das cidades: `ECON`, `NEEDS`, `RES4`, `MOOD`, ações do líder (`isLeader`, `actCost`, `canAct`, `spendAct`), `initEconomy`, `cityTypePlan`, `needOf`, `pctOf`, `missingOf`, `prodOf`, `taxOf`, `moodOf`/`moodLbl`/`joyShift`, `computeBuffs`, `rerollNeeds`, `refreshShops`/`shopLeft`/`shopTake`, `CARAVAN_COST`; níveis: `LVL` (custos, requisitos e efeitos por nível), `cityLvl` (todas as cidades suas, capital incluída; `rd.clv`), `facLvl`, `facCostOf`/`cityCostOf`, `canCityUp` (+ `cityUpWhy`); em `modifiers.js`: `facReqState`, `canFacUp` (+ `facUpWhy`), `lvlCanPay`/`lvlPay`, `lvlSteps`/`cityLvlGain` (ganho por nível: entra em `prodOf`, `taxOf`, `shopFull` e nas telas); limites por rodada `rd.facUpR`/`rd.cityUpR`.
+- `econ` — economia das cidades: `ECON`, `NEEDS`, `RES4`, `MOOD`, ações do líder (`isLeader`, `actCost`, `canAct`, `spendAct`), `initEconomy`, `cityTypePlan`, `needOf`, `pctOf`, `missingOf`, `prodOf`, `taxOf`, `moodOf`/`moodLbl`/`joyShift`, `computeBuffs`, `rerollNeeds`, `refreshShops`/`shopLeft`/`shopTake`, `CARAVAN_COST`; níveis: `LVL` (custos, requisitos e efeitos por nível), `cityLvl` (todas as cidades suas, capital incluída; `rd.clv`), `facLvl`, `facCostOf`/`cityCostOf`, `canCityUp` (+ `cityUpWhy`); em `js/modifiers/`: `facReqState`, `canFacUp` (+ `facUpWhy`), `lvlCanPay`/`lvlPay`, `lvlSteps`/`cityLvlGain` (ganho por nível: entra em `prodOf`, `taxOf`, `shopFull` e nas telas); limites por rodada `rd.facUpR`/`rd.cityUpR`.
 - `office` — escritório do Líder (sala no canto da região das dungeons): `OFFICE`, `genOffice`, `initOffice`, `officeLook`, `enterOffice`, `leaveOffice`, `nearBook`, `inOfficeRoom`, `hallExit`, `placeAtHall`.
 - `caravans` — caravanas e rotas na estrada, guardas, saque e compra: `CARAVANS`, `rebuildCaravans`, `makeCaravan`, `roadSpot`, `updateCaravanGuards`, `damageGuard`, `nearGuard`, `lootCaravan`, `caravanAttacked`, `destroyRoute`, `purgeDoomedCaravans`, `buyCaravan`, `dealSummary`.
 - `book` — caderno (painel `ldbook`): `LB`, `LSUBS`, `openBook`, `renderBook`, `bookPages`, `bookClick`, `routeTip`, `typeLabel`, `moodHtml`, `INV_L`/`INV_R`, `renderDeposit`, `mapOpen`.
@@ -109,10 +109,11 @@ Raid ativa bloqueia via `raidLocked(t.c)`. No escritório/salão: `meetInteract`
 - `ECON` (`econ.js`) — necessidades, saque de caravana (`ECON.loot`), produção, impostos, caravana (`CARAVAN_COST=ECON.caravan`), evolução de cidade.
 - `POL` (`policies.js`) — chance e duração das políticas; definições via `definePolicy`.
 - `POI_GEN`, `POI_W`, `POI_RANGE` (`pois.js`) — quantidade, pesos por bioma, limites e mínimos dos POIs gerados.
-- **`texts.js`** — textos novos (mensagens e funções de texto): olhar aqui antes de escrever string na lógica.
-- **`modifiers.js`** — modificadores novos (a partir da feature Atualizações dos POIs): olhar primeiro aqui antes de criar constante nova.
-- Visual da cidade por nível (Evolução da facção e das cidades, tarefa 3): `CITY_WALL_BY_LEVEL`, `CITY_SENTRY_*` (`modifiers.js`); `cityWallBuild/Clear/Rebuild/Sync` (`city.js`, muro em malha própria `c.wall`); `citySentrySync`, `updateCitySentries` (`allies.js`, atiradores de torre, nível 4 e 5, não salvos).
-- Custo de evoluir cidade: `CITY_UP_COST` e `cityCostOf(c)` (`modifiers.js`; saiu do `LVL`).
+- **`js/texts/`** — textos novos, um arquivo por categoria (`poi-`, `city-`, `faction-`, `economy-`, `policy-`, `war-texts.js`): olhar aqui antes de escrever string na lógica.
+- **`js/modifiers/`** — modificadores novos, um arquivo por categoria (`poi-`, `city-`, `raid-`, `faction-`, `economy-`, `policy-`, `war-modifiers.js`): olhar primeiro aqui antes de criar constante nova. `WAR` (fadiga, custos de operação, aliados, espionagem) e `warFatigueMark`/`warSupplyBonus` ficam em `war-modifiers.js`.
+- **`war.js`** — estado salvo da guerra `STATE.war` (`fat`, `nfat`, `camps`, `ops`, `inc`, `pts`; `SAVE_VERSION` 22): `warNew`, `warX`, `warActive`, `warMark`, `warSupply`, `warApply` (save.js). Quem está em guerra continua em `STATE.rel[fid].war`. Textos em `texts/war-texts.js`.
+- Visual da cidade por nível (Evolução da facção e das cidades, tarefa 3): `CITY_WALL_BY_LEVEL`, `CITY_SENTRY_*` (`js/modifiers/`); `cityWallBuild/Clear/Rebuild/Sync` (`city.js`, muro em malha própria `c.wall`); `citySentrySync`, `updateCitySentries` (`allies.js`, atiradores de torre, nível 4 e 5, não salvos).
+- Custo de evoluir cidade: `CITY_UP_COST` e `cityCostOf(c)` (`js/modifiers/`; saiu do `LVL`).
 - `POIX` e `POI_PRICE` (`poigame.js`) — guarnição, produção e pedágio por nível, santuário (`sanc`), caçadores (`hunt`), entreposto (`post`), colete (`vest`), retomada e preço dos POIs.
 - `RAID_WAVES`, `RAID_GAP`, `RAID_TIME`, `RAID_LOSS_*` (`raids.js`).
 - `REB` (rebellion), `FEV` (facevents), `GEV` (globalev), `FSUP` (facsupply), `MEET`/`MEET_DUR` (meeting/meetfx).

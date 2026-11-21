@@ -195,7 +195,7 @@ function updateAlly(a,dt){
   a.group.position.set(a.x,a.y,a.z);a.group.rotation.y=a.yaw;
   if(moving)animWalk(a.model,a.phase,0.7);else a.model.legs.forEach(l=>l.rotation.x*=0.8);
 }
-// ---------- atiradores nas torres das cidades do jogador (nível 4 e 5; números em modifiers.js) ----------
+// ---------- atiradores nas torres das cidades do jogador (nível 4 e 5; números em modifiers/) ----------
 // Não são salvos: citySentrySync os refaz ao carregar, ao evoluir a cidade e ao conquistá-la. Ficam parados na torre e atiram nos bandidos de raid ao alcance.
 const CITY_SENTRIES=[];
 function citySentrySync(c){

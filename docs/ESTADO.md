@@ -3,7 +3,7 @@
 Bilhete de passagem entre sessões e PCs: **leia no início, atualize no fim** (`/encerrar-sessao`). No máximo 40 linhas; o histórico detalhado fica nos `docs/fase-N-*.md` e no `git log`.
 
 ## Agora
-- **Branch:** `factions-update`. **Save:** `SAVE_VERSION = 21`.
+- **Branch:** `factions-update`. **Save:** `SAVE_VERSION = 22`.
 - **Fase atual:** 6 (guerra), revisão dos POIs pronta; "Atualizações dos POIs" (`docs/features/1_atualizacoes-POIs.md`) com as tarefas 1 a 5 feitas. Fases 4 (rodadas) e 5 (facções) prontas.
 - **Última atualização:** 2026-11-21 (sessão local): Evolução da facção e das cidades (`docs/features/2_evolucao-faccao-cidade.md`, tarefas 1 a 6 feitas): níveis 1 a 5 de facção e de cidade, efeito em produção/imposto, muros e atiradores por nível, telas de evolução no livro (1 cidade e 1 facção por rodada). Regras em `docs/fase-6-guerra.md` (features 16 e 35).
 - **Teste de fumaça:** `node tests/smoke.js` (instalação: ver `CLAUDE.md`). Rode depois de mexer em POIs, serviços, rodadas ou Negociação.

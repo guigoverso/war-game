@@ -56,7 +56,8 @@ function migrateSave(d){
   if(d.v<19){d.v=19}   // v19: facções destruídas (state.deadFacs), r.allyHit/r.repDone nas relações; ausente = nada
   if(d.v<20){d.v=20}   // v20: POIs permanentes (state.pois: dono de cada POI que mudou); ausente = donos de origem
   if(d.v<21){d.v=21}   // v21: state.poiX (POIs limpos à espera de decisão, adiamentos, vigia e quarto da taverna); ausente = nada
-  // if(d.v<22){ ...ajustes...; d.v=22 }
+  if(d.v<22){d.v=22}   // v22: state.war (fadiga, campanhas, operações e ataques pendentes da guerra); ausente = sem guerra
+  // if(d.v<23){ ...ajustes...; d.v=23 }
   return d;
 }
 
@@ -97,7 +98,7 @@ function applySave(d){
   if(s.frel)STATE.frel=s.frel;if(s.flog)STATE.flog=s.flog;
   if(s.fev)STATE.fev=s.fev;if(s.meet)STATE.meet=s.meet;if(s.gev)STATE.gev=s.gev;   // eventos entre facções NPC e reuniões   // eventos entre facções NPC (facevents.js)
   STATE.deadFacs=s.deadFacs||[];if(s.reb)STATE.reb=s.reb;rebApply();   // facções novas e cidades trocadas (rebellion.js)
-  STATE.pois=s.pois||{};STATE.poiX=Object.assign({clr:{},vigil:{},room:null,done:{},seen:{}},s.poiX||{});poiApply();   // POIs permanentes: donos que mudaram (pois.js)
+  STATE.pois=s.pois||{};STATE.poiX=Object.assign({clr:{},vigil:{},room:null,done:{},seen:{}},s.poiX||{});poiApply();warApply(s.war);   // POIs permanentes: donos que mudaram (pois.js)
   if(s.rel)STATE.rel=s.rel;   // relações com as facções NPC
   if(s.fac)STATE.fac=Object.assign(STATE.fac||{},s.fac);   // identidade do jogador (nome, cor, bandeira)
   if(s.rd)STATE.rd=s.rd;   // rodadas: tipos de cidade, entregas, rotas, nível da capital (o que faltar é completado por initEconomy)
