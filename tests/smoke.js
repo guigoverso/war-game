@@ -113,6 +113,25 @@ const T={
     }finally{rl.war=war0;Object.assign(p,{cx:sv.cx,cz:sv.cz,show:sv.show});STATE.rd.routes=sv.routes}
     return why;
   },
+  postStock:()=>{   // entreposto: materiais com estoque (fração da loja), esgota e volta na rodada seguinte; comida sem limite
+    const p=WORLD.pois.find(q=>q.type==='post');if(!p)return 'sem entreposto';
+    const X=poiX(),full=shopFull(poiPriceCity(p)),id='carne',want=Math.floor(full[id]*POST_STOCK_MULTIPLIER);
+    delete X.postStock;if(postStockLeft(p,id)!==want)return 'estoque inicial '+postStockLeft(p,id)+' (esperado '+want+')';
+    X.postStock[p.id].s[id]=0;if(postStockLeft(p,id)!==0)return 'estoque zerado não ficou';
+    const r=STATE.round;STATE.round=r+1;const back=postStockLeft(p,id);STATE.round=r;X.postStock[p.id].r=r;
+    if(back!==want)return 'estoque não voltou na rodada seguinte ('+back+')';
+    return postStockLeft(p,'pao_inexistente')===null?'':'item sem limite ganhou estoque';
+  },
+  postTabs:()=>{   // entreposto: todas as abas abrem, têm "?" e a venda paga o valor da cidade de referência
+    const p=WORLD.pois.find(q=>q.type==='post');if(!p)return 'sem entreposto';
+    svcPost(p);const bad=[];
+    for(const [k] of POST_TABS){G.postTab=k;G.postSel=null;svcRender();if(k!=='sell'&&k!=='ammo'&&!$('svcbody').querySelector('.qmark'))bad.push(k)}
+    if(bad.length)return 'sem "?" nas abas: '+bad;
+    const c=poiPriceCity(p),id='carne';invGive([[id,3]]);G.postTab='sell';G.postSel=STATE.inv.slots.findIndex(s=>s&&s.id===id);
+    svcRender();if(!$('svcbody').textContent.includes('Preço agora'))return 'aba Venda sem preço';
+    const g0=P.coins,n0=invCount(id),exp=sellUnitPrice(id,c),r=sellItem(c,id,1);closePanel();
+    return r.sold===1&&P.coins-g0===exp&&n0-invCount(id)===1?'':'venda no entreposto errada';
+  },
   vest:()=>{   // quartel: reparo do colete com ouro e com couro (qualquer cidade sua)
     const c=WORLD.home;openBarracks(c);if(G.panel!=='barracks')return 'o quartel não abriu';
     P.coins=5000;P.armor=40;const q=vestRepairQuote(),g0=P.coins;
@@ -229,6 +248,8 @@ const T={
       await check(g,'pois: '+fn+' abre sem erro',T.svc,[type,fn]);
     await check(g,'quartel: reparo do colete (ouro e couro)',T.vest);
     await check(g,'pois: entreposto (lojista, renda, bloqueio em guerra)',T.post);
+    await check(g,'pois: entreposto (estoque limitado)',T.postStock);
+    await check(g,'pois: entreposto (abas, "?" e venda)',T.postTabs);
     await check(g,'pois: taverna (ferreiro, mercenário, bandidos)',T.tavernNpcs);
     await check(g,'pois: caçadores (baú de carne e nível)',T.hunters);
     await check(g,'pois: santuário (peregrinos, paz, adiamento)',T.sanctuary);

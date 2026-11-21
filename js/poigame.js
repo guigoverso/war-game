@@ -367,33 +367,80 @@ function svcMerc(p){
 }
 // lojista do entreposto: comida, munição, remédios e materiais, 10% acima (soma com a relação da cidade de referência, se o dono for outra facção)
 const postPrice=(base,c,kind)=>Math.max(1,Math.round(base*priceMulOf(priceExplain({city:c,kind}).concat([{txt:'Entreposto',mul:1+POIX.post.markup}]))));
+// estoque de materiais do entreposto nesta rodada: fração da loja da cidade de referência, recriado a cada rodada
+function postStockLeft(p,id){
+  const X=poiX();if(!X.postStock)X.postStock={};
+  let e=X.postStock[p.id];
+  if(!e||e.r!==STATE.round){
+    const full=shopFull(poiPriceCity(p)),s={};
+    for(const k in full)s[k]=Math.floor(full[k]*POST_STOCK_MULTIPLIER);
+    e=X.postStock[p.id]={r:STATE.round,s};
+  }
+  return e.s[id]===undefined?null:e.s[id];   // null = item sem limite
+}
+// "?" do entreposto: mesma lista da loja da cidade de referência + o acréscimo do entreposto (game.js, openPriceWhy: data-post)
+function postPriceTag(c,kind){
+  const ex=priceExplain({city:c,kind}).concat([{txt:'Entreposto',mul:1+POIX.post.markup}]);
+  return whyTag(priceMulOf(ex),'','data-why="price" data-post="1" data-c="'+c.id+'" data-k="'+kind+'"',false);
+}
 function svcPost(p){
-  const c=poiPriceCity(p);
+  const c=poiPriceCity(p);G.postTab='food';G.postSel=null;
   svcOpen('🏪 ENTREPOSTO',(txt,body)=>{
-    txt.innerHTML='— Do que precisa? Preços '+Math.round(POIX.post.markup*100)+'% acima. Moedas: <b>◉ '+P.coins+'</b>';
-    const sec=t=>body.insertAdjacentHTML('beforeend','<h4>'+t+'</h4>'),debt=Ledger.anyDebt();
+    const tab=G.postTab,debt=Ledger.anyDebt();
+    txt.innerHTML=txtPostIntro(Math.round(POIX.post.markup*100),P.coins);
+    const bar=document.createElement('div');bar.style.marginBottom='6px';   // abas como as do armeiro
+    for(const [k,label] of POST_TABS)bar.appendChild(UI.button(label,tab===k?'gold':'alt',()=>{G.postTab=k;G.postSel=null;svcRender()}));
+    body.appendChild(bar);
+    const row=(btn,tag)=>{body.appendChild(btn);if(tag)body.insertAdjacentHTML('beforeend',tagLine(tag))};
     const item=(d,kind)=>{   // um item da bolsa por clique
-      const pr=postPrice(d.price,c,kind),b=UI.button(d.icon+' '+d.name+' ◉'+pr,'gold',()=>{
+      const left=d.supply&&d.shop==='store'?postStockLeft(p,d.id):null;   // só materiais têm estoque
+      const pr=postPrice(d.price,c,kind),b=UI.button(d.icon+' '+d.name+' ◉'+pr+(left!==null?txtPostStock(left):''),'gold',()=>{
         if(invRoomFor(d.id)<1)toast('Bolsa cheia! Descarte algo antes de comprar.',2000);
-        else if(Ledger.spend({gold:pr})){invGive([[d.id,1]]);sfx('coin',0)}
+        else if(Ledger.spend({gold:pr})){invGive([[d.id,1]]);if(left!==null)poiX().postStock[p.id].s[d.id]--;sfx('coin',0)}
         svcRender();
       });
-      b.disabled=debt||P.coins<pr;b.title=d.desc;body.appendChild(b);
+      b.disabled=debt||P.coins<pr||(left!==null&&left<=0);b.title=d.desc;row(b,postPriceTag(c,kind));
     };
     const items=shop=>Object.values(DATA.items).filter(d=>d.shop===shop&&!d.rod);
-    sec('🍲 Comida');items('tavern').forEach(d=>item(d,'tavern'));
-    sec('🔫 Munição');
-    WEAPONS.forEach((w,i)=>{
+    if(tab==='food')items('tavern').forEach(d=>item(d,'tavern'));
+    else if(tab==='heal')items('clinic').forEach(d=>item(d,'heal'));
+    else if(tab==='mat')items('store').forEach(d=>item(d,'buy'));
+    else if(tab==='ammo')WEAPONS.forEach((w,i)=>{
       if(!WS.owned[i])return;
       const pk=postPrice(w.packCost,c,'ammo'),full=WS.reserve[i]>=w.pack*8;
       const b=UI.button('+'+w.pack+' '+w.name+' ◉'+pk+' ('+WS.reserve[i]+')','gold',()=>{
         if(Ledger.spend({gold:pk})){WS.reserve[i]=Math.min(WS.reserve[i]+w.pack,w.pack*8);sfx('coin',0)}svcRender();
       });
-      b.disabled=debt||full||P.coins<pk;body.appendChild(b);
+      b.disabled=debt||full||P.coins<pk;row(b,postPriceTag(c,'ammo'));
     });
-    sec('🩹 Remédios');items('clinic').forEach(d=>item(d,'heal'));
-    sec('📦 Materiais');items('store').forEach(d=>item(d,'buy'));
+    else postSellTab(p,c,body);
   });
+}
+// aba Venda: o entreposto compra o que está na bolsa pelo mesmo valor das lojas da cidade de referência (relação, facção, reunião)
+function postSellTab(p,c,body){
+  const inv=STATE.inv,wrap=document.createElement('div');wrap.style.cssText='display:flex;gap:18px;flex-wrap:wrap';
+  const left=document.createElement('div'),right=document.createElement('div');right.style.cssText='min-width:240px;max-width:300px';
+  wrap.append(left,right);body.appendChild(wrap);
+  UI.slotGrid(left,{cols:5,slots:inv.slots.slice(0,inv.size),
+    render:(s,i)=>{const d=s&&itemDef(s.id);return{label:d?d.icon:'',count:s?s.n:0,
+      title:d?d.name+(s.n>1?' ×'+s.n:'')+(d.noSell?' (não vendável)':' — ◉'+sellUnitPrice(s.id,c)+' cada'):'Vazio',
+      cls:(G.postSel===i?'sel':'')+(s?' '+itemSlotCls(s.id):'')}},
+    onClick:(s,i)=>{G.postSel=i;svcRender()}});
+  const s=G.postSel!==null&&G.postSel!==undefined?inv.slots[G.postSel]:null;
+  if(!s){right.innerHTML='<p class="st">'+TXT_POST_SELL_HINT+'</p>';return}
+  const d=itemDef(s.id),n=s.n,ex=sellEffects(s.id,c);
+  right.innerHTML='<div style="font-size:30px">'+d.icon+'</div><b>'+d.name+'</b> ×'+n+'<p class="st">'+d.desc+'<br>'
+    +(d.noSell?TXT_POST_NO_SELL:txtPostSellPrice(sellUnitPrice(s.id,c),d.value)+' '
+      +(ex.length?whyTag(priceMulOf(ex),'','data-why="sell" data-c="'+c.id+'" data-i="'+s.id+'"',true):''))+'</p>';
+  if(d.noSell)return;
+  const sell=q=>{
+    const r=sellItem(c,s.id,q);
+    if(r.sold>0){sfx('coin',0);toast('Vendido: '+r.sold+'× '+d.name+'  +◉'+r.earned+(r.broke?'  •  '+TXT_POST_BROKE:''),2200)}
+    else if(r.broke)toast(TXT_POST_BROKE_FULL,2200);
+    svcRender();
+  };
+  right.appendChild(UI.button('Vender 1','gold',()=>sell(1)));
+  if(n>1)right.appendChild(UI.button('Vender tudo ('+n+')','alt',()=>sell(n)));
 }
 // taverneiro: comida e quarto
 function svcTavern(p){

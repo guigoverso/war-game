@@ -200,10 +200,11 @@ let priceWin=null;
 function openPriceWhy(btn){
   const d=btn.dataset,isR=d.why==='reward',isS=d.why==='sell',cty=WORLD.cities.find(x=>x.id===+d.c),rep=isR?rewardReport():isS?sellReport(cty,d.i):priceReport(cty,[d.k]),a=pricePct(rep.lo);
   if(!priceWin)priceWin=UI.window({title:'',width:Math.min(460,innerWidth-30),z:60,buttons:[{label:'Fechar',cls:'gold'}]});
+  if(d.post&&!isR&&!isS){rep.rows=rep.rows.concat([{txt:'Entreposto',mul:1+POIX.post.markup,ks:[d.k]}]);rep.lo*=1+POIX.post.markup}   // entreposto: +10% sobre a cidade de referência
   priceWin.setTitle('❔ '+(isR?'O que afeta a recompensa':isS?'O que afeta o valor de venda — '+itemDef(d.i).name:'O que afeta o preço'+(PRICE_KINDS[d.k]?' — '+PRICE_KINDS[d.k]:'')));
   priceWin.body.innerHTML='<p class="st">Os efeitos se somam sobre '+(isR?'a recompensa':isS?'o valor':'o preço')+' base'+(isS?' (◉'+itemDef(d.i).value+')':'')+':</p>'
     +(rep.rows.length?rep.rows.map(x=>'<div class="st">• '+x.txt+' — <b>'+pricePct(x.mul)+'</b></div>').join(''):'<div class="st">• Nenhum efeito agora: vale o valor base.</div>')
-    +'<p class="st">Total: <b>'+a+'</b></p>';
+    +'<p class="st">Total: <b>'+pricePct(rep.lo)+'</b></p>';
   priceWin.open();
 }
 document.addEventListener('click',e=>{const b=e.target.closest('.qmark');if(b)openPriceWhy(b)});

@@ -21,6 +21,11 @@ function freePoiTaker(canFaction,roll){
   return draw<banditWeight/total?'bandit':'faction';
 }
 
+// ---------- Entreposto: estoque limitado (poigame.js, postStockLeft) ----------
+// Fração do estoque de materiais (carne, tora, minério, couro) da loja da cidade de referência que o entreposto tem
+// por rodada, arredondada para baixo. Padrão: 0.5 (1 = igual à loja da cidade; 0 = o entreposto não vende materiais.)
+const POST_STOCK_MULTIPLIER=0.5;
+
 // ---------- Retomada dos POIs do jogador pelos bandidos (poigame.js, poiRetakeChance) ----------
 // Multiplicador da chance de retomada (por rodada) dos POIs SEUS enquanto há guerra com alguma facção. Padrão: 0.5
 // (1 = a guerra não muda a chance; 0 = em guerra os bandidos nunca retomam; maior que 1 = mais retomadas na guerra.)

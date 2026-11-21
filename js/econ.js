@@ -146,13 +146,11 @@ function rerollNeeds(c){
 }
 // ---------- lojas: o estoque à venda depende da produção da cidade ----------
 const SHOP_ITEM={food:'carne',wood:'tora',ore:'minerio',leather:'couro'};
-function refreshShops(){
-  for(const c of WORLD.cities){
-    const e=ec(c);if(!e)continue;
-    const base=(ECON.prodBase+ECON.prodRank*Math.max(1,c.rank||1))*ECON.shopMul,f=focusOf(c),s={};
-    for(const r of NEEDS)s[SHOP_ITEM[r]]=Math.floor((f===r?base:f==='gold'?Math.floor(base*0.5):Math.floor(base*0.25))*fsupStockMul(c,r)*meetStockMul());   // facção abundante/em falta num recurso: mais/menos estoque
-    e.shop=s;
-  }
+function shopFull(c){   // estoque cheio da loja da cidade (por item); o entreposto usa uma fração dele
+  const base=(ECON.prodBase+ECON.prodRank*Math.max(1,c.rank||1))*ECON.shopMul,f=focusOf(c),s={};
+  for(const r of NEEDS)s[SHOP_ITEM[r]]=Math.floor((f===r?base:f==='gold'?Math.floor(base*0.5):Math.floor(base*0.25))*fsupStockMul(c,r)*meetStockMul());   // facção abundante/em falta num recurso: mais/menos estoque
+  return s;
 }
+function refreshShops(){for(const c of WORLD.cities){const e=ec(c);if(e)e.shop=shopFull(c)}}
 function shopLeft(c,id){const e=ec(c);if(!e)return 99;if(!e.shop)refreshShops();return e.shop[id]===undefined?null:e.shop[id]}   // null = item sem limite
 function shopTake(c,id,n){const e=ec(c);if(e&&e.shop&&e.shop[id]!==undefined)e.shop[id]=Math.max(0,e.shop[id]-n)}
