@@ -166,7 +166,7 @@ Aguardando as ideias. Ligações já previstas: caravana de suprimento como alvo
 
 ## Ainda em aberto
 - Derrota do jogador: se a frente é empurrada até o fim (perder cidade, tributo; capital = fim de jogo "por enquanto").
-- Quantos pontos a cidade final custa e quantos POIs mínimos são "maioria".
+- Quantos pontos a cidade final custa e quantos POIs mínimos são "maioria" (depende da frente da guerra, feature 36).
 - Verificar se 2 pontos por rodada em guerra dão uma guerra de 3 a 4 rodadas de ataque.
 - Caminho por terra entre as cidades na geração do mundo (só se algum cenário ficar sem rota; guerra naval é ideia futura).
 - Números exatos de `WAR` (marcos da fadiga, custo de operação, chance de sabotagem).
@@ -187,6 +187,7 @@ Legenda: ✅ implementado · 🔶 parcial · ⬜ não implementado. (Atualizado 
 4. ✅ Cenário `?cenario=guerra` (2026-11-21; ver regras abaixo). Falta ligar os botões às operações quando existirem
 
 **B. Núcleo (a campanha jogável)**
+4b. ⬜ Frente da guerra (feature 36): cidade-alvo, cidade sua mais próxima, POIs no caminho, POIs de guerra de complemento e lista de POIs obrigatórios. Vem antes do 5, pois as operações, o cabo de guerra (7) e a batalha final (9) usam a lista
 5. ⬜ Operações no turno do Líder (ataque, defesa)
 6. ⬜ Locais proibidos
 7. ⬜ Cabo de guerra
@@ -252,6 +253,7 @@ Legenda: ✅ implementado · 🔶 parcial · ⬜ não implementado. (Atualizado 
 | 33 | Novas mecânicas de caravana | ⬜ | Falta a lista do usuário |
 | 34 | Mover declaração de guerra e paz das políticas para a Negociação | 🔶 | Já estão na Negociação; falta remover as políticas antigas |
 | 35 | Evolução da facção e das cidades | ✅ | Balancear `LVL` jogando. Regras abaixo.
+| 36 | Frente da guerra (cidade-alvo, caminho, POIs obrigatórios) | ⬜ | Tudo; desenho abaixo, com perguntas em aberto |
 
 ### Descrição e regras das features
 4. Os bandidos podem tomar os POIs nas seguintes condições:
@@ -273,6 +275,18 @@ Exemplo 2: na rodada 3 o Comandante conquistou uma Taverna perto de uma cidade s
 - **Como testar:** `?auto=1&mute=1&seed=11`, turno do Líder: evoluir a capital (muro novo, ouro e recursos gastos, `rd.cityUpR`); tentar uma 2ª cidade na mesma rodada (bloqueia) e na seguinte (pode); facção 2→3 sem POIs (bloqueia com "Faltam requisitos"), anexar POIs/cidades e subir; nível máximo (sem botão); save antigo (capital nível 3 vira 3). Smoke: `lvl`, `lvlFx`, `cityUp`, `facUp`. Falta jogar uma partida (rodadas 1 a 5) para calibrar `LVL`/`CITY_UP_COST` contra a renda.
 
 18. **Cenário `?cenario=guerra` (2026-11-21; `warScenario` em `js/war.js`, números em `WAR.scenario`).** Semente 11, modo criativo, rodada 3 no turno do Comandante, ◉20000, facção nível 3, capital + 1 cidade conquistada. Por padrão a guerra **já está declarada** (`facDeclareWar`; com `WAR.scenario.startAtWar = false` o cenário começa em paz e você declara pela Negociação) contra a facção NPC com mais cidades, forçada a agressiva, com uma campanha em `STATE.war.camps`. Os POIs permanentes (sem ruínas) são divididos: metade com você (`warScenarioPlayerPois`, arredonda para baixo, então com total ímpar o NPC fica com a maioria); os seus são os mais perto de você em relação ao inimigo. Painel na pausa → Facções: cidade inimiga, POI inimigo, **Conquistar POI** (o POI inimigo mais perto vira seu), Perder POI, encerrar rodada, curar, recomeçar. **Testar:** `?cenario=guerra`, abrir o painel, conferir a contagem de POIs, clicar em Conquistar POI (contagem muda). Smoke: `guerra: cenário`.
+
+36. **Frente da guerra (desenho do usuário, 2026-11-21; ainda sem código).** Fluxo, depois que a guerra é declarada:
+- O jogador **escolhe uma cidade do inimigo** para conquistar (a cidade-alvo).
+- O jogo calcula a **cidade do jogador mais próxima** da cidade-alvo (origem da frente).
+- O jogo calcula os **POIs permanentes no caminho**: em **linha reta** entre as duas cidades ou, se estiverem ligados diretamente, pela **estrada**.
+- Se o número de POIs for **baixo e houver espaço**, o jogo **acrescenta POIs de guerra** (acampamentos e trincheiras) para completar a frente.
+- O jogo define **quais POIs precisam ser conquistados** para liberar a cidade (a lista de POIs obrigatórios).
+- Cumprida a lista, a cidade é **liberada para a batalha final** (item 9).
+- **Efeito nas outras regras:** a "maioria" do cabo de guerra (`WAR.majority`) passa a valer sobre os POIs **da frente**, e não sobre todos os POIs do mapa. Ao conquistar a cidade, o jogador escolhe a próxima cidade-alvo (ver "Fim da guerra").
+- **Em aberto:** quantos POIs a frente deve ter no mínimo e no máximo (hoje o doc cita 3 ou 4); largura da faixa em volta da linha reta (como `POIX.post.reach`, 45); se todos os POIs da frente são obrigatórios ou só uma maioria; onde nascem os POIs de guerra de complemento (a feature 22 fala em "buracos do mapa"); o que acontece com a frente se a cidade sua de origem for perdida.
+- **Números e textos:** em `WAR` (`war-modifiers.js`) e `war-texts.js`. O `STATE.war.camps[fid]` deve guardar a cidade-alvo, a origem e a lista de POIs (acrescentar campos, sem quebrar o save).
+- **Cenário:** `?cenario=guerra` hoje divide os POIs pela metade; quando a frente existir, deve começar com os POIs da frente do inimigo e o botão "Conquistar POI" passa a respeitar a lista.
 
 9. O estoque deve ser limitado, menor que os das lojas inclusive.
 
