@@ -1,7 +1,7 @@
 'use strict';
 // ---------- Fase 6, POIs: bandidos, anexação, renda, moradores, serviços, binóculo e POIs de guerra ----------
 // Os POIs nascem com bandidos (owner 'bandit') ou de uma facção. Limpar os bandidos deixa o POI 'free' (cinza); na rodada seguinte o líder decide (cartão
-// "Terras livres"): anexar, doar à facção vizinha ou deixar para depois (na 2ª vez, os bandidos voltam). Os POIs seus rendem, e os distantes podem ser retomados.
+// "Terras livres"): anexar, doar, vender ou ignorar (ao encerrar o turno do líder, um POI livre sem decisão é retomado por bandidos ou pela facção mais perto; pesos em modifiers.js). Os POIs seus rendem, e os distantes podem ser retomados.
 // Números juntos aqui (como ECON, POL, RAID_WAVES). Ver docs/fase-6-guerra.md.
 const POIX={
   reveal:80,         // a que distância (blocos) um POI aparece no mapa (fora do modo criativo, o mapa começa sem POIs)
@@ -25,8 +25,8 @@ const POIX={
   smith:{goldPct:0.6},     // pagando com sucata, o ferreiro ainda cobra esta fração do preço em ◉ (a sucata cobre o resto)
   vest:{base:180,leather:5,pct:0.35,goldPct:0.6}   // reparo do colete no Quartel (allies.js): 35% do preço de um colete novo em ◉; com couro (5 para 100%) cobra 60% disso em ◉
 };
-Hooks.on('resetState',()=>{STATE.poiX={clr:{},defer:{},vigil:-1,room:null,done:{},seen:{}}});
-const poiX=()=>{const X=STATE.poiX||(STATE.poiX={clr:{},defer:{},vigil:-1,room:null,done:{},seen:{}});if(!X.done)X.done={};if(!X.seen)X.seen={};return X};
+Hooks.on('resetState',()=>{STATE.poiX={clr:{},vigil:-1,room:null,done:{},seen:{}}});
+const poiX=()=>{const X=STATE.poiX||(STATE.poiX={clr:{},vigil:-1,room:null,done:{},seen:{}});if(!X.done)X.done={};if(!X.seen)X.seen={};return X};
 const poiVisible=p=>(p.show||G.creative||!!poiX().seen[p.id])&&poiLive(p);   // fora do modo criativo, o POI só aparece nos mapas depois que você chega perto
 let POI_READY=false;
 const poiMine=type=>(WORLD.pois||[]).filter(p=>!p.show&&p.owner==='player'&&poiLive(p)&&(!type||p.type===type));
@@ -128,7 +128,7 @@ function poiFacList(p){   // facções com cidades e fora de guerra com você, d
 const POI_PRICE={fort:4500,mine:4000,bridge:4000,farm:3500,sawmill:3500,hunters:3500,sanctuary:3500,post:4500,tavern:3500,tower:3200,fortcamp:3000,trench:3000};   // mínimo de ◉3000
 const poiSellPrice=(p,dist)=>Math.round((POI_PRICE[p.type]||3000)*(1+Math.max(0,200-dist)/400)/100)*100;   // quem está perto paga até +50%
 const poiDone=(x,p,msg)=>{   // anexar, doar ou vender: só um POI por rodada (os outros cartões somem e voltam na rodada seguinte)
-  const X=poiX();delete X.clr[p.id];delete X.defer[p.id];G.poiFocus=null;X.decided=STATE.round;
+  const X=poiX();delete X.clr[p.id];G.poiFocus=null;X.decided=STATE.round;
   const P=STATE.pol;if(P&&P.extra)P.extra=P.extra.filter(e=>e.pid!=='poianexar');
   if(msg)x.toast(msg)};
 // popup para escolher a facção (bandeira, nome e distância da cidade mais próxima dela ao POI); verb: 'give' ou 'sell'
@@ -160,22 +160,42 @@ const poiOpts=[
     pick:(ctx,cb)=>poiPickFaction(ctx,'sell',cb),
     apply:x=>{const p=poiById(x.data.poi),o=poiFacList(p).find(q=>q.fid===x.sel),v=poiSellPrice(p,o?o.dist:999);poiSetOwner(p,x.sel);x.gold(v);poiDone(x,p,'💰 '+POI_DEFS[p.type].n+' vendido a '+(o?o.name:'uma facção')+' por ◉'+v+'.')}}
 ];
-poiOpts.push({k:'Z',label:'Deixar para depois',type:'debuff',
-  eff:(c,data)=>(poiX().defer[data.poi]||0)?'Pela 2ª vez: os bandidos voltam a ocupá-lo.':'Ele continua livre e o cartão volta na próxima rodada. Se você adiar de novo, os bandidos voltam.',
-  apply:x=>{const p=poiById(x.data.poi),X=poiX();X.defer[p.id]=(X.defer[p.id]||0)+1;G.poiFocus=null;
-    if(X.defer[p.id]>=2){delete X.clr[p.id];delete X.defer[p.id];poiSetOwner(p,'bandit');poiGarrisonSync(p);x.toast('🏴 Os bandidos voltaram a ocupar '+POI_DEFS[p.type].n+'.')}
-    else x.toast('O POI continua livre.')}});
+poiOpts.push({k:'Z',label:'Ignorar',type:'debuff',
+  eff:()=>'Ele continua livre só até você encerrar o turno: então é retomado, por bandidos ou pela facção mais próxima.',
+  apply:x=>{G.poiFocus=null;x.toast('O POI continua livre.')}});
 definePolicy({id:'poianexar',name:'Terras livres',city:false,noRoll:true,cool:0,flex:true,
   cond:()=>poiDueList().length>0,
   listLabel:(c,data)=>{const p=poiById(data.poi),d=POI_DEFS[p.type];return d.ic+' '+d.n+' — limpo, a '+Math.round(poiNearestMineDist(p))+' blocos da sua cidade mais próxima. Só um POI por rodada: ao decidir um, os outros ficam para a próxima.'},
   text:(c,data)=>{const p=poiById(data.poi),d=POI_DEFS[p.type],dist=Math.round(poiNearestMineDist(p));
-    return 'Seus soldados expulsaram os bandidos de '+d.ic+' '+d.n+'. O lugar está livre, a '+dist+' blocos da sua cidade mais próxima. Quem o ocupar ganha os seus benefícios, mas POIs distantes das suas cidades são alvo constante dos bandidos: a chance de retomada sobe com a distância (até 75%). Você também pode doá-lo a uma facção ou vendê-lo.';},
+    return 'Seus soldados expulsaram os bandidos de '+d.ic+' '+d.n+'. O lugar está livre, a '+dist+' blocos da sua cidade mais próxima. Quem o ocupar ganha os seus benefícios, mas POIs distantes das suas cidades são alvo constante dos bandidos: a chance de retomada sobe com a distância (até 75%). Você também pode doá-lo a uma facção ou vendê-lo. Se ignorá-lo, ao encerrar o turno ele é retomado por bandidos ou pela facção mais próxima.';},
   extra:(c,data)=>'<div style="margin:6px 0"><button class="alt" data-poimap="'+data.poi+'">🗺 Ver o POI no mapa</button></div>',
   options:poiOpts});
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-poimap]');if(b){G.poiFocus=+b.dataset.poimap;if(polWin&&polWin.isOpen())polWin.close();openBook('map')}});   // abre o mapa com o POI do cartão em destaque (game.js, drawBigMap)
 
+// ---------- POI livre sem decisão: ao encerrar o turno do líder, é retomado (sorteio: bandidos ou facção) (bandidos ou a facção mais perto) ----------
+function poiNearestFac(p){   // facção (qualquer uma, até em guerra com você) com a cidade mais perto do POI; null se nenhuma tem cidades
+  let bf=null,bd=1e9;
+  for(const f of WORLD.factions||[]){if(f.player)continue;for(const c of facCities(f.id)){const d=Math.hypot(c.cx-p.cx,c.cz-p.cz);if(d<bd){bd=d;bf=f}}}
+  return bf;
+}
+function poiFreeRetake(){
+  const X=poiX();
+  for(const p of WORLD.pois||[]){
+    if(p.show||POI_DEFS[p.type].war||p.owner!=='free'||X.clr[p.id]===undefined||X.clr[p.id]>=STATE.round)continue;
+    const nf=poiNearestFac(p),who=freePoiTaker(!!nf),n=POI_DEFS[p.type].n,f=who==='faction'?nf:null;   // pesos em modifiers.js
+    if(!who)continue;   // modificadores zerados: continua livre
+    delete X.clr[p.id];
+    if(f){poiSetOwner(p,f.id);rdNow('🏳 '+f.name+' assumiu '+n+' que estava livre.')}
+    else{poiSetOwner(p,'bandit');poiGarrisonSync(p);rdNow('🏴 Bandidos retomaram '+n+' que estava livre.')}
+  }
+}
+Hooks.on('leaderEnd',poiFreeRetake);
+
 // ---------- renda, retomada pelos bandidos e fim dos efeitos temporários (início de cada rodada) ----------
-function poiRetakeChance(p){const R=POIX.retake;return Math.min(R.max,R.base+Math.max(0,poiNearestMineDist(p)-R.far)*R.per)}
+function poiRetakeChance(p){   // POI seu: base + distância, teto; em guerra vezes WAR_RETAKE_MULTIPLIER (modifiers.js)
+  const R=POIX.retake,c=Math.min(R.max,R.base+Math.max(0,poiNearestMineDist(p)-R.far)*R.per);
+  return poiWarOn()?c*WAR_RETAKE_MULTIPLIER:c;
+}
 Hooks.on('round',()=>{
   if(!WORLD.pois||STATE.round<1)return;
   G.poiMark=null;

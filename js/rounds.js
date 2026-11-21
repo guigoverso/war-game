@@ -88,6 +88,7 @@ function finishLeaderTurn(){
   if(typeof meetPending==='function'&&meetPending()&&!(STATE.pol&&STATE.pol.pending)){normalizePol();STATE.pol.pending=meetCard()}   // a reunião vem antes de encerrar o turno
   if(STATE.pol&&STATE.pol.pending){toast('📜 Decida a política desta rodada antes de encerrar o turno.',3500);showPolicy();return}
   for(const c of WORLD.cities){const e=ec(c);if(e.type==='port'&&e.nf){if(e.pf!==e.nf){const lost=moveProdToStore(c);if(lost&&c.owner==='player')toast('⚓ '+c.name+': a abundância mudou. '+lost+'.',4000)}e.pf=e.nf;e.ps=e.ns;e.pct=portPct(e.pf,e.ps)}delete e.nf;delete e.ns}   // a nova distribuição do porto só vale agora
+  Hooks.emit('leaderEnd');   // POIs livres sem decisão podem ser retomados (poigame.js)
   computeBuffs();STATE.phase='commander';
   {const tgt=8/24,dlt=((tgt-DN.t)%1+1)%1;DN.days+=dlt;DN.t=tgt}   // o turno do comandante sempre começa às 8 da manhã (nunca volta no tempo)
   const n=Object.keys(STATE.rd.rbuf).length;

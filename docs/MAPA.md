@@ -4,13 +4,16 @@ Referência rápida para achar as coisas sem varrer o código. Nomes são exatos
 Se renomear ou mover algo listado aqui, atualize esta página.
 
 ## Ordem de carga (`index.html`, fim do arquivo)
-util → render → voxel → phys → world → city → nav → entities → weapons → allies → poi → quests → ambient → data →
+util → modifiers → render → voxel → phys → world → city → nav → entities → weapons → allies → poi → quests → ambient → data →
 state → ui → inventory → store → cooking → fishing → dungeon → raids → warehouse → econ → office → caravans → book → bookmap → rounds → policies →
 factions → facgraph → facsupply → rebellion → rebmine → facevents → meetfx → meeting → globalev → flageditor →
 scenario → missions → pois → poigame → negoc → save → **game** (último: laço principal e entrada).
 Código no topo de um arquivo só pode usar o que veio antes; dentro de funções, qualquer global serve.
 
 ## Arquivos
+**Modificadores (ajuste fácil)**
+- `modifiers` — constantes e funções de regra que o usuário altera sem pedir à IA (cada uma com comentário: para que serve e valor padrão). Novos modificadores vão aqui. Hoje: `BANDIT_RETAKE_FREE_POI`, `FACTION_TAKE_FREE_POI` (pesos de quem retoma um POI livre ignorado) e `freePoiTaker` (usada por `poiFreeRetake` em `poigame.js`); `WAR_RETAKE_MULTIPLIER` (redutor da retomada dos POIs seus em guerra, usado em `poiRetakeChance`).
+
 **Mundo e render**
 - `util` — utilitários (sementes, cores, interpolação): `mulberry32`, `hashStr`, `clamp`, `lerp`, `mixc`, `tick`.
 - `render` — cena Three.js e cache de materiais/geometria: `scene`, `mat`, `part`, `GEO_BOX`, `makeSign`.
@@ -88,6 +91,7 @@ Código no topo de um arquivo só pode usar o que veio antes; dentro de funçõe
 `Hooks.on(nome,fn)` / `Hooks.emit(nome,arg)`. Eventos existentes:
 - `resetState` — emitido por `resetState()`; quase todo sistema registra aqui o seu pedaço de `STATE`.
 - `round` — emitido em `endRound` (`rounds.js`) e `Rounds.advance`; ouvido por econ (grutas), caravans, rounds (rodada 0), policies, factions, facgraph, facevents, globalev, meetfx, missions, dungeon, poigame (renda, retomada, rotas bloqueadas e renda do entreposto, guardiões das ruínas).
+- `leaderEnd` — emitido em `finishLeaderTurn` (`rounds.js`) ao encerrar o turno do Líder; ouvido por `poigame.js` (`poiFreeRetake`: POI livre sem decisão é retomado).
 - `leaderTurn` — emitido no início do turno do Líder (`rounds.js`); ouvido por `policies.js` (sorteia o cartão).
 - `ledger` — emitido por `Ledger.set` quando um recurso muda.
 
@@ -104,6 +108,7 @@ Raid ativa bloqueia via `raidLocked(t.c)`. No escritório/salão: `meetInteract`
 - `ECON` (`econ.js`) — necessidades, saque de caravana (`ECON.loot`), produção, impostos, caravana (`CARAVAN_COST=ECON.caravan`), evolução de cidade.
 - `POL` (`policies.js`) — chance e duração das políticas; definições via `definePolicy`.
 - `POI_GEN`, `POI_W`, `POI_RANGE` (`pois.js`) — quantidade, pesos por bioma, limites e mínimos dos POIs gerados.
+- **`modifiers.js`** — modificadores novos (a partir da feature Atualizações dos POIs): olhar primeiro aqui antes de criar constante nova.
 - `POIX` e `POI_PRICE` (`poigame.js`) — guarnição, produção e pedágio por nível, santuário (`sanc`), caçadores (`hunt`), entreposto (`post`), colete (`vest`), retomada e preço dos POIs.
 - `RAID_WAVES`, `RAID_GAP`, `RAID_TIME`, `RAID_LOSS_*` (`raids.js`).
 - `REB` (rebellion), `FEV` (facevents), `GEV` (globalev), `FSUP` (facsupply), `MEET`/`MEET_DUR` (meeting/meetfx).

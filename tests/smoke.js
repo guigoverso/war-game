@@ -127,6 +127,31 @@ const T={
     const n0=X.bin&&X.bin.r===STATE.round?X.bin.n:0;poiBinoc(p);
     return X.bin&&X.bin.r===STATE.round&&X.bin.n===n0+1?'':'o uso do binóculo não foi contado';
   },
+  freeRetake:()=>{   // POI livre sem decisão: ao encerrar o turno do líder, sempre retomado (50% bandidos, 50% facção mais perto)
+    const p=WORLD.pois.find(q=>!q.show&&!POI_DEFS[q.type].war&&q.type!=='ruins'&&q.owner==='bandit');if(!p)return 'sem POI de bandidos';
+    const X=poiX(),old=Math.random,n0=STATE.rd.now.length,free=()=>{poiGarrisonRemove(p);poiSetOwner(p,'free');X.clr[p.id]=STATE.round-1};
+    let why='';
+    try{
+      const seq=a=>{let i=0;Math.random=()=>a[Math.min(i++,a.length-1)]};
+      const f=poiNearestFac(p);   // os pesos vêm de modifiers.js: só testa o que está ligado
+      if(BANDIT_RETAKE_FREE_POI>0){free();seq([0]);Hooks.emit('leaderEnd');if(p.owner!=='bandit'||!p.gar)why='sorteio 0 devia trazer os bandidos de volta'}
+      if(!why&&FACTION_TAKE_FREE_POI>0&&f){free();seq([0.99]);Hooks.emit('leaderEnd');if(p.owner!==f.id)why='a facção mais perto devia assumir (dono: '+p.owner+')'}
+      if(!why&&!STATE.rd.now.slice(n0).some(t=>t.includes('que estava livre')))why='sem aviso no relatório';
+    }finally{Math.random=old;poiSetOwner(p,'bandit');poiGarrisonSync(p);delete X.clr[p.id];STATE.rd.now.length=n0}
+    return why;
+  },
+  warRetake:()=>{   // em guerra a chance de retomada dos POIs seus é multiplicada por WAR_RETAKE_MULTIPLIER
+    const p=WORLD.pois.find(q=>!q.show&&!POI_DEFS[q.type].war&&q.type!=='ruins'&&q.owner==='bandit');if(!p)return 'sem POI de bandidos';
+    const owner=p.owner,rel=(WORLD.factions||[]).filter(f=>!f.player).map(f=>[relOf(f.id),relOf(f.id).war]);let why='';
+    try{
+      poiSetOwner(p,'player');for(const [r] of rel)r.war=false;
+      const base=poiRetakeChance(p);if(!(base>0))return 'chance base zerada';
+      const f0=(WORLD.factions||[]).find(f=>!f.player);if(!f0)return 'sem facções';
+      relOf(f0.id).war=true;const w=poiRetakeChance(p);
+      if(Math.abs(w-base*WAR_RETAKE_MULTIPLIER)>1e-9)why='em guerra devia ser '+base*WAR_RETAKE_MULTIPLIER+', veio '+w;
+    }finally{for(const [r,w] of rel)r.war=w;poiSetOwner(p,owner);poiGarrisonSync(p)}
+    return why;
+  },
   civStart:()=>{   // conquista um POI de bandidos (fora do mapa manual) na rodada N: ainda sem moradores
     const p=WORLD.pois.find(q=>!q.show&&!POI_DEFS[q.type].war&&q.type!=='ruins'&&POIX.civ[q.type]>0&&q.owner==='bandit');if(!p)return 'sem POI de bandidos para conquistar';
     if(p.gar)for(const e of p.gar.enemies||[])e.alive=false;
@@ -179,6 +204,8 @@ const T={
     await check(g,'seed 11: POIs gerados',T.pois);
     await check(g,'seed 11: pontes (registro e pedágios no máximo 3)',T.bridges);
     await check(g,'seed 11: binóculo (poiBinoc)',T.binoc);
+    await check(g,'seed 11: POI livre sem decisão (retomada ao encerrar o líder)',T.freeRetake);
+    await check(g,'seed 11: retomada dos POIs seus em guerra (redutor)',T.warRetake);
     await check(g,'seed 11: ruínas (guardiões voltam, baú não)',T.ruins);
     await check(g,'seed 11: conquista na rodada N sem moradores',T.civStart);
     await check(g,'seed 11: moradores na rodada N+1',T.civNext);

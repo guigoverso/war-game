@@ -7,6 +7,9 @@ Jogo de guerra e economia em voxels, no navegador (Three.js r128 via CDN). Sem b
 2. Rode `git pull` na branch de trabalho antes de editar (o usuário alterna entre PCs; o GitHub é a ponte).
 3. Ao terminar, rode a skill **`/encerrar-sessao`** (ver `docs/skills/`): ela atualiza `docs/ESTADO.md`, commita e envia.
 
+## Antes e durante as implementações
+Consulte **`docs/MAPA.md` para achar arquivos, funções, UIs, ganchos e números de balanceamento sem varrer o código.
+
 ## Editar código
 Ao editar código: mantenha novas funções com linhas de até ~120 caracteres e quebre expressões longas em várias linhas; não escreva sobrescritas de funções de outros arquivos (edite a definição original); consulte docs/MAPA.md antes de buscar no código.
 
@@ -20,7 +23,7 @@ Ao editar código: mantenha novas funções com linhas de até ~120 caracteres e
   Ele abre `?auto=1&mute=1&seed=11` e `?cenario=pois&auto=1&mute=1` e imprime OK/FALHA para carga sem erros, POIs, serviços, binóculo, moradores e Negociação.
 
 ## Mapa do código (`js/`)
-- Mundo/render: `util`, `render`, `voxel`, `phys`, `world` (geração por semente), `city` (cidades e prédios), `nav`.
+- Mundo/render: `util`, `modifiers` (constantes e regras ajustáveis pelo usuário), `render`, `voxel`, `phys`, `world` (geração por semente), `city` (cidades e prédios), `nav`.
 - Entidades: `entities` (NPCs, inimigos, IA), `allies` (soldados do jogador, escolha de alvo `pickTarget`), `weapons`, `ambient`.
 - Jogo: `game` (laço principal, entrada, interação `doInteract`/`updateInteract`, painéis), `state` (STATE serializável, Ledger de recursos, Hooks), `save` (salvar/carregar com versão).
 - Sistemas: `econ` (economia — números em `ECON`), `rounds` (rodadas), `policies` (política locais/eventos), `raids` (raids em ondas e emboscada de caravana), `warehouse` (armazém), `store`/`inventory`/`cooking`/`fishing`, `quests`, `dungeon`, `poi`, `data` (tabelas de itens e loot).
@@ -30,7 +33,8 @@ Ao editar código: mantenha novas funções com linhas de até ~120 caracteres e
 - Estilo do código: denso, uma função por bloco, comentários curtos em português explicando o "porquê". Mantenha esse estilo.
 - Textos do jogo, comentários e docs em **português do Brasil**.
 - Estado que precisa sobreviver ao salvar fica em `STATE` (JSON puro). Se a mudança altera o estado salvo: some 1 a `SAVE_VERSION` (`js/state.js`), acrescente um passo `if(d.v<N)` em `migrateSave` (`js/save.js`) e só **acrescente** campos (ausentes = padrão).
-- Números de balanceamento ficam juntos: economia em `ECON` (`js/econ.js`), políticas em `POL` (`js/policies.js`), raids em `RAID_WAVES`/`RAID_GAP` (`js/raids.js`). Ajuste ali em vez de espalhar constantes.
+- **Modificadores (`js/modifiers.js`):** todo número de balanceamento e toda regra pequena de decisão (ex.: `canWatch(n)` que compara com `MAX_WATCH_PER_TOWER`) **criados a partir da feature "Atualizações dos POIs"** vão para esse arquivo como constantes ou funções, com nomes descritivos em MAIÚSCULAS (constantes). Você decide quais modificadores criar, salvo se o usuário pedir um específico. Cada um leva um comentário acima com **para que serve e o valor padrão**. O restante do código só importa/consulta o modificador (nada de número solto no meio da lógica), para o usuário ajustar sem pedir. Não migre os modificadores antigos (`ECON`, `POL`, `POIX`, ...) a menos que seja pedido. Atualize o `docs/MAPA.md` ao criar um.
+- Números de balanceamento (antigos) ficam juntos: economia em `ECON` (`js/econ.js`), políticas em `POL` (`js/policies.js`), raids em `RAID_WAVES`/`RAID_GAP` (`js/raids.js`). Ajuste ali em vez de espalhar constantes.
 - Ao concluir uma mudança de regra, documente-a na seção da fase em `docs/fase-4-testes.md` (regra + como testar), como já é feito.
 
 ## Conceitos do jogo (onde ler)
