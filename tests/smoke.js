@@ -67,6 +67,19 @@ const T={
       return '';
     }finally{rd.lvl=keep[0];rd.clv[h.id]=keep[1];rd.facUpR=keep[2];rd.cityUpR=keep[3];STATE.phase=keep[4];rd.actions=keep[5];P.coins=keep[6]}
   },
+  lvlFx:()=>{   // efeito do nível da cidade: produção, imposto e estoque da loja sobem só nas cidades do jogador; NPC não muda
+    const rd=STATE.rd,h=WORLD.home,npc=WORLD.cities.find(c=>c.owner!=='player'),k=rd.clv[h.id];
+    try{
+      rd.clv[h.id]=1;const p1=prodOf(h),t1=taxOf(h),s1=shopFull(h),pn=npc&&prodOf(npc),tn=npc&&taxOf(npc);
+      rd.clv[h.id]=3;const p3=prodOf(h),t3=taxOf(h),g=cityLvlGain(h);
+      if(focusOf(h)!=='gold'&&p3-p1!==2*LVL.cityProd)return 'produção: '+p1+' -> '+p3;
+      if(!(t3>t1))return 'imposto não subiu: '+t1+' -> '+t3;
+      if(g.lvl!==3)return 'ganho errado '+JSON.stringify(g);
+      if(!(Object.keys(s1).some(i=>shopFull(h)[i]>s1[i])))return 'estoque da loja não subiu';
+      if(npc&&(prodOf(npc)!==pn||taxOf(npc)!==tn))return 'NPC mudou';
+      return '';
+    }finally{rd.clv[h.id]=k}
+  },
   pois:()=>{const n=WORLD.pois.length;return n>0?'':'nenhum POI em WORLD.pois'},
   svc:([type,fn])=>{   // abre o serviço num POI do tipo pedido (seu, para o preço sair da capital)
     const p=WORLD.pois.find(q=>q.type===type);if(!p)return 'sem POI do tipo '+type;
@@ -262,6 +275,7 @@ const T={
     await check(g,'seed 11: POIs gerados',T.pois);
     await check(g,'seed 11: pontes (registro e pedágios no máximo 3)',T.bridges);
     await check(g,'seed 11: níveis da facção e das cidades (LVL)',T.lvl);
+    await check(g,'seed 11: efeito do nível da cidade (produção, imposto, loja)',T.lvlFx);
     await check(g,'seed 11: vigia da torre (poiVigil)',T.binoc);
     await check(g,'seed 11: POI livre sem decisão (retomada ao encerrar o líder)',T.freeRetake);
     await check(g,'seed 11: retomada dos POIs seus em guerra (redutor)',T.warRetake);

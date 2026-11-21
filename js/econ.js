@@ -11,9 +11,9 @@ const MOOD={rich:{n:'Próspera',icon:'😄',col:'#ffd23a'},ok:{n:'Contente',icon
 const ECON={baseNeed:4,prodBase:7,prodRank:1,goldMul:8,taxBase:25,taxRank:10,caravan:300,shopMul:2,tradeGold:0.5};   // tradeGold: fração da produção de ouro da cidade parceira que vira ouro por rodada para quem negocia com ela   // shopMul: o estoque da Loja da cidade = (produção da cidade) × shopMul para o recurso dela (25% dos outros)
 const TAX_BASE=ECON.taxBase,TAX_RANK=ECON.taxRank;
 // ações do líder (Fase 4A): quanto cada decisão gasta por rodada. 0 = não gasta (hoje a caravana é só ouro; o porto e, no futuro, paz e guerra são grátis).
-// Para a caravana também gastar ação, troque caravan para 1. cityDisc = desconto nas lojas por nível da cidade (custos de evoluir cidade e facção: LVL, abaixo). capital/city = evoluir facção/cidade (1 ação cada, além do limite de 1 por rodada).
+// Para a caravana também gastar ação, troque caravan para 1. Custos de evoluir cidade e facção: LVL, abaixo). capital/city = evoluir facção/cidade (1 ação cada, além do limite de 1 por rodada).
 ECON.rebelUps=4;   // rodadas seguidas sem suprimentos até a rebelião: Descontente (1), (0), (−1) e então a rebelião
-ECON.act={caravan:1,capital:1,city:1,give:1,relic:1,ally:1,mission:1};ECON.cityDisc=0.05;   // F4: criar caravana, doar ouro, doar relíquia e fechar aliança gastam 1 ação do líder cada (evita subir a relação com várias facções num turno)
+ECON.act={caravan:1,capital:1,city:1,give:1,relic:1,ally:1,mission:1};   // F4: criar caravana, doar ouro, doar relíquia e fechar aliança gastam 1 ação do líder cada (evita subir a relação com várias facções num turno)
 ECON.loot={items:6,coins:40,perRank:15};   // saque: unidades de um dos produtos da rota + ◉ (base + por nível da cidade dona)
 const TYPE_NAME={food:'Alimentos',ore:'Minérios',wood:'Madeira',leather:'Couro',gold:'Dinheiro',port:'Porto'};
 const CITY_COLS=[0xe0402a,0x2aa04a,0xe8b820,0x8a3ac8,0x20b0c8,0xe87820,0xd0409a,0x8a8a8a];   // cor de identidade de cada cidade (faixa da bandeira)
@@ -45,6 +45,8 @@ function cityLvl(c){   // cidade do jogador (capital incluída): rd.clv[id]; NPC
   if(!rd.clv[c.id])rd.clv[c.id]=Math.min(LVL.cityMax,c.home?rd.lvl||1:cityLvlFromRank(c));   // capital sem entrada herda o nível antigo (rd.lvl)
   return rd.clv[c.id];
 }
+const lvlSteps=c=>c.owner==='player'?cityLvl(c)-1:0;   // níveis acima do 1 (só cidade do jogador; NPC segue pelo rank)
+const cityLvlGain=c=>{const n=lvlSteps(c);return{lvl:cityLvl(c),prod:LVL.cityProd*n,tax:LVL.cityTax*n}};   // ganho do nível atual (para as telas)
 const facLvl=()=>STATE.rd.lvl||1;
 // recursos do custo: ouro, comida, minério e madeira no Ledger; couro vem do inventário (msHas/msTake)
 const lvlHave=k=>k==='leather'?msHas('leather'):Ledger.get(k);
@@ -89,7 +91,6 @@ function cityUpWhy(c){
 }
 const canFacUp=()=>!facUpWhy();
 const canCityUp=c=>!cityUpWhy(c);
-addPriceFx('clv',ctx=>{const c=ctx.city;if(!c)return[];const lvl=cityLvl(c),m=1-ECON.cityDisc*(lvl-1);return m===1?[]:[{txt:'Cidade evoluída (nível '+lvl+')',mul:m}]},70);   // cidade evoluída: desconto nas lojas dela
 const rbufOn=r=>!!(STATE.rd&&STATE.rd.rbuf&&STATE.rd.rbuf[r]);
 const debOn=r=>!!(STATE.rd&&STATE.rd.debuff&&STATE.rd.debuff[r]);   // debuff: faltou suprimento na rodada anterior
 // dívida em itens (o que faltou e ainda não foi pago) das cidades do jogador
@@ -178,12 +179,12 @@ const missingOf=(c,r)=>G.alwaysSupplied||STATE.round<1?0:Math.max(0,needOf(c,r)-
 const cityMet=c=>NEEDS.every(r=>missingOf(c,r)===0);
 function moodOf(c){const e=STATE.rd&&STATE.rd.cities&&STATE.rd.cities[c.id];return(e&&e.mood)||'ok'}
 const hasRoute=c=>STATE.rd.routes.some(r=>r.a===c.id||r.b===c.id)||(STATE.rd.nroutes||[]).some(r=>r.a===c.id||r.b===c.id);   // inclui as caravanas entre NPC (facgraph.js): uma por cidade
-const prodOf=c=>polFlag('noProd',c.id)?0:(ECON.prodBase+ECON.prodRank*Math.max(1,c.rank||1)+(moodOf(c)==='rich'?1:0))*(focusOf(c)==='gold'?ECON.goldMul*meetGoldProd():1);   // cidade próspera: +1 de produção
+const prodOf=c=>polFlag('noProd',c.id)?0:(ECON.prodBase+ECON.prodRank*Math.max(1,c.rank||1)+LVL.cityProd*lvlSteps(c)+(moodOf(c)==='rich'?1:0))*(focusOf(c)==='gold'?ECON.goldMul*meetGoldProd():1);   // cidade próspera: +1 de produção
 const goldTradeOf=c=>{   // ouro extra por rodada de quem negocia com cidades que produzem ouro
   let g=0;for(const r of STATE.rd.routes){if(r.a!==c.id&&r.b!==c.id)continue;const o=WORLD.cities[r.a===c.id?r.b:r.a];if(focusOf(o)==='gold'&&o!==c)g+=Math.round(prodOf(o)*ECON.tradeGold)}
   return moodOf(c)==='upset'||focusOf(c)==='gold'?0:g;
 };
-const taxOf=c=>moodOf(c)==='upset'||polFlag('noTax',c.id)||(focusOf(c)==='gold'&&hasRoute(c))?0:Math.round((TAX_BASE+TAX_RANK*Math.max(1,c.rank||1))*(moodOf(c)==='rich'?1.5:1)*meetTaxMul());
+const taxOf=c=>moodOf(c)==='upset'||polFlag('noTax',c.id)||(focusOf(c)==='gold'&&hasRoute(c))?0:Math.round((TAX_BASE+TAX_RANK*Math.max(1,c.rank||1)+LVL.cityTax*lvlSteps(c))*(moodOf(c)==='rich'?1.5:1)*meetTaxMul());
 const deliverAndRefresh=()=>{computeBuffs();refreshRoundHud()};function computeBuffs(){
   const b={};
   for(const c of playerCities())for(const r of NEEDS)if(gotOf(c,r)>Math.max(0,needOf(c,r)-carryOf(c,r)))b[r]=true;
@@ -206,7 +207,7 @@ function rerollNeeds(c){
 // ---------- lojas: o estoque à venda depende da produção da cidade ----------
 const SHOP_ITEM={food:'carne',wood:'tora',ore:'minerio',leather:'couro'};
 function shopFull(c){   // estoque cheio da loja da cidade (por item); o entreposto usa uma fração dele
-  const base=(ECON.prodBase+ECON.prodRank*Math.max(1,c.rank||1))*ECON.shopMul,f=focusOf(c),s={};
+  const base=(ECON.prodBase+ECON.prodRank*Math.max(1,c.rank||1)+LVL.cityProd*lvlSteps(c))*ECON.shopMul,f=focusOf(c),s={};
   for(const r of NEEDS)s[SHOP_ITEM[r]]=Math.floor((f===r?base:f==='gold'?Math.floor(base*0.5):Math.floor(base*0.25))*fsupStockMul(c,r)*meetStockMul());   // facção abundante/em falta num recurso: mais/menos estoque
   return s;
 }

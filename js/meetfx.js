@@ -136,6 +136,7 @@ function buffsPages(){
   for(const b of STATE.buffs||[]){const d=DATA.buffs[b.id];if(d)good.push(d.icon+' '+d.name+' <small>'+Math.ceil(b.left)+' s — '+d.desc+'</small>')}
   for(const c of playerCities()){const m=moodOf(c),en=ec(c);
     if(m==='rich')good.push('😄 '+c.name+' próspera: '+MOOD_TXT.rich);else if(m==='upset')bad.push('😠 '+c.name+' descontente: '+MOOD_TXT.upset);
+    const g=cityLvlGain(c);if(g.lvl>1)good.push(txtCityLvlBuff(c,g));
     if(en&&en.press)bad.push('⚔ '+c.name+' sob repressão: necessidades +'+50*en.press.n+'%')}
   // caravanas (suas e das NPC)
   for(const r of rd.routes)good.push('🛒 Caravana '+routeName(r)+': a necessidade do produto da outra cidade cai (100% some, 150% vira 100%, 200% vira 150%) <small>(enquanto a rota existir)</small>');

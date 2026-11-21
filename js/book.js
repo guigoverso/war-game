@@ -70,9 +70,10 @@ function bookPages(){
             +'<div>Falta: '+NEEDS.map(r=>'<button class="ldmini'+(cs===r?' sel':'')+'" data-a="ps" data-r="'+r+'">'+resIcon(r)+'</button>').join('')+'</div>';
         }else R+='<p class="ldsm">⚓ O porto produz '+resIcon(e.pf)+' e lhe falta '+resIcon(e.ps)+'. Essa distribuição só muda no turno do líder.</p>';
       }
+      if(c.owner==='player')R+='<p class="ldsm">'+txtCityLvlGain(c,cityLvlGain(c))+'</p>';   // o que o nível atual rende (capital incluída)
       if(!c.home){   // evoluir uma cidade que não é a capital: gasta ação e ouro; dá desconto nas lojas dela (não sobe o nível do líder)
         const lv=cityLvl(c),cc=cityCostOf(c)||{},ok=canCityUp(c);
-        R+='<h4>Evoluir a cidade</h4><p class="ldsm">Nível <b>'+lv+'</b> / '+LVL.cityMax+' • lojas '+Math.round(ECON.cityDisc*(lv-1)*100)+'% mais baratas. Não aumenta o nível do líder (só a capital faz isso).</p>'
+        R+='<h4>Evoluir a cidade</h4><p class="ldsm">Nível <b>'+lv+'</b> / '+LVL.cityMax+'. Não aumenta o nível do líder (só a capital faz isso).</p>'
           +(lv>=LVL.cityMax?'<p>Nível máximo.</p>':'<p>Custo: <b>◉ '+cc.gold+'</b> + '+actCost('city')+' ação</p><button data-a="cityup" '+(ok?'':'disabled')+'>Evoluir '+c.name+'</button>'+leaderOnly()+(isLeader()&&!canAct('city')?'<p class="ldwarn">Sem ações do líder nesta rodada.</p>':''));
       }
     }    return[L,R];
@@ -162,7 +163,7 @@ function bookClick(e){
     if(canFacUp()&&lvlPay(facCostOf())){spendAct('capital');rd.lvl++;rd.facUpR=STATE.round;sfx('win',0);toast('🏛 A capital evoluiu! Nível '+rd.lvl+': mais ações a partir da próxima rodada.',3500)}
   }
   else if(a==='cityup'){
-    if(!c.home&&canCityUp(c)&&lvlPay(cityCostOf(c))){spendAct('city');rd.clv[c.id]=cityLvl(c)+1;rd.cityUpR=STATE.round;sfx('win',0);toast('🏘 '+c.name+' evoluiu para o nível '+cityLvl(c)+': lojas '+Math.round(ECON.cityDisc*(cityLvl(c)-1)*100)+'% mais baratas.',3500)}
+    if(!c.home&&canCityUp(c)&&lvlPay(cityCostOf(c))){spendAct('city');rd.clv[c.id]=cityLvl(c)+1;rd.cityUpR=STATE.round;sfx('win',0);toast('🏘 '+c.name+' evoluiu para o nível '+cityLvl(c)+': mais produção e imposto.',3500)}
   }
   renderBook();
 }

@@ -32,3 +32,7 @@ const TXT_VIGIL_USED='Esta torre já foi usada nesta rodada.';
 const TXT_VIGIL_WRONG_PHASE='A vigia é feita no turno do comandante.';
 // Toast: o jogador chegou perto de um "?" e ele sumiu.
 const TXT_VIGIL_ARRIVED='Você chegou ao ponto de interesse.';
+// Tela da cidade (livro, aba Cidades) e aba Efeitos: o que o nível atual da cidade do jogador rende. g = cityLvlGain(c) (econ.js).
+const txtCityLvlGain=(c,g)=>'Nível <b>'+g.lvl+'</b> / '+LVL.cityMax+': +'+g.prod+' de produção, +◉'+g.tax+' de imposto por rodada.';
+// Aba Efeitos (buffs): linha de uma cidade sua evoluída (nível 2 ou mais).
+const txtCityLvlBuff=(c,g)=>'🏘 '+c.name+' (nível '+g.lvl+'): +'+g.prod+' de produção, +◉'+g.tax+' de imposto';
