@@ -13,7 +13,7 @@ Código no topo de um arquivo só pode usar o que veio antes; dentro de funçõe
 ## Arquivos
 **Modificadores (ajuste fácil)**
 - `modifiers` — constantes e funções de regra que o usuário altera sem pedir à IA (cada uma com comentário: para que serve e valor padrão). Novos modificadores vão aqui. Hoje: `BANDIT_RETAKE_FREE_POI`, `FACTION_TAKE_FREE_POI` (pesos de quem retoma um POI livre ignorado) e `freePoiTaker` (usada por `poiFreeRetake` em `poigame.js`); `WAR_RETAKE_MULTIPLIER` (redutor da retomada dos POIs seus em guerra, usado em `poiRetakeChance`).
-- `texts` — textos do jogo que o usuário ajusta sem pedir à IA: mensagens e avisos (toast, relatório da rodada), textos de livro e cartão, e funções que devolvem string. Cada um com comentário (onde aparece e para que serve). Novos textos vão aqui. Ainda vazio.
+- `texts` — textos do jogo que o usuário ajusta sem pedir à IA: mensagens e avisos (toast, relatório da rodada), textos de livro e cartão, e funções que devolvem string. Cada um com comentário (onde aparece e para que serve). Novos textos vão aqui. Ainda vazio. Evolução de cidade: `txtWallAt`, `txtCityUpNext`, `txtLvlCostLine`, `txtCityUpToast`, `txtCityUpReport` (tela da cidade em `book.js`, botão `cityup`).
 
 **Mundo e render**
 - `util` — utilitários (sementes, cores, interpolação): `mulberry32`, `hashStr`, `clamp`, `lerp`, `mixc`, `tick`.

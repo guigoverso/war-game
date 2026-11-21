@@ -50,7 +50,7 @@ function bookPages(){
     return[L,R];
   }
   if(LB.tab==='cidades'){
-    const L='<h3>Suas cidades</h3>'+pcs.map(c=>'<button class="ldcity'+(c.id===LB.city?' sel':'')+'" data-a="city" data-id="'+c.id+'"><span>'+(c.home?'🏛 ':'')+c.name+'</span><small>'+typeLabel(c)+'</small><em>'+MOOD[moodOf(c)].icon+' '+MOOD[moodOf(c)].n+' • '+(cityMet(c)?'✔ suprida':'⚠ faltam recursos')+'</em></button>').join('');
+    const L='<h3>Suas cidades</h3>'+pcs.map(c=>'<button class="ldcity'+(c.id===LB.city?' sel':'')+'" data-a="city" data-id="'+c.id+'"><span>'+(c.home?'🏛 ':'')+c.name+' (nível '+cityLvl(c)+')</span><small>'+typeLabel(c)+'</small><em>'+MOOD[moodOf(c)].icon+' '+MOOD[moodOf(c)].n+' • '+(cityMet(c)?'✔ suprida':'⚠ faltam recursos')+'</em></button>').join('');
     const c=WORLD.cities[LB.city];let R='';
     if(c&&c.owner==='player'){
       const e=ec(c);
@@ -71,10 +71,16 @@ function bookPages(){
         }else R+='<p class="ldsm">⚓ O porto produz '+resIcon(e.pf)+' e lhe falta '+resIcon(e.ps)+'. Essa distribuição só muda no turno do líder.</p>';
       }
       if(c.owner==='player')R+='<p class="ldsm">'+txtCityLvlGain(c,cityLvlGain(c))+'</p>';   // o que o nível atual rende (capital incluída)
-      if(!c.home){   // evoluir uma cidade que não é a capital: gasta ação e ouro; dá desconto nas lojas dela (não sobe o nível do líder)
-        const lv=cityLvl(c),cc=cityCostOf(c)||{},ok=canCityUp(c);
-        R+='<h4>Evoluir a cidade</h4><p class="ldsm">Nível <b>'+lv+'</b> / '+LVL.cityMax+'. Não aumenta o nível do líder (só a capital faz isso).</p>'
-          +(lv>=LVL.cityMax?'<p>Nível máximo.</p>':'<p>Custo: <b>◉ '+cc.gold+'</b> + '+actCost('city')+' ação</p><button data-a="cityup" '+(ok?'':'disabled')+'>Evoluir '+c.name+'</button>'+leaderOnly()+(isLeader()&&!canAct('city')?'<p class="ldwarn">Sem ações do líder nesta rodada.</p>':''));
+      if(c.owner==='player'){   // evoluir a cidade (capital incluída): ouro + recursos, 1 cidade por rodada
+        const lv=cityLvl(c),cc=cityCostOf(c);
+        R+='<h4>Evoluir a cidade</h4>';
+        if(!cc)R+='<p>Nível máximo ('+lv+' / '+LVL.cityMax+').</p>';
+        else{
+          const why=cityUpWhy(c);
+          R+='<p class="ldsm">'+txtCityUpNext(c,lv)+'</p><ul class="ldul">'+Object.keys(cc).map(k=>txtLvlCostLine(k,cc[k],lvlHave(k)>=cc[k])).join('')+'</ul>'
+            +(actCost('city')?'<p class="ldsm">Gasta '+actCost('city')+' ação do líder.</p>':'')
+            +'<button data-a="cityup" '+(why?'disabled':'')+'>Evoluir '+c.name+'</button>'+(why?'<p class="ldwarn">'+why+'</p>':'');
+        }
       }
     }    return[L,R];
   }
@@ -163,7 +169,10 @@ function bookClick(e){
     if(canFacUp()&&lvlPay(facCostOf())){spendAct('capital');rd.lvl++;rd.facUpR=STATE.round;sfx('win',0);toast('🏛 A capital evoluiu! Nível '+rd.lvl+': mais ações a partir da próxima rodada.',3500)}
   }
   else if(a==='cityup'){
-    if(!c.home&&canCityUp(c)&&lvlPay(cityCostOf(c))){spendAct('city');rd.clv[c.id]=cityLvl(c)+1;rd.cityUpR=STATE.round;sfx('win',0);toast('🏘 '+c.name+' evoluiu para o nível '+cityLvl(c)+': mais produção e imposto.',3500)}
+    if(canCityUp(c)&&lvlPay(cityCostOf(c))){
+      const n=cityLvl(c)+1;spendAct('city');rd.clv[c.id]=n;rd.cityUpR=STATE.round;cityWallRebuild(c,n);
+      rdNow(txtCityUpReport(c,n));sfx('win',0);toast(txtCityUpToast(c,n),3500);
+    }
   }
   renderBook();
 }

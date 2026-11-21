@@ -12,7 +12,7 @@ const inCityZone=(c,pad)=>Math.max(Math.abs(P.x-c.cx),Math.abs(P.z-c.cz))<c.half
 
 // Raid em ONDAS (sem reposição, no máximo 15 bandidos ao mesmo tempo): 5 por um lado, 10 (5 de cada de 2 lados) e 15 (5 de cada de 3 lados),
 // com RAID_GAP segundos entre as ondas para o jogador se curar e recrutar. Os lados são as entradas (portões) da cidade.
-const RAID_GAP=30,RAID_WAVES=[{sides:1,per:5},{sides:2,per:5},{sides:3,per:5}];
+const RAID_WAVES=[{sides:1,per:5},{sides:2,per:5},{sides:3,per:5}];
 function raidSides(c,n){
   const dirs=[...new Set((c.gates||[]).map(g=>g.dir))];for(const d of['N','E','S','W'])if(!dirs.includes(d))dirs.push(d);
   return dirs.slice(0,n);
