@@ -224,9 +224,9 @@ function wfPointAt(path, s) {
   }
 }
 
-// Terrenos de guerra: lugares reservados na geração do mundo (chamada por genPOIs, poi.js), no fim, para não mudar nada que já
-// existia. O chão é nivelado e as árvores, pedras e plantas ficam de fora (genDecor, world.js); ficam vazios até uma guerra
-// pôr ali um POI de guerra. É a única forma de ter chão plano e limpo: depois da geração a malha do terreno não muda.
+// Terrenos de guerra: clareiras reservadas na geração do mundo (chamada por genPOIs, poi.js), no fim, para não mudar nada que já
+// existia. O terreno NÃO é mexido: só as árvores, pedras e plantas ficam de fora (genDecor, world.js) e o lugar é de terra
+// firme, sem água. Ficam vazias até uma guerra pôr ali um POI de guerra, que se adapta ao chão (poiAdaptBc, pois.js).
 function genWarSites(taken) {
   const F = WAR.front, S = WORLD.warSites = [];
   if (WORLD.showcaseMode) return;
@@ -234,9 +234,8 @@ function genWarSites(taken) {
   const big = taken.filter(q => q.r > 4), tiny = taken.filter(q => q.r <= 4);   // baús escondidos (r 4) só pedem uma folga curta
   for (let t = 0; t < F.siteTries && S.length < F.sites; t++) {
     const x = rng.int(30, W - 30), z = rng.int(30, W - 30);
-    const y = spotOK(x, z, r + 1, big, F.gap + r, F.siteRange + (t > F.siteTries / 2 ? 6 : 0), 0.2);   // mais tarde, aceita mais desnível; até 20% de água (poças e margem são aterradas)
+    const y = spotOK(x, z, r + 1, big, F.gap + r, F.siteRange + (t > F.siteTries / 2 ? 6 : 0));   // mais tarde, aceita mais desnível (o POI se adapta ao chão)
     if (y === null || tiny.some(q => Math.hypot(q.x - x, q.z - z) < q.r + r + 3)) continue;
-    flattenArea(x, z, r, y, 3);
     const q = { x, z, r };
     big.push(q); S.push({ x, z, y });
   }

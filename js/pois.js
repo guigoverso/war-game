@@ -37,10 +37,11 @@ function poiHouse(c,x0,z0,w,d,D,o,rng){
 function poiPole(c,x,z,h,col){pBc(c,x-0.1,0,z-0.1,x+0.1,h,z+0.1,col||0x4a3320,true,{j:0})}
 // bandeira do dono: mastro + pano (a cor é trocada em poiPaint)
 function poiFlag(c,p,x,z,h){
+  const by=poiBaseY(c,x,z);
   poiPole(c,x,z,h,0x3a3a3a);pBc(c,x-0.18,h,z-0.18,x+0.18,h+0.3,z+0.18,0xe0b030,false,{j:0});
   p.flagMat=new THREE.MeshLambertMaterial({color:poiColor(p.owner)});
-  const m=new THREE.Mesh(GEO_BOX,p.flagMat);m.scale.set(1.7,1.05,0.08);m.position.set(c.cx+x+0.95,c.y+h-0.65,c.cz+z);scene.add(m);p.sceneObjs.push(m);
-  const t=new THREE.Mesh(GEO_BOX,p.flagMat);t.scale.set(0.6,0.4,0.08);t.position.set(c.cx+x+2.1,c.y+h-0.5,c.cz+z);scene.add(t);p.sceneObjs.push(t);
+  const m=new THREE.Mesh(GEO_BOX,p.flagMat);m.scale.set(1.7,1.05,0.08);m.position.set(c.cx+x+0.95,by+h-0.65,c.cz+z);scene.add(m);p.sceneObjs.push(m);
+  const t=new THREE.Mesh(GEO_BOX,p.flagMat);t.scale.set(0.6,0.4,0.08);t.position.set(c.cx+x+2.1,by+h-0.5,c.cz+z);scene.add(t);p.sceneObjs.push(t);
 }
 const poiStone=[0x8a8a90,0x7a7a82,0x9a9aa0];
 function poiWall(c,x0,z0,x1,z1,h,col,o){pBc(c,x0,0,z0,x1,h,z1,col||0x8a8a90,true,o||{j:0.04})}
@@ -54,6 +55,20 @@ function poiFence(c,x0,z0,x1,z1,col){   // cerca de estacas e travessas, com col
   const L=Math.hypot(x1-x0,z1-z0),n=Math.max(1,Math.round(L/1.8)),cc=col||0x5a3d22,alongX=Math.abs(x1-x0)>=Math.abs(z1-z0);
   for(let i=0;i<=n;i++){const x=x0+(x1-x0)*i/n,z=z0+(z1-z0)*i/n;pBc(c,x-0.1,0,z-0.1,x+0.1,1.3,z+0.1,cc,true,{j:0.02})}
   if(alongX)pBc(c,Math.min(x0,x1),0.35,z0-0.06,Math.max(x0,x1),1.2,z0+0.06,0x6b4a2a,true,{j:0});else pBc(c,x0-0.06,0.35,Math.min(z0,z1),x0+0.06,1.2,Math.max(z0,z1),0x6b4a2a,true,{j:0});   // as travessas formam uma barreira contínua
+}
+// Altura do chão sob o ponto local (x, z) de um POI: o chão real nos POIs adaptados (frente da guerra), senão a altura do POI.
+const poiBaseY=(c,x,z)=>c.adapt?tH(c.cx+x,c.cz+z):c.y;
+// Bc de um POI adaptado ao terreno (c.adapt): caixas longas são partidas em pedaços de até 3 blocos, cada um acompanha a altura do
+// chão no seu centro; o que nasce rente ao chão (y0 até 0.15) desce até o ponto mais baixo da pegada, para não flutuar nem
+// piscar no encontro com o terreno; o que fica abaixo do chão de referência (base de terra, tábuas do fundo) não é desenhado.
+function poiAdaptBc(c,x0,y0,z0,x1,y1,z1,color,col,o){
+  if(y1<=0.02)return;
+  const L=3,dx=x1-x0,dz=z1-z0;
+  if(dx>L&&dx>=dz){const n=Math.ceil(dx/L);for(let k=0;k<n;k++)poiAdaptBc(c,x0+dx*k/n,y0,z0,x0+dx*(k+1)/n,y1,z1,color,col,o);return}
+  if(dz>L){const n=Math.ceil(dz/L);for(let k=0;k<n;k++)poiAdaptBc(c,x0,y0,z0+dz*k/n,x1,y1,z0+dz*(k+1)/n,color,col,o);return}
+  const base=tH(c.cx+(x0+x1)/2,c.cz+(z0+z1)/2);let a=base+y0;
+  if(y0<=0.15){let mn=1e9;for(const px of[x0,x1])for(const pz of[z0,z1])mn=Math.min(mn,tH(c.cx+px,c.cz+pz));a=Math.min(a,mn)-0.2}
+  Bx(c.cx+x0,a,c.cz+z0,c.cx+x1,base+y1,c.cz+z1,color,col,o);
 }
 function poiDig(c,x0,z0,x1,z1,d){   // escava o terreno (só vale na geração, antes da malha): rebaixa d blocos e deixa terra batida
   if(c.noDig)return;   // POI de guerra em jogo (warfront.js): a malha já existe, o chão não muda
@@ -438,7 +453,7 @@ poiPath(c,0,R+1,0,4);poiBrazier(c,-3.4,R+1.6);poiBrazier(c,3.4,R+1.6);
 // ---------- construção numa malha própria ----------
 function poiBuild(p){
   const c=poiArea(p.cx,p.cz,p.y,p.biome),rng=new RNG((WORLD.seed*53+p.id*97+3)>>>0);p.sceneObjs=[];p.c=c;
-  if(p.runtime){c.noDig=true;p.pad=true}   // POI criado em jogo (frente da guerra): sobre uma base de terra; o chão já foi nivelado na geração (warSites)
+  if(p.runtime){c.noDig=true;c.adapt=true}   // POI criado em jogo (frente da guerra): a malha do terreno não muda, então a construção é que se adapta ao chão (poiAdaptBc)
   BX_CAP={batch:new BoxBatch(),cols:[]};
   try{
     if(p.pad){const r=POI_DEFS[p.type].r;pBc(c,-r,-4,-r,r,0,r,0x6a5a40,true,{j:0.02})}   // base de terra (mapa manual: o chão não é aplainado)

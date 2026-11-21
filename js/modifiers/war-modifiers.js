@@ -57,13 +57,13 @@ const WAR = {
   //  maxWarPois: teto de POIs de guerra por frente (8)
   //  side: distância máxima, em blocos, entre o ponto ideal de um POI de guerra na rota e o terreno de guerra reservado que
   //    ele usa (60)
-  //  gap: folga, borda a borda, entre um terreno de guerra e cidades, POIs e outros terrenos de guerra (10; bem menor que POI_GAP
+  //  gap: folga, borda a borda, entre um terreno de guerra e cidades, POIs e outros terrenos de guerra (4; bem menor que POI_GAP
   //    porque a frente enche os vazios que a geração deixou)
-  //  sites: terrenos de guerra reservados na geração do mundo (chão nivelado e sem árvores, vazios até a guerra), no máximo (60)
-  //  siteRange: desnível máximo aceito para reservar um terreno de guerra; o chão é nivelado; na segunda metade das tentativas aceita +6 (12)
+  //  sites: clareiras (terrenos de guerra) reservadas na geração do mundo, sem árvores e sem mexer no chão, vazias até a guerra; o POI se adapta ao chão. No máximo (60)
+  //  siteRange: desnível máximo aceito no chão de uma clareira; na segunda metade das tentativas aceita +6 (18)
   //  siteTries: tentativas de sorteio de lugar na geração (6000)
-  front: { cell: 8, band: 45, avoid: 18, waterMax: 40, waterCost: 2, maxWarPois: 8, side: 60, gap: 10,
-    sites: 60, siteRange: 12, siteTries: 6000 }
+  front: { cell: 8, band: 45, avoid: 18, waterMax: 40, waterCost: 2, maxWarPois: 8, side: 60, gap: 4,
+    sites: 60, siteRange: 18, siteTries: 6000 }
 };
 
 // Chance de um POI de guerra da frente ser Acampamento fortificado (senão, Trincheira). t = posição na rota (0 = cidade sua,

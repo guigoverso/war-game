@@ -7,7 +7,7 @@ const PAL={
   3:{walls:[0x6b4a2e,0x7d5a38,0xd8dde2,0x55402a,0x8a8f96],roofs:[0xf2f6fa,0xdde6ee,0x4a5a6a,0xe8eef4],base:0x777777,trim:0x3d2a18},
 };
 const ovr=(a,b,m)=>a.x0-m<=b.x1&&a.x1+m>=b.x0&&a.z0-m<=b.z1&&a.z1+m>=b.z0;
-function Bc(c,x0,y0,z0,x1,y1,z1,color,col,o){Bx(c.cx+x0,c.y+y0,c.cz+z0,c.cx+x1,c.y+y1,c.cz+z1,color,col,o)}
+function Bc(c,x0,y0,z0,x1,y1,z1,color,col,o){if(c.adapt)return poiAdaptBc(c,x0,y0,z0,x1,y1,z1,color,col,o);Bx(c.cx+x0,c.y+y0,c.cz+z0,c.cx+x1,c.y+y1,c.cz+z1,color,col,o)}
 function setTL(c,lx,lz,t){setT(c.cx+lx,c.cz+lz,t)}
 function fillT(c,r,t,fn){for(let z=r.z0;z<=r.z1;z++)for(let x=r.x0;x<=r.x1;x++)if(!fn||fn(x,z))setTL(c,x,z,t)}
 
@@ -50,14 +50,16 @@ function lamp(c,x,z){
   Bc(c,x-0.4,3.8,z-0.4,x+0.4,3.95,z+0.4,0x2a2a2a,false,{j:0});
 }
 function crate(c,x,z,s,h){
-  addCol(c.cx+x,c.y,c.cz+z,c.cx+x+s,c.y+h,c.cz+z+s);
+  const by=poiBaseY(c,x+s/2,z+s/2);
+  addCol(c.cx+x,by,c.cz+z,c.cx+x+s,by+h,c.cz+z+s);
   const n=Math.max(2,Math.round(h/0.33)),ph=h/n;                       // tábuas horizontais de tons alternados
   for(let i=0;i<n;i++)Bc(c,x,i*ph,z,x+s,(i+1)*ph,z+s,i%2?0x9a7a45:0x8a6c3a,false,{j:0.06});
   for(const [px,pz] of[[0,0],[s-0.12,0],[0,s-0.12],[s-0.12,s-0.12]])Bc(c,x+px-0.02,0,z+pz-0.02,x+px+0.14,h,z+pz+0.14,0x6a4f2a,false,{j:0.04});   // quinas
   Bc(c,x-0.02,h-0.1,z-0.02,x+s+0.02,h+0.02,z+s+0.02,0x6a4f2a,false,{j:0.04});
 }
 function barrel(c,x,z){
-  addCol(c.cx+x,c.y,c.cz+z,c.cx+x+0.9,c.y+1.3,c.cz+z+0.9);
+  const by=poiBaseY(c,x+0.45,z+0.45);
+  addCol(c.cx+x,by,c.cz+z,c.cx+x+0.9,by+1.3,c.cz+z+0.9);
   const mx=x+0.45,mz=z+0.45;                                           // corpo octogonal com aros e tampa
   for(const [hw,hd,y0,y1] of[[0.45,0.28,0,1.3],[0.28,0.45,0,1.3],[0.4,0.4,0,1.3]])Bc(c,mx-hw,y0,mz-hd,mx+hw,y1,mz+hd,0x7a5a30,false,{j:0.07});
   for(const y of[0.2,0.95])for(const [hw,hd] of[[0.47,0.3],[0.3,0.47],[0.42,0.42]])Bc(c,mx-hw,y,mz-hd,mx+hw,y+0.1,mz+hd,0x333336,false,{j:0});
