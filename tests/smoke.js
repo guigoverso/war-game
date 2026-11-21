@@ -84,6 +84,20 @@ const T={
       return '';
     }finally{rd.clv[h.id]=keep[0];rd.cityUpR=keep[1];STATE.phase=keep[2];rd.actions=keep[3];P.coins=keep[4];cityWallRebuild(h,cityLvl(h));if(rd.now)rd.now.length=keep[5]||0}
   },
+  facUp:()=>{   // tela e botão de evoluir a facção: requisitos de POIs, 1 por rodada, relatório
+    const rd=STATE.rd,keep=[rd.lvl,rd.facUpR,STATE.phase,rd.actions,P.coins,rd.now&&rd.now.length];
+    const click=()=>{const b=document.createElement('button');b.dataset.a='cap';$('ldbook').appendChild(b);bookClick({target:b});b.remove()};
+    try{
+      STATE.phase='leader';rd.actions=3;P.coins=99999;rd.facUpR=undefined;rd.lvl=1;LB.tab='capital';
+      for(const k of['food','ore','wood'])STATE.res[k]=999;invGive([['couro',99]]);
+      if(!bookPages().join('').includes('data-a="cap"'))return 'tela da facção sem o botão';
+      click();if(rd.lvl!==2)return 'facção deveria ir ao nível 2, ficou '+rd.lvl;
+      click();if(rd.lvl!==2)return 'segunda evolução na mesma rodada não foi bloqueada';
+      if(!(rd.now||[]).some(t=>t.includes('facção chegou')))return 'relatório sem a evolução da facção';
+      rd.facUpR=undefined;if(poiMine().length<2&&canFacUp())return 'nível 2→3 sem 2 POIs deveria bloquear';
+      return '';
+    }finally{rd.lvl=keep[0];rd.facUpR=keep[1];STATE.phase=keep[2];rd.actions=keep[3];P.coins=keep[4];if(rd.now)rd.now.length=keep[5]||0}
+  },
   lvlFx:()=>{   // efeito do nível da cidade: produção, imposto e estoque da loja sobem só nas cidades do jogador; NPC não muda
     const rd=STATE.rd,h=WORLD.home,npc=WORLD.cities.find(c=>c.owner!=='player'),k=rd.clv[h.id];
     try{
@@ -316,6 +330,7 @@ const T={
     await check(g,'seed 11: pontes (registro e pedágios no máximo 3)',T.bridges);
     await check(g,'seed 11: níveis da facção e das cidades (LVL)',T.lvl);
     await check(g,'seed 11: efeito do nível da cidade (produção, imposto, loja)',T.lvlFx);
+    await check(g,'seed 11: evoluir facção pela tela (requisitos, 1 por rodada)',T.facUp);
     await check(g,'seed 11: evoluir cidade pela tela (1 por rodada, muro novo)',T.cityUp);
     await check(g,'seed 11: visual da cidade por nível (muros e atiradores)',T.cityWall);
     await check(g,'seed 11: vigia da torre (poiVigil)',T.binoc);

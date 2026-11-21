@@ -5,7 +5,7 @@ function renderDeposit(){const el=document.getElementById('invdeposit');if(el)el
 // ---------- livro: bolsa + livro do prefeito (tecla B) ----------
 const LB={top:'book',tab:'resumo',city:null,ra:null,rb:null,fac:0};
 const mapOpen=()=>G.panel==='ldbook'&&LB.top==='map';   // o mapa agora é uma aba do caderno (tecla M)
-const LSUBS=[['resumo','📜 Resumo'],['cidades','🏘 Cidades'],['capital','🏛 Capital'],['missoes','📋 Missões'],['caravanas','🛒 Caravanas'],['facs','🏴 Facções'],['diplo','🕊 Diplomacia'],['buffs','✨ Efeitos']];
+const LSUBS=[['resumo','📜 Resumo'],['cidades','🏘 Cidades'],['capital','🚩 Facção'],['missoes','📋 Missões'],['caravanas','🛒 Caravanas'],['facs','🏴 Facções'],['diplo','🕊 Diplomacia'],['buffs','✨ Efeitos']];
 const INV_L='<h3>🎒 Bolsa</h3><div id="invinfo" class="ldsm"></div><b class="st">Armas e vara — teclas 1–6</b><div id="invwbar"></div><b class="st" style="display:block;margin-top:8px">Curas — teclas 7–9</b><div id="invcbar"></div><b class="st" style="display:block;margin-top:8px">Bolsa</b><div id="invgrid"></div>';
 const INV_R='<div id="invdetail"></div><div id="invpending"></div><div id="invdeposit"></div>';
 function openBook(top,tab){
@@ -117,9 +117,12 @@ function bookPages(){
     const R='<h3>Nova caravana</h3><p>Escolha no <b>mapa</b> a cidade de <b>origem</b> (uma das suas) e a de <b>destino</b> (sua, aliada ou neutra). A sua cidade passa a receber o produto do destino por caravana (reduz a necessidade dele ou rende ouro).</p>'
       +'<p>Preço: <b>◉ '+meetCaravanCost()+'</b>'+(actCost('caravan')?' + '+actCost('caravan')+' ação':'')+'</p><button data-a="route" class="gold" '+(canAct('caravan')&&Ledger.canAfford({gold:meetCaravanCost()})&&freeCityForRoute()?'':'disabled')+'>🗺 Escolher no mapa</button>'+(freeCityForRoute()?'':'<p class="ldwarn">Todas as suas cidades já têm uma caravana ativa (cada cidade só pode ter uma por vez). Desfaça uma para criar outra.</p>')+leaderOnly()+(Ledger.anyDebt()?'<p class="ldwarn">Com dívida não é possível comprar.</p>':'');    return[L,R];
   }
-  const lvl=rd.lvl,cost=facCostOf()||{},can=canFacUp();
-  const L='<h3>'+WORLD.home.name+' — a capital</h3><p>Nível do líder: <b>'+lvl+'</b> / '+LVL.facMax+'</p><p>Ações por rodada: <b>'+maxActions()+'</b></p><p class="ldsm">A capital evolui até virar uma cidade fortificada. Cada nível aumenta o número de ações do líder por rodada.</p>';
-  const R='<h3>Evoluir a capital</h3>'+(lvl>=LVL.facMax?'<p>A capital já é uma cidade fortificada.</p>':'<p>Próximo nível: <b>'+(lvl+1)+'</b> (+1 ação por rodada, a partir da próxima rodada).</p><p>Custo: <b>◉ '+cost.gold+'</b> + '+actCost('capital')+' ação</p><button data-a="cap" '+(can?'':'disabled')+'>Evoluir</button>'+leaderOnly()+(Ledger.anyDebt()?'<p class="ldwarn">Com dívida não é possível comprar.</p>':''));
+  const lvl=facLvl(),cost=facCostOf(),why=facUpWhy();   // aba Facção: nível, ações e o que o próximo nível exige
+  const L=txtFacHead(facOf(0));
+  const R='<h3>Evoluir a facção</h3>'+(lvl>=LVL.facMax?'<p>Nível máximo ('+lvl+' / '+LVL.facMax+').</p>':'<p class="ldsm">Próximo nível: <b>'+(lvl+1)+'</b>. Requisitos:</p><ul class="ldul">'
+    +Object.keys(cost).map(k=>txtLvlCostLine(k,cost[k],lvlHave(k)>=cost[k])).join('')+facReqState().map(txtFacReqLine).join('')+'</ul>'
+    +(actCost('capital')?'<p class="ldsm">Gasta '+actCost('capital')+' ação do líder.</p>':'')
+    +'<button data-a="cap" '+(why?'disabled':'')+'>Evoluir a facção</button>'+(why?'<p class="ldwarn">'+why+'</p>':''));
   return[L,R];
 }
 function renderBook(){
@@ -166,7 +169,7 @@ function bookClick(e){
   else if(a==='unroute'){if(isLeader()){rd.routes.splice(+t.dataset.i,1);rebuildCaravans();computeBuffs()}}
   else if(a==='route'){if(!isLeader())toast('Caravanas só no turno do líder.',2000);else{startCaravanPick();return}}
   else if(a==='cap'){
-    if(canFacUp()&&lvlPay(facCostOf())){spendAct('capital');rd.lvl++;rd.facUpR=STATE.round;sfx('win',0);toast('🏛 A capital evoluiu! Nível '+rd.lvl+': mais ações a partir da próxima rodada.',3500)}
+    if(canFacUp()&&lvlPay(facCostOf())){spendAct('capital');rd.lvl++;rd.facUpR=STATE.round;rdNow(txtFacUpReport(rd.lvl));sfx('win',0);toast(txtFacUpToast(rd.lvl),3500)}
   }
   else if(a==='cityup'){
     if(canCityUp(c)&&lvlPay(cityCostOf(c))){

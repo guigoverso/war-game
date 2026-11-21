@@ -55,29 +55,10 @@ function lvlPay(cost){   // paga o custo todo ou nada
   for(const k in cost){if(k==='leather')msTake('leather',cost[k]);else Ledger.add(k,-cost[k])}
   return true;
 }
-const facCostOf=()=>LVL.facCost[facLvl()]||null;
 const citiesAtMax=()=>cityMine().filter(c=>cityLvl(c)>=LVL.cityMax).length;
-// requisitos para a facção subir: lista {txt, ok, have, need}; só POIs e cidades (o custo em recursos vem de facCostOf)
-function facReqState(){
-  const q=LVL.facReq[facLvl()];if(!q)return[];
-  const row=(txt,have,need)=>({txt,have,need,ok:have>=need}),o=[];
-  if(q.pois)o.push(row('POIs seus',poiMine().length,q.pois));
-  if(q.cities)o.push(row('Cidades suas (com a capital)',cityMine().length,q.cities));
-  if(q.maxCities)o.push(row('Cidades no nível máximo',citiesAtMax(),q.maxCities));
-  return o;
-}
 const facUpDone=()=>STATE.rd.facUpR===STATE.round;   // já evoluiu a facção nesta rodada
 const cityUpDone=()=>STATE.rd.cityUpR===STATE.round;   // já evoluiu uma cidade nesta rodada (só 1 cidade por rodada)
 // motivo de não poder evoluir ('' = pode); a tela mostra o texto, canFacUp/canCityUp só olham se está vazio
-function facUpWhy(){
-  if(!isLeader())return 'Só no turno do Líder.';
-  if(facLvl()>=LVL.facMax)return 'Nível máximo.';
-  if(facUpDone())return 'Você já evoluiu a facção nesta rodada.';
-  if(!canAct('capital'))return 'Sem ações do líder nesta rodada.';
-  if(Ledger.anyDebt())return 'Com dívida não é possível comprar.';
-  if(!facReqState().every(r=>r.ok))return 'Faltam requisitos.';
-  return lvlCanPay(facCostOf())?'':'Faltam recursos.';
-}
 function cityUpWhy(c){
   if(c.owner!=='player')return 'Só nas suas cidades.';
   if(!isLeader())return 'Só no turno do Líder.';
@@ -87,7 +68,6 @@ function cityUpWhy(c){
   if(Ledger.anyDebt())return 'Com dívida não é possível comprar.';
   return lvlCanPay(cityCostOf(c))?'':'Faltam recursos.';
 }
-const canFacUp=()=>!facUpWhy();
 const canCityUp=c=>!cityUpWhy(c);
 const rbufOn=r=>!!(STATE.rd&&STATE.rd.rbuf&&STATE.rd.rbuf[r]);
 const debOn=r=>!!(STATE.rd&&STATE.rd.debuff&&STATE.rd.debuff[r]);   // debuff: faltou suprimento na rodada anterior

@@ -5,7 +5,8 @@
 // Todo modificador tem um comentário acima: para que serve e o valor padrão. Altere o valor e recarregue o jogo.
 // Este arquivo carrega cedo: funções daqui só podem usar globais de outros arquivos DENTRO do corpo (na hora da chamada).
 
-// ---------- POI livre sem decisão (poigame.js, gancho 'leaderEnd') ----------
+// ------ POIs ------
+// POI livre sem decisão (poigame.js, gancho 'leaderEnd')
 // Peso de os BANDIDOS retomarem um POI livre que o jogador ignorou, ao encerrar o turno do Líder. Padrão: 0.5
 // (peso, não chance: a chance real é BANDIT/(BANDIT+FACTION). 0 = bandidos nunca retomam.)
 const BANDIT_RETAKE_FREE_POI = 0.5;
@@ -21,17 +22,18 @@ function freePoiTaker(canFaction, roll) {
   return draw < banditWeight / total ? 'bandit' : 'faction';
 }
 
-// ---------- Entreposto: estoque limitado (poigame.js, postStockLeft) ----------
+// Entreposto: estoque limitado (poigame.js, postStockLeft)
 // Fração do estoque de materiais (carne, tora, minério, couro) da loja da cidade de referência que o entreposto tem
 // por rodada, arredondada para baixo. Padrão: 0.5 (1 = igual à loja da cidade; 0 = o entreposto não vende materiais.)
 const POST_STOCK_MULTIPLIER = 0.5;
 
-// ---------- Retomada dos POIs do jogador pelos bandidos (poigame.js, poiRetakeChance) ----------
+// Retomada dos POIs do jogador pelos bandidos (poigame.js, poiRetakeChance)
 // Multiplicador da chance de retomada (por rodada) dos POIs SEUS enquanto há guerra com alguma facção. Padrão: 0.5
 // (1 = a guerra não muda a chance; 0 = em guerra os bandidos nunca retomam; maior que 1 = mais retomadas na guerra.)
 const WAR_RETAKE_MULTIPLIER = 0.5;
 
-// ---------- Visual e defesa da cidade por nível (city.js cityWallBuild, allies.js citySentrySync) ----------
+// ------ Cidades (muros, atiradores e evolução) ------
+// Visual e defesa da cidade por nível (city.js cityWallBuild, allies.js citySentrySync)
 // Tipo de muro de cada nível de cidade (1 a 5). Padrão: 1 sem muro, 2 cerca, 3 paliçada (torres de enfeite, sem atiradores),
 // 4 paliçada (com atiradores), 5 muralha de pedra (com atiradores). Valores aceitos: 'none', 'fence', 'palisade', 'stone'.
 const CITY_WALL_BY_LEVEL = { 1: 'none', 2: 'fence', 3: 'palisade', 4: 'palisade', 5: 'stone' };
@@ -49,7 +51,7 @@ const CITY_SENTRY_DAMAGE = 14;
 // Chance de o tiro acertar (0 a 1). Padrão: 0.5
 const CITY_SENTRY_HIT = 0.5;
 
-// ---------- Custo para evoluir uma cidade do jogador (econ.js canCityUp, book.js) ----------
+// Custo para evoluir uma cidade do jogador (econ.js canCityUp, book.js)
 // Custo para ir do nível n ao n+1, por nível ATUAL da cidade (n de 1 a 4; o nível 5 é o máximo e não tem custo).
 // Chaves aceitas: gold (ouro), food (comida), ore (minério), wood (madeira), leather (couro).
 // Padrão: 1→2 ◉400 + 10 madeira · 2→3 ◉800 + 20 madeira · 3→4 ◉1200 + 30 madeira + 10 minério · 4→5 ◉2000 + 30 madeira + 40 minério.
@@ -57,10 +59,41 @@ const CITY_UP_COST = { 1: { gold: 400, wood: 10 }, 2: { gold: 800, wood: 20 }, 3
 // Custo de evoluir a cidade c (objeto da cidade em WORLD.cities) para o próximo nível, ou null se já está no máximo.
 // Para custos diferentes por cidade, olhe c.id, c.home (capital) ou c.biome aqui. Só consulta cityLvl (econ.js) na hora da chamada.
 function cityCostOf(c) { 
-  return {gold: 1}
- // return CITY_UP_COST[cityLvl(c)] || null 
+ return CITY_UP_COST[cityLvl(c)] || null 
 }
 
-// ---------- Intervalo entre as ondas de raid (raids.js) ----------
+// ------ Raids ------
+// Intervalo entre as ondas de raid (raids.js)
 // Segundos de pausa entre uma onda de raid vencida e a próxima, para o jogador se curar e recrutar. Menor = mais rápido para testar. Padrão: 30
 const RAID_GAP=1;
+
+// ------ Evolução da facção ------
+// Requisitos para evoluir a facção (econ.js LVL, book.js, game.js)
+// Verificam se o jogador tem o que precisa para a facção subir de nível: POIs e cidades (LVL.facReq), custo (LVL.facCost),
+// turno do Líder, ação, limite de 1 por rodada e dívida. Para mudar uma regra, edite aqui.
+// Custo de evoluir a facção para o próximo nível ({gold,food,ore,wood,leather}), ou null no nível máximo. Padrão: LVL.facCost (econ.js).
+// Para testar, troque pela linha comentada: só ◉1 de ouro, sem recursos.
+function facCostOf() {
+  if (facLvl() >= LVL.facMax) return null;
+  return LVL.facCost[facLvl()] || null;
+}
+// requisitos para a facção subir: lista {txt, ok, have, need}; só POIs e cidades (o custo em recursos vem de facCostOf)
+function facReqState(){
+  const q=LVL.facReq[facLvl()];if(!q)return[];
+  const row=(txt,have,need)=>({txt,have,need,ok:have>=need}),o=[];
+  if(q.pois)o.push(row('POIs seus',poiMine().length,q.pois));
+  if(q.cities)o.push(row('Cidades suas (com a capital)',cityMine().length,q.cities));
+  if(q.maxCities)o.push(row('Cidades no nível máximo',citiesAtMax(),q.maxCities));
+  return o;
+}
+// motivo de a facção não poder evoluir ('' = pode); a tela mostra o texto
+function facUpWhy(){
+  if(!isLeader())return 'Só no turno do Líder.';
+  if(facLvl()>=LVL.facMax)return 'Nível máximo.';
+  if(facUpDone())return 'Você já evoluiu a facção nesta rodada.';
+  if(!canAct('capital'))return 'Sem ações do líder nesta rodada.';
+  if(Ledger.anyDebt())return 'Com dívida não é possível comprar.';
+  if(!facReqState().every(r=>r.ok))return 'Faltam requisitos.';
+  return lvlCanPay(facCostOf())?'':'Faltam recursos.';
+}
+const canFacUp=()=>!facUpWhy();
