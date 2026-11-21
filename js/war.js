@@ -23,3 +23,75 @@ const warMark = () => warFatigueMark(warX().fat);
 const warSupply = () => warSupplyBonus(warX().fat);
 // Aplica o estado lido de um save (save.js).
 function warApply(s) { STATE.war = Object.assign(warNew(), s || {}); }
+
+// ---------- Cenário controlado: guerra (?cenario=guerra; item A4 da fase 6) ----------
+// Semente 11, modo criativo, guerra JÁ declarada contra a facção NPC com mais cidades (forçada agressiva), POIs permanentes
+// divididos (metade com você; ímpar: o inimigo fica com a maioria). Números em WAR.scenario. Painel na aba Facções da pausa.
+const WARSCN = { on: false, fid: 0 };
+const warPois = () => (WORLD.pois || []).filter(p => !p.show && p.type !== 'ruins');
+function warScenario() {
+  const S = WAR.scenario;
+  WARSCN.on = true; G.introBook = false; STATE.phase = 'commander'; STATE.round = S.round; P.coins = S.coins;
+  STATE.res.food = S.food; STATE.res.ore = S.ore;
+  facSetIdentity({ name: 'Cenário de guerra' });
+  const npc = () => WORLD.cities.filter(c => c.owner === 'enemy'), cnt = f => npc().filter(c => c.fid === f).length;
+  const en = WORLD.factions.filter(f => cnt(f.id)).sort((a, b) => cnt(b.id) - cnt(a.id))[0];
+  en.temper = 'agressiva'; WARSCN.fid = en.id;
+  // cidades conquistadas: as de menor rank das outras facções
+  for (let k = 0; k < S.extraCities; k++) {
+    const c = npc().filter(x => x.fid !== en.id).sort((a, b) => a.rank - b.rank)[0];
+    if (c) polTakeCity(c);
+  }
+  STATE.rd.lvl = S.lvl; STATE.rd.actions = maxActions(); computeBuffs();
+  warSplitPois(en.id);
+  facDeclareWar(en.id, false);
+  warX().camps[en.id] = { kind: 'attack', since: STATE.round, allies: { player: [], enemy: [] } };
+}
+// Divide os POIs permanentes: os mais perto de você (em relação ao inimigo) ficam seus; o resto, do inimigo.
+function warSplitPois(fid) {
+  const h = WORLD.home, ec = WORLD.cities.filter(c => c.fid === fid && c.owner === 'enemy');
+  const dE = p => Math.min(...ec.map(c => Math.hypot(p.cx - c.cx, p.cz - c.cz)));
+  const key = p => Math.hypot(p.cx - h.cx, p.cz - h.cz) - dE(p);
+  const L = warPois().sort((a, b) => key(a) - key(b)), nMine = warScenarioPlayerPois(L.length);
+  L.forEach((p, i) => poiSetOwner(p, i < nMine ? 'player' : fid));
+}
+// Teletransporta o jogador para perto de (x, z), olhando para o ponto.
+function warScnGo(x, z) {
+  const f = freeSpot(x, z + 12, 0.5, 1.8, 0.45);
+  P.x = f[0]; P.z = f[1]; P.y = tH(P.x, P.z) + 0.1; P.vx = P.vz = P.vy = 0; P.camY = P.y;
+  P.yaw = Math.atan2(-(x - P.x), -(z - P.z)); P.pitch = -0.05;
+}
+// POI mais perto de você cujo dono é o (id de facção ou 'player'); null se não houver.
+function warScnNearest(o) {
+  const d = p => Math.hypot(p.cx - P.x, p.cz - P.z);
+  return warPois().filter(p => p.owner === o).sort((a, b) => d(a) - d(b))[0] || null;
+}
+function warScenarioAfter() { toast(txtWarScnWelcome(facOf(WARSCN.fid).name), 9000); }
+function warScenarioHtml() {
+  const L = warPois(), a = L.filter(p => p.owner === 'player').length, b = L.filter(p => p.owner === WARSCN.fid).length;
+  const B = (k, t) => '<button class="alt" data-wsn="' + k + '" style="margin:2px">' + t + '</button>';
+  return '<p class="ptitle">' + TXT_WAR_SCN_TITLE + '</p><p class="ldsm" style="margin:2px 0 4px">' + TXT_WAR_SCN_HELP + '</p>'
+    + '<p class="ldsm">' + txtWarScnSummary(facOf(WARSCN.fid).name, a, b, L.length - a - b) + '</p>'
+    + B('city', '📍 Cidade inimiga') + B('poi', '📍 POI inimigo') + B('conq', '🏴 Conquistar POI') + B('lose', '🏳 Perder POI')
+    + B('end', '⏭ Encerrar a rodada') + B('heal', '♥ Curar tudo')
+    + '<br><button class="alt" data-scn="reload">↻ Recomeçar o cenário</button><hr style="border-color:#444">';
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('[data-wsn]'); if (!b || !WARSCN.on) return;
+  const k = b.dataset.wsn, f = WARSCN.fid, say = m => toast(m, 3500);
+  if (k === 'city') {
+    const c = WORLD.cities.find(x => x.fid === f && x.owner === 'enemy');
+    if (c) { closePanel(); warScnGo(c.cx, c.cz + c.half + 6); }
+  } else if (k === 'poi') {
+    const p = warScnNearest(f); if (!p) return say(TXT_WAR_SCN_NO_POI);
+    closePanel(); warScnGo(p.cx, p.cz);
+  } else if (k === 'conq') {
+    const p = warScnNearest(f); if (!p) return say(TXT_WAR_SCN_NO_POI);
+    poiSetOwner(p, 'player'); say(txtWarScnConquered(POI_DEFS[p.type].n));
+  } else if (k === 'lose') {
+    const p = warScnNearest('player'); if (!p) return say(TXT_WAR_SCN_NO_POI);
+    poiSetOwner(p, f); say(txtWarScnLost(POI_DEFS[p.type].n, facOf(f).name));
+  } else if (k === 'end') { closePanel(); endRound(WORLD.home); }
+  else if (k === 'heal') P.hp = P.maxhp;
+  if (typeof renderFacCheats === 'function') renderFacCheats();
+});

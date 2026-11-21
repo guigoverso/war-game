@@ -184,7 +184,7 @@ Legenda: ✅ implementado · 🔶 parcial · ⬜ não implementado. (Atualizado 
 1. ✅ POIs permanentes com dono, efeito e uso na paz
 2. ✅ Nível da facção (1 a 5, `rd.lvl`) e nível de cada cidade sua (1 a 5, `rd.clv`) com efeito; evoluir pelo livro (2026-11-21, ver features 16 e 35). Os pontos de líder da guerra ainda faltam (usarão `facLvl()`)
 3. ✅ Objeto `WAR` (`js/modifiers/war-modifiers.js`) e estado `STATE.war` (`js/war.js`, `SAVE_VERSION = 22`); só dados, sem comportamento ainda
-4. ⬜ Cenário `?cenario=guerra` (rota fechada)
+4. ✅ Cenário `?cenario=guerra` (2026-11-21; ver regras abaixo). Falta ligar os botões às operações quando existirem
 
 **B. Núcleo (a campanha jogável)**
 5. ⬜ Operações no turno do Líder (ataque, defesa)
@@ -234,7 +234,7 @@ Legenda: ✅ implementado · 🔶 parcial · ⬜ não implementado. (Atualizado 
 | 15 | Negociação (menu estilo celular: aliança, relação, paz, guerra) | ✅ | Menu de POIs |
 | 16 | Nível da facção com efeito (ações por rodada; pontos de líder, +1 em guerra) | 🔶 | Ações por rodada prontas; faltam os pontos de líder da guerra |
 | 17 | Objeto `WAR` e estado de guerra | ✅ | Só dados; os números são ponto de partida e as operações vão usá-los |
-| 18 | Cenário `?cenario=guerra` | ⬜ | Tudo |
+| 18 | Cenário `?cenario=guerra` | ✅ | Painel por enquanto só tem atalhos de POI; as operações entram nos itens 19 e 21 |
 | 19 | Operações no turno do Líder (ataque, defesa, sabotagem, reduzir fadiga) | ⬜ | Tudo |
 | 20 | Locais proibidos no turno do Comandante | ⬜ | Tudo |
 | 21 | Cabo de guerra (proporção de POIs controlados) | ⬜ | Tudo |
@@ -271,6 +271,8 @@ Exemplo 2: na rodada 3 o Comandante conquistou uma Taverna perto de uma cidade s
 - **Limites:** 1 nível de facção por rodada (`rd.facUpR`) e 1 nível de cidade por rodada, em 1 cidade só (`rd.cityUpR`); cada evolução gasta 1 ação do líder (`ECON.act.capital`/`city`), só no turno do Líder e sem dívida. Pode evoluir facção e cidade na mesma rodada.
 - **Telas:** aba **Facção** (checklist ✔/✘ de custo e requisitos, botão `cap`) e aba **Cidades** (bloco "Evoluir a cidade", botão `cityup`, que refaz o muro na hora com `cityWallRebuild`). Avisos: toast ao clicar e linha no relatório da rodada (`rdNow`); textos em `js/texts/`.
 - **Como testar:** `?auto=1&mute=1&seed=11`, turno do Líder: evoluir a capital (muro novo, ouro e recursos gastos, `rd.cityUpR`); tentar uma 2ª cidade na mesma rodada (bloqueia) e na seguinte (pode); facção 2→3 sem POIs (bloqueia com "Faltam requisitos"), anexar POIs/cidades e subir; nível máximo (sem botão); save antigo (capital nível 3 vira 3). Smoke: `lvl`, `lvlFx`, `cityUp`, `facUp`. Falta jogar uma partida (rodadas 1 a 5) para calibrar `LVL`/`CITY_UP_COST` contra a renda.
+
+18. **Cenário `?cenario=guerra` (2026-11-21; `warScenario` em `js/war.js`, números em `WAR.scenario`).** Semente 11, modo criativo, rodada 3 no turno do Comandante, ◉20000, facção nível 3, capital + 1 cidade conquistada. A guerra **já está declarada** (`facDeclareWar`) contra a facção NPC com mais cidades, forçada a agressiva, com uma campanha em `STATE.war.camps`. Os POIs permanentes (sem ruínas) são divididos: metade com você (`warScenarioPlayerPois`, arredonda para baixo, então com total ímpar o NPC fica com a maioria); os seus são os mais perto de você em relação ao inimigo. Painel na pausa → Facções: cidade inimiga, POI inimigo, **Conquistar POI** (o POI inimigo mais perto vira seu), Perder POI, encerrar rodada, curar, recomeçar. **Testar:** `?cenario=guerra`, abrir o painel, conferir a contagem de POIs, clicar em Conquistar POI (contagem muda). Smoke: `guerra: cenário`.
 
 9. O estoque deve ser limitado, menor que os das lojas inclusive.
 

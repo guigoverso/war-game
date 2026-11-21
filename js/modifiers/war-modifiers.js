@@ -40,8 +40,15 @@ const WAR = {
   sabotageBase: 0.5,
   // Chance por rodada de o inimigo atacar no fim da rodada, por temperamento (agressiva quase toda rodada, neutra de vez em
   // quando; pacífica nunca declara). Padrão: agressiva 0.9, neutra 0.3, pacífica 0
-  attackChance: { aggressive: 0.9, neutral: 0.3, peaceful: 0 }
+  attackChance: { aggressive: 0.9, neutral: 0.3, peaceful: 0 },
+  // Cenário ?cenario=guerra: rodada inicial, ouro, nível da facção, cidades conquistadas além da capital e comida/minério.
+  // Padrão: rodada 3, ◉20000, nível 3, 1 cidade extra, 40 e 40
+  scenario: { round: 3, coins: 20000, lvl: 3, extraCities: 1, food: 40, ore: 40 }
 };
+
+// Cenário de guerra: quantos POIs permanentes ficam com o jogador entre n no total. Metade, arredondada para baixo
+// (com número ímpar o NPC fica com a maioria). Padrão: floor(n / 2)
+const warScenarioPlayerPois = n => Math.floor(n / 2);
 
 // Marco de fadiga atingido (0 = nenhum, 1, 2 ou 3) para uma fadiga f. Usa WAR.fatigue.marks.
 function warFatigueMark(f) {

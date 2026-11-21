@@ -75,7 +75,7 @@ Código no topo de um arquivo só pode usar o que veio antes; dentro de funçõe
 
 **Outros**
 - `flageditor` — editor de bandeira: `FE_PAL`, `facEditor`.
-- `scenario` — cenários de teste por URL (`?cenario=`): `SCN`, `scenarioApply`, `scenarioGo`, `scenarioHtml`.
+- `scenario` — cenários de teste por URL (`?cenario=`): `SCN`, `scenarioApply`, `scenarioGo`, `scenarioHtml`. Cenário de guerra (`?cenario=guerra`): `WARSCN`, `warScenario`, `warSplitPois`, `warScenarioHtml` em `war.js`; números em `WAR.scenario`.
 - `game` — laço principal, jogador, entrada, HUD, painéis, minimapa, pausa: `P`, `G`, `frame`, `update`, `doInteract`, `updateInteract`, `openPanel`, `closePanel`, `toast`, `updateHUD`, `drawMinimap`, `pauseTab`.
 
 ## Onde fica cada UI

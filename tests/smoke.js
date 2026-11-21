@@ -57,6 +57,18 @@ const T={
     const r=JSON.parse(JSON.stringify(collectSave()));if(r.v<22||!r.state.war)return 'save sem state.war';
     warApply(undefined);return warX().ops.length?'warApply não zerou':'';
   },
+  warScn:()=>{   // cenário ?cenario=guerra: guerra declarada, POIs divididos (NPC com a maioria se ímpar), botão Conquistar POI
+    if(!WARSCN.on)return 'cenário desligado';
+    const f=WARSCN.fid,L=warPois(),a=()=>L.filter(p=>p.owner==='player').length,b=()=>L.filter(p=>p.owner===f).length;
+    if(!relOf(f).war)return 'sem guerra declarada';
+    if(!warActive())return 'sem campanha';
+    if(a()!==Math.floor(L.length/2)||b()<a())return 'divisão errada: '+a()+' x '+b()+' de '+L.length;
+    const a0=a(),b0=b();if(!b0)return 'inimigo sem POI';
+    document.querySelector('[data-wsn="conq"]')||renderFacCheats();
+    document.querySelector('[data-wsn="conq"]').click();
+    if(a()!==a0+1||b()!==b0-1)return 'Conquistar POI não moveu um POI';
+    return '';
+  },
   lvl:()=>{   // níveis da facção e das cidades (LVL): capital herda rd.lvl, limites por rodada, requisitos de POIs e cidades
     const rd=STATE.rd,h=WORLD.home,npc=WORLD.cities.find(c=>c.owner!=='player'),keep=[rd.lvl,rd.clv[h.id],rd.facUpR,rd.cityUpR,STATE.phase,rd.actions,P.coins];
     try{
@@ -367,6 +379,12 @@ const T={
     await check(g,'pois: santuário (peregrinos, paz, adiamento)',T.sanctuary);
     await check(g,'pois: vigia da torre (poiVigil)',T.binoc);
     await check(g,'pois: Negociação (livro na aba facs, todas as telas)',T.neg);
+    await g.page.close();
+
+    console.log('— index.html?cenario=guerra');
+    g=await openGame(browser,base,'cenario=guerra&mute=1');
+    report(!g.errs.length,'guerra: sem erros ao carregar',g.errs.join(' | ').slice(0,300));
+    await check(g,'guerra: cenário (guerra, divisão de POIs, Conquistar POI)',T.warScn);
     await g.page.close();
   }catch(e){report(false,'execução',e.message.split('\n')[0])}
   await browser.close();srv.close();
