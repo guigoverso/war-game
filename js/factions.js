@@ -196,7 +196,7 @@ function relSet(fid,v,why){const r=relOf(fid),before=relStatus(fid),v0=r.v;r.v=M
 ECON.ally={base:1500,min:0.4,max:3};   // aliança: custo base ◉1500 quando os poderes se igualam; vai de 0,4× (você muito mais forte) a 3× (muito mais fraco)
 function facPower(fid){
   let p=0;
-  for(const c of WORLD.cities){if(c.fid!==fid)continue;const lvl=fid===0?(c.home?STATE.rd.lvl:cityLvl(c)):Math.max(1,Math.ceil((c.rank||1)/2));p+=1+lvl}
+  for(const c of WORLD.cities){if(c.fid!==fid)continue;const lvl=fid===0?cityLvl(c):Math.max(1,Math.ceil((c.rank||1)/2));p+=1+lvl}
   return p;
 }
 function facAllyCost(fid){

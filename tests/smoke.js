@@ -49,6 +49,24 @@ const T={
     for(const b of WORLD.bridges)if(!b.tiles.length||!b.tiles.some(t=>T[t.z*W+t.x]===T_BRIDGE))return 'ponte '+b.id+' sem tile T_BRIDGE';
     return '';
   },
+  lvl:()=>{   // níveis da facção e das cidades (LVL): capital herda rd.lvl, limites por rodada, requisitos de POIs e cidades
+    const rd=STATE.rd,h=WORLD.home,npc=WORLD.cities.find(c=>c.owner!=='player'),keep=[rd.lvl,rd.clv[h.id],rd.facUpR,rd.cityUpR,STATE.phase,rd.actions,P.coins];
+    try{
+      delete rd.clv[h.id];rd.lvl=3;if(cityLvl(h)!==3)return 'capital deveria herdar rd.lvl=3, veio '+cityLvl(h);
+      if(npc&&cityLvl(npc)!==1)return 'cidade NPC deveria ser nível 1';
+      STATE.phase='leader';rd.actions=2;P.coins=99999;rd.facUpR=rd.cityUpR=undefined;
+      for(const k of['food','ore','wood'])STATE.res[k]=999;if(!invGive)return 'sem invGive';invGive([['couro',99]]);
+      rd.lvl=2;if(facReqState().every(r=>r.ok)&&poiMine().length<2)return 'requisito de POIs não bloqueia';
+      rd.lvl=1;if(!canFacUp())return 'facção 1→2 deveria poder: '+facUpWhy();
+      rd.facUpR=STATE.round;if(canFacUp())return 'limite de 1 facção por rodada falhou';
+      rd.cityUpR=undefined;if(!canCityUp(h))return 'capital 1→2 deveria poder: '+cityUpWhy(h);
+      rd.cityUpR=STATE.round;if(canCityUp(h))return 'limite de 1 cidade por rodada falhou';
+      rd.cityUpR=undefined;rd.clv[h.id]=LVL.cityMax;if(canCityUp(h))return 'nível máximo da cidade não bloqueia';
+      if(npc&&canCityUp(npc))return 'NPC não pode evoluir';
+      rd.lvl=LVL.facMax;if(canFacUp())return 'nível máximo da facção não bloqueia';
+      return '';
+    }finally{rd.lvl=keep[0];rd.clv[h.id]=keep[1];rd.facUpR=keep[2];rd.cityUpR=keep[3];STATE.phase=keep[4];rd.actions=keep[5];P.coins=keep[6]}
+  },
   pois:()=>{const n=WORLD.pois.length;return n>0?'':'nenhum POI em WORLD.pois'},
   svc:([type,fn])=>{   // abre o serviço num POI do tipo pedido (seu, para o preço sair da capital)
     const p=WORLD.pois.find(q=>q.type===type);if(!p)return 'sem POI do tipo '+type;
@@ -243,6 +261,7 @@ const T={
     report(!g.errs.length,'seed 11: sem erros ao carregar',g.errs.join(' | ').slice(0,300));
     await check(g,'seed 11: POIs gerados',T.pois);
     await check(g,'seed 11: pontes (registro e pedágios no máximo 3)',T.bridges);
+    await check(g,'seed 11: níveis da facção e das cidades (LVL)',T.lvl);
     await check(g,'seed 11: vigia da torre (poiVigil)',T.binoc);
     await check(g,'seed 11: POI livre sem decisão (retomada ao encerrar o líder)',T.freeRetake);
     await check(g,'seed 11: retomada dos POIs seus em guerra (redutor)',T.warRetake);

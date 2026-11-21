@@ -7,15 +7,14 @@ const NEEDS=['food','ore','wood','leather'];   // o que as cidades precisam supr
 const MOOD={rich:{n:'Próspera',icon:'😄',col:'#ffd23a'},ok:{n:'Contente',icon:'🙂',col:'#9fe89f'},upset:{n:'Descontente',icon:'😠',col:'#ff8a8a'}};
 // ---------- números da economia (todos juntos para ajustar com facilidade) ----------
 // baseNeed: unidades de um recurso para 100% de necessidade (150% = ×1,5; 200% = ×2) • prodBase/prodRank: produção em abundância por rodada (+1 se próspera)
-// goldMul: ouro por unidade na cidade de foco dinheiro • taxBase/taxRank: imposto por rodada (×1,5 se próspera, 0 se descontente) • caravan/capital: custos em ouro
-const ECON={baseNeed:4,prodBase:7,prodRank:1,goldMul:8,taxBase:25,taxRank:10,caravan:300,capital:300,shopMul:2,tradeGold:0.5};   // tradeGold: fração da produção de ouro da cidade parceira que vira ouro por rodada para quem negocia com ela   // shopMul: o estoque da Loja da cidade = (produção da cidade) × shopMul para o recurso dela (25% dos outros)
+// goldMul: ouro por unidade na cidade de foco dinheiro • taxBase/taxRank: imposto por rodada (×1,5 se próspera, 0 se descontente) • caravan: custo em ouro
+const ECON={baseNeed:4,prodBase:7,prodRank:1,goldMul:8,taxBase:25,taxRank:10,caravan:300,shopMul:2,tradeGold:0.5};   // tradeGold: fração da produção de ouro da cidade parceira que vira ouro por rodada para quem negocia com ela   // shopMul: o estoque da Loja da cidade = (produção da cidade) × shopMul para o recurso dela (25% dos outros)
 const TAX_BASE=ECON.taxBase,TAX_RANK=ECON.taxRank;
 // ações do líder (Fase 4A): quanto cada decisão gasta por rodada. 0 = não gasta (hoje a caravana é só ouro; o porto e, no futuro, paz e guerra são grátis).
-// Para a caravana também gastar ação, troque caravan para 1. cityUp = custo base (× nível atual) de evoluir uma cidade que não é a capital; cityDisc = desconto nas lojas por nível dela.
+// Para a caravana também gastar ação, troque caravan para 1. cityDisc = desconto nas lojas por nível da cidade (custos de evoluir cidade e facção: LVL, abaixo). capital/city = evoluir facção/cidade (1 ação cada, além do limite de 1 por rodada).
 ECON.rebelUps=4;   // rodadas seguidas sem suprimentos até a rebelião: Descontente (1), (0), (−1) e então a rebelião
-ECON.act={caravan:1,capital:1,city:1,give:1,relic:1,ally:1,mission:1};ECON.cityUp=200;ECON.cityDisc=0.05;   // F4: criar caravana, doar ouro, doar relíquia e fechar aliança gastam 1 ação do líder cada (evita subir a relação com várias facções num turno)
+ECON.act={caravan:1,capital:1,city:1,give:1,relic:1,ally:1,mission:1};ECON.cityDisc=0.05;   // F4: criar caravana, doar ouro, doar relíquia e fechar aliança gastam 1 ação do líder cada (evita subir a relação com várias facções num turno)
 ECON.loot={items:6,coins:40,perRank:15};   // saque: unidades de um dos produtos da rota + ◉ (base + por nível da cidade dona)
-const CAP_MAX_LVL=4,CITY_MAX_LVL=3;
 const TYPE_NAME={food:'Alimentos',ore:'Minérios',wood:'Madeira',leather:'Couro',gold:'Dinheiro',port:'Porto'};
 const CITY_COLS=[0xe0402a,0x2aa04a,0xe8b820,0x8a3ac8,0x20b0c8,0xe87820,0xd0409a,0x8a8a8a];   // cor de identidade de cada cidade (faixa da bandeira)
 const resIcon=k=>DATA.resources[k].icon,resName=k=>DATA.resources[k].name;
@@ -27,9 +26,70 @@ const isLeader=()=>STATE.phase==='leader';
 const actCost=kind=>ECON.act[kind]||0;
 const canAct=kind=>isLeader()&&STATE.rd.actions>=actCost(kind);
 function spendAct(kind){if(!canAct(kind))return false;STATE.rd.actions-=actCost(kind);return true}
-const cityLvl=c=>(STATE.rd.clv&&STATE.rd.clv[c.id])||1;   // nível das cidades do jogador (a capital usa rd.lvl, que também dá ações)
-const cityUpCost=c=>({gold:ECON.cityUp*cityLvl(c)});
-addPriceFx('clv',ctx=>{const c=ctx.city;if(!c)return[];const lvl=c.owner==='player'&&!c.home?cityLvl(c):c.home?STATE.rd.lvl:1,m=1-ECON.cityDisc*(lvl-1);return m===1?[]:[{txt:'Cidade evoluída (nível '+lvl+')',mul:m}]},70);   // cidade evoluída: desconto nas lojas dela
+// ---------- níveis da facção e das cidades do jogador (valores a calibrar jogando) ----------
+// facMax/cityMax: níveis máximos (facção = ações por rodada; cidade 1 sem muros, 2 cerca, 3 paliçada, 4 paliçada com atiradores, 5 pedra com atiradores).
+// facCost[n] / cityCost[n]: custo para ir do nível n ao n+1 ({gold,food,ore,wood,leather}); facReq[n]: o que a facção precisa ter para ir de n a n+1
+// (pois = POIs seus, cities = cidades suas contando a capital, maxCities = cidades no nível máximo; os requisitos de cada nível somam os dos anteriores).
+// cityProd/cityTax: ganho de produção e de imposto por nível da cidade acima do 1 (só cidades do jogador). npcRank: rank da cidade -> nível visual.
+const LVL={facMax:5,cityMax:5,
+  facCost:{1:{gold:900,food:20,ore:20},2:{gold:1800,food:40,ore:40},3:{gold:3000,food:40,ore:40,wood:40,leather:40},4:{gold:4500,food:60,ore:60,wood:60,leather:60}},
+  cityCost:{1:{gold:400,wood:10},2:{gold:800,wood:20},3:{gold:1200,wood:30,ore:10},4:{gold:2000,wood:30,ore:40}},
+  facReq:{1:{},2:{pois:2},3:{pois:2,cities:3},4:{pois:2,cities:3,maxCities:3}},
+  cityProd:1,cityTax:10};
+const LVL_RES_ICON={gold:'◉',food:'🍖',ore:'⛏',wood:'🪵',leather:'🟤'};
+const cityMine=()=>WORLD.cities.filter(c=>c.owner==='player');
+// nível visual inicial de uma cidade pelo rank e pelo muro (NPC e cidade anexada): 1-2 sem muros, 3-4 cerca, 5-6 paliçada (4) ou pedra (5)
+const cityLvlFromRank=c=>c.rank>=5?(c.wallType==='stone'?5:4):c.rank>=3?2:1;
+function cityLvl(c){   // cidade do jogador (capital incluída): rd.clv[id]; NPC não evolui (1). Grava na 1ª leitura para não flutuar
+  if(c.owner!=='player')return 1;const rd=STATE.rd;if(!rd.clv)rd.clv={};
+  if(!rd.clv[c.id])rd.clv[c.id]=Math.min(LVL.cityMax,c.home?rd.lvl||1:cityLvlFromRank(c));   // capital sem entrada herda o nível antigo (rd.lvl)
+  return rd.clv[c.id];
+}
+const facLvl=()=>STATE.rd.lvl||1;
+// recursos do custo: ouro, comida, minério e madeira no Ledger; couro vem do inventário (msHas/msTake)
+const lvlHave=k=>k==='leather'?msHas('leather'):Ledger.get(k);
+const lvlCanPay=cost=>!Ledger.anyDebt()&&Object.keys(cost).every(k=>lvlHave(k)>=cost[k]);
+function lvlPay(cost){   // paga o custo todo ou nada
+  if(!lvlCanPay(cost))return false;
+  for(const k in cost){if(k==='leather')msTake('leather',cost[k]);else Ledger.add(k,-cost[k])}
+  return true;
+}
+const facCostOf=()=>LVL.facCost[facLvl()]||null;
+const cityCostOf=c=>LVL.cityCost[cityLvl(c)]||null;
+const citiesAtMax=()=>cityMine().filter(c=>cityLvl(c)>=LVL.cityMax).length;
+// requisitos para a facção subir: lista {txt, ok, have, need}; só POIs e cidades (o custo em recursos vem de facCostOf)
+function facReqState(){
+  const q=LVL.facReq[facLvl()];if(!q)return[];
+  const row=(txt,have,need)=>({txt,have,need,ok:have>=need}),o=[];
+  if(q.pois)o.push(row('POIs seus',poiMine().length,q.pois));
+  if(q.cities)o.push(row('Cidades suas (com a capital)',cityMine().length,q.cities));
+  if(q.maxCities)o.push(row('Cidades no nível máximo',citiesAtMax(),q.maxCities));
+  return o;
+}
+const facUpDone=()=>STATE.rd.facUpR===STATE.round;   // já evoluiu a facção nesta rodada
+const cityUpDone=()=>STATE.rd.cityUpR===STATE.round;   // já evoluiu uma cidade nesta rodada (só 1 cidade por rodada)
+// motivo de não poder evoluir ('' = pode); a tela mostra o texto, canFacUp/canCityUp só olham se está vazio
+function facUpWhy(){
+  if(!isLeader())return 'Só no turno do Líder.';
+  if(facLvl()>=LVL.facMax)return 'Nível máximo.';
+  if(facUpDone())return 'Você já evoluiu a facção nesta rodada.';
+  if(!canAct('capital'))return 'Sem ações do líder nesta rodada.';
+  if(Ledger.anyDebt())return 'Com dívida não é possível comprar.';
+  if(!facReqState().every(r=>r.ok))return 'Faltam requisitos.';
+  return lvlCanPay(facCostOf())?'':'Faltam recursos.';
+}
+function cityUpWhy(c){
+  if(c.owner!=='player')return 'Só nas suas cidades.';
+  if(!isLeader())return 'Só no turno do Líder.';
+  if(cityLvl(c)>=LVL.cityMax)return 'Nível máximo.';
+  if(cityUpDone())return 'Você já evoluiu uma cidade nesta rodada.';
+  if(!canAct('city'))return 'Sem ações do líder nesta rodada.';
+  if(Ledger.anyDebt())return 'Com dívida não é possível comprar.';
+  return lvlCanPay(cityCostOf(c))?'':'Faltam recursos.';
+}
+const canFacUp=()=>!facUpWhy();
+const canCityUp=c=>!cityUpWhy(c);
+addPriceFx('clv',ctx=>{const c=ctx.city;if(!c)return[];const lvl=cityLvl(c),m=1-ECON.cityDisc*(lvl-1);return m===1?[]:[{txt:'Cidade evoluída (nível '+lvl+')',mul:m}]},70);   // cidade evoluída: desconto nas lojas dela
 const rbufOn=r=>!!(STATE.rd&&STATE.rd.rbuf&&STATE.rd.rbuf[r]);
 const debOn=r=>!!(STATE.rd&&STATE.rd.debuff&&STATE.rd.debuff[r]);   // debuff: faltou suprimento na rodada anterior
 // dívida em itens (o que faltou e ainda não foi pago) das cidades do jogador
@@ -136,7 +196,6 @@ const moodLbl=c=>MOOD[moodOf(c)].n+' ('+moodLvl(c)+')';
 // felicidade (políticas): move o humor um degrau; vale já nesta rodada e no próximo fechamento; não mexe na contagem de rebelião
 function joyShift(c,d){const e=ec(c),ORD=['upset','ok','rich'];e.mood=ORD[clamp(ORD.indexOf(e.mood||'ok')+d,0,2)];e.joyAdj=(e.joyAdj||0)+d}
 const CARAVAN_COST=ECON.caravan;
-const capCost=()=>({gold:ECON.capital*STATE.rd.lvl});
 // ---------- as necessidades mudam a cada rodada: "joga-se o dado" para ver qual recurso pesa mais ----------
 function rerollNeeds(c){
   const e=ec(c);if(!e||e.type==='port'||e.press)return;   // o porto é distribuído pelo jogador; cidade reprimida não gira o dado

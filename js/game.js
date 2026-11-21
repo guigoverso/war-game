@@ -287,7 +287,7 @@ $('cPolicy').onclick=()=>{
   if(err){toast(err,3500);return}
   closePanel();
 };
-$('cActions').onclick=()=>{STATE.rd.lvl=Math.min(CAP_MAX_LVL,STATE.rd.lvl+1);toast('Capital nível '+STATE.rd.lvl,1500)};
+$('cActions').onclick=()=>{STATE.rd.lvl=Math.min(LVL.facMax,STATE.rd.lvl+1);toast('Facção nível '+STATE.rd.lvl,1500)};
 $('cItems').onclick=()=>{toast('Itens de teste: '+(invGive(Object.keys(DATA.items).map(id=>[id,1]))||'(bolsa cheia)'),2500)};
 $('cFill').onclick=()=>{const sl=STATE.inv.slots;for(let i=0;i<sl.length;i++)if(!sl[i])sl[i]={id:'sucata',n:20};invChanged();toast('Bolsa cheia de sucata. Dê um item novo para testar o descarte.',3000)};
 $('cWear').onclick=()=>{STATE.dur[WS.cur]=Math.max(0,STATE.dur[WS.cur]-40);toast('Durabilidade de '+WEAPONS[WS.cur].name+': '+Math.round(STATE.dur[WS.cur])+'%',1800)};

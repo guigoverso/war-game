@@ -19,7 +19,7 @@ function msNormalize(){const s=STATE.ms||(STATE.ms={});if(!s.seq)s.seq=1;s.city=
 const msById=id=>(STATE.ms.taken.find(m=>m.id===id))||null;
 const msActive=()=>msById(STATE.ms.active);
 function msFixActive(){const s=STATE.ms;if(!msById(s.active))s.active=s.taken.length?s.taken[0].id:null}
-const msLevel=c=>c.home?STATE.rd.lvl:cityLvl(c);   // nível da cidade (capital: nível do líder)
+const msLevel=c=>cityLvl(c);   // nível da cidade (a capital também tem o seu, rd.clv)
 
 // ---------- textos ----------
 function msTitle(m){
