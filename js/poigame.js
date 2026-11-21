@@ -26,7 +26,7 @@ const POIX={
   vest:{base:180,leather:5,pct:0.35,goldPct:0.6}   // reparo do colete no Quartel (allies.js): 35% do preço de um colete novo em ◉; com couro (5 para 100%) cobra 60% disso em ◉
 };
 Hooks.on('resetState',()=>{STATE.poiX={clr:{},vigil:{},room:null,done:{},seen:{}}});
-const poiX=()=>{const X=STATE.poiX||(STATE.poiX={clr:{},vigil:{},room:null,done:{},seen:{}});if(!X.vigil||typeof X.vigil!=='object')X.vigil={};if(!X.marks)X.marks=[];   // vigil: rodada do último uso por torre; marks: "?" da vigia (salvos)
+const poiX=()=>{const X=STATE.poiX||(STATE.poiX={clr:{},vigil:{},room:null,done:{},seen:{}});if(!X.vigil||typeof X.vigil!=='object')X.vigil={};if(!X.marks)X.marks=[];if(!X.conq)X.conq={};   // vigil: rodada do último uso por torre; marks: "?" da vigia; conq: rodada em que o POI foi limpado (salvos)
   if(!X.done)X.done={};if(!X.seen)X.seen={};return X};
 const poiVisible=p=>(p.show||G.creative||!!poiX().seen[p.id])&&poiLive(p);   // fora do modo criativo, o POI só aparece nos mapas depois que você chega perto
 let POI_READY=false;
@@ -87,7 +87,7 @@ function poiGarrisonCleared(c){
   if(p.type==='ruins'){poiX().done[p.id]=true;poiGarrisonRemove(p);sfx('win',0);toast('🏛 Guardiões das ruínas derrotados: o baú foi destrancado. Eles voltam na próxima rodada.',4500);return}
   if(p.owner!=='bandit')return;
   poiHuntLoot(p);
-  poiGarrisonRemove(p);poiSetOwner(p,'free');poiX().clr[p.id]=STATE.round;sfx('win',0);
+  poiGarrisonRemove(p);poiSetOwner(p,'free');poiX().clr[p.id]=poiX().conq[p.id]=STATE.round;sfx('win',0);   // conq: rodada N da conquista (os moradores vêm na N+1, mesmo anexando só na N+1)
   toast('🏴 '+POI_DEFS[p.type].n+' limpo! Na próxima rodada o líder decide o que fazer com ele.',4500);
 }
 
@@ -271,7 +271,8 @@ function poiRuinLoot(p){if(Math.random()<POIX.ruinRelic){const t=invGive([['reli
 // ---------- moradores: soldados e civis (aparecem na rodada seguinte à conquista) ----------
 function poiOwnerChanged(p,o){   // chamado por poiSetOwner (pois.js)
   if(!POI_READY||p.show)return;const X=poiX();if(!X.since)X.since={};
-  if(o==='player'||typeof o==='number')X.since[p.id]=STATE.round;else delete X.since[p.id];
+  if(o==='player'||typeof o==='number'){X.since[p.id]=X.conq[p.id]!==undefined?X.conq[p.id]:STATE.round;delete X.conq[p.id]}
+  else delete X.since[p.id];
 }
 function poiCivRemove(p){if(!p.civ)return;for(const n of p.civ.npcs){n.alive=false;n.gone=true;scene.remove(n.group)}p.civ=null}
 function poiCivSync(p){

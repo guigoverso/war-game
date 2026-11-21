@@ -186,12 +186,24 @@ const T={
     poiSetOwner(p,'player');window.__civ={id:p.id,round:STATE.round};
     return p.civ?'moradores apareceram já na rodada da conquista ('+STATE.round+')':'';
   },
+  civAnnex:()=>{   // limpado na rodada N e anexado na N+1: os moradores já estão lá ao anexar (não na N+2)
+    const p=WORLD.pois.find(q=>!q.show&&!POI_DEFS[q.type].war&&q.type!=='ruins'&&POIX.civ[q.type]>0&&q.owner==='bandit');
+    if(!p)return 'sem POI de bandidos';
+    for(const e of (p.gar&&p.gar.enemies)||[])e.alive=false;
+    const r=STATE.round;poiGarrisonCleared(p.gar);   // limpado na rodada N
+    if(p.owner!=='free')return 'POI não ficou livre';
+    STATE.round=r+1;try{poiSetOwner(p,'player');   // anexado na N+1 (o cartão do líder faz isso)
+      return p.civ&&p.civ.npcs.length?'':'sem moradores ao anexar na rodada N+1 (POI '+p.type+' '+p.id+')'}
+    finally{STATE.round=r;poiSetOwner(p,'bandit');poiX().conq={}}
+  },
   civNext:()=>{   // fecha a rodada: na N+1 os moradores aparecem
     const s=window.__civ;if(!s)return 'conquista não feita';const p=WORLD.pois.find(q=>q.id===s.id);
     if(STATE.phase==='leader')finishLeaderTurn();
-    if(!endRound(WORLD.home))return 'endRound recusou fechar a rodada';
+    const old=Math.random;Math.random=()=>0.99;let ok;   // sem sorteio de retomada: POI longe das cidades seria retomado pelos bandidos (teto 75%)
+    try{ok=endRound(WORLD.home)}finally{Math.random=old}
+    if(!ok)return 'endRound recusou fechar a rodada';
     if(STATE.round!==s.round+1)return 'rodada '+STATE.round+', esperada '+(s.round+1);
-    return p.civ&&p.civ.npcs.length?'':'sem moradores na rodada '+STATE.round+' (POI '+p.type+' '+p.id+')';
+    return p.civ&&p.civ.npcs.length?'':'sem moradores na rodada '+STATE.round+' (POI '+p.type+' '+p.id+', dono '+p.owner+', vivo '+poiLive(p)+', since '+poiX().since[p.id]+', civ '+(p.civ?p.civ.npcs.length:'null')+')';
   },
   neg:()=>{   // abre o livro na aba Facções e percorre todas as telas da Negociação (sem fechar acordo nem declarar guerra)
     const f=(WORLD.factions||[]).find(x=>!x.player);if(!f)return 'sem facções';
@@ -235,6 +247,7 @@ const T={
     await check(g,'seed 11: POI livre sem decisão (retomada ao encerrar o líder)',T.freeRetake);
     await check(g,'seed 11: retomada dos POIs seus em guerra (redutor)',T.warRetake);
     await check(g,'seed 11: ruínas (guardiões voltam, baú não)',T.ruins);
+    await check(g,'seed 11: limpado na N e anexado na N+1 já com moradores',T.civAnnex);
     await check(g,'seed 11: conquista na rodada N sem moradores',T.civStart);
     await check(g,'seed 11: moradores na rodada N+1',T.civNext);
     await check(g,'seed 11: Negociação (livro na aba facs, todas as telas)',T.neg);
