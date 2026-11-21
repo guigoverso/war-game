@@ -111,6 +111,8 @@ Raid ativa bloqueia via `raidLocked(t.c)`. No escritório/salão: `meetInteract`
 - `POI_GEN`, `POI_W`, `POI_RANGE` (`pois.js`) — quantidade, pesos por bioma, limites e mínimos dos POIs gerados.
 - **`texts.js`** — textos novos (mensagens e funções de texto): olhar aqui antes de escrever string na lógica.
 - **`modifiers.js`** — modificadores novos (a partir da feature Atualizações dos POIs): olhar primeiro aqui antes de criar constante nova.
+- Visual da cidade por nível (Evolução da facção e das cidades, tarefa 3): `CITY_WALL_BY_LEVEL`, `CITY_SENTRY_*` (`modifiers.js`); `cityWallBuild/Clear/Rebuild/Sync` (`city.js`, muro em malha própria `c.wall`); `citySentrySync`, `updateCitySentries` (`allies.js`, atiradores de torre, nível 4 e 5, não salvos).
+- Custo de evoluir cidade: `CITY_UP_COST` e `cityCostOf(c)` (`modifiers.js`; saiu do `LVL`).
 - `POIX` e `POI_PRICE` (`poigame.js`) — guarnição, produção e pedágio por nível, santuário (`sanc`), caçadores (`hunt`), entreposto (`post`), colete (`vest`), retomada e preço dos POIs.
 - `RAID_WAVES`, `RAID_GAP`, `RAID_TIME`, `RAID_LOSS_*` (`raids.js`).
 - `REB` (rebellion), `FEV` (facevents), `GEV` (globalev), `FSUP` (facsupply), `MEET`/`MEET_DUR` (meeting/meetfx).

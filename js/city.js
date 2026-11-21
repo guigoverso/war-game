@@ -413,6 +413,94 @@ function buildTavern(c,f,D,doorU,rng,opt){opt=opt||{};   // opt (taverna dos POI
   const sp=wx(doorU+1,-0.22);makeSign('TAVERNA',3.2,0.85,0x4a2f1a,0xf0d890,sp[0],c.y+3.3,sp[1],D);
 }
 
+// ---------- muro da cidade por nível (malha própria, removível) ----------
+// Desenha o muro do nível lvl (tipo em CITY_WALL_BY_LEVEL) numa malha só dele e guarda malha, colisões e bandeiras em c.wall (ver cityWallClear).
+// wt opcional: força o tipo (na geração o muro das NPC vem do sorteio). rng: o da cidade (geração) ou um novo (ao refazer).
+function cityWallBuild(c,lvl,rng,wt){
+  wt=wt||cityWallTypeAt(lvl);c.wallType=wt;c.wallLvl=lvl;c.towers=[];const w=c.wall={mesh:null,cols:[],objs:[]};
+  if(wt==='none')return;
+  const before=scene.children.length;BX_CAP={batch:new BoxBatch(),cols:[]};
+  try{cityWallDraw(c,wt,rng)}finally{
+    const cap=BX_CAP;BX_CAP=null;w.cols=cap.cols;w.objs=scene.children.slice(before);   // as bandeiras do muro entram em objs
+    const m=cap.batch.toMesh(MAT_TERRAIN);
+    if(m){m.userData.cx=c.cx+0.25;m.userData.cz=c.cz+0.25;scene.add(m);WORLD.chunkMeshes.push(m);w.mesh=m;w.objs.push(m)}   // +0.25: não confunde com a malha do chunk (rebTerrainMesh)
+  }
+}
+// remove o muro atual: malha, colisões e bandeiras
+function cityWallClear(c){
+  const w=c.wall;if(!w)return;
+  for(const o of w.objs)scene.remove(o);
+  if(w.mesh){w.mesh.geometry.dispose();const i=WORLD.chunkMeshes.indexOf(w.mesh);if(i>=0)WORLD.chunkMeshes.splice(i,1)}
+  for(const b of w.cols)Col.remove(b);
+  c.flags=c.flags.filter(f=>!w.objs.includes(f));c.wall=null;c.towers=[];
+}
+// refaz o muro no nível lvl (padrão: o nível da cidade) sem recarregar o mundo; noNav: quem chama refaz a navegação depois
+function cityWallRebuild(c,lvl,noNav){
+  lvl=lvl||cityLvl(c);cityWallClear(c);
+  cityWallBuild(c,lvl,new RNG((WORLD.seed*29+c.id*131+lvl*7)>>>0));
+  citySentrySync(c);if(!noNav)buildNav();
+}
+// no começo do jogo (e ao carregar): cada cidade do jogador fica com o muro do seu nível e com os atiradores certos
+function cityWallSync(){
+  let any=false;
+  for(const c of WORLD.cities)if(c.owner==='player'){const lvl=cityLvl(c);if(c.wallLvl!==lvl){cityWallRebuild(c,lvl,true);any=true}else citySentrySync(c)}
+  if(any)buildNav();
+}
+function cityWallDraw(c,wt,rng){
+  const Hc=c.half,S=c.S,cha=c.style==='caotica';
+    const wc=wt==='stone'?(c.biome===BIO_DESERT?0xd2c08a:0x8a8a8a):0x6b4a2a;
+    const lo=-Hc-1,hi=Hc+2;
+    const seg=(ax,f,a0,a1)=>{
+      for(let a=a0;a<a1;a++){
+        if(wt==='palisade'&&!(cha&&rng.chance(0.1))){const hh=rng.range(2.8,3.7),pc=shadec(wc,rng.range(0.85,1.15));
+          if(ax==='x'){Bc(c,a,-3,f,a+1,hh,f+1,pc,true,{j:0.08});Bc(c,a+0.25,hh,f+0.25,a+0.75,hh+0.45,f+0.75,pc,false,{j:0.08})}
+          else{Bc(c,f,-3,a,f+1,hh,a+1,pc,true,{j:0.08});Bc(c,f+0.25,hh,a+0.25,f+0.75,hh+0.45,a+0.75,pc,false,{j:0.08})}}
+      }
+      if(wt==='stone'){
+        // colisão numa caixa só; visual em blocos de 3 fiadas com tons variados, seteiras e ameias
+        if(ax==='x')addCol(c.cx+a0,c.y-3,c.cz+f,c.cx+a1,c.y+3,c.cz+f+1);else addCol(c.cx+f,c.y-3,c.cz+a0,c.cx+f+1,c.y+3,c.cz+a1);
+        const bk=(a,ya,yb,col)=>{if(ax==='x')Bc(c,a,ya,f,a+1,yb,f+1,col,false,{j:0.04});else Bc(c,f,ya,a,f+1,yb,a+1,col,false,{j:0.04})};
+        for(let a=a0;a<a1;a++){
+          bk(a,-3,0.6,shadec(wc,0.8+rng.range(0,0.2)));bk(a,0.6,1.8,shadec(wc,0.88+rng.range(0,0.22)));bk(a,1.8,3,shadec(wc,0.9+rng.range(0,0.22)));
+          if(a%2===0)bk(a,3,3.7,shadec(wc,0.95+rng.range(0,0.15)));
+        }
+        for(let a=a0+3;a<a1-1;a+=7){if(ax==='x')Bc(c,a+0.4,1.7,f-0.03,a+0.6,2.6,f+1.03,0x1a1a1a,false,{j:0});else Bc(c,f-0.03,1.7,a+0.4,f+1.03,2.6,a+0.6,0x1a1a1a,false,{j:0})}
+      }
+      if(wt==='palisade'){for(const y of[0.8,2.0]){if(ax==='x')Bc(c,a0,y,f-0.1,a1,y+0.3,f+1.1,0x4a3320,false,{j:0.03});else Bc(c,f-0.1,y,a0,f+1.1,y+0.3,a1,0x4a3320,false,{j:0.03})}}
+      if(wt==='fence'){
+        if(ax==='x'){Bc(c,a0,0,f+0.35,a1,0.2,f+0.65,0x7a5a30,true);Bc(c,a0,0.5,f+0.35,a1,0.7,f+0.65,0x7a5a30,true)}else{Bc(c,f+0.35,0,a0,f+0.65,0.2,a1,0x7a5a30,true);Bc(c,f+0.35,0.5,a0,f+0.65,0.7,a1,0x7a5a30,true)}
+        for(let a=a0;a<a1;a+=2){if(ax==='x')Bc(c,a,0,f+0.3,a+0.3,1.1,f+0.7,0x5a3d22,true);else Bc(c,f+0.3,0,a,f+0.7,1.1,a+0.3,0x5a3d22,true)}
+        for(let a=a0+0.2;a<a1;a+=0.5){const hh=0.8+(Math.floor(a*2)%3)*0.06;if(ax==='x')Bc(c,a,0,f+0.4,a+0.16,hh,f+0.6,0x8a6a3a,false,{j:0.05});else Bc(c,f+0.4,0,a,f+0.6,hh,a+0.16,0x8a6a3a,false,{j:0.05})}
+      }
+    };
+    // lados com abertura de portão
+    seg('x',lo,lo,-S);seg('x',lo,S+1,hi);seg('x',Hc+1,lo,-S);seg('x',Hc+1,S+1,hi);
+    seg('z',lo,lo,-S);seg('z',lo,S+1,hi);seg('z',Hc+1,lo,-S);seg('z',Hc+1,S+1,hi);
+    if(wt!=='fence'){
+      const gp=(x,z)=>{Bc(c,x,-3,z,x+1,5,z+1,wt==='stone'?shadec(wc,0.9):0x4a3320,true)};
+      for(const e of[-Hc-1,Hc+1]){gp(e,-S-1);gp(e,S+1);gp(-S-1,e);gp(S+1,e)}
+      for(const e of[-Hc-1,Hc+1]){
+        Bc(c,e,4,-S-1,e+1,4.8,S+2,0x4a3320,false);Bc(c,-S-1,4,e,S+2,4.8,e+1,0x4a3320,false);
+        addFlag(c,e+0.5,5,-S-0.5,2.2);addFlag(c,-S-0.5,5,e+0.5,2.2);
+      }
+      // torres de canto
+      const tpos=[];
+      for(const sx of[-1,1])for(const sz of[-1,1])tpos.push([sx>0?Hc:-Hc-2,sz>0?Hc:-Hc-2]);
+      for(let a=S+16;a<Hc-6;a+=24)for(const sg of[-1,1]){const q=sg*a;tpos.push([q-1,-Hc-2],[q-1,Hc],[-Hc-2,q-1],[Hc,q-1])}
+      for(const [tx,tz] of tpos){
+        {const tc=wt==='stone'?shadec(wc,0.95):0x5a3d22;
+         addCol(c.cx+tx,c.y-4,c.cz+tz,c.cx+tx+3,c.y+6.5,c.cz+tz+3);
+         [[-4,0.5],[0.5,2],[2,3.5],[3.5,5],[5,6.5]].forEach((q,k)=>Bc(c,tx,q[0],tz,tx+3,q[1],tz+3,shadec(tc,k%2?1.08:0.92),false,{j:0.05}));
+         Bc(c,tx-0.2,5.8,tz-0.2,tx+3.2,6.5,tz+3.2,shadec(tc,1.12),false,{j:0.04});
+         for(const k of[0,1,2,3]){const sl=[[1.35,-0.04,1.65,0.02],[1.35,2.98,1.65,3.04],[-0.04,1.35,0.02,1.65],[2.98,1.35,3.04,1.65]][k];Bc(c,tx+sl[0],3,tz+sl[1],tx+sl[2],4.1,tz+sl[3],0x1a1a1a,false,{j:0})}}
+        for(const [a,b] of[[0,0],[2,0],[0,2],[2,2],[1,0],[0,1],[2,1],[1,2]])Bc(c,tx+a,6.5,tz+b,tx+a+1,7.1,tz+b+1,wc,false);
+        Bc(c,tx,6.4,tz,tx+3,6.5,tz+3,0x555555,false,{j:0});
+        c.towers.push({x:c.cx+tx+1.5,z:c.cz+tz+1.5,y:c.y+6.5});
+        addFlag(c,tx+1.5,7.1,tz+1.5,2.6);
+      }
+    }
+}
+
 function buildCity(c,rng){  const Hc=c.half;
   const ps=PAL[c.biome===BIO_ROCK?1:c.biome];
   c.ctype=(WORLD.ctype&&WORLD.ctype[c.id])||null;   // tipo da cidade (ver cityTypePlan, econ.js)
@@ -832,66 +920,13 @@ function buildCity(c,rng){  const Hc=c.half;
 
   // lavouras, cercados com animais, piquenique, lagoa, jardim, feira e outros cantinhos nos espaços livres
   cityDecor(c,rng,res,houses,Hc,S,P,(c.doors||[]).concat(doors));
-  // cercas, muros e torres
-  // rank 1-2: sem muralha | rank 3-4 (e cidade inicial): cerca | rank 5-6: muralha de pedra/paliçada com torres
+  // cercas, muros e torres: o muro vive numa malha própria (cityWallBuild) para poder ser refeito quando a cidade evolui
+  // rank 1-2: sem muralha | rank 3-4: cerca | rank 5-6: muralha de pedra/paliçada com torres | capital: nasce sem muro (nível 1)
   let wt;
   if(c.rank>=5)wt=c.biome===BIO_DESERT?'stone':c.biome===BIO_FOREST?'palisade':rng.pick(['stone','palisade']);
-  else if(c.rank>=3||c.home)wt='fence';
+  else if(c.rank>=3)wt='fence';
   else wt='none';
-  c.wallType=wt;
-  if(wt!=='none'){
-    const wc=wt==='stone'?(c.biome===BIO_DESERT?0xd2c08a:0x8a8a8a):0x6b4a2a;
-    const lo=-Hc-1,hi=Hc+2;
-    const seg=(ax,f,a0,a1)=>{
-      for(let a=a0;a<a1;a++){
-        if(wt==='palisade'&&!(cha&&rng.chance(0.1))){const hh=rng.range(2.8,3.7),pc=shadec(wc,rng.range(0.85,1.15));
-          if(ax==='x'){Bc(c,a,-3,f,a+1,hh,f+1,pc,true,{j:0.08});Bc(c,a+0.25,hh,f+0.25,a+0.75,hh+0.45,f+0.75,pc,false,{j:0.08})}
-          else{Bc(c,f,-3,a,f+1,hh,a+1,pc,true,{j:0.08});Bc(c,f+0.25,hh,a+0.25,f+0.75,hh+0.45,a+0.75,pc,false,{j:0.08})}}
-      }
-      if(wt==='stone'){
-        // colisão numa caixa só; visual em blocos de 3 fiadas com tons variados, seteiras e ameias
-        if(ax==='x')addCol(c.cx+a0,c.y-3,c.cz+f,c.cx+a1,c.y+3,c.cz+f+1);else addCol(c.cx+f,c.y-3,c.cz+a0,c.cx+f+1,c.y+3,c.cz+a1);
-        const bk=(a,ya,yb,col)=>{if(ax==='x')Bc(c,a,ya,f,a+1,yb,f+1,col,false,{j:0.04});else Bc(c,f,ya,a,f+1,yb,a+1,col,false,{j:0.04})};
-        for(let a=a0;a<a1;a++){
-          bk(a,-3,0.6,shadec(wc,0.8+rng.range(0,0.2)));bk(a,0.6,1.8,shadec(wc,0.88+rng.range(0,0.22)));bk(a,1.8,3,shadec(wc,0.9+rng.range(0,0.22)));
-          if(a%2===0)bk(a,3,3.7,shadec(wc,0.95+rng.range(0,0.15)));
-        }
-        for(let a=a0+3;a<a1-1;a+=7){if(ax==='x')Bc(c,a+0.4,1.7,f-0.03,a+0.6,2.6,f+1.03,0x1a1a1a,false,{j:0});else Bc(c,f-0.03,1.7,a+0.4,f+1.03,2.6,a+0.6,0x1a1a1a,false,{j:0})}
-      }
-      if(wt==='palisade'){for(const y of[0.8,2.0]){if(ax==='x')Bc(c,a0,y,f-0.1,a1,y+0.3,f+1.1,0x4a3320,false,{j:0.03});else Bc(c,f-0.1,y,a0,f+1.1,y+0.3,a1,0x4a3320,false,{j:0.03})}}
-      if(wt==='fence'){
-        if(ax==='x'){Bc(c,a0,0,f+0.35,a1,0.2,f+0.65,0x7a5a30,true);Bc(c,a0,0.5,f+0.35,a1,0.7,f+0.65,0x7a5a30,true)}else{Bc(c,f+0.35,0,a0,f+0.65,0.2,a1,0x7a5a30,true);Bc(c,f+0.35,0.5,a0,f+0.65,0.7,a1,0x7a5a30,true)}
-        for(let a=a0;a<a1;a+=2){if(ax==='x')Bc(c,a,0,f+0.3,a+0.3,1.1,f+0.7,0x5a3d22,true);else Bc(c,f+0.3,0,a,f+0.7,1.1,a+0.3,0x5a3d22,true)}
-        for(let a=a0+0.2;a<a1;a+=0.5){const hh=0.8+(Math.floor(a*2)%3)*0.06;if(ax==='x')Bc(c,a,0,f+0.4,a+0.16,hh,f+0.6,0x8a6a3a,false,{j:0.05});else Bc(c,f+0.4,0,a,f+0.6,hh,a+0.16,0x8a6a3a,false,{j:0.05})}
-      }
-    };
-    // lados com abertura de portão
-    seg('x',lo,lo,-S);seg('x',lo,S+1,hi);seg('x',Hc+1,lo,-S);seg('x',Hc+1,S+1,hi);
-    seg('z',lo,lo,-S);seg('z',lo,S+1,hi);seg('z',Hc+1,lo,-S);seg('z',Hc+1,S+1,hi);
-    if(wt!=='fence'){
-      const gp=(x,z)=>{Bc(c,x,-3,z,x+1,5,z+1,wt==='stone'?shadec(wc,0.9):0x4a3320,true)};
-      for(const e of[-Hc-1,Hc+1]){gp(e,-S-1);gp(e,S+1);gp(-S-1,e);gp(S+1,e)}
-      for(const e of[-Hc-1,Hc+1]){
-        Bc(c,e,4,-S-1,e+1,4.8,S+2,0x4a3320,false);Bc(c,-S-1,4,e,S+2,4.8,e+1,0x4a3320,false);
-        addFlag(c,e+0.5,5,-S-0.5,2.2);addFlag(c,-S-0.5,5,e+0.5,2.2);
-      }
-      // torres de canto
-      const tpos=[];
-      for(const sx of[-1,1])for(const sz of[-1,1])tpos.push([sx>0?Hc:-Hc-2,sz>0?Hc:-Hc-2]);
-      for(let a=S+16;a<Hc-6;a+=24)for(const sg of[-1,1]){const q=sg*a;tpos.push([q-1,-Hc-2],[q-1,Hc],[-Hc-2,q-1],[Hc,q-1])}
-      for(const [tx,tz] of tpos){
-        {const tc=wt==='stone'?shadec(wc,0.95):0x5a3d22;
-         addCol(c.cx+tx,c.y-4,c.cz+tz,c.cx+tx+3,c.y+6.5,c.cz+tz+3);
-         [[-4,0.5],[0.5,2],[2,3.5],[3.5,5],[5,6.5]].forEach((q,k)=>Bc(c,tx,q[0],tz,tx+3,q[1],tz+3,shadec(tc,k%2?1.08:0.92),false,{j:0.05}));
-         Bc(c,tx-0.2,5.8,tz-0.2,tx+3.2,6.5,tz+3.2,shadec(tc,1.12),false,{j:0.04});
-         for(const k of[0,1,2,3]){const sl=[[1.35,-0.04,1.65,0.02],[1.35,2.98,1.65,3.04],[-0.04,1.35,0.02,1.65],[2.98,1.35,3.04,1.65]][k];Bc(c,tx+sl[0],3,tz+sl[1],tx+sl[2],4.1,tz+sl[3],0x1a1a1a,false,{j:0})}}
-        for(const [a,b] of[[0,0],[2,0],[0,2],[2,2],[1,0],[0,1],[2,1],[1,2]])Bc(c,tx+a,6.5,tz+b,tx+a+1,7.1,tz+b+1,wc,false);
-        Bc(c,tx,6.4,tz,tx+3,6.5,tz+3,0x555555,false,{j:0});
-        c.towers.push({x:c.cx+tx+1.5,z:c.cz+tz+1.5,y:c.y+6.5});
-        addFlag(c,tx+1.5,7.1,tz+1.5,2.6);
-      }
-    }
-  }
+  cityWallBuild(c,c.home?1:wt==='stone'?5:wt==='palisade'?4:wt==='fence'?2:1,rng,c.home?'none':wt);
   // mastros com a bandeira da facção ladeando cada entrada (norte, sul, leste e oeste); as bandeiras apontam para o centro da entrada
   for(const [ax,e] of[['z',-Hc-1],['z',Hc+1],['x',-Hc-1],['x',Hc+1]])
     for(const [s,dir] of[[-S-1.4,1]]){   // um só mastro por entrada

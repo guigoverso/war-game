@@ -135,7 +135,7 @@ function placePlayerHome(){
   P.x=c.cx+6;P.z=c.cz+6;P.y=tH(P.x,P.z)+1;P.camY=P.y;
 }
 function conquerCity(c){
-  c.owner='player';c.state='conquered';facSetFlag(c);facReskin();armyConquered(c);if(typeof facReap==='function')facReap();
+  c.owner='player';c.state='conquered';facSetFlag(c);facReskin();armyConquered(c);citySentrySync(c);if(typeof facReap==='function')facReap();
   {const e=ec(c);if(e&&e.rebelled){e.rebelled=false;e.noReb=STATE.round+(typeof REBM!=='undefined'?REBM.cool:5);e.ups=0;e.mood='ok'}}   // reconquistada de uma rebelião: 5 rodadas sem se rebelar (rebmine.js)
   const reward=120+60*c.rank;addCoins(reward);
   const n=WORLD.cities.filter(x=>x.owner==='player').length;
@@ -745,7 +745,7 @@ async function startGame(creative,loadData){
     if(loadData){applySave(loadData);applyFishGone();rebuildPortals();rebuildSmoke()}
     else{RAID.active=false;RAID.area=null;STATE.rd.hallCity=WORLD.home.id;G.introBook=true}   // partida nova: começa dentro da prefeitura (rodada 0) com o livro aberto no resumo
     prepThin();refreshHotbar();refreshBuffs();fishClean();
-    G.running=true;$('hud').classList.remove('hidden');initEconomy();scenarioApply();rebuildCaravans();refreshRoundHud();   // scenarioApply: só com ?cenario=caravanas (scenario.js)
+    G.running=true;$('hud').classList.remove('hidden');initEconomy();scenarioApply();cityWallSync();rebuildCaravans();refreshRoundHud();   // scenarioApply: só com ?cenario=caravanas (scenario.js)
     if(!loadData&&G.introBook){STATE.phase='leader';STATE.rd.actions=maxActions();refreshRoundHud()}   // partida nova: começa no turno do líder (rodada 0, sem decisões)
     if(STATE.phase==='leader'||G.introBook){if(OFFICE.ok)enterOffice(true);else if(G.introBook)placeAtHall()}
     refreshCheats();scenarioAfter();

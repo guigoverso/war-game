@@ -28,12 +28,11 @@ const canAct=kind=>isLeader()&&STATE.rd.actions>=actCost(kind);
 function spendAct(kind){if(!canAct(kind))return false;STATE.rd.actions-=actCost(kind);return true}
 // ---------- níveis da facção e das cidades do jogador (valores a calibrar jogando) ----------
 // facMax/cityMax: níveis máximos (facção = ações por rodada; cidade 1 sem muros, 2 cerca, 3 paliçada, 4 paliçada com atiradores, 5 pedra com atiradores).
-// facCost[n] / cityCost[n]: custo para ir do nível n ao n+1 ({gold,food,ore,wood,leather}); facReq[n]: o que a facção precisa ter para ir de n a n+1
+// facCost[n]: custo para ir do nível n ao n+1 ({gold,food,ore,wood,leather}); facReq[n]: o que a facção precisa ter para ir de n a n+1
 // (pois = POIs seus, cities = cidades suas contando a capital, maxCities = cidades no nível máximo; os requisitos de cada nível somam os dos anteriores).
 // cityProd/cityTax: ganho de produção e de imposto por nível da cidade acima do 1 (só cidades do jogador). npcRank: rank da cidade -> nível visual.
 const LVL={facMax:5,cityMax:5,
   facCost:{1:{gold:900,food:20,ore:20},2:{gold:1800,food:40,ore:40},3:{gold:3000,food:40,ore:40,wood:40,leather:40},4:{gold:4500,food:60,ore:60,wood:60,leather:60}},
-  cityCost:{1:{gold:400,wood:10},2:{gold:800,wood:20},3:{gold:1200,wood:30,ore:10},4:{gold:2000,wood:30,ore:40}},
   facReq:{1:{},2:{pois:2},3:{pois:2,cities:3},4:{pois:2,cities:3,maxCities:3}},
   cityProd:1,cityTax:10};
 const LVL_RES_ICON={gold:'◉',food:'🍖',ore:'⛏',wood:'🪵',leather:'🟤'};
@@ -57,7 +56,6 @@ function lvlPay(cost){   // paga o custo todo ou nada
   return true;
 }
 const facCostOf=()=>LVL.facCost[facLvl()]||null;
-const cityCostOf=c=>LVL.cityCost[cityLvl(c)]||null;
 const citiesAtMax=()=>cityMine().filter(c=>cityLvl(c)>=LVL.cityMax).length;
 // requisitos para a facção subir: lista {txt, ok, have, need}; só POIs e cidades (o custo em recursos vem de facCostOf)
 function facReqState(){

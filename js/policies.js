@@ -206,7 +206,7 @@ function polRunQueue(){
 // (def.fixCond e def.fixCity). Devolve uma mensagem de erro ou null.
 function polTakeCity(c){   // transforma uma cidade inimiga em sua (só para o modo criativo)
   c.owner='player';c.state='conquered';facSetFlag(c);facReskin();
-  for(const e of c.enemies)if(e.alive){e.alive=false;e.gone=true;scene.remove(e.group)}c.aliveEnemies=0;
+  for(const e of c.enemies)if(e.alive){e.alive=false;e.gone=true;scene.remove(e.group)}c.aliveEnemies=0;citySentrySync(c);
 }
 function polSummon(id){
   normalizePol();const P=STATE.pol,fixes=[];

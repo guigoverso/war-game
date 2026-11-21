@@ -80,6 +80,29 @@ const T={
       return '';
     }finally{rd.clv[h.id]=k}
   },
+  cityWall:()=>{   // visual da cidade por nível: muro, torres, atiradores e colisões; refazer não deixa lixo; NPC intacta
+    const h=WORLD.home,rd=STATE.rd,k=rd.clv[h.id],npc=WORLD.cities.find(c=>c.owner!=='player'&&c.wallType==='stone'||c.wallType==='palisade');
+    const want={1:'none',2:'fence',3:'palisade',4:'palisade',5:'stone'},sc=scene.children.length,nc=Col.all.length;
+    try{
+      let prev=-1;
+      for(let n=1;n<=5;n++){
+        rd.clv[h.id]=n;const t0=performance.now();cityWallRebuild(h);const ms=performance.now()-t0;
+        if(h.wallType!==want[n])return 'nível '+n+': muro '+h.wallType;
+        if(n>=3&&!h.towers.length)return 'nível '+n+': sem torres';
+        if(n<3&&h.towers.length)return 'nível '+n+': torres demais';
+        const ns=CITY_SENTRIES.filter(s=>s.city===h).length,esp=Math.min(h.towers.length,citySentriesAt(n));
+        if(ns!==esp)return 'nível '+n+': '+ns+' atiradores (esperado '+esp+')';
+        if(n===5&&!(ns>prev))return 'nível 5 sem mais atiradores que o 4';
+        prev=ns;if(ms>1500)return 'refazer o muro levou '+Math.round(ms)+' ms';
+      }
+      rd.clv[h.id]=1;cityWallRebuild(h);
+      if(h.wall.cols.length||CITY_SENTRIES.some(s=>s.city===h))return 'nível 1 deixou colisão ou atirador';
+      if(Col.all.length!==nc)return 'colisões vazaram: '+nc+' -> '+Col.all.length;
+      if(scene.children.length!==sc)return 'objetos de cena vazaram: '+sc+' -> '+scene.children.length;
+      if(npc&&(!npc.wall.mesh))return 'cidade NPC sem muro';
+      return '';
+    }finally{rd.clv[h.id]=k;cityWallRebuild(h)}
+  },
   pois:()=>{const n=WORLD.pois.length;return n>0?'':'nenhum POI em WORLD.pois'},
   svc:([type,fn])=>{   // abre o serviço num POI do tipo pedido (seu, para o preço sair da capital)
     const p=WORLD.pois.find(q=>q.type===type);if(!p)return 'sem POI do tipo '+type;
@@ -276,6 +299,7 @@ const T={
     await check(g,'seed 11: pontes (registro e pedágios no máximo 3)',T.bridges);
     await check(g,'seed 11: níveis da facção e das cidades (LVL)',T.lvl);
     await check(g,'seed 11: efeito do nível da cidade (produção, imposto, loja)',T.lvlFx);
+    await check(g,'seed 11: visual da cidade por nível (muros e atiradores)',T.cityWall);
     await check(g,'seed 11: vigia da torre (poiVigil)',T.binoc);
     await check(g,'seed 11: POI livre sem decisão (retomada ao encerrar o líder)',T.freeRetake);
     await check(g,'seed 11: retomada dos POIs seus em guerra (redutor)',T.warRetake);

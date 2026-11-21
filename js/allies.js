@@ -195,7 +195,43 @@ function updateAlly(a,dt){
   a.group.position.set(a.x,a.y,a.z);a.group.rotation.y=a.yaw;
   if(moving)animWalk(a.model,a.phase,0.7);else a.model.legs.forEach(l=>l.rotation.x*=0.8);
 }
+// ---------- atiradores nas torres das cidades do jogador (nível 4 e 5; números em modifiers.js) ----------
+// Não são salvos: citySentrySync os refaz ao carregar, ao evoluir a cidade e ao conquistá-la. Ficam parados na torre e atiram nos bandidos de raid ao alcance.
+const CITY_SENTRIES=[];
+function citySentrySync(c){
+  for(let i=CITY_SENTRIES.length-1;i>=0;i--)if(CITY_SENTRIES[i].city===c){scene.remove(CITY_SENTRIES[i].group);CITY_SENTRIES.splice(i,1)}
+  if(c.owner!=='player'||!c.towers)return;
+  const n=Math.min(c.towers.length,citySentriesAt(cityLvl(c)));
+  for(let i=0;i<n;i++){
+    const tw=c.towers[i],m=buildHuman({skin:0xd9a577,shirt:facColor(0)||0x2a4a9a,pants:0x2a2a3a,hairStyle:'helmet',hat:0x8a9ab0,gun:{len:1.1},scarf:0x2a8a3a});
+    m.arms[1].rotation.x=-1.2;m.arms[0].rotation.x=-1.0;m.group.position.set(tw.x,tw.y,tw.z);scene.add(m.group);
+    CITY_SENTRIES.push({city:c,x:tw.x,y:tw.y,z:tw.z,group:m.group,cool:Math.random()*CITY_SENTRY_COOLDOWN,scanT:0,tgt:null});
+  }
+}
+function updateCitySentries(dt){
+  for(const s of CITY_SENTRIES){
+    s.group.visible=(s.x-P.x)**2+(s.z-P.z)**2<150*150;
+    s.cool-=dt;s.scanT-=dt;
+    if(s.scanT<=0){   // procura o bandido de raid mais perto, com linha de tiro
+      s.scanT=0.4+Math.random()*0.2;s.tgt=null;let bd=CITY_SENTRY_RANGE;
+      for(const e of ENEMIES){
+        if(!e.alive||e.city.kind!=='raid'||e.city.state!=='attacking')continue;
+        const d=Math.hypot(e.x-s.x,e.z-s.z);
+        if(d<bd&&losClear(s.x,s.y+1.6,s.z,e.x,e.y+e.lift+e.def.h*0.6,e.z)){bd=d;s.tgt=e}
+      }
+    }
+    const t=s.tgt;if(!t||!t.alive)continue;
+    s.group.rotation.y=Math.atan2(t.x-s.x,t.z-s.z);
+    if(s.cool>0)continue;
+    s.cool=CITY_SENTRY_COOLDOWN*(1+Math.random()*0.3);
+    const ty=t.y+t.lift+t.def.h*0.6,hit=Math.random()<CITY_SENTRY_HIT;
+    tracer(s.x,s.y+1.4,s.z,t.x+(hit?0:(Math.random()-0.5)*3),ty,t.z+(hit?0:(Math.random()-0.5)*3),0x9ad0ff);
+    sfx(WEAPONS[ARMY.weapon].sfx,Math.hypot(s.x-P.x,s.z-P.z)*1.2,s.x,s.z);
+    if(hit)damageEnemy(t,CITY_SENTRY_DAMAGE,false,true);
+  }
+}
 function updateAllies(dt){
+  updateCitySentries(dt);
   ARMY.rt=(ARMY.rt||0)-dt;if(ARMY.rt<=0){ARMY.rt=2;armyReinforce()}   // a cada 2 s a reserva repõe uma vaga aberta
   for(let i=ALLIES.length-1;i>=0;i--){const a=ALLIES[i];if(a.gone){ALLIES.splice(i,1);continue}updateAlly(a,dt)}
 }
