@@ -98,10 +98,11 @@ A guerra é uma **campanha**: o **Líder planeja** operações com pontos de lí
 ### Estado atual dos POIs (2026-11-20, vindo de `docs/ESTADO.md` e `docs/MAPA.md`)
 - **Código:** `js/pois.js` (`POI_DEFS`, `POI_TYPES`, `POI_BUILD`, `genWorldPois`, `bridgeSpots`, `POI_GEN`/`POI_W`/`POI_RANGE`) e `js/poigame.js` (`POIX`, `POI_PRICE`, `poiLvl`, serviços `SVC`, entreposto `poiPosts`/`poiRouteBlocked`, santuário `poiHasSanc`/`poiSancPeace`/`poiSancDelay`, caçadores `poiHuntLoot`/`poiHuntPen`); Negociação em `js/negoc.js`. `SAVE_VERSION = 21`.
 - **Tarefa 10 (fechamento) pendente:** tabela de tipos (feita acima), `?cenario=pois` com os tipos lado a lado, smoke e roteiro de teste.
-- **Entreposto:** "no caminho" = a até `POIX.post.reach` (45) da linha entre as cidades; a geração grava `p.road=[idA,idB]` nos POIs de estrada. Materiais do lojista sem estoque limitado.
+- **Entreposto:** "no caminho" = a até `POIX.post.reach` (45) da linha entre as cidades; a geração grava `p.road=[idA,idB]` nos POIs de estrada. Materiais do lojista com estoque limitado (`POST_STOCK_MULTIPLIER`, `postStockLeft`); tela em abas com Venda (`postSellTab`) e "?" de preço (`postPriceTag`); preços e valor de venda seguem a facção da cidade de referência.
+- **Atualizações dos POIs (2026-11-20, `docs/features/1_atualizacoes-POIs.md`, tarefas 1 a 5 feitas):** retomada de POI livre sem decisão e redutor de guerra, torre com vigia única (`poiVigil`, `STATE.poiX.marks`), estoque do entreposto, e moradores contados da rodada da limpeza (`STATE.poiX.conq`). Números novos em `js/modifiers.js` e textos em `js/texts.js`.
 - **Geração:** Mina quase não nasce em planície (sem pedra); Serraria e Entreposto saem pouco; mapas de 6 cidades ficam em ~23 POIs. Ajuste `POI_GEN`/`POI_RANGE`. Teste: `?seed=11&bio=plains` (biomas: `plains`, `forest`, `mountain`, `snow`, `desert`).
 - **Saves antigos:** o mundo é regenerado pela semente, então estradas e POIs mudam de lugar (sem `SAVE_VERSION`).
-- **Smoke intermitente:** "moradores na rodada N+1" falha de vez em quando num POI de mina (`civNext`); não investigado, parece independente das pontes.
+- **Smoke:** a falha intermitente de "moradores na rodada N+1" era o sorteio de retomada dos bandidos durante o `endRound`; o teste agora fixa `Math.random`.
 - **Quase tudo checado só por script/console; falta jogar:** bandidos novos atirando, interiores, forte, balanceamento de renda e preços; POI de guerra sem guerra não testado.
 
 ## Pressão do inimigo
@@ -219,12 +220,12 @@ Legenda: ✅ implementado · 🔶 parcial · ⬜ não implementado. (Atualizado 
 | 1 | Tipos de POI (fazenda, mina, serraria, caçadores, santuário, ponte, forte, torre, taverna, entreposto, ruínas), com dono e bandeira | ✅ | Feito |
 | 2 | Geração por anel, estrada e interior, com limites e pesos por bioma | ✅ | Ajustar mina em planície e serraria e entreposto, que saem pouco |
 | 3 | Mapa 704, com 6 a 8 cidades | ✅ | Feito |
-| 4 | Guarnição de bandidos (4 tipos novos), retomada pelos bandidos | ✅ | Jogar: bandidos atirando e balanceamento |
+| 4 | Guarnição de bandidos (4 tipos novos), retomada pelos bandidos (POI livre sem decisão: 50% bandidos, 50% facção mais perto; POIs seus: sorteio por distância, ×0,5 em guerra) | ✅ | Jogar: bandidos atirando e balanceamento da retomada (`WAR_RETAKE_MULTIPLIER`) |
 | 5 | Cartão "Terras livres" (anexar, doar, vender, ignorar) | ✅ | Negociar POIs na tela de Negociação (comprar, trocar, doar) |
 | 6 | Renda e produção por rodada (1 + nível) e pedágio da ponte (20 × nível) | ✅ | Balancear (a produção pode ficar alta com o nível do líder) |
 | 7 | Moradores e serviços (ferreiro, bigorna, mercenário, taverneiro, lojista) | ✅ | Ok |
-| 8 | Torre (vigia e binóculo) e quarto da taverna | ✅ (torre: vigia única, 1 uso por torre por rodada, marcas "?") | Correções apontada abaixo |
-| 9 | Entreposto (loja, renda por caravana, bloqueio em guerra) | ✅ | Materiais do lojista sem estoque limitado |
+| 8 | Torre (vigia e binóculo) e quarto da taverna | ✅ (torre: vigia única, 1 uso por torre por rodada, marca o ponto mais perto, marcas "?" salvas) | Ok |
+| 9 | Entreposto (loja em abas, venda, "?" de preço, estoque limitado de materiais, renda por caravana, bloqueio em guerra) | ✅ | Ok |
 | 10 | Santuário (humor e rebelião) | ✅ | Efeito de guerra parado até a fadiga existir |
 | 11 | Ruínas (guardiões que voltam, baú único com 30% de artefato) | ✅ | Ok |
 | 12 | Caçadores (couro, carne, penalidade em guerra) | ✅ | O efeito de guerra depende do suprimento de guerra |
