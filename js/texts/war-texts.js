@@ -17,6 +17,10 @@ const txtWarPickBanner = enemy => '⚔ <b>Guerra contra ' + enemy + '</b> — cl
 const TXT_WAR_PICK_BAD = 'Escolha uma cidade (ou POI permanente) da facção inimiga.';
 // Declaração de guerra: aviso quando não há rota por terra até o alvo.
 const TXT_WAR_NO_ROUTE = 'Não há caminho por terra até esse alvo (muita água no meio).';
+// Declaração de guerra: o alvo é recusado porque uma cidade ou POI de terceiros (fora da guerra) fecha o caminho. tipo = 'city' ou 'poi',
+// nome = nome do bloqueio, fac = nome da facção dona.
+const txtWarBlocked = (tipo, nome, fac) => 'Alvo recusado: ' + (tipo === 'city' ? 'a cidade ' : 'o POI ') + '<b>' + nome + '</b> (' + fac
+  + ') fecha o caminho e a rota não pode passar por quem está fora da guerra. Escolha outro alvo.';
 // Declaração de guerra: faixa de confirmação com a previsão da frente. alvo = nome, n = POIs no caminho, w = POIs de guerra novos,
 // o = nome da cidade sua de origem, dist = distância em blocos.
 const txtWarPreview = (enemy, alvo, o, n, w, dist) => '⚔ <b>' + enemy + '</b> — alvo: <b>' + alvo + '</b>, a partir de <b>' + o

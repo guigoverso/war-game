@@ -172,11 +172,41 @@ function wfTest(q) {
   const c = L.find(x => x.id === q || x.name.toLowerCase() === String(q).toLowerCase());
   if (!c) return console.log('Cidade não achada. Use wfTest() para listar.');
   const pl = WF.plan = warFrontPlan(c.fid, 'city', c);
-  if (!pl) return console.log('Sem rota para ' + c.name);
+  if (!pl) return console.log('Sem rota para ' + c.name + ': ' + warFrontCheck(c.fid, 'city', c).erro.replace(/<\/?b>/g, ''));
   console.log('Origem: ' + pl.origin.name + ' | rota: ' + Math.round(pl.len) + ' blocos | cadeia: ' +
     (pl.chain.map((p, i) => POI_DEFS[p.type].n + '#' + p.id + ' (' + poiOwnerName(p.owner) + ', ' +
       Math.round(pl.ts[i] * 100) + '%)').join(' → ') || 'vazia') + ' | POIs de guerra: ' + pl.war.length);
   return pl;
+}
+
+// Por que não há rota até o alvo? Refaz a rota SEM obstáculos de terceiros: se ela existe, o culpado é o obstáculo (cidade ou POI de
+// fora da guerra) que ela atravessa, o mais perto da origem; se não existe, é água demais. Devolve {tipo:'city'|'poi', nome, fac,
+// fid} ou {agua:true}; null se não há origem (você não tem cidade).
+function warFrontBlocker(fid, kind, ref) {
+  const mine = playerCities();
+  if (!ref || !mine.length) return null;
+  const origin = mine.reduce((m, c) => wfDist(c, ref) < wfDist(m, ref) ? c : m);
+  const path = wfRoute(origin, ref, [], []);
+  if (!path) return { agua: true };
+  const cum = [0];
+  for (let k = 1; k < path.length; k++) cum.push(cum[k - 1] + Math.hypot(path[k].x - path[k - 1].x, path[k].z - path[k - 1].z));
+  let best = null, bt = 2;
+  for (const o of wfBlockers(fid, origin, ref)) {
+    const a = wfAlong(path, cum, o.cx, o.cz);
+    if (a.d >= wfRad(o) || a.t >= bt) continue;
+    bt = a.t; best = o;
+  }
+  if (!best) return { agua: true };
+  const f = best.half !== undefined ? best.fid : best.owner;
+  return { tipo: best.half !== undefined ? 'city' : 'poi', nome: best.half !== undefined ? best.name : POI_DEFS[best.type].n,
+    fac: (facOf(f) || {}).name || 'outra facção', fid: f };
+}
+// Confere o alvo da declaração: {plan} se há rota, senão {erro: texto do aviso} (o toast de alvo recusado da declaração).
+function warFrontCheck(fid, kind, ref) {
+  const plan = warFrontPlan(fid, kind, ref);
+  if (plan) return { plan };
+  const b = warFrontBlocker(fid, kind, ref);
+  return { erro: b && b.tipo ? txtWarBlocked(b.tipo, b.nome, b.fac) : TXT_WAR_NO_ROUTE };
 }
 
 // Plano da frente contra um alvo. Origem = cidade sua mais perto do alvo. Cadeia = POIs permanentes (sem ruínas, sem POI de
