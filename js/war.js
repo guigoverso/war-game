@@ -47,6 +47,11 @@ function warScenario() {
   if (!S.startAtWar) return;   // em paz: a declaração fica por sua conta (Negociações)
   facDeclareWar(en.id, false);
   warX().camps[en.id] = { kind: 'attack', since: STATE.round, allies: { player: [], enemy: [] } };
+  // frente contra a cidade inimiga mais perto de você (alvo padrão); sem rota, o aviso diz por quê
+  const mine = playerCities(), dm = c => Math.min(...mine.map(m => Math.hypot(m.cx - c.cx, m.cz - c.cz)));
+  const tgt = npc().filter(c => c.fid === en.id && warCanTarget(en.id, 'city', c)).sort((a, b) => dm(a) - dm(b))[0];
+  const r = tgt && warFrontCheck(en.id, 'city', tgt);
+  if (r && r.plan) warFrontBuild(r.plan); else WARSCN.noFront = r ? r.erro : TXT_WAR_NO_ROUTE;
 }
 // Divide os POIs permanentes: os mais perto de você (em relação ao inimigo) ficam seus; o resto, do inimigo.
 function warSplitPois(fid) {
@@ -67,13 +72,29 @@ function warScnNearest(o) {
   const d = p => Math.hypot(p.cx - P.x, p.cz - P.z);
   return warPois().filter(p => p.owner === o).sort((a, b) => d(a) - d(b))[0] || null;
 }
-function warScenarioAfter() { toast(txtWarScnWelcome(facOf(WARSCN.fid).name), 9000); }
+// POI da linha da frente (ou o POI-alvo) que ainda não é seu, o mais perto de você; null se não restar.
+function warScnNearestLine(ln) {
+  const d = p => Math.hypot(p.cx - P.x, p.cz - P.z), L = ln.pois.concat(ln.kind === 'poi' && ln.target ? [ln.target] : []);
+  return L.filter(p => p.owner !== 'player').sort((a, b) => d(a) - d(b))[0] || null;
+}
+// Linha do painel: a cadeia em ordem (cada POI com o dono; ▶ o próximo a conquistar) e se a Conquista de Cidade está liberada.
+function warScenarioFrontHtml() {
+  const ln = warFrontLine(WARSCN.fid);
+  if (!ln) return '';
+  const items = ln.pois.map(p => ({ n: POI_DEFS[p.type].n, o: poiOwnerName(p.owner), mine: p.owner === 'player', next: warFrontCanConquer(ln, p) }));
+  const tn = ln.target ? (ln.kind === 'city' ? ln.target.name : POI_DEFS[ln.target.type].n) : '?';
+  return '<p class="ldsm">' + txtWarScnChain(items, tn, ln.kind, warFrontReleased(ln)) + '</p>';
+}
+function warScenarioAfter() {
+  toast(txtWarScnWelcome(facOf(WARSCN.fid).name), 9000);
+  if (WARSCN.noFront) toast(WARSCN.noFront, 6000);
+}
 function warScenarioHtml() {
   const L = warPois(), a = L.filter(p => p.owner === 'player').length, b = L.filter(p => p.owner === WARSCN.fid).length;
   const B = (k, t) => '<button class="alt" data-wsn="' + k + '" style="margin:2px">' + t + '</button>';
   return '<p class="ptitle">' + TXT_WAR_SCN_TITLE + '</p><p class="ldsm" style="margin:2px 0 4px">' + TXT_WAR_SCN_HELP + '</p>'
     + '<p class="ldsm">' + txtWarScnSummary(facOf(WARSCN.fid).name, a, b, L.length - a - b) + '</p>'
-    + B('city', '📍 Cidade inimiga') + B('poi', '📍 POI inimigo') + B('conq', '🏴 Conquistar POI') + B('lose', '🏳 Perder POI')
+    + warScenarioFrontHtml() + B('city', '📍 Cidade inimiga') + B('poi', '📍 POI inimigo') + B('conq', '🏴 Conquistar POI') + B('lose', '🏳 Perder POI')
     + B('end', '⏭ Encerrar a rodada') + B('heal', '♥ Curar tudo')
     + '<br><button class="alt" data-scn="reload">↻ Recomeçar o cenário</button><hr style="border-color:#444">';
 }
@@ -87,7 +108,10 @@ document.addEventListener('click', e => {
     const p = warScnNearest(f); if (!p) return say(TXT_WAR_SCN_NO_POI);
     closePanel(); warScnGo(p.cx, p.cz);
   } else if (k === 'conq') {
-    const p = warScnNearest(f); if (!p) return say(TXT_WAR_SCN_NO_POI);
+    const ln = warFrontLine(f);
+    // com frente: o POI da linha (ou o alvo) mais perto de você que ainda não é seu; só o adjacente é aceito
+    const p = ln ? warScnNearestLine(ln) : warScnNearest(f); if (!p) return say(TXT_WAR_SCN_NO_POI);
+    if (ln && !warFrontCanConquer(ln, p)) return say(txtWarScnNotAdjacent(POI_DEFS[p.type].n));
     poiSetOwner(p, 'player'); say(txtWarScnConquered(POI_DEFS[p.type].n));
   } else if (k === 'lose') {
     const p = warScnNearest('player'); if (!p) return say(TXT_WAR_SCN_NO_POI);
@@ -95,4 +119,5 @@ document.addEventListener('click', e => {
   } else if (k === 'end') { closePanel(); endRound(WORLD.home); }
   else if (k === 'heal') P.hp = P.maxhp;
   if (typeof renderFacCheats === 'function') renderFacCheats();
+  if (G.panel === 'ldbook' && LB.tab === 'guerra') renderBook();   // atalhos da aba Guerra do caderno
 });

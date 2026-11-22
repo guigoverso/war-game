@@ -67,9 +67,34 @@ const TXT_WAR_SCN_NO_POI = 'Nenhum POI disponível para essa ação.';
 const txtWarScnConquered = n => '🏴 ' + n + ' conquistado (atalho de teste).';
 // Cenário de guerra: aviso do botão "Perder POI". n = nome do POI, f = nome da facção.
 const txtWarScnLost = (n, f) => '🏳 ' + n + ' passou para ' + f + ' (atalho de teste).';
+// Caderno, aba Guerra: título da página da frente. en = facção inimiga, tn = nome do alvo, kind = 'city' ou 'poi', org = cidade sua de origem.
+const txtWarTabHead = (en, tn, kind, org) => '<h3>⚔ Guerra contra ' + en + '</h3><p>Alvo: <b>' + tn + '</b> (' +
+  (kind === 'poi' ? 'POI' : 'cidade') + ') • saindo de <b>' + org + '</b></p>';
+// Caderno, aba Guerra: uma linha da cadeia. i = posição (1...), n = nome do POI, o = dono, mine = é seu, next = pode conquistar agora.
+const txtWarTabRow = (i, n, o, mine, next) => '<li>' + i + '. ' + (mine ? '✔ ' : next ? '▶ ' : '') + n + ' — ' + o + (next ? ' <b>(próximo)</b>' : '') + '</li>';
+// Caderno, aba Guerra: estado da Conquista. kind = 'city' ou 'poi', ok = liberada.
+const txtWarTabState = (kind, ok) => '<p>' + (ok ? '✅ ' : '🔒 ') + '<b>' + (kind === 'poi' ? 'Conquista do POI-alvo' : 'Conquista de Cidade') + '</b> ' +
+  (ok ? 'liberada.' : 'bloqueada: falta controlar o POI mais perto da sua cidade e o mais perto do alvo.') + '</p>';
+// Caderno, aba Guerra: aviso sem guerra, e guerra sem frente.
+const TXT_WAR_TAB_NONE = '<h3>⚔ Guerra</h3><p>Você não está em guerra. Para declarar, abra a <b>Negociação</b> de uma facção (aba Facções) e escolha o alvo no mapa.</p>';
+const TXT_WAR_TAB_NOFRONT = '<p class="ldsm">Guerra sem frente montada (forçada pelo modo criativo ou declarada antes da frente existir). Para ter a frente, faça a paz e declare de novo pela Negociação (Facções → Guerra), escolhendo o alvo no mapa.</p>';
+// Caderno, aba Guerra: ajuda à direita.
+const TXT_WAR_TAB_HELP = '<h3>Como funciona a frente</h3><p class="ldsm">A rota liga sua cidade mais próxima ao alvo, passando pela cadeia de POIs. '
+  + 'Só se conquista o POI <b>adjacente</b> à sua área (▶). A Conquista de Cidade só libera quando o POI mais perto de cada lado é seu. '
+  + 'Os POIs de guerra (acampamentos, trincheiras...) somem quando a guerra acaba.</p>';
+// Caderno, aba Guerra (só no cenário de guerra): título dos atalhos de teste.
+const TXT_WAR_TAB_SCN = '<h4>🧪 Testes do cenário</h4><p class="ldsm">Atalhos até as operações existirem. Conquistar só aceita o POI adjacente.</p>';
+// Cenário de guerra: aviso do botão "Conquistar POI" quando o POI mais perto não é adjacente à sua área. n = nome do POI.
+const txtWarScnNotAdjacent = n => '⛔ ' + n + ' não é adjacente: conquiste os POIs da frente em ordem, a partir da sua cidade.';
+// Cenário de guerra: linha do painel com a cadeia da frente. items = [{n, o (dono), mine, next}] da sua cidade ao alvo; tn = nome do
+// alvo; kind = 'city' ou 'poi'; ok = Conquista liberada. ✔ = seu, ▶ = pode conquistar agora.
+const txtWarScnChain = (items, tn, kind, ok) => 'Frente: ' + (items.map(i => (i.mine ? '✔ ' : i.next ? '▶ ' : '') + i.n + ' (' + i.o + ')')
+  .join(' → ') || 'sem POIs no caminho') + ' → <b>' + tn + '</b><br>' + (ok
+  ? '✅ ' + (kind === 'poi' ? 'Conquista do POI-alvo' : 'Conquista de Cidade') + ' liberada'
+  : '🔒 ' + (kind === 'poi' ? 'Conquista do POI-alvo' : 'Conquista de Cidade') + ' bloqueada: falta controlar o POI mais perto de cada lado');
 // Cenário de guerra: título e explicação do painel (aba Facções da pausa).
 const TXT_WAR_SCN_TITLE = '🧪 Cenário de guerra';
-const TXT_WAR_SCN_HELP = 'Guerra declarada ou não (WAR.scenario.startAtWar); POIs divididos (se o total for ímpar, o inimigo fica com a maioria). As operações ainda não existem: use os atalhos para testar o mapa.';
+const TXT_WAR_SCN_HELP = 'Guerra declarada ou não (WAR.scenario.startAtWar), com a frente montada contra a cidade inimiga mais perto; "Conquistar POI" só aceita o próximo da cadeia. As operações ainda não existem: use os atalhos para testar o mapa.';
 // Cenário de guerra: linha de resumo do painel. en = facção inimiga, a = POIs seus, b = POIs do inimigo, o = outros.
 const txtWarScnSummary = (en, a, b, o) => 'Inimigo: <b>' + en + '</b> • POIs: seus <b>' + a + '</b>, dele <b>' + b + '</b>, outros ' + o;
 

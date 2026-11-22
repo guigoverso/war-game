@@ -5,7 +5,7 @@ function renderDeposit(){const el=document.getElementById('invdeposit');if(el)el
 // ---------- livro: bolsa + livro do prefeito (tecla B) ----------
 const LB={top:'book',tab:'resumo',city:null,ra:null,rb:null,fac:0};
 const mapOpen=()=>G.panel==='ldbook'&&LB.top==='map';   // o mapa agora é uma aba do caderno (tecla M)
-const LSUBS=[['resumo','📜 Resumo'],['cidades','🏘 Cidades'],['capital','🚩 Facção'],['missoes','📋 Missões'],['caravanas','🛒 Caravanas'],['facs','🏴 Facções'],['diplo','🕊 Diplomacia'],['buffs','✨ Efeitos']];
+const LSUBS=[['resumo','📜 Resumo'],['cidades','🏘 Cidades'],['capital','🚩 Facção'],['missoes','📋 Missões'],['caravanas','🛒 Caravanas'],['facs','🏴 Facções'],['guerra','⚔ Guerra'],['diplo','🕊 Diplomacia'],['buffs','✨ Efeitos']];
 const INV_L='<h3>🎒 Bolsa</h3><div id="invinfo" class="ldsm"></div><b class="st">Armas e vara — teclas 1–6</b><div id="invwbar"></div><b class="st" style="display:block;margin-top:8px">Curas — teclas 7–9</b><div id="invcbar"></div><b class="st" style="display:block;margin-top:8px">Bolsa</b><div id="invgrid"></div>';
 const INV_R='<div id="invdetail"></div><div id="invpending"></div><div id="invdeposit"></div>';
 function openBook(top,tab){
@@ -85,6 +85,7 @@ function bookPages(){
     }    return[L,R];
   }
   if(LB.tab==='buffs')return buffsPages();   // aba Efeitos: buffs e debuffs ativos (meetfx.js)
+  if(LB.tab==='guerra')return warBookPages();   // aba Guerra: a frente e a ordem da conquista (warfront.js)
   if(LB.tab==='diplo')return fgBookPages();   // aba Diplomacia (facgraph.js)
   if(LB.tab==='missoes')return msBookPages();   // aba Missões (missions.js)
   if(LB.tab==='facs'){   // lista de facções à direita; resumo da escolhida à esquerda
@@ -167,6 +168,7 @@ function bookClick(e){
   else if(a==='editfac'){facEditIdentity().then(ok=>{if(ok)renderBook()});return}
   else if(a==='pf'||a==='ps'){const en=ec(c);if(isLeader()&&en.type==='port'){let cf=en.nf||en.pf,cs=en.ns||en.ps;const r=t.dataset.r;if(a==='pf'){if(r===cs)cs=NEEDS.includes(cf)?cf:NEEDS.find(x=>x!==r);cf=r}else{if(r===cf)cf=cs;cs=r}en.nf=cf;en.ns=cs}}
   else if(a==='unroute'){if(isLeader()){rd.routes.splice(+t.dataset.i,1);rebuildCaravans();computeBuffs()}}
+  else if(a==='warmap'){openBook('map');return}
   else if(a==='route'){if(!isLeader())toast('Caravanas só no turno do líder.',2000);else{startCaravanPick();return}}
   else if(a==='cap'){
     if(canFacUp()&&lvlPay(facCostOf())){spendAct('capital');rd.lvl++;rd.facUpR=STATE.round;rdNow(txtFacUpReport(rd.lvl));sfx('win',0);toast(txtFacUpToast(rd.lvl),3500)}

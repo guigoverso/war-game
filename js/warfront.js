@@ -773,3 +773,46 @@ function warFrontRestore() {
   }
   for (const e of X.trace) if (!WORLD.pois.some(p => p.id === e.id)) wfMake(Object.assign({ owner: 'none' }, e));
 }
+
+// ---------- Linha da frente: ordem da conquista (tarefa 5) ----------
+// Linha da frente declarada contra fid: {fr, kind, target (cidade ou POI-alvo), pois: cadeia + POIs de guerra em ordem, da cidade
+// sua para o alvo}. null se não há frente. A ordem vem da posição de cada POI na rota salva.
+function warFrontLine(fid) {
+  const fr = (warX().camps[fid] || {}).front;
+  if (!fr) return null;
+  const path = fr.path.map(([x, z]) => ({ x, z })), cum = [0];
+  for (let k = 1; k < path.length; k++) cum.push(cum[k - 1] + Math.hypot(path[k].x - path[k - 1].x, path[k].z - path[k - 1].z));
+  const pois = fr.chain.concat(fr.war.map(e => e.id)).map(id => WORLD.pois.find(p => p.id === id)).filter(Boolean)
+    .map(p => ({ p, t: wfAlong(path, cum, p.cx, p.cz).t })).sort((a, b) => a.t - b.t).map(o => o.p);
+  const target = fr.kind === 'poi' ? WORLD.pois.find(p => p.id === fr.targetId) : WORLD.cities.find(c => c.id === fr.targetId);
+  return { fr, kind: fr.kind, target, pois };
+}
+// Aba Guerra do caderno (book.js): cada frente declarada com a cadeia em ordem e o estado da Conquista. Devolve [esquerda, direita].
+function warBookPages() {
+  let L = '';
+  const at = new Set(Object.keys(warX().camps).map(Number));
+  for (const f of WORLD.factions || []) if (relOf(f.id).war) at.add(f.id);   // guerra sem campanha (ex.: status forçado no modo criativo)
+  for (const fid of at) {
+    const ln = warFrontLine(fid), en = (facOf(fid) || {}).name || 'Inimigo';
+    if (!ln || !ln.target) { L += '<h3>⚔ Guerra contra ' + en + '</h3>' + TXT_WAR_TAB_NOFRONT; continue; }
+    const tn = ln.kind === 'city' ? ln.target.name : POI_DEFS[ln.target.type].n, org = WORLD.cities.find(c => c.id === ln.fr.originId);
+    L += txtWarTabHead(en, tn, ln.kind, org ? org.name : '?') + '<ul class="ldul">'
+      + (ln.pois.map((p, i) => txtWarTabRow(i + 1, POI_DEFS[p.type].n, poiOwnerName(p.owner), p.owner === 'player', warFrontCanConquer(ln, p))).join('')
+        || '<li>Sem POIs no caminho.</li>') + '</ul>' + txtWarTabState(ln.kind, warFrontReleased(ln));
+  }
+  const scn = typeof WARSCN !== 'undefined' && WARSCN.on && L   // cenário de guerra: atalhos de teste aqui também (sem modo criativo)
+    ? TXT_WAR_TAB_SCN + '<button data-wsn="poi" class="alt">📍 Ir ao POI inimigo</button> <button data-wsn="conq" class="alt">🏴 Conquistar POI</button>' : '';
+  const R = TXT_WAR_TAB_HELP + (L ? '<button data-a="warmap" class="gold">🗺 Ver a frente no mapa</button>' : '') + scn;
+  return [L || TXT_WAR_TAB_NONE, R];
+}
+// Conquista de Cidade (ou do POI-alvo) liberada? Só se o POI mais perto da sua cidade e o mais perto do alvo estão com você;
+// sem POIs na linha, já está liberada (a invasão começa na rodada 1).
+const warFrontReleased = ln => !ln.pois.length || (ln.pois[0].owner === 'player' && ln.pois[ln.pois.length - 1].owner === 'player');
+// Pode conquistar p agora? Só território adjacente: o primeiro da linha (vizinho da sua cidade) ou o vizinho de um POI seu.
+// O POI-alvo (guerra por POI) segue a regra da cidade: só com a frente liberada. Devolve true/false.
+function warFrontCanConquer(ln, p) {
+  if (p.owner === 'player') return false;
+  if (p === ln.target) return warFrontReleased(ln);
+  const i = ln.pois.indexOf(p);
+  return i >= 0 && (i === 0 || ln.pois[i - 1].owner === 'player' || (ln.pois[i + 1] || {}).owner === 'player');
+}

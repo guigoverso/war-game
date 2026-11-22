@@ -65,9 +65,31 @@ const T={
     warSplitPois(f);   // o cenário já não divide os POIs por padrão (WAR.scenario.splitPois=false): o teste divide
     if(a()!==Math.floor(L.length/2)||b()<a())return 'divisão errada: '+a()+' x '+b()+' de '+L.length;
     const a0=a(),b0=b();if(!b0)return 'inimigo sem POI';
-    document.querySelector('[data-wsn="conq"]')||renderFacCheats();
-    document.querySelector('[data-wsn="conq"]').click();
-    if(a()!==a0+1||b()!==b0-1)return 'Conquistar POI não moveu um POI';
+    // frente montada pelo cenário (alvo = cidade inimiga mais perto): conquista só em ordem, a partir da sua cidade
+    const ln=warFrontLine(f);if(!ln)return 'cenário não montou a frente: '+WARSCN.noFront;
+    if(ln.kind!=='city'||!ln.target||ln.target.fid!==f)return 'alvo da frente não é cidade do inimigo';
+    for(const p of ln.pois)poiSetOwner(p,f);
+    const n=ln.pois.length,click=()=>{renderFacCheats();document.querySelector('[data-wsn="conq"]').click()};
+    if(!n)return 'cadeia vazia';
+    if(warFrontReleased(ln))return 'liberada sem controlar a cadeia';
+    if(n>1){P.x=ln.pois[n-1].cx;P.z=ln.pois[n-1].cz;click();   // perto do último: não é adjacente, recusa
+      if(ln.pois[n-1].owner==='player')return 'conquistou POI não adjacente';}
+    for(let i=0;i<n;i++){
+      P.x=ln.pois[i].cx;P.z=ln.pois[i].cz;click();
+      if(ln.pois[i].owner!=='player')return 'não conquistou o POI '+i+' da cadeia';
+      if(warFrontReleased(ln)!==(i===n-1))return 'liberação errada após '+(i+1)+' POIs';
+    }
+    if(!document.body.innerHTML.includes('liberada'))return 'painel não mostra a Conquista liberada';
+    const wb=warBookPages().join('');   // aba Guerra do caderno
+    if(!wb.includes('Guerra contra')||!wb.includes('liberada'))return 'aba Guerra não mostra a frente';
+    LB.tab='guerra';renderBook();if(!document.querySelector('#ldsub [data-tab="guerra"]'))return 'aba Guerra ausente';LB.tab='resumo';
+    // guerra por POI: o POI-alvo ocupa o lugar da cidade; só se conquista com a frente liberada
+    const tp=warPois().find(p=>warCanTarget(f,'poi',p));
+    if(tp){const r=warFrontCheck(f,'poi',tp);
+      if(r.plan){warFrontBuild(r.plan);const l2=warFrontLine(f);
+        if(l2.kind!=='poi'||l2.target!==tp)return 'frente por POI sem o POI-alvo';
+        if(l2.pois.length&&!warFrontReleased(l2)&&warFrontCanConquer(l2,tp))return 'POI-alvo conquistável com a frente bloqueada';}}
+    warFrontClear(f);   // deixa o cenário limpo para os testes seguintes
     return '';
   },
   warFront:()=>{   // frente da guerra: rota (origem, cadeia ordenada, desvio), POIs de guerra, ida e volta do estado, dormentes e reversão na paz

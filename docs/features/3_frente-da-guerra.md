@@ -84,7 +84,8 @@ Decisões fechadas com o usuário (2026-11-21), depois da tarefa 3 pronta e de t
 - **Como testar:** `?cenario=guerra&auto=1&mute=1` com `WAR.scenario.startAtWar=false`: Negociação → Guerra → escolher alvo → ver tracejado e previsão → confirmar; trocar de alvo antes de confirmar; fechar o caderno cancela sem declarar.
 - **Sessão nova:** é a parte de interface, independente da lógica já pronta; testa-se na tela com o navegador.
 
-## Tarefa 5: guerra por POI e cenário
+## Tarefa 5: guerra por POI e cenário (feita em 2026-11-22)
+- **Feito:** o alvo POI já era aceito pelo plano e pela declaração (4.6); agora há `warFrontLine/Released/CanConquer` em `js/warfront.js`; `warScenario` monta a frente contra a cidade inimiga mais perto; painel mostra a cadeia e "liberada/bloqueada"; "Conquistar POI" recusa o POI não adjacente. Sem toast novo de liberação (só o painel); o card real fica para os itens seguintes. Smoke cobre ordem, recusa, liberação e frente por POI.
 - **O que fazer:** alvo POI (o POI-alvo substitui a cidade no fim da cadeia); `warScenario` passa a montar a frente contra a cidade inimiga mais próxima em vez de dividir os POIs pela metade; o botão **Conquistar POI** do painel só aceita o POI adjacente da cadeia; o painel mostra a cadeia e o estado de "Conquista de Cidade liberada" (condição: POI mais perto de cada lado sob seu controle).
 - **Como testar:** `?cenario=guerra`: conquistar em ordem libera o card; pular um POI é recusado; guerra por POI com `warFrontPlan(...,'poi',p)`.
 - **Continua da 4:** reaproveita a UI e o estado já montados.
