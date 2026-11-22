@@ -70,6 +70,68 @@ const T={
     if(a()!==a0+1||b()!==b0-1)return 'Conquistar POI não moveu um POI';
     return '';
   },
+  warFront:()=>{   // frente da guerra: rota (origem, cadeia ordenada, desvio), POIs de guerra, ida e volta do estado, dormentes e reversão na paz
+    const f=WARSCN.fid,en=WORLD.cities.filter(c=>c.owner==='enemy'&&c.fid===f&&!c.rebel).sort((a,b)=>b.cx-a.cx)[0];
+    if(!en)return 'sem cidade inimiga';
+    const other=WORLD.cities.find(c=>c.owner==='enemy'&&c.fid!==f);if(other&&warCanTarget(f,'city',other))return 'cidade de terceiro virou alvo';
+    if(!warCanTarget(f,'city',en))return 'cidade inimiga não é alvo';
+    if(!(WORLD.dormant||[]).length)return 'sem dormentes';
+    for(const c of WORLD.cities)if(!(WORLD.dormant||[]).some(d=>d.ring===c.id))return 'cidade '+c.name+' sem dormente no anel';
+    const r=warFrontCheck(f,'city',en);if(!r.plan)return 'sem rota: '+String(r.erro).replace(/<[^>]*>/g,'');
+    const pl=r.plan;
+    if(pl.origin.owner!=='player')return 'origem não é cidade sua';
+    if(pl.ts.some((t,i)=>i&&t<pl.ts[i-1]))return 'cadeia fora de ordem';
+    const a=pl.path[0],b=pl.path[pl.path.length-1];
+    if(Math.hypot(a.x-pl.origin.cx,a.z-pl.origin.cz)>1||Math.hypot(b.x-en.cx,b.z-en.cz)>1)return 'rota não liga origem e alvo';
+    for(const c of WORLD.cities){
+      if(c===pl.origin||c===en||c.owner==='player'||(c.owner==='enemy'&&c.fid===f))continue;
+      if(pl.path.some(q=>Math.max(Math.abs(q.x-c.cx),Math.abs(q.z-c.cz))<c.half))return 'rota atravessa a cidade '+c.name;
+    }
+    const n0=WORLD.pois.length,nw=warFrontBuild(pl);
+    if(nw!==pl.war.length||WORLD.pois.length!==n0+nw)return 'POIs de guerra não foram construídos';
+    const fr=warX().camps[f].front;if(!fr||fr.war.length!==nw||fr.chain.length!==pl.chain.length)return 'frente não salva';
+    for(const e of fr.war)if(e.id<700||!WORLD.pois.some(p=>p.id===e.id))return 'POI de guerra sem id 700+';
+    if(nw){   // ida e volta: remove um POI de guerra do mundo e restaura pelo estado salvo
+      const e=fr.war[0],p=WORLD.pois.find(q=>q.id===e.id);wfUnmake(p);
+      if(WORLD.pois.some(q=>q.id===e.id))return 'wfUnmake não removeu';
+      warFrontRestore();if(!WORLD.pois.some(q=>q.id===e.id))return 'warFrontRestore não reconstruiu';
+    }
+    const rev=fr.war.filter(e=>WAR.front.revert[e.type]),keep=fr.war.filter(e=>!WAR.front.revert[e.type]);
+    const dorm=fr.war.filter(e=>e.dorm!==undefined);
+    for(const e of dorm)if(!WORLD.dormant[e.dorm].off)return 'dormente usado não ficou desligado';
+    facPeace(f);
+    if(warX().camps[f]&&warX().camps[f].front)return 'frente não apagada na paz';
+    for(const e of rev)if(WORLD.pois.some(p=>p.id===e.id))return 'POI de guerra revertido continua no mundo';
+    for(const e of rev)if(e.dorm!==undefined&&WORLD.dormant[e.dorm].off)return 'dormente não voltou na paz';
+    for(const e of keep){const p=WORLD.pois.find(q=>q.id===e.id);if(!p||p.owner!=='none')return 'rastro da guerra sem dono none';}
+    return '';
+  },
+  warPick:()=>{   // declaração com o mapa: escolher alvo, previsão, edição da rota (obrigatórios) e confirmar
+    const f=WARSCN.fid,en=WORLD.cities.find(c=>c.owner==='enemy'&&c.fid===f&&!c.rebel);
+    STATE.phase='leader';STATE.round=Math.max(STATE.round,1);
+    if(relOf(f).war)return 'ainda em guerra antes da declaração';
+    wfPickStart(f);if(!mapOpen()||!WF.pick)return 'mapa não abriu';
+    if(!$('lddone').disabled)return 'Encerrar turno não foi desligado na escolha';
+    const ev=o=>{const cv=$('bigmap'),rc=cv.getBoundingClientRect(),sc=cv.width/W;   // o mapa é redesenhado (e muda de tamanho) a cada passo
+      return{clientX:rc.left+o.cx*sc*rc.width/cv.width,clientY:rc.top+o.cz*sc*rc.height/cv.height}};
+    wfPickClick(ev(WORLD.home));if(WF.pick.plan)return 'cidade sua virou alvo';
+    wfPickClick(ev(en));if(!WF.pick.plan)return 'sem previsão do alvo';
+    if(!$('wfok')||!$('wfedit')||!$('wfretry'))return 'faltam botões da previsão';
+    $('wfedit').click();const ed=WF.pick.edit;if(!ed)return 'edição não abriu';
+    if(ed.left!==ed.must.length)return 'obrigatórios já marcados';
+    if(ed.must.length){wfEditFinish();if(!WF.pick.edit)return 'concluiu sem os obrigatórios';}
+    for(const m of ed.must.slice())wfEditClick(ev(m));
+    if(WF.pick.edit.left)return 'obrigatórios não marcados';
+    wfEditFinish();if(WF.pick.edit||!WF.pick.plan)return 'edição não concluiu';
+    const pl=WF.pick.plan;if(ed.must.some(o=>o.spot?!pl.war.some(e=>e.cx===o.cx&&e.cz===o.cz):!pl.chain.includes(o)))return 'obrigatório fora do plano';
+    $('wfok').click();
+    if(!relOf(f).war)return 'guerra não declarada';
+    if(!warX().camps[f].front)return 'frente não montada';
+    if(WF.pick)return 'escolha não foi encerrada';
+    if(!wfShown()||!wfShown().saved)return 'frente salva não aparece no mapa';
+    facPeace(f);if(wfShown())return 'marcas não sumiram na paz';
+    return '';
+  },
   lvl:()=>{   // níveis da facção e das cidades (LVL): capital herda rd.lvl, limites por rodada, requisitos de POIs e cidades
     const rd=STATE.rd,h=WORLD.home,npc=WORLD.cities.find(c=>c.owner!=='player'),keep=[rd.lvl,rd.clv[h.id],rd.facUpR,rd.cityUpR,STATE.phase,rd.actions,P.coins];
     try{
@@ -386,6 +448,8 @@ const T={
     g=await openGame(browser,base,'cenario=guerra&mute=1');
     report(!g.errs.length,'guerra: sem erros ao carregar',g.errs.join(' | ').slice(0,300));
     await check(g,'guerra: cenário (guerra, divisão de POIs, Conquistar POI)',T.warScn);
+    await check(g,'guerra: frente (rota, POIs de guerra, save, dormentes e reversão na paz)',T.warFront);
+    await check(g,'guerra: declaração com o mapa (alvo, previsão, edição da rota, confirmar)',T.warPick);
     await g.page.close();
   }catch(e){report(false,'execução',e.message.split('\n')[0])}
   await browser.close();srv.close();

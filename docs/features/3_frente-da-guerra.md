@@ -77,7 +77,7 @@ Decisões fechadas com o usuário (2026-11-21), depois da tarefa 3 pronta e de t
 | 4.4 ✅ | **(feita; dormentes são poucos em mapas cheios: o espaço é disputado com POIs e clareiras, e o plano cai na clareira ou avisa) Dormentes e anel das cidades:** 4 decorações, corredores, `WORLD.dormant`, conversão e reversão, pesos por posição, dono por terços e `banditChance`, salto máximo no plano | G | **Nova:** a mais arriscada e depende da 4.2 e da 4.3 já commitadas |
 | 4.5 ✅ | **Rota bloqueada:** mostra o que bloqueia e a facção; recusa o alvo na declaração | M | Continua da 4.4: mesmo plano de rota |
 | 4.6 ✅ | **(feita) Declaração com mapa + edição da rota por raio** (a antiga Tarefa 4, abaixo) | M | **Nova:** é interface, testada na tela com o navegador |
-| 4.7 | **Smoke e documentação:** rota, dormentes e reversão no `tests/smoke.js`; `docs/MAPA.md` | P | Continua da 4.6 |
+| 4.7 ✅ | **(feita) Smoke e documentação:** rota, dormentes e reversão no `tests/smoke.js`; `docs/MAPA.md` | P | Continua da 4.6 |
 
 ### Declaração com mapa (etapa 4.6)
 - **O que fazer:** na tela Guerra da Negociação (`js/negoc.js`) o botão passa a abrir o mapa (`WF.pick`). `bookmap.js`: faixa de escolha em `mapPages`. Clique em cidade (`pickCityAt`) ou POI (`pickPoiAt`) válido (`warCanTarget`) calcula o plano e mostra a previsão com os botões **Confirmar** e **Escolher outro alvo**. `drawBigMap` ganha `warFrontDraw` (linha tracejada da rota e quadrados dos POIs de guerra previstos; depois de declarada a guerra, a frente fica sempre desenhada). Confirmar: `facDeclareWar`, grava `STATE.war.camps[fid].front` e chama `warFrontBuild`.
