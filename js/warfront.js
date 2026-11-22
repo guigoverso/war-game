@@ -25,16 +25,19 @@ function wfBlockers(fid, origin, target) {
   return out;
 }
 
-// Busca A* na grade de WAR.front.cell blocos. water: custo extra por célula de água (null = água proibida).
+// Busca A* na grade de WAR.front.cell blocos. water: custo extra por célula de água (null = água proibida); avoid: folga, em
+// blocos, que a rota guarda dos obstáculos (cidade é um quadrado: distância de xadrez; POI é um círculo).
 // Devolve a lista de células [ix, iz] da origem ao alvo, ou null.
-function wfSearch(a, b, blk, water) {
+function wfSearch(a, b, blk, water, avoid) {
   const F = WAR.front, S = F.cell, N = Math.floor(W / S), cell = v => clamp(Math.floor(v / S), 0, N - 1);
   const wat = (i, j) => H[clamp(j * S + S / 2 | 0, 0, W - 1) * W + clamp(i * S + S / 2 | 0, 0, W - 1)] < SEA;
   const bad = new Uint8Array(N * N);
   for (const o of blk) {
-    const r = wfRad(o) + F.avoid, i0 = cell(o.cx - r), i1 = cell(o.cx + r), j0 = cell(o.cz - r), j1 = cell(o.cz + r);
+    const r = wfRad(o) + avoid, sq = o.half !== undefined, i0 = cell(o.cx - r), i1 = cell(o.cx + r);
+    const j0 = cell(o.cz - r), j1 = cell(o.cz + r);
     for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
-      if (Math.hypot(i * S + S / 2 - o.cx, j * S + S / 2 - o.cz) < r) bad[j * N + i] = 1;
+      const dx = Math.abs(i * S + S / 2 - o.cx), dz = Math.abs(j * S + S / 2 - o.cz);
+      if ((sq ? Math.max(dx, dz) : Math.hypot(dx, dz)) < r) bad[j * N + i] = 1;
     }
   }
   const si = cell(a.cx), sj = cell(a.cz), gi = cell(b.cx), gj = cell(b.cz);
@@ -76,12 +79,17 @@ function wfWaterRun(cells) {
   return best * S;
 }
 
-// Rota por terra de a até b (objetos com cx, cz): vão de água só até WAR.front.waterMax; senão contorna. null = sem caminho.
+// Rota por terra de a até b (objetos com cx, cz): vão de água só até WAR.front.waterMax; senão contorna. Duas passadas de
+// folga: primeiro com WAR.front.avoid dos obstáculos; se não houver caminho, sem folga (colada, mas fora deles). null = sem caminho.
 // Devolve [{x, z}] com a origem e o alvo nas pontas.
 function wfRoute(a, b, blk) {
   const F = WAR.front;
-  let cells = wfSearch(a, b, blk, F.waterCost);
-  if (cells && wfWaterRun(cells) > F.waterMax) cells = wfSearch(a, b, blk, null);
+  let cells = null;
+  for (const avoid of [F.avoid, 0]) {
+    cells = wfSearch(a, b, blk, F.waterCost, avoid);
+    if (cells && wfWaterRun(cells) > F.waterMax) cells = wfSearch(a, b, blk, null, avoid);
+    if (cells) break;
+  }
   if (!cells) return null;
   const S = F.cell, pts = cells.map(([i, j]) => ({ x: i * S + S / 2, z: j * S + S / 2 }));
   pts[0] = { x: a.cx, z: a.cz }; pts[pts.length - 1] = { x: b.cx, z: b.cz };
@@ -121,6 +129,21 @@ function warFrontDraw(g, s, k) {
     g.setLineDash([4 * k, 3 * k]); g.strokeStyle = '#7fd0ff'; g.lineWidth = 2 * k;
     g.strokeRect(e.cx * s - h, e.cz * s - h, 2 * h, 2 * h);
   }
+  g.restore();
+}
+
+// Desenha a rota no minimapa (g já está transladado e rotacionado em torno do jogador; s = escala do minimapa).
+// Só se WAR.front.minimap estiver ligado. Linha tracejada vermelha e círculo dourado nos POIs da cadeia.
+function warFrontDrawMini(g, s) {
+  const pl = WF.plan;
+  if (!pl || !WAR.front.minimap) return;
+  g.save();
+  g.lineWidth = 2.5; g.strokeStyle = '#ff4a3a'; g.setLineDash([6, 4]); g.lineJoin = 'round';
+  g.beginPath();
+  pl.path.forEach((q, i) => i ? g.lineTo((q.x - P.x) * s, (q.z - P.z) * s) : g.moveTo((q.x - P.x) * s, (q.z - P.z) * s));
+  g.stroke(); g.setLineDash([]);
+  g.strokeStyle = '#ffd23a'; g.lineWidth = 1.8;
+  for (const p of pl.chain) { g.beginPath(); g.arc((p.cx - P.x) * s, (p.cz - P.z) * s, 8, 0, 6.283); g.stroke(); }
   g.restore();
 }
 
@@ -231,11 +254,14 @@ function genWarSites(taken) {
   const F = WAR.front, S = WORLD.warSites = [];
   if (WORLD.showcaseMode) return;
   const rng = new RNG((WORLD.seed * 977 + 13) >>> 0), r = POI_DEFS.fortcamp.r;
-  const big = taken.filter(q => q.r > 4), tiny = taken.filter(q => q.r <= 4);   // baús escondidos (r 4) só pedem uma folga curta
+  // 'taken' começa pelas cidades (círculos): elas saem daqui e são medidas como quadrados (distância de xadrez), senão a
+  // clareira entra pelos cantos da muralha. Baús escondidos (r 4) só pedem uma folga curta.
+  const rest = taken.slice(WORLD.cities.length), big = rest.filter(q => q.r > 4), tiny = rest.filter(q => q.r <= 4);
+  const nearCity = (x, z) => WORLD.cities.some(c => Math.max(Math.abs(c.cx - x), Math.abs(c.cz - z)) < c.half + r + F.gap);
   for (let t = 0; t < F.siteTries && S.length < F.sites; t++) {
     const x = rng.int(30, W - 30), z = rng.int(30, W - 30);
     const y = spotOK(x, z, r + 1, big, F.gap + r, F.siteRange + (t > F.siteTries / 2 ? 6 : 0));   // mais tarde, aceita mais desnível (o POI se adapta ao chão)
-    if (y === null || tiny.some(q => Math.hypot(q.x - x, q.z - z) < q.r + r + 3)) continue;
+    if (y === null || nearCity(x, z) || tiny.some(q => Math.hypot(q.x - x, q.z - z) < q.r + r + 3)) continue;
     const q = { x, z, r };
     big.push(q); S.push({ x, z, y });
   }

@@ -37,7 +37,7 @@ Origem: feature 36 e item 4b de `docs/fase-6-guerra.md`. Desenho fechado com o u
 | 1 | **Números e textos** (`WAR.front`, regras de chance e de alvo, textos) | P | Continua desta (já feita) |
 | 2 | **Rota e cadeia** (cálculo puro, sem UI) | G | Nova |
 | 3 | **POIs de guerra em jogo** (planejar vazios, construir, remover, salvar/restaurar) | G | Continua da 2 |
-| 4 | **Declaração com mapa** (escolher alvo, previsão, linha tracejada, confirmar) | M | Nova |
+| 4 | **Ajustes da frente, POIs de guerra novos, dormentes e declaração com mapa** (etapas 4.1 a 4.7 abaixo) | G | Ver a coluna Sessão de cada etapa |
 | 5 | **Guerra por POI e cenário** (alvo POI, `?cenario=guerra` com frente, "Conquistar POI" na ordem da cadeia) | M | Continua da 4 |
 | 6 | **Teste de fumaça e documentação** | P | Continua da 5 |
 
@@ -56,7 +56,30 @@ Origem: feature 36 e item 4b de `docs/fase-6-guerra.md`. Desenho fechado com o u
 - **Como testar:** `warFrontBuild(plan)` no console: POIs aparecem na rota (ver o mapa, aba 📍 Locais), jogador anda sobre a base sem buraco na malha; salvar e carregar (`?load=1`) reconstrói igual; `facPeace(fid)` os remove sem deixar colisão nem soldado.
 - **Continua da 2:** usa o plano da 2 e o contexto do desenho dos quadrados; separar custaria reexplicar a rota.
 
-## Tarefa 4: declaração com mapa
+## Tarefa 4: ajustes da frente, POIs de guerra novos, dormentes e declaração com mapa
+Decisões fechadas com o usuário (2026-11-21), depois da tarefa 3 pronta e de testes no jogo (semente 3 e 1924221522):
+- **Por que mudar:** em jogo a malha do terreno e as árvores não mudam, então clareira/declive barravam quase todos os POIs de guerra; com folga de 4 blocos eles ficaram colados nos POIs e dentro da muralha de cidades (cidade quadrada medida como círculo).
+- **6 tipos de POI de guerra** (só visual, sem efeitos): Acampamento fortificado (raio 12), Trincheira (11), Hospital de campanha (10; NPCs deitados nas macas e médicos andando), Depósito de suprimentos (10; com barricadas), Atalaia de madeira (6) e Barricada de estrada (7; **só em estrada**).
+- **Encaixe temático (pesos por posição `t` na rota; se for custoso, aleatório):** Trincheira na fronteira (onde o controle muda: entre o último POI seu e o primeiro do inimigo, senão `t` 0,5); Hospital e Depósito entre a fronteira e as cidades; Acampamento em qualquer lugar; Atalaia em qualquer lugar; Barricada só em estrada.
+- **POIs dormentes (guardam o lugar):** decoração sem função, gerada ao longo dos corredores (união das rotas entre cidades), em lista própria `WORLD.dormant`. Raio igual compartilha a decoração: **Fogueira** (12 → Acampamento), **Jardim** (11 → Trincheira), **Poço** (10 → Hospital ou Depósito), **Marco de pedras** (7 → Atalaia, ou Barricada se estiver ao lado de estrada). Na declaração os dormentes da rota viram POIs de guerra (troca de malha no mesmo lugar); onde não há dormente, vale a clareira com POI adaptado ao terreno (já feito).
+- **Reverter na paz:** `WAR.front.revert` por tipo (reconstrói a decoração). Padrão: reverter Barricada, Hospital, Depósito e Atalaia; Trincheira e Acampamento ficam como rastro da guerra.
+- **Dono:** dormente sem dono. Convertido: primeiro terço da rota seu, último terço do inimigo, terço do meio com `WAR.front.banditChance` (40%) de bandidos (com teto de guarnições), senão o lado mais próximo. Na paz o que foi tomado se perde.
+- **Anel de cidade (evita o primeiro POI conquistável longe demais):** cada cidade reserva `ringSites` (3) dormentes até `ringRadius` (110) blocos da muralha, em direções diferentes. No plano, o primeiro POI conquistável a partir da origem e o último antes do alvo ficam a no máximo `ringRadius`; se não, o plano inclui um dormente do anel como POI de guerra (senão clareira adaptável; senão avisa).
+- **Rota bloqueada:** duas passadas de folga (18 e depois 0); sem caminho, o aviso diz qual POI ou cidade bloqueia e de qual facção, e o alvo é recusado na declaração. Aliado entrar na guerra, negociar o POI e declarar guerra ao dono ficam **fora** (decisão: ignorar).
+- **Editar a rota:** "Editar" limpa a rota; o jogador marca paradas salto a salto entre POIs descobertos e "?" (identidade escondida) dentro de um raio que cresce em degraus até achar candidato (com teto, senão só "ligar ao alvo"); candidato precisa de caminho por terra de tamanho razoável (até 1,5× o raio); não repete parada; alvo vira candidato quando entra no raio; desfazer e voltar à automática. Sem limite de comprimento nem de loops (a fadiga é do jogador); só o raio por salto impede ir direto de cidade a cidade. Reaproveita `wfThread`.
+- **Minimapa:** a rota aparece no minimapa (`WAR.front.minimap`, padrão true).
+
+| Etapa | O que faz | Tam. | Sessão |
+|---|---|---|---|
+| 4.1 ✅ | **Correções de espaço (feita):** folga de 22 ou mais, cidade medida como quadrado, folga entre POI de guerra e POI comum; rota em duas passadas de folga | P | Continua desta: o bug e os números estão no contexto |
+| 4.2 | **A + B:** `band` maior e cadeia com mais POIs existentes; a rota prefere clareiras e POIs (desconto de custo na busca) | M | Continua da 4.1: mesmo código (`js/warfront.js`) |
+| 4.3 | **Os 6 tipos de POI de guerra:** raios, construtores novos (Atalaia, Barricada, Hospital com NPCs, Depósito com barricadas), textos e números nos modificadores | G | **Nova:** só mexe em `js/pois.js` e no visual; contexto limpo. Brief cita este arquivo |
+| 4.4 | **Dormentes e anel das cidades:** 4 decorações, corredores, `WORLD.dormant`, conversão e reversão, pesos por posição, dono por terços e `banditChance`, salto máximo no plano | G | **Nova:** a mais arriscada e depende da 4.2 e da 4.3 já commitadas |
+| 4.5 | **Rota bloqueada:** mostra o que bloqueia e a facção; recusa o alvo na declaração | M | Continua da 4.4: mesmo plano de rota |
+| 4.6 | **Declaração com mapa + edição da rota por raio** (a antiga Tarefa 4, abaixo) | M | **Nova:** é interface, testada na tela com o navegador |
+| 4.7 | **Smoke e documentação:** rota, dormentes e reversão no `tests/smoke.js`; `docs/MAPA.md` | P | Continua da 4.6 |
+
+### Declaração com mapa (etapa 4.6)
 - **O que fazer:** na tela Guerra da Negociação (`js/negoc.js`) o botão passa a abrir o mapa (`WF.pick`). `bookmap.js`: faixa de escolha em `mapPages`. Clique em cidade (`pickCityAt`) ou POI (`pickPoiAt`) válido (`warCanTarget`) calcula o plano e mostra a previsão com os botões **Confirmar** e **Escolher outro alvo**. `drawBigMap` ganha `warFrontDraw` (linha tracejada da rota e quadrados dos POIs de guerra previstos; depois de declarada a guerra, a frente fica sempre desenhada). Confirmar: `facDeclareWar`, grava `STATE.war.camps[fid].front` e chama `warFrontBuild`.
 - **Como testar:** `?cenario=guerra&auto=1&mute=1` com `WAR.scenario.startAtWar=false`: Negociação → Guerra → escolher alvo → ver tracejado e previsão → confirmar; trocar de alvo antes de confirmar; fechar o caderno cancela sem declarar.
 - **Sessão nova:** é a parte de interface, independente da lógica já pronta; testa-se na tela com o navegador.
