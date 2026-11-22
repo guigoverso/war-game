@@ -144,8 +144,8 @@ function renderBook(){
 function bookClick(e){
   const t=e.target.closest('button');if(!t||!$('ldbook').contains(t))return;
   const rd=STATE.rd,a=t.dataset.a;
-  if(t.dataset.top){LB.top=t.dataset.top;G.invSel=null;G.pendSel=null;renderBook();return}
-  if(t.dataset.tab){LB.tab=t.dataset.tab;LB.top='book';renderBook();return}
+  if(t.dataset.top){if(t.dataset.top!=='map')G.cityFocus=null;LB.top=t.dataset.top;G.invSel=null;G.pendSel=null;renderBook();return}
+  if(t.dataset.tab){G.cityFocus=null;LB.tab=t.dataset.tab;LB.top='book';renderBook();return}
   if(t.id==='lddone'){if(G.office&&G.office.meet)return;if(isLeader())finishLeaderTurn();else{closePanel();leaveOffice()}return}
   if(t.id==='ldclose'){closePanel();return}
   if(LB.top==='inv'||LB.top==='map')return;   // botões da bolsa têm seus próprios tratadores; o mapa só tem o canvas

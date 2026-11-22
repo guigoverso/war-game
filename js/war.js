@@ -42,7 +42,11 @@ function warScenario() {
   STATE.res.food = S.food; STATE.res.ore = S.ore;
   facSetIdentity({ name: 'Cenário de guerra' });
   const npc = () => WORLD.cities.filter(c => c.owner === 'enemy'), cnt = f => npc().filter(c => c.fid === f).length;
-  const en = WORLD.factions.filter(f => cnt(f.id)).sort((a, b) => cnt(b.id) - cnt(a.id))[0];
+  // facção do alvo: a da cidade inimiga cuja trilha tem mais POIs (para o teste das operações ter por onde atacar)
+  const trail = c => { const r = warCanTarget(c.fid, 'city', c) && warFrontCheck(c.fid, 'city', c); return r && r.plan ? r.plan.chain.length + r.plan.war.length : -1; };
+  const best = npc().sort((a, b) => trail(b) - trail(a))[0];
+  const en = best && trail(best) >= 0 ? WORLD.factions.find(f => f.id === best.fid)
+    : WORLD.factions.filter(f => cnt(f.id)).sort((a, b) => cnt(b.id) - cnt(a.id))[0];
   en.temper = 'agressiva'; WARSCN.fid = en.id;
   // cidades conquistadas: as de menor rank das outras facções
   for (let k = 0; k < S.extraCities; k++) {
@@ -54,9 +58,8 @@ function warScenario() {
   if (!S.startAtWar) return;   // em paz: a declaração fica por sua conta (Negociações)
   facDeclareWar(en.id, false);
   warX().camps[en.id] = { kind: 'attack', since: STATE.round, allies: { player: [], enemy: [] } };
-  // frente contra a cidade inimiga mais perto de você (alvo padrão); sem rota, o aviso diz por quê
-  const mine = playerCities(), dm = c => Math.min(...mine.map(m => Math.hypot(m.cx - c.cx, m.cz - c.cz)));
-  const tgt = npc().filter(c => c.fid === en.id && warCanTarget(en.id, 'city', c)).sort((a, b) => dm(a) - dm(b))[0];
+  // frente contra a cidade inimiga de trilha mais longa (alvo padrão); sem rota, o aviso diz por quê
+  const tgt = npc().filter(c => c.fid === en.id && warCanTarget(en.id, 'city', c)).sort((a, b) => trail(b) - trail(a))[0];
   const r = tgt && warFrontCheck(en.id, 'city', tgt);
   if (r && r.plan) warFrontBuild(r.plan); else WARSCN.noFront = r ? r.erro : TXT_WAR_NO_ROUTE;
 }

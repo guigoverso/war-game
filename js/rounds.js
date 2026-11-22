@@ -84,9 +84,10 @@ function rebelCity(c){
   if(OFFICE.ok)enterOffice();else{toast('📖 Turno do líder: abra o livro de decisões na prefeitura.',4000);if(G.running)openBook()}
   Hooks.emit('leaderTurn');   // políticas: sorteia o cartão da rodada
 }
-function finishLeaderTurn(){
+function finishLeaderTurn(skipWar){
   if(typeof meetPending==='function'&&meetPending()&&!(STATE.pol&&STATE.pol.pending)){normalizePol();STATE.pol.pending=meetCard()}   // a reunião vem antes de encerrar o turno
   if(STATE.pol&&STATE.pol.pending){toast('📜 Decida a política desta rodada antes de encerrar o turno.',3500);showPolicy();return}
+  if(!skipWar&&warLeftoverAsk(()=>finishLeaderTurn(true)))return;   // guerra com pontos sobrando e nenhuma operação: pergunta antes (warbook.js)
   for(const c of WORLD.cities){const e=ec(c);if(e.type==='port'&&e.nf){if(e.pf!==e.nf){const lost=moveProdToStore(c);if(lost&&c.owner==='player')toast('⚓ '+c.name+': a abundância mudou. '+lost+'.',4000)}e.pf=e.nf;e.ps=e.ns;e.pct=portPct(e.pf,e.ps)}delete e.nf;delete e.ns}   // a nova distribuição do porto só vale agora
   Hooks.emit('leaderEnd');   // POIs livres sem decisão podem ser retomados (poigame.js)
   computeBuffs();STATE.phase='commander';

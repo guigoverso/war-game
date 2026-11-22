@@ -1,7 +1,7 @@
 'use strict';
 // ---------- Operações de guerra: lógica (feature operações de guerra; docs/features/4_operacoes-de-guerra.md) ----------
 // No turno do Líder o jogador gasta pontos de líder (STATE.rd.actions) em operações; no do Comandante cumpre no mapa o que lançou.
-// Operação em STATE.war.ops: {id, type, fid, target (id do POI), cost, state, after (id da operação de que depende), round}.
+// Operação em STATE.war.ops: {id, type, fid, target (id do POI), of (dono quando lançou), cost, state, after (id da operação de que depende), round}.
 //  state: 'aguarda' (depende de outro ataque da rodada) | 'ativa' | 'ok' (cumprida) | 'falha'
 // Por ora só o Ataque a POI está ativo (WAR.ops); a estrutura de Defesa, Sabotagem e cidade já existe, desativada.
 // Execução no mapa (guarnição, blindagem) é a tarefa 4; fechamento da rodada (falhas, fadiga, log) é a tarefa 5.
@@ -62,7 +62,7 @@ function warOpPlan(fid, p) {
   if (why) return { ok: false, why };
   const ln = warFrontLine(fid), i = ln.pois.indexOf(p), link = i >= 0 ? warOpLink(ln, i) : { after: null };
   const W = warX(), cost = warOpCost('attack');
-  const op = { id: 1 + Math.max(0, ...W.ops.map(o => o.id || 0)), type: 'attack', fid, target: p.id, cost,
+  const op = { id: 1 + Math.max(0, ...W.ops.map(o => o.id || 0)), type: 'attack', fid, target: p.id, of: p.owner, cost,
     state: link.after ? 'aguarda' : 'ativa', after: link.after, round: STATE.round };
   STATE.rd.actions -= cost; W.ops.push(op);
   toast(txtWarOpPlanned(POI_DEFS[p.type].n, !!link.after), 3000);
@@ -75,7 +75,6 @@ function warOpCancel(id) {
   for (const d of warX().ops.filter(o => o.after === id && o.state === 'aguarda')) warOpCancel(d.id);
   STATE.rd.actions += op.cost;
   warX().ops.splice(warX().ops.indexOf(op), 1);
-  const p = warOpPoi(op); if (p) toast(txtWarOpCancelled(POI_DEFS[p.type].n), 3000);
   return true;
 }
 

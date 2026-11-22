@@ -67,11 +67,6 @@ const TXT_WAR_SCN_NO_POI = 'Nenhum POI disponível para essa ação.';
 const txtWarScnConquered = n => '🏴 ' + n + ' conquistado (atalho de teste).';
 // Cenário de guerra: aviso do botão "Perder POI". n = nome do POI, f = nome da facção.
 const txtWarScnLost = (n, f) => '🏳 ' + n + ' passou para ' + f + ' (atalho de teste).';
-// Caderno, aba Guerra: título da página da frente. en = facção inimiga, tn = nome do alvo, kind = 'city' ou 'poi', org = cidade sua de origem.
-const txtWarTabHead = (en, tn, kind, org) => '<h3>⚔ Guerra contra ' + en + '</h3><p>Alvo: <b>' + tn + '</b> (' +
-  (kind === 'poi' ? 'POI' : 'cidade') + ') • saindo de <b>' + org + '</b></p>';
-// Caderno, aba Guerra: uma linha da cadeia. i = posição (1...), n = nome do POI, o = dono, mine = é seu, next = pode conquistar agora.
-const txtWarTabRow = (i, n, o, mine, next) => '<li>' + i + '. ' + (mine ? '✔ ' : next ? '▶ ' : '') + n + ' — ' + o + (next ? ' <b>(próximo)</b>' : '') + '</li>';
 // Caderno, aba Guerra: estado da Conquista. kind = 'city' ou 'poi', ok = liberada.
 const txtWarTabState = (kind, ok) => '<p>' + (ok ? '✅ ' : '🔒 ') + '<b>' + (kind === 'poi' ? 'Conquista do POI-alvo' : 'Conquista de Cidade') + '</b> ' +
   (ok ? 'liberada.' : 'bloqueada: falta controlar o POI mais perto da sua cidade e o mais perto do alvo.') + '</p>';

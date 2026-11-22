@@ -787,24 +787,6 @@ function warFrontLine(fid) {
   const target = fr.kind === 'poi' ? WORLD.pois.find(p => p.id === fr.targetId) : WORLD.cities.find(c => c.id === fr.targetId);
   return { fr, kind: fr.kind, target, pois };
 }
-// Aba Guerra do caderno (book.js): cada frente declarada com a cadeia em ordem e o estado da Conquista. Devolve [esquerda, direita].
-function warBookPages() {
-  let L = '';
-  const at = new Set(Object.keys(warX().camps).map(Number));
-  for (const f of WORLD.factions || []) if (relOf(f.id).war) at.add(f.id);   // guerra sem campanha (ex.: status forçado no modo criativo)
-  for (const fid of at) {
-    const ln = warFrontLine(fid), en = (facOf(fid) || {}).name || 'Inimigo';
-    if (!ln || !ln.target) { L += '<h3>⚔ Guerra contra ' + en + '</h3>' + TXT_WAR_TAB_NOFRONT; continue; }
-    const tn = ln.kind === 'city' ? ln.target.name : POI_DEFS[ln.target.type].n, org = WORLD.cities.find(c => c.id === ln.fr.originId);
-    L += txtWarTabHead(en, tn, ln.kind, org ? org.name : '?') + '<ul class="ldul">'
-      + (ln.pois.map((p, i) => txtWarTabRow(i + 1, POI_DEFS[p.type].n, poiOwnerName(p.owner), p.owner === 'player', warFrontCanConquer(ln, p))).join('')
-        || '<li>Sem POIs no caminho.</li>') + '</ul>' + txtWarTabState(ln.kind, warFrontReleased(ln));
-  }
-  const scn = typeof WARSCN !== 'undefined' && WARSCN.on && L   // cenário de guerra: atalhos de teste aqui também (sem modo criativo)
-    ? TXT_WAR_TAB_SCN + '<button data-wsn="poi" class="alt">📍 Ir ao POI inimigo</button> <button data-wsn="conq" class="alt">🏴 Conquistar POI</button>' : '';
-  const R = TXT_WAR_TAB_HELP + (L ? '<button data-a="warmap" class="gold">🗺 Ver a frente no mapa</button>' : '') + scn;
-  return [L || TXT_WAR_TAB_NONE, R];
-}
 // Conquista de Cidade (ou do POI-alvo) liberada? Só se o POI mais perto da sua cidade e o mais perto do alvo estão com você;
 // sem POIs na linha, já está liberada (a invasão começa na rodada 1).
 const warFrontReleased = ln => !ln.pois.length || (ln.pois[0].owner === 'player' && ln.pois[ln.pois.length - 1].owner === 'player');
