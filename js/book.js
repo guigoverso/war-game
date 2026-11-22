@@ -138,7 +138,7 @@ function renderBook(){
   $('ldtabs').innerHTML=[['inv','🎒','Bolsa'],['book','📖','Livro'],['map','🗺','Mapa']].filter(t=>!(G.office&&t[0]==='inv')).map(t=>'<button class="'+((inv?'inv':mp?'map':'book')===t[0]?'sel':'')+'" data-top="'+t[0]+'">'+t[1]+'<br><small>'+t[2]+'</small></button>').join('');
   $('ldL').parentNode.classList.toggle('ldmap',mp);   // no mapa o livro vira uma página só, mais alta
   $('lddone').style.display=(isLeader()||G.office)?'':'none';$('lddone').textContent='✔ Encerrar turno';
-  {const inMeet=!!(G.office&&G.office.meet);$('lddone').disabled=inMeet;$('lddone').title=inMeet?'Termine a reunião antes de encerrar o turno':''}   // na sala de reuniões não dá para encerrar o turno
+  {const inMeet=!!(G.office&&G.office.meet);const picking=!!WF.pick;$('lddone').disabled=inMeet||picking;$('lddone').title=inMeet?'Termine a reunião antes de encerrar o turno':picking?TXT_WAR_END_BLOCKED:''}   // na sala de reuniões não dá para encerrar o turno
 }
 function bookClick(e){
   const t=e.target.closest('button');if(!t||!$('ldbook').contains(t))return;

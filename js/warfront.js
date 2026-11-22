@@ -115,10 +115,39 @@ function wfAlong(path, cum, x, z) {
 }
 
 // Plano mostrado no mapa grande (wfTest o define; a tarefa 4 passa a usá-lo na previsão). null = nada desenhado.
-const WF = { plan: null };
+// pick = escolha do alvo na declaração {fid, ref, kind, plan, edit}: plan = previsão; edit = edição da rota {stops, cur, R, list}.
+const WF = { plan: null, pick: null };
+// Frente já declarada (salva em STATE.war.camps[fid].front) no mesmo formato do plano, para ficar sempre desenhada.
+function wfSaved() {
+  const camps = (STATE.war && STATE.war.camps) || {};
+  for (const f in camps) {
+    const fr = camps[f].front;
+    if (!fr) continue;
+    return { path: fr.path.map(([x, z]) => ({ x, z })), chain: fr.chain.map(id => WORLD.pois.find(p => p.id === id)).filter(Boolean),
+      war: fr.war.filter(e => WORLD.pois.some(p => p.id === e.id)), saved: true,
+      marks: (fr.marks || []).map(id => WORLD.pois.find(p => p.id === id)).filter(Boolean) };
+  }
+  return null;
+}
+// POI da frente (previsão ou declarada) ainda não descoberto: o mapa o mostra como "?" até o jogador chegar perto ou a guerra
+// acabar. o = POI da cadeia ou entrada de POI de guerra; POI de guerra ainda não construído (previsão) conta como não descoberto.
+const wfHidden = (pl, o) => {
+  if (o.type && POI_DEFS[o.type].war) { const r = o.id !== undefined && WORLD.pois.find(p => p.id === o.id); return r ? !poiVisible(r) : true; }
+  return !poiVisible(o);
+};
+// Marca de um POI da frente ainda não descoberto: "?" para POI comum; círculo cheio na cor de quem o domina para POI de guerra.
+function wfDot(g, x, y, r, o) {
+  const real = POI_DEFS[o.type].war && WORLD.pois.find(p => p.id === o.id);
+  if (!real) return drawQuery(g, x, y, r);
+  g.save(); g.fillStyle = poiCss(real.owner); g.strokeStyle = '#000'; g.lineWidth = 2;
+  g.beginPath(); g.arc(x, y, r, 0, 6.283); g.fill(); g.stroke(); g.restore();
+}
+// O que o mapa mostra: a previsão da escolha, o plano de teste (wfTest) ou a frente salva.
+const wfShown = () => WF.pick ? WF.pick.plan : (WF.plan || wfSaved());
 // Desenha no mapa grande (g, escala s, fator k de drawBigMap) a rota tracejada e destaca a cadeia numerada.
 function warFrontDraw(g, s, k) {
-  const pl = WF.plan;
+  if (WF.pick && WF.pick.edit) return wfDrawEdit(g, s, k);
+  const pl = wfShown();
   if (!pl) return;
   g.save();
   g.lineWidth = 3 * k; g.strokeStyle = '#ff4a3a'; g.setLineDash([8 * k, 6 * k]); g.lineCap = 'round';
@@ -128,21 +157,22 @@ function warFrontDraw(g, s, k) {
   g.font = 'bold ' + Math.round(12 * k) + 'px monospace'; g.textAlign = 'center'; g.lineWidth = 3;
   pl.chain.forEach((p, i) => {
     const x = p.cx * s, y = p.cz * s;
-    g.strokeStyle = '#ffd23a'; g.beginPath(); g.arc(x, y, 11 * k, 0, 6.283); g.stroke();
+    if (wfHidden(pl, p)) drawQuery(g, x, y, 11 * k);
+    else { g.strokeStyle = '#ffd23a'; g.beginPath(); g.arc(x, y, 11 * k, 0, 6.283); g.stroke(); }
     g.fillStyle = '#fff'; g.strokeStyle = '#000'; g.strokeText(i + 1, x, y + 22 * k); g.fillText(i + 1, x, y + 22 * k);
   });
-  for (const e of pl.war) {   // POIs de guerra previstos: quadrado do raio, tracejado
-    const h = POI_DEFS[e.type].r * s;
-    g.setLineDash([4 * k, 3 * k]); g.strokeStyle = '#7fd0ff'; g.lineWidth = 2 * k;
-    g.strokeRect(e.cx * s - h, e.cz * s - h, 2 * h, 2 * h);
+  for (const e of pl.war) {   // POIs de guerra: frente declarada = círculo cheio na cor do dono; rota editada (antes da guerra) = "?"
+    if (pl.saved) wfDot(g, e.cx * s, e.cz * s, 9 * k, e);
+    else if (pl.manual) drawQuery(g, e.cx * s, e.cz * s, 11 * k);
   }
+  for (const p of pl.marks || []) if (!poiVisible(p)) drawQuery(g, p.cx * s, p.cz * s, 11 * k);   // "?" vistos na edição da rota
   g.restore();
 }
 
 // Desenha a rota no minimapa (g já está transladado e rotacionado em torno do jogador; s = escala do minimapa).
 // Só se WAR.front.minimap estiver ligado. Linha tracejada vermelha e círculo dourado nos POIs da cadeia.
 function warFrontDrawMini(g, s) {
-  const pl = WF.plan;
+  const pl = wfShown();
   if (!pl || !WAR.front.minimap) return;
   g.save();
   g.lineWidth = 2.5; g.strokeStyle = '#ff4a3a'; g.setLineDash([6, 4]); g.lineJoin = 'round';
@@ -151,9 +181,151 @@ function warFrontDrawMini(g, s) {
   g.stroke(); g.setLineDash([]);
   g.strokeStyle = '#ffd23a'; g.lineWidth = 1.8;
   for (const p of pl.chain) { g.beginPath(); g.arc((p.cx - P.x) * s, (p.cz - P.z) * s, 8, 0, 6.283); g.stroke(); }
+  for (const o of pl.chain.concat(pl.marks || [])) if (wfHidden(pl, o)) wfDot(g, (o.cx - P.x) * s, (o.cz - P.z) * s, 6, o);
+  for (const o of pl.war) if (pl.saved) wfDot(g, (o.cx - P.x) * s, (o.cz - P.z) * s, 6, o);
   g.restore();
 }
 
+// ---------- Declaração de guerra com o mapa (Negociação → Guerra → escolher o alvo → confirmar) ----------
+const wfName = (kind, ref) => kind === 'city' ? ref.name : POI_DEFS[ref.type].n;
+// Começa a escolha do alvo: abre o mapa do caderno com a faixa pedindo o alvo.
+function wfPickStart(fid) {
+  WF.pick = { fid, ref: null, kind: null, plan: null, edit: null, marks: new Set() };
+  openBook('map');
+}
+// Clique no mapa na escolha do alvo (e: o clique). Cidade ou POI válido (warCanTarget) calcula a previsão.
+function wfPickClick(e) {
+  const pk = WF.pick;
+  if (pk.edit) return wfEditClick(e);
+  const c = pickCityAt(e), p = c ? null : pickPoiAt(e);
+  const kind = c && warCanTarget(pk.fid, 'city', c) ? 'city' : p && warCanTarget(pk.fid, 'poi', p) ? 'poi' : null;
+  if (!kind) return toast(TXT_WAR_PICK_BAD, 2500);
+  const ref = kind === 'city' ? c : p, r = warFrontCheck(pk.fid, kind, ref);
+  if (r.erro) return toast(r.erro, 4500);
+  Object.assign(pk, { ref, kind, plan: r.plan, auto: r.plan, edit: null });
+  renderBook();
+}
+// Faixa em cima do mapa: pedido do alvo, previsão com botões ou edição da rota. '' fora da escolha.
+function wfPickHtml() {
+  const pk = WF.pick;
+  if (!pk) return '';
+  const en = facOf(pk.fid).name, B = (id, t, cls, dis) => '<button class="' + (cls || 'alt') + '" id="' + id + '"' + (dis ? ' disabled' : '') + ' style="margin:4px 4px 0 0">' + t + '</button>';
+  if (pk.edit) {
+    const ed = pk.edit;
+    return '<div class="mpick">' + txtWarEditBanner(ed.cur.spot ? TXT_WAR_SPOT_NAME : ed.cur.name || POI_DEFS[ed.cur.type].n, ed.stops.length, ed.must.length - ed.left,
+      ed.must.length, wfName(pk.kind, pk.ref)) + '<br>' + (ed.stops.length ? B('wfundo', TXT_WAR_EDIT_UNDO) : '') + B('wfauto', TXT_WAR_EDIT_AUTO)
+      + B('wflink', TXT_WAR_EDIT_DONE, 'gold', ed.left > 0) + '</div>';
+  }
+  if (!pk.plan) return '<div class="mpick">' + txtWarPickBanner(en) + '</div>';
+  const pl = pk.plan;
+  return '<div class="mpick">' + txtWarPreview(en, wfName(pk.kind, pk.ref), pl.origin.name, pl.chain.length, pl.war.length, Math.round(pl.len))
+    + '<br>' + B('wfok', TXT_WAR_CONFIRM, 'gold') + B('wfedit', TXT_WAR_EDIT) + B('wfretry', TXT_WAR_RETRY) + '</div>';
+}
+// Altura extra (px) que a faixa tira do mapa: 0 sem escolha, mais com botões.
+const wfPickH = () => !WF.pick ? 0 : WF.pick.plan || WF.pick.edit ? 100 : 52;
+// Confirmar: declara a guerra, monta a frente e volta à Negociação da facção.
+function wfConfirm() {
+  const pk = WF.pick;
+  if (!pk || !pk.plan) return;
+  if (!isLeader() || STATE.round < 1 || meetPact() || relOf(pk.fid).war) return;
+  pk.plan.marks = [...pk.marks];
+  const n = (facDeclareWar(pk.fid), warFrontBuild(pk.plan));
+  toast(txtWarFrontReady(n), 5000);
+  WF.pick = null; WF.plan = null;
+  LB.fac = pk.fid; LB.neg = { fid: pk.fid, path: ['war'] };
+  openBook('book', 'facs');
+}
+// ---------- edição da rota: desvios sobre a rota mais curta ----------
+// Obrigatórios (ed.must): os POIs da cadeia da rota automática e os lugares de guerra que ela usou. Candidatos: POIs permanentes e
+// lugares de guerra livres (dormentes e clareiras, sempre "?": só viram POI de guerra se marcados) a até WAR.front.edit.radius
+// blocos da cidade de origem, do alvo ou de um obrigatório, mais os obrigatórios e o alvo.
+// ed.list = [{o, hid, must, tgt}]; ed.left = obrigatórios ainda não marcados.
+function wfSpots() {
+  const out = [];
+  for (const d of WORLD.dormant || []) if (!d.off) out.push({ spot: true, d, cx: d.x, cz: d.z, y: d.y, type: 'cairn' });
+  for (const q of WORLD.warSites || []) {
+    if (!WORLD.pois.some(p => p.cx === q.x && p.cz === q.z) && !out.some(u => u.cx === q.x && u.cz === q.z))
+      out.push({ spot: true, cx: q.x, cz: q.z, y: q.y, type: 'fortcamp' });
+  }
+  return out;
+}
+function wfEditCands(pk, ed) {
+  const R = WAR.front.edit.radius, anchors = [pk.plan.origin, pk.ref].concat(ed.must);
+  ed.left = ed.must.filter(o => !ed.stops.includes(o)).length;
+  const near = p => ed.must.includes(p) || anchors.some(a => wfDist(a, p) <= R);
+  ed.list = warPois().filter(p => p !== pk.ref && !POI_DEFS[p.type].war && wfOwnerOk(pk.fid, p.owner) && !ed.stops.includes(p) && p !== ed.cur
+    && near(p)).map(o => ({ o, hid: !poiVisible(o), must: ed.must.includes(o) }))
+    .concat(ed.spots.filter(o => !ed.stops.includes(o) && o !== ed.cur && near(o)).map(o => ({ o, hid: true, must: ed.must.includes(o) })),
+      [{ o: pk.ref, hid: false, tgt: true }]);
+  for (const c of ed.list) if (c.hid && !c.o.spot) pk.marks.add(c.o.id);   // os "?" revelados na edição ficam no mapa depois da declaração
+}
+// Entra na edição: a rota é limpa e o jogador marca as paradas a partir da cidade de origem.
+function wfEditStart() {
+  const pk = WF.pick, spots = wfSpots(), au = pk.auto;
+  const must = au.chain.concat(au.war.map(e => spots.find(u => u.cx === e.cx && u.cz === e.cz)).filter(Boolean));
+  const ed = pk.edit = { stops: [], cur: pk.plan.origin, list: [], left: 0, must, spots, blk: wfBlockers(pk.fid, pk.plan.origin, pk.ref) };
+  wfEditCands(pk, ed);
+  renderBook();
+}
+// Termina a edição: só com todos os obrigatórios marcados e rota por terra até o alvo.
+function wfEditFinish() {
+  const pk = WF.pick, ed = pk.edit;
+  if (ed.left) return toast(txtWarEditMissing(ed.left), 3000);
+  const plan = warFrontPlan(pk.fid, pk.kind, pk.ref, ed.stops.slice());
+  if (!plan || ed.must.some(o => o.spot ? !plan.war.some(e => e.cx === o.cx && e.cz === o.cz) : !plan.chain.includes(o))) return toast(TXT_WAR_NO_ROUTE, 3000);
+  pk.plan = plan; pk.edit = null;
+  renderBook();
+}
+// Clique no mapa durante a edição: o candidato mais perto do ponto clicado (até 14 px).
+function wfEditClick(e) {
+  const pk = WF.pick, ed = pk.edit, cv = document.getElementById('bigmap'), r = cv.getBoundingClientRect(), s = cv.width / W;
+  const x = (e.clientX - r.left) * cv.width / r.width, y = (e.clientY - r.top) * cv.height / r.height;
+  let best = null, bd = 14;
+  for (const c of ed.list) { const d = Math.hypot(c.o.cx * s - x, c.o.cz * s - y); if (d < bd) { bd = d; best = c; } }
+  if (!best) return toast(TXT_WAR_EDIT_BAD, 2000);
+  if (best.tgt) return wfEditFinish();
+  if (!wfRoute(ed.cur, best.o, ed.blk, [])) return toast(TXT_WAR_NO_ROUTE, 3000);
+  ed.stops.push(best.o); ed.cur = best.o;
+  wfEditCands(pk, ed);
+  renderBook();
+}
+// Desenha a edição: rota marcada até aqui (reta entre as paradas) e candidatos (verde = obrigatório, dourado = opcional;
+// "?" se não descoberto).
+function wfDrawEdit(g, s, k) {
+  const ed = WF.pick.edit, pts = [WF.pick.plan.origin].concat(ed.stops);
+  g.save();
+  g.lineWidth = 3 * k; g.strokeStyle = '#ff4a3a'; g.setLineDash([8 * k, 6 * k]); g.beginPath();
+  pts.forEach((o, i) => i ? g.lineTo(o.cx * s, o.cz * s) : g.moveTo(o.cx * s, o.cz * s));
+  g.stroke(); g.setLineDash([]);
+  g.font = 'bold ' + Math.round(14 * k) + 'px monospace'; g.textAlign = 'center'; g.lineWidth = 3;
+  ed.stops.forEach((o, i) => {   // paradas já marcadas: continuam no mapa (anel vermelho e número; "?" se não descoberta)
+    const x = o.cx * s, y = o.cz * s;
+    if (o.spot || !poiVisible(o)) drawQuery(g, x, y, 11 * k);
+    g.strokeStyle = '#ff4a3a'; g.lineWidth = 3 * k; g.beginPath(); g.arc(x, y, 14 * k, 0, 6.283); g.stroke();
+    g.lineWidth = 3; g.fillStyle = '#fff'; g.strokeStyle = '#000'; g.strokeText(i + 1, x, y + 26 * k); g.fillText(i + 1, x, y + 26 * k);
+  });
+  for (const c of ed.list) {
+    const x = c.o.cx * s, y = c.o.cz * s;
+    g.strokeStyle = c.must ? '#5aff7a' : '#ffd23a'; g.lineWidth = 3 * k; g.beginPath(); g.arc(x, y, 12 * k, 0, 6.283); g.stroke();
+    if (c.hid) { g.lineWidth = 3; g.fillStyle = '#fff'; g.strokeStyle = '#000'; g.strokeText('?', x, y + 5 * k); g.fillText('?', x, y + 5 * k); }
+  }
+  g.restore();
+}
+// Botões da faixa (ids wf...) do mapa.
+document.addEventListener('click', e => {
+  const t = e.target.closest && e.target.closest('button'), pk = WF.pick;
+  if (!pk || !t) return;
+  if (t.id === 'wfok') wfConfirm();
+  else if (t.id === 'wfretry') { Object.assign(pk, { ref: null, kind: null, plan: null, edit: null, marks: new Set() }); renderBook(); }
+  else if (t.id === 'wfedit') wfEditStart();
+  else if (t.id === 'wfauto') { pk.edit = null; renderBook(); }
+  else if (t.id === 'wflink') wfEditFinish();
+  else if (t.id === 'wfundo') {
+    const ed = pk.edit; ed.stops.pop(); ed.cur = ed.stops.length ? ed.stops[ed.stops.length - 1] : pk.plan.origin;
+    wfEditCands(pk, ed); renderBook();
+  }
+});
+document.addEventListener('click', e => { if (WF.pick && mapOpen() && e.target.id === 'bigmap') wfPickClick(e); });
 // Atalho de teste (console): wfBuild() constrói os POIs de guerra do último plano de wfTest; wfBuild('limpar') os remove.
 function wfBuild(q) {
   if (q === 'limpar') return warFrontClear();
@@ -201,6 +373,8 @@ function warFrontBlocker(fid, kind, ref) {
   return { tipo: best.half !== undefined ? 'city' : 'poi', nome: best.half !== undefined ? best.name : POI_DEFS[best.type].n,
     fac: (facOf(f) || {}).name || 'outra facção', fid: f };
 }
+// Dono que pode estar na cadeia: você, bandidos, livre ou o inimigo da guerra (fid).
+const wfOwnerOk = (fid, o) => o === 'player' || o === 'bandit' || o === 'free' || o === fid;
 // Confere o alvo da declaração: {plan} se há rota, senão {erro: texto do aviso} (o toast de alvo recusado da declaração).
 function warFrontCheck(fid, kind, ref) {
   const plan = warFrontPlan(fid, kind, ref);
@@ -211,19 +385,31 @@ function warFrontCheck(fid, kind, ref) {
 
 // Plano da frente contra um alvo. Origem = cidade sua mais perto do alvo. Cadeia = POIs permanentes (sem ruínas, sem POI de
 // guerra, sem o próprio alvo) a até WAR.front.band da rota, dono permitido: você, bandidos, livre ou o inimigo (fid).
-function warFrontPlan(fid, kind, ref) {
+// stops (opcional, edição manual da rota): POIs escolhidos pelo jogador, em ordem; a cadeia é só eles (sem busca automática).
+function warFrontPlan(fid, kind, ref, stops) {
   const mine = playerCities();
   if (!ref || !mine.length) return null;
   const origin = mine.reduce((m, c) => wfDist(c, ref) < wfDist(m, ref) ? c : m);
-  const blk = wfBlockers(fid, origin, ref), ok = o => o === 'player' || o === 'bandit' || o === 'free' || o === fid;
+  const blk = wfBlockers(fid, origin, ref), ok = o => wfOwnerOk(fid, o);
   const cand = warPois().filter(p => p !== ref && !POI_DEFS[p.type].war && ok(p.owner));
   // pull: onde a rota gosta de passar (POIs aproveitáveis e clareiras ainda sem POI de guerra)
   const pull = cand.map(p => ({ x: p.cx, z: p.cz }))
     .concat((WORLD.warSites || []).filter(q => !WORLD.pois.some(p => p.cx === q.x && p.cz === q.z)));
-  let path = wfRoute(origin, ref, blk, pull), t1 = null;
+  let path = stops ? [] : wfRoute(origin, ref, blk, pull), t1 = null;
   if (!path) return null;
+  if (stops) {   // edição manual: POIs reais viram a cadeia; lugares de guerra (st.spot) escolhidos viram POIs de guerra
+    t1 = wfThread(origin, ref, blk, stops, pull);
+    if (!t1) return null;
+    const plan = { kind, fid, target: ref, origin, path: t1.path, len: t1.len, chain: [], ts: [], war: [], warn: [], manual: true }, sp = [];
+    t1.stops.forEach((st, i) => {
+      const t = t1.at[i] / (t1.len || 1);
+      if (st.spot) sp.push({ st, t }); else { plan.chain.push(st); plan.ts.push(t); }
+    });
+    wfManualWar(plan, sp);
+    return plan;
+  }
   // A cadeia sai da rota; a rota refeita por ela passa perto de outros POIs, então uma segunda passada os acrescenta.
-  for (let pass = 0; pass < 2; pass++) {
+  for (let pass = 0; pass < 2 && !stops; pass++) {
     const cum = [0];
     for (let k = 1; k < path.length; k++) cum.push(cum[k - 1] + Math.hypot(path[k].x - path[k - 1].x, path[k].z - path[k - 1].z));
     const list = [];
@@ -244,9 +430,9 @@ function warFrontPlan(fid, kind, ref) {
     ts: t1.at.map(v => v / (t1.len || 1)), war: [] };
   const war = wfFill(plan);
   if (!war.length) return plan;
-  const stops = plan.chain.map((p, i) => ({ cx: p.cx, cz: p.cz, o: p, s: plan.ts[i], w: false }))
+  const all = plan.chain.map((p, i) => ({ cx: p.cx, cz: p.cz, o: p, s: plan.ts[i], w: false }))
     .concat(war.map(e => ({ cx: e.cx, cz: e.cz, o: e, s: e.t, w: true }))).sort((x, y) => x.s - y.s);
-  const t2 = wfThread(origin, ref, blk, stops, pull);
+  const t2 = wfThread(origin, ref, blk, all, pull);
   if (!t2) return plan;   // sem rota passando pelos POIs de guerra: fica a rota só com a cadeia
   plan.path = t2.path; plan.len = t2.len; plan.chain = []; plan.ts = []; plan.war = [];
   t2.stops.forEach((st, i) => {
@@ -257,6 +443,26 @@ function warFrontPlan(fid, kind, ref) {
   return plan;
 }
 
+// Edição manual: transforma os lugares de guerra escolhidos (sp = [{st, t}]) em POIs de guerra do plano. Tipo e dono saem das mesmas
+// regras do preenchimento automático (warTypeWeights por posição; dono por terços, com banditChance e banditMax).
+function wfManualWar(plan, sp) {
+  const F = WAR.front, fid = plan.fid, rng = new RNG((WORLD.seed * 71 + fid * 13 + 11) >>> 0);
+  const own = plan.chain.map((p, i) => [p.owner, plan.ts[i]]);
+  const lastP = Math.max(0, ...own.filter(x => x[0] === 'player').map(x => x[1]));
+  const firstE = Math.min(1, ...own.filter(x => x[0] === fid).map(x => x[1])), border = (lastP + firstE) / 2;
+  let bandits = 0;
+  for (const { st, t } of sp) {
+    const w = warTypeWeights(t, border), d = st.d;
+    const ok = d ? WAR_DORMANT[d.kind].types.filter(q => q !== 'barricade') : Object.keys(w);
+    let type = d && d.road ? 'barricade' : ok[0], r = rng.next() * ok.reduce((a, q) => a + (w[q] || 0), 0);
+    if (!(d && d.road)) for (const q of ok) { if ((r -= w[q] || 0) < 0) { type = q; break; } }
+    let owner = t < 1 / 3 ? 'player' : t > 2 / 3 ? fid : null;
+    if (!owner) {
+      if (bandits < F.banditMax && rng.next() < F.banditChance) { bandits++; owner = 'bandit'; } else owner = t < 0.5 ? 'player' : fid;
+    }
+    plan.war.push({ type, cx: st.cx, cz: st.cz, y: st.y, owner, t, dorm: d ? d.i : undefined, axis: type === 'barricade' ? d.road : undefined });
+  }
+}
 // Refaz a rota trecho a trecho: origem → parada 1 → ... → alvo. Cada parada tem cx, cz. Parada sem rota por terra a partir da
 // anterior sai. Devolve {path, len, stops (as que ficaram), at (distância de cada uma desde a origem)} ou null (sem rota ao alvo).
 function wfThread(origin, ref, blk, stops, pull) {
@@ -518,6 +724,7 @@ function warFrontBuild(plan) {
   const camp = camps[fid] || (camps[fid] = { kind: 'attack', since: STATE.round, allies: { player: [], enemy: [] } });
   camp.front = { kind: plan.kind, targetId: plan.target.id, originId: plan.origin.id,
     path: plan.path.map(q => [Math.round(q.x), Math.round(q.z)]), chain: plan.chain.map(p => p.id),
+    marks: plan.marks || [],
     war: plan.war.map(e => ({ id: e.id, type: e.type, cx: e.cx, cz: e.cz, y: e.y, owner: e.owner, dorm: e.dorm, axis: e.axis })) };
   for (const e of plan.war) wfMake(e);
   return plan.war.length;

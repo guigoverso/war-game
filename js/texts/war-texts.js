@@ -28,6 +28,25 @@ const txtWarPreview = (enemy, alvo, o, n, w, dist) => '⚔ <b>' + enemy + '</b> 
 // Declaração de guerra: botões de confirmar e escolher outro alvo.
 const TXT_WAR_CONFIRM = '⚔ Confirmar e declarar guerra';
 const TXT_WAR_RETRY = '↩ Escolher outro alvo';
+// Declaração de guerra: botão que abre a edição manual da rota, e os botões da edição (desfazer, voltar à rota automática,
+// concluir; este só liga com todos os POIs obrigatórios marcados).
+const TXT_WAR_EDIT = '✏ Editar a rota';
+const TXT_WAR_EDIT_UNDO = '↶ Desfazer parada';
+const TXT_WAR_EDIT_AUTO = '🤖 Rota automática';
+const TXT_WAR_EDIT_DONE = '✔ Concluir a rota';
+// Declaração de guerra: faixa da edição da rota. de = nome de onde a rota está agora, n = paradas marcadas, got/total = obrigatórios
+// marcados e total, alvo = nome do alvo.
+const txtWarEditBanner = (de, n, got, total, alvo) => '✏ <b>Editando a rota</b> — a partir de <b>' + de + '</b> (' + n + ' paradas). '
+  + 'Marque os POIs <b style="color:#1a7a2a">verdes</b> (obrigatórios: <b>' + got + '/' + total + '</b>) e, se quiser, outros dourados para conquistar '
+  + 'no caminho (<b>?</b> = ainda não descoberto); depois conclua ou clique em ' + alvo + '.';
+// Declaração de guerra: nome, na faixa da edição, de um lugar livre de guerra marcado como parada (ainda não é POI).
+const TXT_WAR_SPOT_NAME = 'um lugar de guerra';
+// Declaração de guerra: tentou concluir a rota sem marcar todos os POIs obrigatórios. n = quantos faltam.
+const txtWarEditMissing = n => 'Faltam ' + n + ' POI(s) obrigatório(s) da rota (verdes).';
+// Declaração de guerra: o jogador clicou num POI que a edição não aceita como parada.
+const TXT_WAR_EDIT_BAD = 'Escolha um dos POIs destacados (verdes ou dourados).';
+// Dica do botão Encerrar turno desligado enquanto o alvo da guerra está sendo escolhido no mapa.
+const TXT_WAR_END_BLOCKED = 'Escolha o alvo da guerra (ou feche o caderno para cancelar) antes de encerrar o turno';
 // Aviso (toast) depois de declarar a guerra com a frente montada. n = POIs de guerra criados.
 const txtWarFrontReady = n => '🗺 Frente montada' + (n ? ': ' + n + ' POIs de guerra surgiram no caminho.' : '.');
 // Aviso quando a paz desfaz a frente (os POIs de guerra somem).

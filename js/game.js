@@ -160,7 +160,7 @@ function setFrozen(v){
 // modo invencível liga/desliga a munição infinita junto
 function setGod(v){G.god=v;G.infAmmo=v}
 function closePanel(){
-  MP.on=false;
+  MP.on=false;WF.pick=null;   // fechar o caderno cancela a escolha de caravana e a do alvo da guerra
   SCREENS.forEach(s=>$(s).classList.add('hidden'));G.panel=null;
   try{const p=canvas.requestPointerLock();if(p&&p.catch)p.catch(()=>{})}catch(e){}
 }

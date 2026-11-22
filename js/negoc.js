@@ -53,7 +53,7 @@ function negPage(f){
     const why=rl.war?'Vocês já estão em guerra.':lock||(STATE.round<1?'Não há guerra na rodada 0.':meetPact()?'Um pacto da reunião impede guerras.':'');
     b='<p class="ldsm">Ao declarar guerra: a relação vai a 0, a aliança e as caravanas com '+f.name+' acabam, e você só entra nas cidades dela atacando.</p>'
       +(rl.warAt!=null&&!rl.war?'<p class="ldbad">⚔ Uma declaração já está a caminho (rodada '+rl.warAt+').</p>':'')
-      +negAct('negwar',id,'⚔ Declarar guerra a '+f.name,!!why,why,'','neg-war');
+      +negAct('negwar',id,txtWarChooseTarget(f.name),!!why,why,'','neg-war');
   }
   return '<div class="negpage'+(LB.negAnim?' negslide':'')+'"><div class="negbar"><button class="negback" data-a="negback" title="Voltar">⬅</button><b>'+(scr==='root'?'Negociação com '+f.name:NEG_TITLE[scr])+'</b></div>'+b+'</div>';
 }
@@ -65,5 +65,5 @@ function negClick(t){
   else if(a==='negnav'){LB.neg.path.push(t.dataset.to);LB.negAnim=true}
   else if(a==='negback'){if(LB.neg.path.length)LB.neg.path.pop();else LB.neg=null;LB.negAnim=true}
   else if(a==='negtab'){LB.neg=null;LB.tab=t.dataset.tab}
-  else if(a==='negwar'){const id=+t.dataset.id;if(isLeader()&&STATE.round>=1&&!meetPact()&&!relOf(id).war){facDeclareWar(id);LB.neg.path=['war']}}
+  else if(a==='negwar'){const id=+t.dataset.id;if(isLeader()&&STATE.round>=1&&!meetPact()&&!relOf(id).war)wfPickStart(id)}   // abre o mapa: a guerra só é declarada ao confirmar o alvo (warfront.js)
 }

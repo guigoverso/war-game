@@ -74,7 +74,11 @@ const WAR = {
   //  revert: tipos que a paz desmonta e voltam a ser decoração; os demais ficam como rastro da guerra, sem dono
   //    (hospital, depósito, atalaia e barricada voltam; acampamento e trincheira ficam)
   //  banditChance: chance de um POI de guerra do terço do meio da rota nascer de bandidos (0.4); banditMax: teto deles por frente (2)
+  //  edit: edição manual da rota na declaração. Os POIs da rota mais curta são obrigatórios; o jogador também pode escolher qualquer
+  //    POI (descoberto ou "?") a até radius blocos da cidade de origem, do alvo ou de um obrigatório, e só conclui com todos
+  //    os obrigatórios marcados (140)
   front: { cell: 8, band: 55, avoid: 18, waterMax: 40, waterCost: 2, maxWarPois: 8, side: 60, gap: 22, gapAmb: 8, pullCost: 0.7, pullRadius: 24,
+    edit: { radius: 140 },
     sites: 60, siteRange: 18, siteTries: 6000, minimap: true,
     dormTries: 60, dormMax: 36, dormStep: 65, dormWidth: 45, ringSites: 3, ringRadius: 110, banditChance: 0.4, banditMax: 2,
     revert: { fortcamp: false, trench: false, hospital: true, depot: true, lookout: true, barricade: true } }

@@ -12,8 +12,8 @@ function pickBannerText(){return MP.step===1?'🛒 <b>Caravana</b> — clique no
 function updatePickBanner(){if(mapOpen())renderBook()}   // o aviso da escolha de caravana fica na página do mapa
 // página do caderno para a aba Mapa: o mapa ocupa as duas páginas (sem legenda); na escolha de caravana o aviso fica em cima
 function mapPages(){
-  const h=Math.min(620,innerHeight*0.84),sz=Math.max(260,Math.floor(Math.min(h-72-(MP.on?52:0),Math.min(960,innerWidth*0.86)-70)));
-  return[(MP.on?'<div class="mpick">'+pickBannerText()+'</div>':'')+'<canvas id="bigmap" width="'+sz+'" height="'+sz+'"></canvas><div style="text-align:right;margin-top:4px">'+(G.poiFocus!=null&&STATE.pol&&STATE.pol.pending?'<button class="gold" id="mapback" style="float:left">↩ Voltar ao evento</button>':'')+'<button class="alt" id="mapnames">🏷 Nomes dos POIs: '+(G.poiNames?'ligado':'desligado')+'</button></div>',''];
+  const h=Math.min(620,innerHeight*0.84),sz=Math.max(260,Math.floor(Math.min(h-72-(MP.on?52:wfPickH()),Math.min(960,innerWidth*0.86)-70)));
+  return[(MP.on?'<div class="mpick">'+pickBannerText()+'</div>':wfPickHtml())+'<canvas id="bigmap" width="'+sz+'" height="'+sz+'"></canvas><div style="text-align:right;margin-top:4px">'+(G.poiFocus!=null&&STATE.pol&&STATE.pol.pending?'<button class="gold" id="mapback" style="float:left">↩ Voltar ao evento</button>':'')+'<button class="alt" id="mapnames">🏷 Nomes dos POIs: '+(G.poiNames?'ligado':'desligado')+'</button></div>',''];
 }
 function drawPickOverlay(g,s){
   if(!MP.on)return;

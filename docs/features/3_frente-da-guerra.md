@@ -76,7 +76,7 @@ Decisões fechadas com o usuário (2026-11-21), depois da tarefa 3 pronta e de t
 | 4.3 ✅ | **(feita; a frente ainda só escolhe acampamento e trincheira, os outros 4 entram na 4.4) Os 6 tipos de POI de guerra:** raios, construtores novos (Atalaia, Barricada, Hospital com NPCs, Depósito com barricadas), textos e números nos modificadores | G | **Nova:** só mexe em `js/pois.js` e no visual; contexto limpo. Brief cita este arquivo |
 | 4.4 ✅ | **(feita; dormentes são poucos em mapas cheios: o espaço é disputado com POIs e clareiras, e o plano cai na clareira ou avisa) Dormentes e anel das cidades:** 4 decorações, corredores, `WORLD.dormant`, conversão e reversão, pesos por posição, dono por terços e `banditChance`, salto máximo no plano | G | **Nova:** a mais arriscada e depende da 4.2 e da 4.3 já commitadas |
 | 4.5 ✅ | **Rota bloqueada:** mostra o que bloqueia e a facção; recusa o alvo na declaração | M | Continua da 4.4: mesmo plano de rota |
-| 4.6 | **Declaração com mapa + edição da rota por raio** (a antiga Tarefa 4, abaixo) | M | **Nova:** é interface, testada na tela com o navegador |
+| 4.6 ✅ | **(feita) Declaração com mapa + edição da rota por raio** (a antiga Tarefa 4, abaixo) | M | **Nova:** é interface, testada na tela com o navegador |
 | 4.7 | **Smoke e documentação:** rota, dormentes e reversão no `tests/smoke.js`; `docs/MAPA.md` | P | Continua da 4.6 |
 
 ### Declaração com mapa (etapa 4.6)
