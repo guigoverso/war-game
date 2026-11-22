@@ -88,7 +88,7 @@ function poiGarrisonCleared(c){
   if(p.owner!=='bandit')return;
   poiHuntLoot(p);
   poiGarrisonRemove(p);poiSetOwner(p,'free');poiX().clr[p.id]=poiX().conq[p.id]=STATE.round;sfx('win',0);   // conq: rodada N da conquista (os moradores vêm na N+1, mesmo anexando só na N+1)
-  toast('🏴 '+POI_DEFS[p.type].n+' limpo! Na próxima rodada o líder decide o que fazer com ele.',4500);
+  toast(p.owner==='player'?txtWarAutoAnnex(POI_DEFS[p.type].n):'🏴 '+POI_DEFS[p.type].n+' limpo! Na próxima rodada o líder decide o que fazer com ele.',4500);   // owner 'player': anexado na hora (POI da trilha, warops.js)
 }
 
 // ---------- santuário: paz e rebelião adiada (rounds.js, facsupply.js, rebellion.js) ----------

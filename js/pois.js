@@ -23,7 +23,7 @@ const POI_BORDER='#ff2bd6';   // borda dos quadrados dos POIs nos mapas: magenta
 const poiCss=o=>'#'+poiColor(o).toString(16).padStart(6,'0');
 function poiOwnerName(o){return o==='free'?'Livre (limpo)':o==='bandit'?'Bandidos':o==='player'?'Você':o==='none'?'Sem dono':typeof o==='number'?((facOf(o)||{}).name||'Facção'):'?'}
 function poiPaint(p){if(p.flagMat)p.flagMat.color.setHex(poiColor(p.owner))}
-function poiSetOwner(p,o){p.owner=o;if(typeof poiOwnerChanged==='function')poiOwnerChanged(p,o);if(!p.show){STATE.pois=STATE.pois||{};STATE.pois[p.id]=o}poiPaint(p);if(typeof poiGarrisonSync==='function')poiGarrisonSync(p)}   // (guarnição e moradores acompanham o dono)
+function poiSetOwner(p,o){p.owner=o;if(typeof poiOwnerChanged==='function')poiOwnerChanged(p,o);if(!p.show){STATE.pois=STATE.pois||{};STATE.pois[p.id]=o}poiPaint(p);if(typeof poiGarrisonSync==='function')poiGarrisonSync(p);if(typeof warOpOwnerChanged==='function')warOpOwnerChanged(p,o)}   // (guarnição e moradores acompanham o dono; operações de guerra: warops.js)
 function poiApply(){for(const p of WORLD.pois||[]){if(!p.show&&STATE.pois&&STATE.pois[p.id]!==undefined)p.owner=STATE.pois[p.id];poiPaint(p);if(typeof poiGarrisonSync==='function')poiGarrisonSync(p)}}   // depois de gerar/carregar
 
 // ---------- ferramentas de construção ----------

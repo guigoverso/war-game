@@ -37,6 +37,7 @@ const WAR = {
   // itens seguintes). Padrão: só o ataque está ativo
   ops: {
     attack: { on: true },
+    city: { on: false, off: 'Chega com a batalha final da cidade (item 9).' },
     defense: { on: false, off: 'Chega com o item 11 (defesa reativa).' },
     sabotage: { on: false, off: 'Chega com a espionagem (itens 15 e 16).' },
     reduceFatigue: { on: false, off: 'Chega com a fadiga com efeitos (item 13).' }
