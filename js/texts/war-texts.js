@@ -8,6 +8,9 @@ const TXT_WAR_MARK = ['Tropas dispostas', 'Cansaço leve', 'Cansaço forte', 'Ex
 // Livro (aba da guerra) e relatório: linha da fadiga do jogador. f = fadiga atual.
 const txtWarFatigue = f => '⚔ Fadiga de guerra: <b>' + f + '</b> / ' + WAR.fatigue.max + ' (' + TXT_WAR_MARK[warFatigueMark(f)] + ')';
 
+// Balão de fala ao falar (E) com um paciente deitado no Hospital de campanha (um sorteado).
+const TXT_WAR_PATIENT_SAY = ['Ugh... foi por pouco.', 'A guerra não acaba nunca?', 'Os médicos dizem que eu fico bem.', 'Minha perna... não consigo levantar.', 'Quando isso acabar, vou para casa.'];
+
 // Declaração de guerra (mapa): faixa em cima do mapa pedindo o alvo. enemy = nome da facção.
 const txtWarPickBanner = enemy => '⚔ <b>Guerra contra ' + enemy + '</b> — clique no mapa na <b>cidade</b> (ou em um POI) que quer conquistar. Feche o caderno (M ou E) para cancelar.';
 // Declaração de guerra: aviso ao clicar num lugar que não é alvo válido.

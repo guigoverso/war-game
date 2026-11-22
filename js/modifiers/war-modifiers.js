@@ -69,6 +69,11 @@ const WAR = {
     sites: 60, siteRange: 18, siteTries: 6000, minimap: true }
 };
 
+// POIs de guerra novos (só visuais, sem efeitos). Raios em POI_DEFS (pois.js): Acampamento 12, Trincheira 11, Hospital 10, Depósito 10,
+// Atalaia 6, Barricada 7 (só em estrada). Hospital de campanha: patients = pacientes deitados nas macas (a construção tem 7: 6 na tenda
+// e 1 ao ar livre); medics = médicos que andam por ali (levam tiro); guards = soldados do dono (se for seu ou de facção; de bandidos vale a guarnição). Padrão: 5, 2 e 3
+const WAR_POI = { hospital: { patients: 5, medics: 2, guards: 3 } };
+
 // Chance de um POI de guerra da frente ser Acampamento fortificado (senão, Trincheira). t = posição na rota (0 = cidade sua,
 // 1 = cidade-alvo); nearEnemy = há POI do inimigo colado. Perto da cidade sua: acampamento; perto dos POIs do inimigo: trincheira.
 // Padrão: 1 - t, menos 0.3 se houver POI do inimigo colado (entre 0.1 e 0.9)

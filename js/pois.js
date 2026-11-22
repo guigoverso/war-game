@@ -8,8 +8,11 @@ const POI_DEFS={
   sanctuary:{n:'Santuário',ic:'⛪',r:14},post:{n:'Entreposto comercial',ic:'🏪',r:16},
   bridge:{n:'Ponte',ic:'🌉',r:9},fort:{n:'Forte',ic:'🏰',r:15},tower:{n:'Torre de vigia',ic:'🗼',r:8},tavern:{n:'Taverna',ic:'🍺',r:17},
   ruins:{n:'Ruínas antigas',ic:'🏛',r:9},
-  fortcamp:{n:'Acampamento fortificado',ic:'⛺',r:12,war:true},trench:{n:'Trincheira',ic:'🪖',r:11,war:true}
+  fortcamp:{n:'Acampamento fortificado',ic:'⛺',r:12,war:true},trench:{n:'Trincheira',ic:'🪖',r:11,war:true},
+  hospital:{n:'Hospital de campanha',ic:'🏥',r:10,war:true},depot:{n:'Depósito de suprimentos',ic:'📦',r:10,war:true},
+  lookout:{n:'Atalaia de madeira',ic:'🔭',r:6,war:true},barricade:{n:'Barricada de estrada',ic:'🚧',r:7,war:true}
 };
+const POI_WAR_TYPES=['fortcamp','trench','hospital','depot','lookout','barricade'];   // os 6 POIs de guerra (só visuais; a frente os escolhe em warfront.js; a barricada só vai em estrada)
 const POI_TYPES=['farm','mine','sawmill','hunters','sanctuary','bridge','fort','tower','tavern','post','ruins'];
 Hooks.on('resetState',()=>{STATE.pois={}});
 
@@ -447,8 +450,83 @@ poiPath(c,0,R+1,0,4);poiBrazier(c,-3.4,R+1.6);poiBrazier(c,3.4,R+1.6);
     crate(c,-7.5,3.3,1,1.3);crate(c,-6.2,3.5,1,0.9);barrel(c,6.5,3.6);crate(c,8,-4.6,1,1.0);poiRack(c,4,-4.6,true);
     poiPole(c,9.5,-4.2,4);pBc(c,9.6,3.0,-4.2,11.4,3.9,-4.14,0xc03a3a,false,{j:0});
     poiFlag(c,p,-9,-5,5);
+  },
+  lookout(c,rng,p){   // atalaia de madeira: torre de 4 pernas com travessas e diagonais, plataforma com guarda-corpo, telhado em pirâmide, escada, braseiro e sacos de areia na base
+    const H=7,L=1.8,wd=0x6b4a2a;
+    for(const sx of[-1,1])for(const sz of[-1,1])pBc(c,sx*L-0.3,0,sz*L-0.3,sx*L+0.3,H,sz*L+0.3,wd,true,{j:0.05});   // pernas (com colisão)
+    for(const y of[1.4,3.4,5.2])for(const s of[-1,1]){pBc(c,-L,y,s*L-0.08,L,y+0.25,s*L+0.08,0x5a3d22,false,{j:0.02});pBc(c,s*L-0.08,y,-L,s*L+0.08,y+0.25,L,0x5a3d22,false,{j:0.02})}   // travessas
+    for(const s of[-1,1])for(let k=0;k<5;k++){const x=-L+0.2+k*0.65,y=1.5+k*0.75;pBc(c,x,y,s*L-0.07,x+0.5,y+0.9,s*L+0.07,0x4a3320,false,{j:0.02});pBc(c,-x-0.5,y,s*L-0.07,-x,y+0.9,s*L+0.07,0x4a3320,false,{j:0.02})}   // diagonais cruzadas (em degraus)
+    pBc(c,-2.6,H,-2.6,2.6,H+0.3,2.6,0x7a5632,true,{j:0.03});   // plataforma
+    for(const [x0,z0,x1,z1] of[[-2.6,-2.6,2.6,-2.45],[-2.6,-2.6,-2.45,2.6],[2.45,-2.6,2.6,2.6],[-2.6,2.45,-0.7,2.6],[0.7,2.45,2.6,2.6]]){pBc(c,x0,H+0.3,z0,x1,H+1.25,z1,0x6b4a2a,true,{j:0.03});pBc(c,x0,H+1.25,z0,x1,H+1.4,z1,0x5a3d22,false,{j:0.02})}   // guarda-corpo (a escada abre um vão na frente)
+    for(const sx of[-1,1])for(const sz of[-1,1])pBc(c,sx*2.4-0.12,H+0.3,sz*2.4-0.12,sx*2.4+0.12,H+3.3,sz*2.4+0.12,wd,false,{j:0.03});   // pilares do telhado
+    for(let k=0;k<4;k++){const w=3.3-k*0.8;pBc(c,-w,H+3.3+k*0.4,-w,w,H+3.7+k*0.4,w,k%2?0x6b4a2a:0x5a3d22,false,{j:0.05})}   // telhado em pirâmide
+    for(const s of[-0.45,0.45])pBc(c,s-0.05,0,L+0.35,s+0.05,H+0.3,L+0.45,0x4a3320,false,{j:0});   // escada (só visual): laterais e degraus
+    for(let y=0.6;y<H;y+=0.6)pBc(c,-0.45,y,L+0.33,0.45,y+0.1,L+0.47,0x5a3d22,false,{j:0});
+    poiBrazier(c,1.7,-1.7,H+0.3);pBc(c,-1.9,H+0.3,-1.8,-0.9,H+0.8,-1.0,0x6b4a2a,true,{j:0.04});   // braseiro e uma caixa de munição na plataforma
+    sandbag(c,-4.5,2.8,true);sandbag(c,1.8,3.4,true);crate(c,-4.8,-1.2,1,1.0);barrel(c,3.8,-2.4);
+    poiFlag(c,p,3.6,-3.6,H+1);
+  },
+  barricade(c,rng,p){   // barricada de estrada: duas fileiras de sacos e toras desencontradas (chicana), cavalos de frisa, arame farpado, abrigo de guarda, caixas e braseiro. p.axis = direção da estrada ('x' ou 'z')
+    const A=p.axis==='x',Q=(u0,v0,u1,v1,y0,y1,col,s,q)=>A?pBc(c,v0,y0,u0,v1,y1,u1,col,s,q):pBc(c,u0,y0,v0,u1,y1,v1,col,s,q);   // u: de lado a lado da estrada; v: ao longo dela
+    const row=(u0,u1,v,col)=>{Q(u0,v-0.8,u1,v+0.8,0,1.4,col,true,{j:0.06});for(let u=u0+0.4;u<u1-1;u+=1.5)Q(u,v-0.55,u+1.2,v+0.55,1.4,1.9,0x6a4a2e,true,{j:0.07})};
+    row(-6.6,1.2,-1.8,0xb8a06a);row(-1.2,6.6,1.8,0xa89460);   // sacos de areia com toras no topo
+    for(const [u,v] of[[-5.5,-4.6],[-1.8,-4.6],[1.8,-4.6],[5.5,-4.6],[-5.5,4.6],[-1.8,4.6],[1.8,4.6],[5.5,4.6]]){   // cavalos de frisa
+      Q(u-0.9,v-0.1,u+0.9,v+0.1,0.4,0.6,0x5a5a62,true,{j:0.02});Q(u-0.1,v-0.9,u+0.1,v+0.9,0.4,0.6,0x5a5a62,true,{j:0.02});Q(u-0.1,v-0.1,u+0.1,v+0.1,0,1.2,0x5a5a62,true,{j:0.02})}
+    for(const v of[-6.2,6.2])for(let u=-6.6;u<6.6;u+=2.6){Q(u-0.06,v-0.06,u+0.06,v+0.06,0,1.5,0x4a3320,true,{j:0});Q(u,v-0.07,u+2.6,v+0.07,0.4,0.5,0x6a6a72,true,{j:0});Q(u,v-0.07,u+2.6,v+0.07,0.85,0.95,0x6a6a72,true,{j:0});Q(u,v-0.07,u+2.6,v+0.07,1.3,1.4,0x6a6a72,true,{j:0})}   // arame farpado (3 fios)
+    Q(-6.5,2.8,-3.5,5.4,0,0.15,0x6a5a40,false,{j:0.03});for(const u of[-6.4,-3.6])Q(u-0.12,3.0,u+0.12,3.24,0,2.4,0x4a3320,true,{j:0.02});   // abrigo do guarda: chão, postes e telhado inclinado
+    Q(-6.6,2.9,-3.4,4.2,2.4,2.7,0x5a3d22,false,{j:0.03});Q(-6.6,4.2,-3.4,5.5,2.1,2.4,0x6b4a2a,false,{j:0.03});Q(-6.5,5.3,-3.5,5.5,0,1.8,0x6a4a2e,true,{j:0.04});
+    crate(c,A?4:4.5,A?-4.5:3.5,1,1.1);crate(c,A?4:5.7,A?-4.5:3.7,1,0.9);barrel(c,A?-5.5:5.2,A?5:-3.8);
+    poiBrazier(c,A?-2:-5,A?4.2:-1.2);poiSign(c,A?0.5:2.8,A?4.8:-5.2);   // placa de "pare" ao lado da pista
+    poiFlag(c,p,A?-5:5.5,A?-5.5:-5.5,5);
+  },
+  hospital(c,rng,p){   // hospital de campanha: tenda branca aberta na frente com 6 macas (NPCs deitados e médicos andando, poigame.js), cruz vermelha, gotejadores, tenda de suprimentos, carroça, maca no chão e lampiões
+    const W0=-6.5,W1=6.5,Z0=-8.5,Z1=-1.5,cv=0xf0ece0;
+    pBc(c,W0,0,Z0,W1,0.1,Z1,0xb8a888,false,{j:0.03});   // piso de tábuas claras
+    pBc(c,W0,0,Z0,W1,2.7,Z0+0.15,cv,true,{j:0.02});for(const x of[W0,W1-0.15])pBc(c,x,0,Z0,x+0.15,2.7,Z1,cv,true,{j:0.02});   // paredes de lona (fundo e lados)
+    for(let k=0;k<4;k++)pBc(c,W0+k*(W1-W0)/3-0.1,0,Z1-0.1,W0+k*(W1-W0)/3+0.1,2.9,Z1+0.1,0x6b4a2a,true,{j:0.02});   // postes da frente aberta
+    for(let i=0;i<4;i++)pBc(c,W0-0.4,2.7+i*0.5,Z0-0.5+i*1.0,W1+0.4,3.2+i*0.5,Z1+0.5-i*1.0,i===3?0xc03030:[0xf4f2ea,0xe6e2d4][i%2],false,{j:0.03});   // telhado em degraus (cumeeira vermelha)
+    p.beds=[];
+    for(let k=0;k<6;k++){const x=-5.2+k*2.1,z0=-7.7,z1=-5.5;   // macas: armação, colchão, travesseiro e manta; nelas deitam os pacientes
+      for(const [lx,lz] of[[-0.45,z0+0.1],[0.35,z0+0.1],[-0.45,z1-0.3],[0.35,z1-0.3]])pBc(c,x+lx,0,lz,x+lx+0.1,0.3,lz+0.2,0x6a6a72,false,{j:0});
+      pBc(c,x-0.5,0.3,z0,x+0.5,0.6,z1,0xf2f2ee,true,{j:0.02});pBc(c,x-0.4,0.6,z0+0.1,x+0.4,0.75,z0+0.5,0xffffff,false,{j:0.02});
+      if(k%2===0)pBc(c,x-0.52,0.6,z0+0.9,x+0.52,0.72,z1+0.02,rng.pick([0x6a8aa8,0x8a6a6a,0x6a9a7a]),false,{j:0.02});
+      poiPole(c,x+0.75,z0+0.5,2.2,0xc0c0c8);pBc(c,x+0.62,1.6,z0+0.4,x+0.88,2.0,z0+0.6,0xb02a2a,false,{j:0});   // suporte de soro com bolsa vermelha
+      p.beds.push({x:c.cx+x,z:c.cz+z1-0.2,y:poiBaseY(c,x,z1)+0.6})}
+    pBc(c,-4.8,0.1,1.2,-3.6,0.25,3.4,0x7a5632,false,{j:0.02});pBc(c,-4.7,0.25,1.2,-3.7,0.35,3.4,0xd8d4c8,false,{j:0.02});   // maca no chão, ao ar livre
+    p.beds.push({x:c.cx-4.2,z:c.cz+3.2,y:poiBaseY(c,-4.2,3.2)+0.35});
+    for(const x of[-1.5,1.5])pBc(c,x-0.1,0,-0.6,x+0.1,4.9,-0.4,0x5a3d22,true,{j:0.02});   // placa da cruz vermelha, em dois postes
+    pBc(c,-1.6,2.3,-0.55,1.6,4.9,-0.45,0xf4f4f0,false,{j:0.01});pBc(c,-0.4,2.5,-0.58,0.4,4.7,-0.42,0xcc2222,false,{j:0});pBc(c,-1.2,3.2,-0.58,1.2,4.0,-0.42,0xcc2222,false,{j:0});
+    const tx=7.4,tz=2.6;for(let i=0;i<5;i++){const w=2.0-i*0.4;pBc(c,tx-w,i*0.5,tz-1.5,tx+w,i*0.5+0.5,tz+1.5,i%2?0xe6e2d4:0xf4f2ea,i<3,{j:0.04})}   // tenda de suprimentos
+    pBc(c,tx-0.5,0,tz+1.45,tx+0.5,1.5,tz+1.55,0x1f1710,false,{j:0});
+    poiCart(c,-1,2.4,true,0xf0f0ea);crate(c,2.2,1.6,1,0.9);crate(c,3.4,1.9,1,0.9);barrel(c,5,0.2);poiBench(c,0.5,-1.2,true);
+    poiLampAt(c,-6,0.4);poiLampAt(c,5.6,-0.6);poiPath(c,0,0.6,0,7);
+    p.medWalk=[{x:c.cx-3,z:c.cz-0.5},{x:c.cx+1,z:c.cz-0.5},{x:c.cx+4,z:c.cz+1.5},{x:c.cx-2,z:c.cz+3},{x:c.cx+3,z:c.cz+4}];   // por onde os médicos andam
+    poiFlag(c,p,8.6,-4.2,6);
+  },
+  depot(c,rng,p){   // depósito de suprimentos: galpão aberto com pilhas de caixas, barris e sacas, lona sobre a carga, carroça, e barricadas de sacos e toras em volta com cavalos de frisa
+    const X0=-7.5,X1=0.5,Z0=-8,Z1=-2;
+    pBc(c,X0,0,Z0,X1,0.1,Z1,0x7a6a4a,false,{j:0.03});
+    for(const [x,z] of[[X0,Z0],[(X0+X1)/2,Z0],[X1,Z0],[X0,Z1],[(X0+X1)/2,Z1],[X1,Z1]])pBc(c,x-0.15,0,z-0.15,x+0.15,3.2,z+0.15,0x6b4a2a,true,{j:0.03});   // postes do galpão
+    for(let i=0;i<3;i++)pBc(c,X0-0.5,3.2+i*0.4,Z0-0.5+i*0.8,X1+0.5,3.6+i*0.4,Z1+0.5-i*0.8,i%2?0x6b4a2a:0x5a3d22,false,{j:0.05});   // telhado de tábuas
+    pBc(c,X0,0,Z0,X1,2.4,Z0+0.2,0x6a4a2e,true,{j:0.04});   // parede dos fundos de tábuas
+    for(let k=0;k<4;k++){const x=X0+0.6+k*1.9;crate(c,x,Z0+0.5,1.4,1.2);if(k%2===0)crate(c,x+0.1,Z0+0.6,1.2,2.3)}   // pilhas de caixas
+    for(let k=0;k<4;k++)barrel(c,X0+0.6+k*1.1,Z1-2.1);   // fileira de barris
+    for(let k=0;k<5;k++){const x=X0+0.5+k*1.2,z=Z0+3.3;pBc(c,x,0,z,x+1.0,0.55,z+0.8,rng.pick([0xc8b890,0xb8a880,0xd0c098]),true,{j:0.08});pBc(c,x+0.2,0.55,z+0.1,x+0.8,0.9,z+0.7,0xc8b890,false,{j:0.08})}   // sacas
+    pBc(c,2.5,0,-6.5,6.5,1.0,-3.2,0x4a5a3a,true,{j:0.1});pBc(c,3.0,1.0,-6.0,6.0,1.6,-3.6,0x44543a,false,{j:0.1});   // carga coberta por lona
+    for(const x of[3.4,5.2])pBc(c,x,0,-2.6,x+0.8,1.2,-1.8,0xa03a2a,true,{j:0.04});   // tambores de combustível
+    poiCart(c,-6,3.4,true,0xc8a060);hay(c,-2.4,4.4);crate(c,0.8,1.4,1,1.0);
+    for(const [x0,z0,x1,z1] of[[-9,6.2,-2.2,6.2],[2.2,6.2,9,6.2],[-9,6.2,-9,1],[9,6.2,9,0.5]])poiBarrierRow(c,x0,z0,x1,z1);   // barricadas com um portão de 4 blocos na frente
+    for(const x of[-1.2,1.2]){pBc(c,x-0.9,0.4,7.4,x+0.9,0.6,7.6,0x5a5a62,true,{j:0.02});pBc(c,x-0.1,0.4,6.6,x+0.1,0.6,8.4,0x5a5a62,true,{j:0.02});pBc(c,x-0.1,0,7.4,x+0.1,1.2,7.6,0x5a5a62,true,{j:0.02})}
+    poiLampAt(c,-2.8,4.8);poiLampAt(c,3.2,4.8);poiSign(c,0.2,8.2);
+    poiFlag(c,p,8,-7.5,6);
   }
 };
+// fileira de barricada (sacos de areia com toras no topo) de (x0,z0) a (x1,z1), só alinhada aos eixos (usada pelo depósito)
+function poiBarrierRow(c,x0,z0,x1,z1){
+  const alongX=Math.abs(x1-x0)>=Math.abs(z1-z0),a=Math.min(alongX?x0:z0,alongX?x1:z1),b=Math.max(alongX?x0:z0,alongX?x1:z1);
+  for(let k=a;k<b;k+=2.8){const e=Math.min(b,k+2.6);if(alongX){pBc(c,k,0,z0-0.5,e,1.2,z0+0.5,0xb8a06a,true,{j:0.06});pBc(c,k+0.2,1.2,z0-0.35,e-0.2,1.6,z0+0.35,0x6a4a2e,true,{j:0.06})}
+    else{pBc(c,x0-0.5,0,k,x0+0.5,1.2,e,0xb8a06a,true,{j:0.06});pBc(c,x0-0.35,1.2,k+0.2,x0+0.35,1.6,e-0.2,0x6a4a2e,true,{j:0.06})}}
+}
 
 // ---------- construção numa malha própria ----------
 function poiBuild(p){
@@ -647,10 +725,10 @@ function genWorldPois(cities,taken){
 }
 
 // ---------- mapa manual: todos os POIs lado a lado (abra com ?cenario=pois) ----------
-// Em ?cenario=pois o mundo inteiro nasce plano (sem relevo, água nem árvores) e os 11 POIs são construídos no centro ANTES da malha do terreno, cada um com uma placa
+// Em ?cenario=pois o mundo inteiro nasce plano (sem relevo, água nem árvores) e os 17 POIs (11 permanentes e 6 de guerra) são construídos no centro ANTES da malha do terreno, cada um com uma placa
 // com o nome e o dono (por isso a trincheira pode ser escavada de verdade). As cidades ficam fora da área.
 function poiShowcaseGen(){
-  const types=POI_TYPES.concat(['fortcamp','trench']),cols=5,gx=44,gz=44,rows=Math.ceil(types.length/cols);
+  const types=POI_TYPES.concat(POI_WAR_TYPES),cols=5,gx=44,gz=44,rows=Math.ceil(types.length/cols);
   const x0=W/2-(cols-1)*gx/2,z0=W/2-(rows-1)*gz/2,Y=SEA+6;WORLD.pois=[];let id=900;
   const owners=['bandit',(WORLD.factions&&WORLD.factions[0])?WORLD.factions[0].id:'bandit','player'];
   types.forEach((type,i)=>{

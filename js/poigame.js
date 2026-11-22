@@ -126,7 +126,7 @@ function poiFacList(p){   // facções com cidades e fora de guerra com você, d
   }
   return out.sort((a,b)=>a.dist-b.dist).slice(0,4);
 }
-const POI_PRICE={fort:4500,mine:4000,bridge:4000,farm:3500,sawmill:3500,hunters:3500,sanctuary:3500,post:4500,tavern:3500,tower:3200,fortcamp:3000,trench:3000};   // mínimo de ◉3000
+const POI_PRICE={fort:4500,mine:4000,bridge:4000,farm:3500,sawmill:3500,hunters:3500,sanctuary:3500,post:4500,tavern:3500,tower:3200,fortcamp:3000,trench:3000,hospital:3000,depot:3000,lookout:3000,barricade:3000};   // mínimo de ◉3000
 const poiSellPrice=(p,dist)=>Math.round((POI_PRICE[p.type]||3000)*(1+Math.max(0,200-dist)/400)/100)*100;   // quem está perto paga até +50%
 const poiDone=(x,p,msg)=>{   // anexar, doar ou vender: só um POI por rodada (os outros cartões somem e voltam na rodada seguinte)
   const X=poiX();delete X.clr[p.id];G.poiFocus=null;X.decided=STATE.round;
@@ -275,8 +275,21 @@ function poiOwnerChanged(p,o){   // chamado por poiSetOwner (pois.js)
   else delete X.since[p.id];
 }
 function poiCivRemove(p){if(!p.civ)return;for(const n of p.civ.npcs){n.alive=false;n.gone=true;scene.remove(n.group)}p.civ=null}
+// Hospital de campanha: pacientes deitados e médicos andando, sempre que a guerra está ligada (qualquer dono, menos ruínas); só visual
+function poiMedSync(p){
+  const o=p.owner,key=String(o),want=poiLive(p)&&o!=='none',friendly=o==='player'||typeof o==='number',fid=o==='player'?0:o;
+  if(p.civ&&(!want||p.civ.key!==key))poiCivRemove(p);
+  if(!want||p.civ||!p.beds)return;
+  p.civ={id:2000+p.id,biome:p.biome,owner:o==='player'?'player':'enemy',key,fid:friendly?fid:undefined,npcs:[],kind:'poiciv',cx:p.cx,cz:p.cz,half:12,enemies:[],state:'idle',walk:p.medWalk||[]};
+  const H=WAR_POI.hospital;
+  // yaw minúsculo (não 0): com 0 o spawnNpc sortearia uma direção; o paciente deita com a cabeça para o fundo da maca
+  for(let i=0;i<Math.min(H.patients,p.beds.length);i++){const b=p.beds[i];spawnNpc(p.civ,{role:'civ',x:b.x,z:b.z,y:b.y,yaw:0.0001,stationary:true,lie:true})}
+  for(let i=0;i<H.medics;i++){const w=p.medWalk[i%p.medWalk.length];spawnNpc(p.civ,{role:'medic',x:w.x,z:w.z,y:p.y})}   // médicos levam tiro e morrem
+  if(friendly)for(let i=0;i<H.guards;i++){const a=i*6.283/H.guards+0.7,q=freeSpot(p.cx+Math.cos(a)*5,p.cz+9+Math.sin(a)*1.5,0.3,1.8,0.45);spawnNpc(p.civ,{role:'guard',x:q[0],z:q[1],y:p.y,yaw:a,stationary:true})}   // soldados do dono (de bandidos: a guarnição normal)
+}
 function poiCivSync(p){
   if(!POI_READY||p.type==='ruins')return;
+  if(p.type==='hospital')return poiMedSync(p);
   const o=p.owner,friendly=o==='player'||typeof o==='number',fid=o==='player'?0:o,X=poiX(),sn=X.since&&X.since[p.id];
   const ready=friendly&&poiLive(p)&&!(sn!==undefined&&STATE.round<sn+POIX.civDelay);
   if(p.civ&&(!ready||p.civ.fid!==fid))poiCivRemove(p);

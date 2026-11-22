@@ -179,13 +179,13 @@ function npcLook(rng,biome,role,owner){
   if(role==='tanner'){L.apron=0x6b4a2a;L.shirt=0xa88a5a;L.hairStyle='hat';L.hat=0x7a5a3a;L.scale=1.02}   // curtidor (POI)
   if(role==='merchant'){L.apron=0x6b4a2a;L.shirt=0x3a6a4a;L.hairStyle='hat';L.hat=0xc8a85a;L.scale=1.02}
   if(role==='cook'){L.apron=0xf2f2f2;L.shirt=0xe8e0d0;L.hairStyle='cap';L.hat=0xf4f4f4;L.beard=L.hair;L.scale=1.04}
-  if(role==='nurse'){L.shirt=0xf4f4f4;L.pants=0xf4f4f4;L.hairStyle='cap';L.hat=0xf4f4f4;L.scarf=0xd02a2a;L.shoes=0xdddddd}
+  if(role==='nurse'||role==='medic'){L.shirt=0xf4f4f4;L.pants=0xf4f4f4;L.hairStyle='cap';L.hat=0xf4f4f4;L.scarf=0xd02a2a;L.shoes=0xdddddd}
   if(role==='hostage'){L.shirt=0x8a8a80;L.pants=0x4a4036;L.hairStyle='short';L.scale=1}   // refém: NPC com as cores da facção que pediu ajuda (a camisa é pintada em spawnNpc)
   if(role==='clerk'){L.shirt=0x3a5a8a;L.hairStyle='short';L.scarf=0xe0d8b0}
   if(role==='leader'){L.shirt=0x5a2a6a;L.pants=0x2a2a3a;L.hairStyle='hat';L.hat=0x2a2a3a;L.scarf=0xe8c040;L.beard=L.hair;L.scale=1.03}
   if(role==='guard'){L.shirt=0x2a4a9a;L.hairStyle='helmet';L.hat=0x7a8aa0;L.gun={len:0.8};L.pants=0x2a2a3a}
   // bochechas coradas: crianças, enfermeiras e uma parte dos adultos (aprox. as mulheres); nunca em homens
-  L.blush=role==='child'||role==='nurse'||((role==='civ'||role==='elder')&&rng.chance(0.3));
+  L.blush=role==='child'||role==='nurse'||role==='medic'||((role==='civ'||role==='elder')&&rng.chance(0.3));
   L.roleOut=role;return L;
 }
 const SAY={
@@ -266,6 +266,7 @@ function spawnNpc(c,o){
   const n={kind:'npc',role:L.roleOut,look:L,city:c,model:m,group:m.group,x:o.x,z:o.z,y:o.y!==undefined?o.y:tH(o.x,o.z),vy:0,ground:true,yaw:o.yaw||rng.range(0,6.28),state:'idle',timer:rng.range(0,4),
     hp:25,alive:true,eye:1.6*m.s,speed:rng.range(1.2,1.8)*(L.scale<0.8?1.1:1),fear:0,phase:rng.range(0,6),stationary:!!o.stationary||role==='guard',boxStep:0.45,r:0.3*m.s,hitR:0.3*m.s,hitH:2*m.s,lift:0,stuck:0,detour:0,detourT:0,sayT:0,bubble:null,def:{r:0.3*m.s,h:2*m.s,lift:0}};
   if(role==='guard'){m.arms[1].rotation.x=-1.2;m.arms[0].rotation.x=-1.0}
+  if(o.lie){n.lie=true;n.stationary=true;n.group.rotation.order='YXZ';n.group.rotation.x=-Math.PI/2;m.arms.forEach(a=>a.rotation.x=0.05)}   // paciente deitado de costas, cabeça para trás (hospital de campanha)
   if(o.sit){n.sit=true;n.stationary=true;m.legs.forEach(l=>l.rotation.x=-1.5);m.arms.forEach(a=>a.rotation.x=-0.7)}   // cliente sentado
   scene.add(n.group);NPCS.push(n);c.npcs.push(n);return n;
 }
@@ -316,12 +317,12 @@ function updateNpc(n,dt){
     for(const pk of WORLD.packs)for(const a of pk.enemies)scare(a);
     if(RAID.active)for(const a of RAID.area.enemies)scare(a);
   }
-  if(n.fear>0&&NPC_FIXED.has(n.role))n.fear=0;   // quem é de serviço nunca sai correndo
+  if(n.fear>0&&(NPC_FIXED.has(n.role)||n.lie))n.fear=0;   // quem é de serviço nunca sai correndo
   if(n.fear>0){
     n.fear-=dt;const ax=n.x-n.fx,az=n.z-n.fz,al=Math.hypot(ax,az)||1;
     steer(n,n.x+ax/al*5,n.z+az/al*5,4.6,dt,n.r,1.8,1.05);faceMove(n,px0,pz0,dt);moving=true;n.phase+=dt*12;
   }else if(n.stationary){
-    if(d<7&&!n.sit&&n.role!=='cook'){n.yaw+=(Math.atan2(dx,dz)-n.yaw+Math.PI*3)%(Math.PI*2)-Math.PI;}   // clientes sentados e o taverneiro ficam parados
+    if(d<7&&!n.sit&&!n.lie&&n.role!=='cook'){n.yaw+=(Math.atan2(dx,dz)-n.yaw+Math.PI*3)%(Math.PI*2)-Math.PI;}   // clientes sentados e o taverneiro ficam parados
   }else if(n.state==='idle'){
     n.timer-=dt;
     if(d<4.5)n.yaw+=((Math.atan2(dx,dz)-n.yaw+Math.PI*3)%(Math.PI*2)-Math.PI)*Math.min(1,dt*3);
@@ -335,14 +336,14 @@ function updateNpc(n,dt){
   moveY(n,dt,n.r,1.8,1.05);
   rescueStuck(n,dt,n.r,1.8,n.state==='walk'&&!n.sit);
   if(!n.stationary||n.fear>0){separate(n,c.npcs,dt);for(const o of c.enemies)if(o.alive&&!o.gone&&Math.abs(o.x-n.x)<2&&Math.abs(o.z-n.z)<2)separate(n,[o],dt)}
-  n.group.position.set(n.x,n.y-(n.sit?0.42:0),n.z);n.group.rotation.y=n.yaw;
+  n.group.position.set(n.x,n.y-(n.sit?0.42:0)+(n.lie?0.22:0),n.z);n.group.rotation.y=n.yaw;
   if(moving)animWalk(n.model,n.phase,0.7);else if(!n.sit){n.model.legs.forEach(l=>l.rotation.x*=0.8)}
   if(n.model.sway)n.model.sway(n.phase,moving,G.t)
 }
 // NPCs de serviço (armeiro, taverneiro, cozinheiro, enfermeira, escriturário) e o líder: não tomam tiro, não fogem e ficam sempre no posto (a cadeira, no caso do líder)
 const NPC_FIXED=new Set(['shop','merchant','cook','nurse','clerk','leader','smith','tanner','merc']);
 function damageNpc(n,amount,src){   // src: bicho que atacou (não envolve o jogador)
-  if(!n.alive||NPC_FIXED.has(n.role))return;n.hp-=amount;burst(n.x,n.y+1,n.z,0xaa1111,8,5,0.1);
+  if(!n.alive||NPC_FIXED.has(n.role)||n.lie)return;n.hp-=amount;burst(n.x,n.y+1,n.z,0xaa1111,8,5,0.1);
   if(!src){if(n.caravan)caravanAttacked(n);else facHostileAct(n.city)}   // ferir um cidadão: ataque (em guerra) ou crime; ferir guarda de caravana de outra facção: crime contra as facções da rota (factions.js)
   n.fear=5;n.fx=src?src.x:P.x;n.fz=src?src.z:P.z;
   if(n.hp<=0){n.alive=false;n.deadT=0;if(n.bubble){n.group.remove(n.bubble);n.bubble=null}}
@@ -350,7 +351,7 @@ function damageNpc(n,amount,src){   // src: bicho que atacou (não envolve o jog
 function npcTalk(n){
   if(n.caravan){n.lookT=4;n.state='idle';n.timer=5;n.yaw=Math.atan2(P.x-n.x,P.z-n.z);n.group.rotation.y=n.yaw}   // guarda de caravana: vira para o jogador e fica olhando enquanto ele fala
   const c=n.city;let pool;
-  if(n.role==='guard')pool=SAY.guard;else if(n.role==='shop')pool=SAY.shop;else if(n.role==='nurse')pool=SAY.nurse;else if(n.role==='merchant')pool=SAY.merchant;else if(n.role==='cook')pool=SAY.cook;else if(n.role==='patron')pool=SAY.patron;else if(n.role==='hostage')pool=SAY.hostage;else if(n.role==='clerk')pool=SAY.clerk;else if(n.role==='merc')pool=SAY.merc;else if(n.role==='leader')pool=SAY.leader;
+  if(n.lie)pool=TXT_WAR_PATIENT_SAY;else if(n.role==='guard')pool=SAY.guard;else if(n.role==='shop')pool=SAY.shop;else if(n.role==='nurse'||n.role==='medic')pool=SAY.nurse;else if(n.role==='merchant')pool=SAY.merchant;else if(n.role==='cook')pool=SAY.cook;else if(n.role==='patron')pool=SAY.patron;else if(n.role==='hostage')pool=SAY.hostage;else if(n.role==='clerk')pool=SAY.clerk;else if(n.role==='merc')pool=SAY.merc;else if(n.role==='leader')pool=SAY.leader;
   else if(n.role==='child')pool=SAY.child;else if(n.role==='elder'&&Math.random()<0.6)pool=SAY.elder;
   else pool=c.home?SAY.civ_f:(c.owner==='player'?SAY.civ_c:SAY.civ_e);
   npcSay(n,pool[Math.floor(Math.random()*pool.length)]);
