@@ -475,7 +475,7 @@ function genDecor(rng,dn,cities){
     if(nearCity(px,pz,4,cities))continue;
     if(WORLD.camps.some(k=>Math.hypot(px-k.cx,pz-k.cz)<13.5))continue;   // acampamentos ficam sem árvores, pedras e plantas ao redor
     if(WORLD.pois&&WORLD.pois.some(k=>Math.hypot(px-k.cx,pz-k.cz)<POI_DEFS[k.type].r+5))continue;   // POIs também (a margem deixa as copas das árvores de fora)
-    if(WORLD.warSites&&WORLD.warSites.some(k=>Math.hypot(px-k.x,pz-k.z)<POI_DEFS.fortcamp.r+5))continue;   // e os terrenos de guerra reservados (warfront.js)
+    if(wfReserved().some(k=>Math.hypot(px-k.x,pz-k.z)<POI_DEFS.fortcamp.r+5))continue;   // e os terrenos de guerra e dormentes reservados (warfront.js)
     if(!clearAround(px,pz))continue;
     const b=B[i],cl=dens.fbm(px/22,pz/22,2);
     let r=rng.next();

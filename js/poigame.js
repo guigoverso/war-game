@@ -81,7 +81,7 @@ function poiGarrisonSync(p){   // POI de guerra fora da guerra fica sem bandidos
   if(!p.show){const want=poiLive(p)&&(p.type==='ruins'?!poiX().done[p.id]:p.owner==='bandit');if(want)poiGarrisonPopulate(p);else poiGarrisonRemove(p)}
   poiCivSync(p);
 }
-function poiPopulateAll(){POI_READY=true;for(const p of WORLD.pois||[]){poiGarrisonSync(p);poiHuntChest(p)}}   // chamado por populateWild (poi.js) e depois de carregar um salvamento (poiApply)
+function poiPopulateAll(){POI_READY=true;dormBuildAll();for(const p of WORLD.pois||[]){poiGarrisonSync(p);poiHuntChest(p)}}   // chamado por populateWild (poi.js) e depois de carregar um salvamento (poiApply)
 function poiGarrisonCleared(c){
   const p=c.poi;c.state='cleared';if(!p)return;if(c._ally){c._ally=false;armyConquered(WORLD.home)}   // os soldados voltam para casa
   if(p.type==='ruins'){poiX().done[p.id]=true;poiGarrisonRemove(p);sfx('win',0);toast('🏛 Guardiões das ruínas derrotados: o baú foi destrancado. Eles voltam na próxima rodada.',4500);return}

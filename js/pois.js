@@ -528,6 +528,48 @@ function poiBarrierRow(c,x0,z0,x1,z1){
     else{pBc(c,x0-0.5,0,k,x0+0.5,1.2,e,0xb8a06a,true,{j:0.06});pBc(c,x0-0.35,1.2,k+0.2,x0+0.35,1.6,e-0.2,0x6a4a2e,true,{j:0.06})}}
 }
 
+// ---------- decorações dormentes (frente da guerra): guardam o lugar de um POI de guerra; sem função, sem dono ----------
+// Quatro decorações (raios em WAR_DORMANT); na declaração da guerra a decoração some e o POI de guerra nasce no mesmo lugar (warfront.js).
+const DORM_BUILD={
+  campfire(c,rng,d){   // fogueira igual à do acampamento de bandidos (buildCampFire, poi.js: pedras, brasas, tripé e chamas animadas), com toras de assento, caixa e barril
+    d.flames=buildCampFire(c,rng);
+    for(const [x,z,a] of[[-3.4,0.4,0],[3.4,-0.4,0],[0.4,3.4,1],[-0.4,-3.4,1]])pBc(c,a?x-0.4:x-1.1,0,a?z-1.1:z-0.4,a?x+0.4:x+1.1,0.55,a?z+1.1:z+0.4,0x6a4a2e,true,{j:0.05});   // toras de assento com colisão
+    crate(c,5.2,-3.2,1,1.0);barrel(c,-5.2,3.4);
+  },
+  garden(c,rng){   // jardim: canteiros com hortaliças dentro de uma cerca baixa e um espantalho
+    for(let i=0;i<3;i++){const z=-3.6+i*2.5;pBc(c,-4.5,0,z,4.5,0.2,z+1.4,0x5a3d22,false,{j:0.02});
+      for(let x=-4.3;x<4.2;x+=0.9)pBc(c,x,0.2,z+0.2,x+0.6,0.5+0.35*rng.next(),z+1.2,rng.pick([0x3a8a2a,0xc83a2a,0xe08a2a,0x5ab03a]),false,{j:0.1})}
+    poiFence(c,-5.6,-5,5.6,-5);poiFence(c,-5.6,4.6,5.6,4.6);poiFence(c,-5.6,-5,-5.6,4.6);poiFence(c,5.6,-5,5.6,4.6);
+    poiPole(c,0,-7,2.2);pBc(c,-1.1,1.5,-7.1,1.1,1.7,-6.9,0x4a3320,false,{j:0});pBc(c,-0.3,2.2,-7.3,0.3,2.7,-6.7,0xb89048,false,{j:0.04});
+  },
+  well(c,rng){   // poço de pedra com banco, barril, caixa e feno
+    poiWell(c,0,0);poiBench(c,3.6,2,true);barrel(c,-3.2,2.2);crate(c,4.2,-3.2,1,1.0);hay(c,-4.4,-3.2);
+  },
+  cairn(c,rng){   // marco de pedras empilhadas com uma estaca e um pano
+    for(let s=0;s<4;s++){const h=1.5-s*0.35;pBc(c,-h,s*0.5,-h,h,s*0.5+0.5,h,rng.pick(poiStone),true,{j:0.08})}
+    poiPole(c,0,0,3.2);pBc(c,0.1,2.3,-0.05,1.3,2.9,0.05,0xb03a3a,false,{j:0.03});
+  }
+};
+// Constrói a decoração de d ({kind, x, z, y}) numa malha própria (como poiBuild, adaptada ao chão: a malha do terreno já existe).
+function dormBuild(d){
+  if(d.mesh||d.off)return;
+  const c=poiArea(d.x,d.z,d.y,B[d.z*W+d.x]),rng=new RNG((WORLD.seed*59+d.i*101+5)>>>0);c.noDig=true;c.adapt=true;c.y=tH(d.x,d.z);d.sceneObjs=[];d.flames=null;   // c.y: as chamas da fogueira ficam no chão real
+  BX_CAP={batch:new BoxBatch(),cols:[]};
+  try{DORM_BUILD[d.kind](c,rng,d)}
+  finally{const cap=BX_CAP;BX_CAP=null;const m=cap.batch.toMesh(MAT_TERRAIN);if(m){m.userData.cx=d.x;m.userData.cz=d.z;scene.add(m);d.mesh=m;d.sceneObjs.push(m)}d.cols=cap.cols;for(const f of d.flames||[])d.sceneObjs.push(f)}
+}
+function dormRemove(d){   // tira a decoração do mundo (malha e colisões)
+  for(const o of d.sceneObjs||[]){scene.remove(o);const i=FIRES.indexOf(o);if(i>=0){FIRES.splice(i,1);o.material.dispose()}}   // chamas da fogueira saem de FIRES
+  if(d.mesh)d.mesh.geometry.dispose();
+  for(const b of d.cols||[])Col.remove(b);
+  d.mesh=null;d.sceneObjs=[];d.cols=[];
+}
+// Interação: junto da fogueira dormente (a 4,6 blocos do centro: as toras de assento têm colisão) dá para cozinhar, como nas fogueiras de acampamento.
+function dormScan(lines){
+  for(const d of WORLD.dormant||[])if(d.kind==='campfire'&&d.mesh&&Math.hypot(P.x-d.x,P.z-d.z)<4.6&&Math.abs(P.y-d.y)<3){G.target={type:'fire'};lines.push('[E] Fogueira: cozinhar')}
+}
+const dormBuildAll=()=>{for(const d of WORLD.dormant||[])dormBuild(d)};   // idempotente: chamada por poiPopulateAll
+
 // ---------- construção numa malha própria ----------
 function poiBuild(p){
   const c=poiArea(p.cx,p.cz,p.y,p.biome),rng=new RNG((WORLD.seed*53+p.id*97+3)>>>0);p.sceneObjs=[];p.c=c;
@@ -546,7 +588,7 @@ function ambClash(x,z,lax){
   const g=lax?AMB_GAP*0.5:AMB_GAP;
   for(const p of WORLD.pois||[])if(Math.hypot(p.cx-x,p.cz-z)<POI_DEFS[p.type].r+g)return true;
   for(const q of WORLD.caves||[])if(Math.hypot(q.cx-x,q.cz-z)<11+g)return true;
-  for(const q of WORLD.warSites||[])if(Math.hypot(q.x-x,q.z-z)<POI_DEFS.fortcamp.r+g)return true;   // terrenos de guerra (warfront.js)
+  for(const q of wfReserved())if(Math.hypot(q.x-x,q.z-z)<POI_DEFS.fortcamp.r+g)return true;   // terrenos de guerra e dormentes (warfront.js)
   for(const q of WORLD.chests||[])if(Math.hypot(q.x-x,q.z-z)<3+g)return true;
   return false;
 }
@@ -728,7 +770,7 @@ function genWorldPois(cities,taken){
 // Em ?cenario=pois o mundo inteiro nasce plano (sem relevo, água nem árvores) e os 17 POIs (11 permanentes e 6 de guerra) são construídos no centro ANTES da malha do terreno, cada um com uma placa
 // com o nome e o dono (por isso a trincheira pode ser escavada de verdade). As cidades ficam fora da área.
 function poiShowcaseGen(){
-  const types=POI_TYPES.concat(POI_WAR_TYPES),cols=5,gx=44,gz=44,rows=Math.ceil(types.length/cols);
+  const types=POI_TYPES.concat(POI_WAR_TYPES),dk=Object.keys(WAR_DORMANT),cols=5,gx=44,gz=44,rows=Math.ceil((types.length+dk.length)/cols);
   const x0=W/2-(cols-1)*gx/2,z0=W/2-(rows-1)*gz/2,Y=SEA+6;WORLD.pois=[];let id=900;
   const owners=['bandit',(WORLD.factions&&WORLD.factions[0])?WORLD.factions[0].id:'bandit','player'];
   types.forEach((type,i)=>{
@@ -736,6 +778,12 @@ function poiShowcaseGen(){
     const p={id:id++,type,cx:x,cz:z,y:Y,biome:BIO_PLAINS,owner:type==='ruins'?'none':owners[i%3],show:true,axis:'z'};
     poiBuild(p);WORLD.pois.push(p);
     const lbl=d.n+' — '+poiOwnerName(p.owner);makeSign(lbl,Math.max(4,lbl.length*0.36+0.8),0.9,0x2a2a3a,0xf0e6c0,x,Y+4.4,z+d.r+1.2,'S');
+  });
+  WORLD.dormant=[];   // decorações dormentes (frente da guerra), depois dos POIs: na vitrine não viram POI de guerra
+  dk.forEach((kind,j)=>{
+    const i=types.length+j,x=Math.round(x0+(i%cols)*gx),z=Math.round(z0+Math.floor(i/cols)*gz),d={i:j,x,z,y:Y,kind,r:WAR_DORMANT[kind].r};
+    WORLD.dormant.push(d);dormBuild(d);
+    const lbl='Dormente: '+WAR_DORMANT[kind].n;makeSign(lbl,Math.max(4,lbl.length*0.36+0.8),0.9,0x2a2a3a,0xf0e6c0,x,Y+4.4,z+d.r+1.2,'S');
   });
   WORLD.showcase={x:W/2,z:z0+(rows-1)*gz+30,y:Y};
   poiApply();

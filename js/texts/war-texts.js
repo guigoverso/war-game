@@ -49,3 +49,8 @@ const TXT_WAR_SCN_TITLE = '🧪 Cenário de guerra';
 const TXT_WAR_SCN_HELP = 'Guerra declarada ou não (WAR.scenario.startAtWar); POIs divididos (se o total for ímpar, o inimigo fica com a maioria). As operações ainda não existem: use os atalhos para testar o mapa.';
 // Cenário de guerra: linha de resumo do painel. en = facção inimiga, a = POIs seus, b = POIs do inimigo, o = outros.
 const txtWarScnSummary = (en, a, b, o) => 'Inimigo: <b>' + en + '</b> • POIs: seus <b>' + a + '</b>, dele <b>' + b + '</b>, outros ' + o;
+
+// Aviso do plano (faixa da previsão, console): não coube POI de guerra perto de uma cidade, então o primeiro/último POI
+// conquistável fica longe dela. lado = 'origem' ou 'alvo'; nome = cidade; d = distância em blocos.
+const txtWarRingFail = (lado, nome, d) => '⚠ Nenhum terreno livre perto de ' + nome + ' (' + lado + '): o POI conquistável mais próximo fica a ' +
+  d + ' blocos da muralha.';

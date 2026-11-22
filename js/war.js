@@ -8,7 +8,7 @@
 //  inc    ataques inimigos pendentes (viram operação de Defesa no turno do Líder seguinte): {fid, target}
 //  pts    pontos de líder gastos na rodada atual
 // Ainda não há operações nem batalhas: este arquivo só dá o chão para elas (itens 5 a 13 do plano da fase 6).
-const warNew = () => ({ fat: 0, nfat: {}, camps: {}, ops: [], inc: [], pts: 0 });
+const warNew = () => ({ fat: 0, nfat: {}, camps: {}, ops: [], inc: [], pts: 0, trace: [] });   // trace: POIs de guerra que ficaram como rastro depois da paz (warfront.js)
 Hooks.on('resetState', () => { STATE.war = warNew(); });
 // Acessor: cria o estado se faltar (partida nova ou save antigo) e completa campos que faltem.
 function warX() {

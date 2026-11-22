@@ -457,7 +457,7 @@ function updateInteract(){
   if(G.dg&&G.dgPad&&Math.hypot(P.x-G.dgPad.x,P.z-G.dgPad.z)<2.6){G.target={type:'dgexit'};lines.push('[E] Sair da dungeon (volta ao portal)')}
   if(G.dg&&G.dg.cage&&!G.dg.cage.opened&&Math.hypot(G.dg.cage.x-P.x,G.dg.cage.z-P.z)<3.6){G.target={type:'dgcage'};lines.push(G.dg.area.state==='cleared'?'[E] Abrir a jaula e libertar o refém':'🔒 Jaula trancada — elimine os inimigos')}
   if(G.dg&&G.dg.vein&&!G.dg.vein.mined&&Math.hypot(G.dg.vein.x-P.x,G.dg.vein.z-P.z)<3.4&&Math.abs(G.dg.vein.y-P.y)<2.5){G.target={type:'vein'};lines.push(G.dg.area.state==='cleared'?'[E] Minerar o veio de ouro':'🔒 Veio de ouro — elimine os inimigos')}
-  if(typeof poiScan==='function'){poiScan(lines);poiMarkCheck()}   // POIs seus: vigia, binóculo, balcão e cama (poigame.js)
+  if(typeof poiScan==='function'){poiScan(lines);poiMarkCheck();dormScan(lines)}   // POIs seus: vigia, binóculo, balcão e cama (poigame.js)
   for(const ch of WORLD.chests){if(ch.opened||ch.hold)continue;const d=Math.hypot(ch.x-P.x,ch.z-P.z);if(d<2.8&&Math.abs(ch.y-P.y)<2){G.target={type:'chest',ch};lines.push(ch.lockedBy&&ch.lockedBy.state!=='cleared'?'🔒 Baú trancado — elimine os bandidos':'[E] Abrir baú')}}
   if(!G.target){
     camera.getWorldDirection(_d);let bd=3.4;

@@ -61,12 +61,23 @@ const WAR = {
   //    ele usa (60)
   //  gap: folga, borda a borda, entre um terreno de guerra e cidades, POIs e outros terrenos de guerra (22; menor que POI_GAP
   //    porque a frente enche os vazios que a geração deixou)
+  //  gapAmb: folga de clareiras e dormentes em relação a acampamentos de bandidos, grutas e outros (8)
   //  sites: clareiras (terrenos de guerra) reservadas na geração do mundo, sem árvores e sem mexer no chão, vazias até a guerra; o POI se adapta ao chão. No máximo (60)
   //  siteRange: desnível máximo aceito no chão de uma clareira; na segunda metade das tentativas aceita +6 (18)
   //  siteTries: tentativas de sorteio de lugar na geração (6000)
   //  minimap: true mostra a rota da frente (linha tracejada vermelha) também no minimapa; false só no mapa grande (true)
-  front: { cell: 8, band: 55, avoid: 18, waterMax: 40, waterCost: 2, maxWarPois: 8, side: 60, gap: 22, pullCost: 0.7, pullRadius: 24,
-    sites: 60, siteRange: 18, siteTries: 6000, minimap: true }
+  //  dormMax: dormentes sorteados ao longo dos corredores entre cidades, fora os dos anéis (36)
+  //  dormTries: tentativas de sorteio por dormente do anel e por ponto de corredor (60)
+  //  dormStep: distância, em blocos, entre os pontos sorteados num corredor (65); dormWidth: desvio lateral máximo (45)
+  //  ringSites: dormentes reservados em volta de cada cidade, em direções diferentes (3); ringRadius: distância máxima deles à muralha;
+  //    no plano, o primeiro POI conquistável a partir da origem e o último antes do alvo ficam a no máximo isso (110)
+  //  revert: tipos que a paz desmonta e voltam a ser decoração; os demais ficam como rastro da guerra, sem dono
+  //    (hospital, depósito, atalaia e barricada voltam; acampamento e trincheira ficam)
+  //  banditChance: chance de um POI de guerra do terço do meio da rota nascer de bandidos (0.4); banditMax: teto deles por frente (2)
+  front: { cell: 8, band: 55, avoid: 18, waterMax: 40, waterCost: 2, maxWarPois: 8, side: 60, gap: 22, gapAmb: 8, pullCost: 0.7, pullRadius: 24,
+    sites: 60, siteRange: 18, siteTries: 6000, minimap: true,
+    dormTries: 60, dormMax: 36, dormStep: 65, dormWidth: 45, ringSites: 3, ringRadius: 110, banditChance: 0.4, banditMax: 2,
+    revert: { fortcamp: false, trench: false, hospital: true, depot: true, lookout: true, barricade: true } }
 };
 
 // POIs de guerra novos (só visuais, sem efeitos). Raios em POI_DEFS (pois.js): Acampamento 12, Trincheira 11, Hospital 10, Depósito 10,
@@ -74,10 +85,22 @@ const WAR = {
 // e 1 ao ar livre); medics = médicos que andam por ali (levam tiro); guards = soldados do dono (se for seu ou de facção; de bandidos vale a guarnição). Padrão: 5, 2 e 3
 const WAR_POI = { hospital: { patients: 5, medics: 2, guards: 3 } };
 
-// Chance de um POI de guerra da frente ser Acampamento fortificado (senão, Trincheira). t = posição na rota (0 = cidade sua,
-// 1 = cidade-alvo); nearEnemy = há POI do inimigo colado. Perto da cidade sua: acampamento; perto dos POIs do inimigo: trincheira.
-// Padrão: 1 - t, menos 0.3 se houver POI do inimigo colado (entre 0.1 e 0.9)
-const warCampChance = (t, nearEnemy) => Math.max(0.1, Math.min(0.9, 1 - t - (nearEnemy ? 0.3 : 0)));
+// Pesos para sortear o tipo de um POI de guerra da frente pela posição t na rota (0 = cidade sua, 1 = cidade-alvo); border = t da
+// fronteira (onde o controle muda). Trincheira na fronteira; Hospital e Depósito entre a fronteira e as cidades; Acampamento e
+// Atalaia em qualquer lugar. Padrão: trincheira 6 perto da fronteira (até 0,15) e 0,5 longe; hospital/depósito 3 de 0,1 a 0,45 da
+// fronteira e 0,5 fora; acampamento 2; atalaia 1,5. A barricada não entra aqui: só nasce num Marco de pedras ao lado de estrada.
+const warTypeWeights = (t, border) => {
+  const d = Math.abs(t - border), mid = d >= 0.1 && d < 0.45 ? 3 : 0.5;
+  return { fortcamp: 2, trench: d < 0.15 ? 6 : 0.5, hospital: mid, depot: mid, lookout: 1.5 };
+};
+
+// Decoração dormente: guarda o lugar de um POI de guerra (sem função). r = raio (igual ao do POI de guerra que ela vira),
+// types = POIs de guerra em que ela se converte. Fogueira 12 (Acampamento), Jardim 11 (Trincheira), Poço 10 (Hospital ou Depósito),
+// Marco de pedras 7 (Atalaia, ou Barricada se estiver ao lado de estrada)
+const WAR_DORMANT = {
+  campfire: { n: 'Fogueira', r: 12, types: ['fortcamp'] }, garden: { n: 'Jardim', r: 11, types: ['trench'] },
+  well: { n: 'Poço', r: 10, types: ['hospital', 'depot'] }, cairn: { n: 'Marco de pedras', r: 7, types: ['lookout', 'barricade'] }
+};
 // A cidade ou POI pode ser alvo de guerra? Padrão: qualquer cidade do inimigo, ou POI permanente dele (nunca ruínas, ponte de
 // aliado, POI de guerra). Aliado do inimigo não pode (só se entrar na guerra).
 const warCanTarget = (fid, kind, ref) => kind === 'city'

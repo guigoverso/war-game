@@ -268,19 +268,100 @@ function wfPointAt(path, s) {
 // firme, sem água. Ficam vazias até uma guerra pôr ali um POI de guerra, que se adapta ao chão (poiAdaptBc, pois.js).
 function genWarSites(taken) {
   const F = WAR.front, S = WORLD.warSites = [];
-  if (WORLD.showcaseMode) return;
+  if (WORLD.showcaseMode) return;   // a vitrine dos POIs (poiShowcaseGen) monta os seus dormentes
+  WORLD.dormant = [];
   const rng = new RNG((WORLD.seed * 977 + 13) >>> 0), r = POI_DEFS.fortcamp.r;
   // 'taken' começa pelas cidades (círculos): elas saem daqui e são medidas como quadrados (distância de xadrez), senão a
   // clareira entra pelos cantos da muralha. Baús escondidos (r 4) só pedem uma folga curta.
   const rest = taken.slice(WORLD.cities.length), big = rest.filter(q => q.r > 4), tiny = rest.filter(q => q.r <= 4);
   const nearCity = (x, z) => WORLD.cities.some(c => Math.max(Math.abs(c.cx - x), Math.abs(c.cz - z)) < c.half + r + F.gap);
+  genDormant(rng, big, tiny, nearCity);   // antes das clareiras: o anel das cidades tem prioridade no espaço livre
   for (let t = 0; t < F.siteTries && S.length < F.sites; t++) {
     const x = rng.int(30, W - 30), z = rng.int(30, W - 30);
-    const y = spotOK(x, z, r + 1, big, F.gap + r, F.siteRange + (t > F.siteTries / 2 ? 6 : 0));   // mais tarde, aceita mais desnível (o POI se adapta ao chão)
+    const y = wfCrowded(x, z, r, big) ? null : spotOK(x, z, r + 1, [], 0, F.siteRange + (t > F.siteTries / 2 ? 6 : 0));   // mais tarde, aceita mais desnível (o POI se adapta ao chão)
     if (y === null || nearCity(x, z) || tiny.some(q => Math.hypot(q.x - x, q.z - z) < q.r + r + 3)) continue;
-    const q = { x, z, r };
-    big.push(q); S.push({ x, z, y });
+    big.push({ x, z, r, poi: true }); S.push({ x, z, y });
   }
+}
+// Há algo perto demais de (x, z) para um terreno de raio r? POIs e terrenos reservados pedem WAR.front.gap; acampamentos de
+// bandidos, grutas e o resto (sem o sinalizador poi), WAR.front.gapAmb. loose (anel de cidade sem dormente): POIs pedem só gapAmb e o resto, 2.
+const wfCrowded = (x, z, r, big, loose) => big.some(t => Math.hypot(t.x - x, t.z - z) < t.r + r +
+  (loose ? (t.poi ? WAR.front.gapAmb : 2) : t.poi ? WAR.front.gap : WAR.front.gapAmb));
+// Terrenos reservados: clareiras e dormentes (nada nasce em cima: árvores, portais, baús, outros POIs).
+function wfReserved() { return (WORLD.warSites || []).concat(WORLD.dormant || []); }
+// Se há estrada perto de (x, z), devolve o eixo dela ('x' ou 'z'); senão null. O ponto em si é terra batida longe de estrada.
+function wfRoadAxis(x, z, r) {
+  let best = null, bd = 1e9;
+  for (let dz = -r - 8; dz <= r + 8; dz += 2) for (let dx = -r - 8; dx <= r + 8; dx += 2) {
+    const i = (z + dz) * W + x + dx, d = Math.hypot(dx, dz);
+    if (i >= 0 && i < W * W && T[i] === T_ROAD && d < bd) { bd = d; best = [dx, dz]; }
+  }
+  return best ? (Math.abs(best[0]) > Math.abs(best[1]) ? 'z' : 'x') : null;
+}
+// Dormentes (WORLD.dormant): decorações que guardam lugar de POI de guerra. Primeiro o anel de cada cidade (WAR.front.ringSites, até
+// ringRadius da muralha, em direções diferentes), depois os corredores (retas entre cada cidade e suas 2 vizinhas mais próximas).
+// Cada um: {i, x, z, y, kind, r, ring (id da cidade), road (eixo da estrada), off (virou POI de guerra)}.
+function genDormant(rng, big, tiny, nearCity) {
+  const F = WAR.front, D = WORLD.dormant = [], KW = { campfire: 3, garden: 2, well: 3, cairn: 3 };
+  const put = (x, z, ring, loose, force) => {
+    x = Math.round(x); z = Math.round(z);
+    let kind = null, ax = null;
+    const road = wfRoadAxis(x, z, WAR_DORMANT.cairn.r);
+    if (force) { kind = force; ax = road; }
+    else if (road && rng.next() < 0.6) { kind = 'cairn'; ax = road; }
+    else { let w = rng.next() * (KW.campfire + KW.garden + KW.well); kind = w < KW.campfire ? 'campfire' : w < KW.campfire + KW.garden ? 'garden' : 'well'; }
+    const r = WAR_DORMANT[kind].r;
+    const y = wfCrowded(x, z, r, big, loose) ? null : spotOK(x, z, r + 1, [], 0, F.siteRange + (loose ? 20 : 6));
+    if (y === null || nearCity(x, z) || tiny.some(q => Math.hypot(q.x - x, q.z - z) < q.r + r + 3)) return false;
+    big.push({ x, z, r, poi: true });
+    D.push({ i: D.length, x, z, y, kind, r, ring, road: kind === 'cairn' ? ax : undefined });
+    return true;
+  };
+  for (const c of WORLD.cities) {   // anel: ringSites direções espaçadas, com sorteio de distância
+    const a0 = rng.next() * 6.283;
+    for (let k = 0; k < F.ringSites; k++) for (let t = 0; t < F.dormTries; t++) {
+      const a = a0 + k * 6.283 / F.ringSites + (rng.next() - 0.5) * 1.2, d = c.half + 24 + rng.next() * (F.ringRadius - 24 - 14);
+      if (put(c.cx + Math.cos(a) * d, c.cz + Math.sin(a) * d, c.id)) break;
+    }
+    // Toda cidade tem de ter ao menos um dormente no anel (senão o POI conquistável mais perto dela fica longe demais): se o
+    // sorteio normal não achou, varre o anel palmo a palmo, só com a folga mínima (gapAmb), mais desnível e, por último,
+    // o marco de pedras (o menor, raio 7), na ordem do mais perto da muralha para o mais longe.
+    for (const kind of ['campfire', 'garden', 'well', 'cairn']) {
+      for (let d = c.half + 24; d <= c.half + F.ringRadius - 6 && !D.some(q => q.ring === c.id); d += 5) {
+        for (let a = rng.next() * 0.5; a < 6.283 && !D.some(q => q.ring === c.id); a += 0.12) {
+          put(c.cx + Math.cos(a) * d, c.cz + Math.sin(a) * d, c.id, true, kind);
+        }
+      }
+    }
+  }
+  const seen = new Set(), n0 = D.length;
+  for (const a of WORLD.cities) {   // corredores
+    const near = WORLD.cities.filter(b => b !== a).sort((p, q) => wfDist(a, p) - wfDist(a, q)).slice(0, 2);
+    for (const b of near) {
+      const key = Math.min(a.id, b.id) + ':' + Math.max(a.id, b.id);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const L = wfDist(a, b), ux = (b.cx - a.cx) / L, uz = (b.cz - a.cz) / L;
+      for (let s = F.ringRadius; s < L - F.ringRadius && D.length - n0 < F.dormMax; s += F.dormStep) {
+        for (let t = 0; t < F.dormTries; t++) {
+          const off = (rng.next() * 2 - 1) * F.dormWidth;
+          if (put(a.cx + ux * s - uz * off, a.cz + uz * s + ux * off)) break;
+        }
+      }
+    }
+  }
+}
+// Dormente livre mais perto de (x, z), até WAR.front.side blocos. used = POIs de guerra já escolhidos neste plano. Com type, só os
+// que viram esse tipo; null se não houver.
+function wfDormNear(x, z, used, type) {
+  let best = null, bd = WAR.front.side;
+  for (const d of WORLD.dormant || []) {
+    const q = Math.hypot(d.x - x, d.z - z);
+    if (d.off || q >= bd || used.some(u => u.cx === d.x && u.cz === d.z)) continue;
+    if (type && !WAR_DORMANT[d.kind].types.includes(type)) continue;
+    best = d; bd = q;
+  }
+  return best;
 }
 // Terreno de guerra livre mais perto de (x, z), até WAR.front.side blocos, que não esteja em 'used'; null se não houver.
 function wfSiteNear(x, z, used) {
@@ -293,36 +374,103 @@ function wfSiteNear(x, z, used) {
   return best;
 }
 
-// Preenche os vazios da rota com POIs de guerra (plano puro: {type, cx, cz, y, owner, t}). Cada vazio entre dois vizinhos
-// (cidade sua, POIs da cadeia, alvo) recebe quantos quadrados de 2 × raio + gap couberem, espaçados por igual; cada um usa o
-// terreno de guerra livre mais perto do ponto ideal. Tipo: warCampChance. Dono: o do vizinho mais perto se for você ou o
-// inimigo; senão pela metade da rota. No máximo WAR.front.maxWarPois.
+// Preenche os vazios da rota com POIs de guerra (plano puro: {type, cx, cz, y, owner, t, dorm?, axis?}). Cada vazio entre dois
+// vizinhos (cidade sua, POIs da cadeia, alvo) recebe quantos quadrados de 2 × raio + gap couberem, espaçados por igual. Tipo: sorteio
+// por posição (warTypeWeights); usa o dormente livre mais perto que vire esse tipo, senão qualquer dormente perto (o tipo é o dele),
+// senão uma clareira. Dono por terços da rota: 1º seu, último do inimigo, do meio de bandidos (banditChance, teto banditMax) ou do
+// lado mais perto. No fim, o anel das cidades (wfRing). No máximo WAR.front.maxWarPois (o anel pode passar disso).
 function wfFill(plan) {
   const F = WAR.front, fid = plan.fid, len = plan.len, rw = POI_DEFS.fortcamp.r;
   const rng = new RNG((WORLD.seed * 71 + fid * 13 + 7) >>> 0), out = [];
   const tr = plan.target, nodes = [{ s: 0, r: plan.origin.half, o: 'player' }];
   plan.chain.forEach((p, i) => nodes.push({ s: plan.ts[i] * len, r: POI_DEFS[p.type].r, o: p.owner, poi: true }));
   nodes.push({ s: len, r: wfRad(tr), o: fid, poi: plan.kind === 'poi' });
+  // fronteira: entre o último nó seu e o primeiro do inimigo
+  const lastP = Math.max(...nodes.filter(n => n.o === 'player').map(n => n.s));
+  const firstE = Math.min(...nodes.filter(n => n.o === fid).map(n => n.s));
+  const border = clamp((lastP + firstE) / 2 / (len || 1), 0, 1);
+  let bandits = 0;
+  const ownerAt = t => {
+    if (t < 1 / 3) return 'player';
+    if (t > 2 / 3) return fid;
+    if (bandits < F.banditMax && rng.next() < F.banditChance) { bandits++; return 'bandit'; }
+    return t < 0.5 ? 'player' : fid;
+  };
   for (let i = 0; i + 1 < nodes.length && out.length < F.maxWarPois; i++) {
     const A = nodes[i], B = nodes[i + 1], from = A.s + A.r, L = B.s - B.r - from;
     const n = Math.floor((L - F.gap) / (2 * rw + F.gap));
     for (let k = 0; k < n && out.length < F.maxWarPois; k++) {
-      const s = from + L * (k + 1) / (n + 1), t = s / len, near = s - A.s < B.s - s ? A : B, c = wfPointAt(plan.path, s);
-      const site = wfSiteNear(c.x, c.z, out);
-      if (!site) continue;   // sem terreno de guerra perto: o quadrado fica vazio
-      const type = rng.next() < warCampChance(t, (A.poi && A.o === fid) || (B.poi && B.o === fid)) ? 'fortcamp' : 'trench';
-      const own = near.o === 'player' || near.o === fid ? near.o : (t < 0.5 ? 'player' : fid);
-      out.push({ type, cx: site.x, cz: site.z, y: site.y, owner: own, t });
+      const s = from + L * (k + 1) / (n + 1), t = s / len, c = wfPointAt(plan.path, s), w = warTypeWeights(t, border);
+      let r = rng.next() * Object.values(w).reduce((a, b) => a + b, 0), type = 'fortcamp';
+      for (const k2 in w) { if ((r -= w[k2]) < 0) { type = k2; break; } }
+      const e = wfSpot(c.x, c.z, out, type, rng);
+      if (!e) continue;   // sem dormente nem clareira perto: o quadrado fica vazio
+      e.owner = ownerAt(t); e.t = t; out.push(e);
     }
   }
+  wfRing(plan, out, nodes);
   return out;
+}
+// Lugar e tipo de um POI de guerra perto de (x, z): dormente do tipo, outro dormente (muda o tipo), ou clareira (sem barricada).
+// Dormente de estrada vira Barricada (eixo p.axis). Devolve {type, cx, cz, y, dorm?, axis?} ou null.
+function wfSpot(x, z, used, type, rng) {
+  const d = wfDormNear(x, z, used, type) || wfDormNear(x, z, used);
+  if (d) {
+    const types = WAR_DORMANT[d.kind].types, plain = types.filter(q => q !== 'barricade');
+    const ty = d.road ? 'barricade' : types.includes(type) ? type : plain[rng.int(0, plain.length - 1)];
+    return { type: ty, cx: d.x, cz: d.z, y: d.y, dorm: d.i, axis: ty === 'barricade' ? d.road : undefined };
+  }
+  const site = wfSiteNear(x, z, used);
+  return site ? { type: type === 'barricade' ? 'lookout' : type, cx: site.x, cz: site.z, y: site.y } : null;
+}
+// Anel das cidades: o primeiro POI conquistável (não seu) a partir da origem e o último antes do alvo ficam a no máximo
+// WAR.front.ringRadius da muralha; se não, acrescenta um dormente do anel (ou clareira) como POI de guerra: de bandidos junto da
+// origem, do inimigo junto da cidade-alvo. Sem lugar: plan.warn avisa. nodes: origem, cadeia e alvo (wfFill).
+function wfRing(plan, out, nodes) {
+  const F = WAR.front, len = plan.len, warn = plan.warn = [];
+  const conq = nodes.slice(1, -1).filter(n => n.o !== 'player').map(n => n.s)
+    .concat(out.filter(e => e.owner !== 'player').map(e => e.t * len)).sort((a, b) => a - b);
+  const sides = [{ c: plan.origin, who: 'origem', own: 'bandit', first: true }];
+  if (plan.kind === 'city') sides.push({ c: plan.target, who: 'alvo', own: plan.fid, first: false });
+  for (const sd of sides) {
+    const s = conq.length ? (sd.first ? conq[0] : conq[conq.length - 1]) : (sd.first ? len : 0);
+    const reach = sd.first ? s - sd.c.half : len - s - sd.c.half;   // distância (pela rota) da muralha ao POI conquistável
+    if (reach <= F.ringRadius) continue;
+    const e = wfRingSpot(plan, out, sd, F);
+    if (e) { out.push(e); conq.push(e.t * len); conq.sort((a, b) => a - b); }
+    else warn.push(txtWarRingFail(sd.who, sd.c.name, Math.round(reach)));
+  }
+}
+// Escolhe o dormente do anel de sd.c (livre, longe dos escolhidos e da cadeia) mais perto da rota; senão uma clareira no meio do trecho.
+function wfRingSpot(plan, out, sd, F) {
+  const cum = [0], pa = plan.path;
+  for (let k = 1; k < pa.length; k++) cum.push(cum[k - 1] + Math.hypot(pa[k].x - pa[k - 1].x, pa[k].z - pa[k - 1].z));
+  const clash = (x, z, r) => out.concat(plan.chain.map(p => ({ cx: p.cx, cz: p.cz, type: p.type })))
+    .some(u => Math.hypot(u.cx - x, u.cz - z) < POI_DEFS[u.type].r + r + F.gap);
+  let best = null, bd = 1e9;
+  for (const d of WORLD.dormant || []) {
+    if (d.off || d.ring !== sd.c.id || clash(d.x, d.z, d.r)) continue;
+    const a = wfAlong(pa, cum, d.x, d.z);
+    if (a.d < bd) { bd = a.d; best = d; }
+  }
+  if (best) {
+    const ty = best.road ? 'barricade' : WAR_DORMANT[best.kind].types[0];
+    return { type: ty, cx: best.x, cz: best.z, y: best.y, dorm: best.i, axis: ty === 'barricade' ? best.road : undefined,
+      owner: sd.own, t: wfAlong(pa, cum, best.x, best.z).t };
+  }
+  const q = wfPointAt(pa, sd.first ? sd.c.half + F.ringRadius * 0.6 : plan.len - sd.c.half - F.ringRadius * 0.6);
+  const site = q && wfSiteNear(q.x, q.z, out);
+  return site && !clash(site.x, site.z, POI_DEFS.fortcamp.r)
+    ? { type: 'fortcamp', cx: site.x, cz: site.z, y: site.y, owner: sd.own, t: wfAlong(pa, cum, site.x, site.z).t } : null;
 }
 
 // ---------- POIs de guerra: construir, remover e restaurar ----------
 // Cria um POI de guerra em jogo (num terreno de guerra já nivelado, sobre uma base de terra, sem mexer na malha) e o liga ao mundo. e = {id, type, cx, cz, y, owner}.
 // O dono entra direto (sem a espera de poiOwnerChanged): os soldados da guarnição moram nele desde a declaração.
 function wfMake(e) {
-  const p = { id: e.id, type: e.type, cx: e.cx, cz: e.cz, y: e.y, biome: B[e.cz * W + e.cx], owner: e.owner, runtime: true };
+  const p = { id: e.id, type: e.type, cx: e.cx, cz: e.cz, y: e.y, biome: B[e.cz * W + e.cx], owner: e.owner, runtime: true, axis: e.axis };
+  const d = e.dorm !== undefined ? (WORLD.dormant || [])[e.dorm] : null;
+  if (d) { dormRemove(d); d.off = true; }   // a decoração dormente dá lugar ao POI de guerra
   poiBuild(p);
   WORLD.pois.push(p);
   STATE.pois = STATE.pois || {};
@@ -340,7 +488,7 @@ function warFrontBuild(plan) {
   const camp = camps[fid] || (camps[fid] = { kind: 'attack', since: STATE.round, allies: { player: [], enemy: [] } });
   camp.front = { kind: plan.kind, targetId: plan.target.id, originId: plan.origin.id,
     path: plan.path.map(q => [Math.round(q.x), Math.round(q.z)]), chain: plan.chain.map(p => p.id),
-    war: plan.war.map(e => ({ id: e.id, type: e.type, cx: e.cx, cz: e.cz, y: e.y, owner: e.owner })) };
+    war: plan.war.map(e => ({ id: e.id, type: e.type, cx: e.cx, cz: e.cz, y: e.y, owner: e.owner, dorm: e.dorm, axis: e.axis })) };
   for (const e of plan.war) wfMake(e);
   return plan.war.length;
 }
@@ -357,19 +505,34 @@ function wfUnmake(p) {
   const X = poiX();
   for (const k of ['seen', 'since', 'conq', 'clr']) if (X[k]) delete X[k][p.id];
 }
-// Remove os POIs de guerra da frente de fid (sem fid: de todas) e apaga a frente do estado. Chamada quando a guerra acaba.
+// Desmonta os POIs de guerra da frente de fid (sem fid: de todas) e apaga a frente do estado. Chamada quando a guerra acaba.
+// WAR.front.revert[tipo]: true remove o POI e reconstrói a decoração dormente; false deixa o POI como rastro da guerra (sem dono,
+// guardado em STATE.war.trace e refeito por warFrontRestore).
 function warFrontClear(fid) {
   const camps = warX().camps;
   for (const f of fid === undefined ? Object.keys(camps) : [fid]) {
     const fr = camps[f] && camps[f].front;
     if (!fr) continue;
-    for (const e of fr.war || []) { const p = WORLD.pois.find(q => q.id === e.id); if (p) wfUnmake(p); }
+    for (const e of fr.war || []) {
+      const p = WORLD.pois.find(q => q.id === e.id);
+      if (!p) continue;
+      if (!WAR.front.revert[e.type]) {   // rastro: fica no mundo, sem dono e sem guarnição
+        p.owner = 'none'; STATE.pois[p.id] = 'none'; poiPaint(p); poiGarrisonSync(p);
+        warX().trace.push({ id: e.id, type: e.type, cx: e.cx, cz: e.cz, y: e.y, dorm: e.dorm, axis: e.axis });
+        continue;
+      }
+      wfUnmake(p);
+      const d = e.dorm !== undefined ? (WORLD.dormant || [])[e.dorm] : null;
+      if (d) { d.off = false; dormBuild(d); }
+    }
     delete camps[f].front;
   }
 }
-// Reconstrói os POIs de guerra das frentes salvas (o mundo é refeito pela semente): applySave, depois das relações.
+// Reconstrói os POIs de guerra das frentes salvas e os rastros (o mundo é refeito pela semente): applySave, depois das relações.
 function warFrontRestore() {
-  for (const fid in warX().camps) {
-    for (const e of (warX().camps[fid].front || {}).war || []) if (!WORLD.pois.some(p => p.id === e.id)) wfMake(e);
+  const X = warX();
+  for (const fid in X.camps) {
+    for (const e of (X.camps[fid].front || {}).war || []) if (!WORLD.pois.some(p => p.id === e.id)) wfMake(e);
   }
+  for (const e of X.trace) if (!WORLD.pois.some(p => p.id === e.id)) wfMake(Object.assign({ owner: 'none' }, e));
 }
