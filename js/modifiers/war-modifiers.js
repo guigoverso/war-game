@@ -49,11 +49,13 @@ const WAR = {
   scenario: { round: 3, coins: 20000, lvl: 3, extraCities: 1, food: 40, ore: 40, startAtWar: true, splitPois: false },
   // Frente da guerra (feature 36): como a rota entre a cidade sua e o alvo vira uma cadeia de POIs.
   //  cell: tamanho da grade da busca de rota, em blocos (8)
-  //  band: distância máxima, em blocos, de um POI permanente à rota para entrar na cadeia (45)
+  //  band: distância máxima, em blocos, de um POI permanente à rota para entrar na cadeia (55; a 70 a rota chega a 1,8× a linha reta)
   //  avoid: folga, em blocos, que a rota guarda de cidades e POIs de quem está fora da guerra (18)
   //  waterMax: vão de água, em blocos, que a rota ainda aceita atravessar; acima disso ela contorna (a água não pode ocupar o
   //    espaço de um POI de guerra: 2 × raio + POI_GAP, ~54) (40)
   //  waterCost: custo extra por célula de água na busca (2: prefere terra, mas atravessa vão curto)
+  //  pullCost: multiplicador do custo da busca de rota perto de POIs aproveitáveis e clareiras (0.7: a rota prefere passar por
+  //    eles; 1 desliga). pullRadius: alcance desse desconto, em blocos (24)
   //  maxWarPois: teto de POIs de guerra por frente (8)
   //  side: distância máxima, em blocos, entre o ponto ideal de um POI de guerra na rota e o terreno de guerra reservado que
   //    ele usa (60)
@@ -63,7 +65,7 @@ const WAR = {
   //  siteRange: desnível máximo aceito no chão de uma clareira; na segunda metade das tentativas aceita +6 (18)
   //  siteTries: tentativas de sorteio de lugar na geração (6000)
   //  minimap: true mostra a rota da frente (linha tracejada vermelha) também no minimapa; false só no mapa grande (true)
-  front: { cell: 8, band: 45, avoid: 18, waterMax: 40, waterCost: 2, maxWarPois: 8, side: 60, gap: 22,
+  front: { cell: 8, band: 55, avoid: 18, waterMax: 40, waterCost: 2, maxWarPois: 8, side: 60, gap: 22, pullCost: 0.7, pullRadius: 24,
     sites: 60, siteRange: 18, siteTries: 6000, minimap: true }
 };
 

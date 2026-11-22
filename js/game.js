@@ -573,6 +573,7 @@ function drawMinimap(){
     mmc.strokeStyle='#fff';mmc.lineWidth=2;mmc.beginPath();mmc.rect(x-6,y-6,12,12);mmc.fill();mmc.stroke();
   }
   if(!G.dg)for(const p of WORLD.pois||[]){if(p.type==='ruins'||!poiVisible(p))continue;const x=(p.cx-P.x)*s,y=(p.cz-P.z)*s;mmc.fillStyle=poiCss(p.owner);mmc.strokeStyle=POI_BORDER;mmc.lineWidth=1.3;mmc.beginPath();mmc.rect(x-4.5,y-4.5,9,9);mmc.fill();mmc.stroke()}   // POIs (cor do dono)
+  if(!G.dg)warFrontDrawMini(mmc,s);   // rota da frente da guerra (warfront.js; liga/desliga em WAR.front.minimap)
   {const ct=G.dg?null:cvbTarget();if(ct){let x=(ct.x-P.x)*s,y=(ct.z-P.z)*s;const L=Math.hypot(x,y),maxL=62;if(L>maxL){x*=maxL/L;y*=maxL/L}drawStar(mmc,x,y,7)}}   // caravana sendo saqueada
   if(!G.dg)for(const a of ALLIES)if(a.alive){mmc.fillStyle='#4aa0ff';mmc.fillRect((a.x-P.x)*s-2,(a.z-P.z)*s-2,4,4)}
   if(!G.dg)for(const e of ENEMIES)if(e.alive&&e.city.state==='attacking'){mmc.fillStyle='#ff2a2a';mmc.fillRect((e.x-P.x)*s-1.5,(e.z-P.z)*s-1.5,3,3)}

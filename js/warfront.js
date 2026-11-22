@@ -26,9 +26,10 @@ function wfBlockers(fid, origin, target) {
 }
 
 // Busca A* na grade de WAR.front.cell blocos. water: custo extra por célula de água (null = água proibida); avoid: folga, em
-// blocos, que a rota guarda dos obstáculos (cidade é um quadrado: distância de xadrez; POI é um círculo).
+// blocos, que a rota guarda dos obstáculos (cidade é um quadrado: distância de xadrez; POI é um círculo). pull: pontos {x, z}
+// (POIs aproveitáveis e clareiras) perto dos quais o custo da célula cai para WAR.front.pullCost (a rota prefere passar por eles).
 // Devolve a lista de células [ix, iz] da origem ao alvo, ou null.
-function wfSearch(a, b, blk, water, avoid) {
+function wfSearch(a, b, blk, water, avoid, pull) {
   const F = WAR.front, S = F.cell, N = Math.floor(W / S), cell = v => clamp(Math.floor(v / S), 0, N - 1);
   const wat = (i, j) => H[clamp(j * S + S / 2 | 0, 0, W - 1) * W + clamp(i * S + S / 2 | 0, 0, W - 1)] < SEA;
   const bad = new Uint8Array(N * N);
@@ -40,10 +41,16 @@ function wfSearch(a, b, blk, water, avoid) {
       if ((sq ? Math.max(dx, dz) : Math.hypot(dx, dz)) < r) bad[j * N + i] = 1;
     }
   }
+  const disc = new Float32Array(N * N).fill(1), pr = F.pullRadius;
+  for (const q of pull || []) {
+    for (let j = cell(q.z - pr); j <= cell(q.z + pr); j++) for (let i = cell(q.x - pr); i <= cell(q.x + pr); i++) {
+      if (Math.hypot(i * S + S / 2 - q.x, j * S + S / 2 - q.z) < pr) disc[j * N + i] = F.pullCost;
+    }
+  }
   const si = cell(a.cx), sj = cell(a.cz), gi = cell(b.cx), gj = cell(b.cz);
   bad[sj * N + si] = bad[gj * N + gi] = 0;
   const g = new Float32Array(N * N).fill(Infinity), from = new Int32Array(N * N).fill(-1), done = new Uint8Array(N * N);
-  const hp = new Heap(), hF = (i, j) => Math.hypot(gi - i, gj - j) * S;
+  const hp = new Heap(), hF = (i, j) => Math.hypot(gi - i, gj - j) * S * Math.min(1, F.pullCost);   // o desconto não pode tornar a estimativa maior que o custo
   g[sj * N + si] = 0; hp.push(hF(si, sj), sj * N + si);
   while (hp.size) {
     const k = hp.pop()[1];
@@ -61,7 +68,7 @@ function wfSearch(a, b, blk, water, avoid) {
       if (di && dj && (bad[j * N + ni] || bad[nj * N + i])) continue;   // sem cortar quina de obstáculo
       const w = wat(ni, nj);
       if (w && water === null) continue;
-      const c = g[k] + (di && dj ? 1.4142 : 1) * S * (w ? 1 + water : 1);
+      const c = g[k] + (di && dj ? 1.4142 : 1) * S * (w ? 1 + water : 1) * disc[nk];
       if (c < g[nk]) { g[nk] = c; from[nk] = k; hp.push(c + hF(ni, nj), nk); }
     }
   }
@@ -81,13 +88,13 @@ function wfWaterRun(cells) {
 
 // Rota por terra de a até b (objetos com cx, cz): vão de água só até WAR.front.waterMax; senão contorna. Duas passadas de
 // folga: primeiro com WAR.front.avoid dos obstáculos; se não houver caminho, sem folga (colada, mas fora deles). null = sem caminho.
-// Devolve [{x, z}] com a origem e o alvo nas pontas.
-function wfRoute(a, b, blk) {
+// pull: ver wfSearch. Devolve [{x, z}] com a origem e o alvo nas pontas.
+function wfRoute(a, b, blk, pull) {
   const F = WAR.front;
   let cells = null;
   for (const avoid of [F.avoid, 0]) {
-    cells = wfSearch(a, b, blk, F.waterCost, avoid);
-    if (cells && wfWaterRun(cells) > F.waterMax) cells = wfSearch(a, b, blk, null, avoid);
+    cells = wfSearch(a, b, blk, F.waterCost, avoid, pull);
+    if (cells && wfWaterRun(cells) > F.waterMax) cells = wfSearch(a, b, blk, null, avoid, pull);
     if (cells) break;
   }
   if (!cells) return null;
@@ -178,21 +185,30 @@ function warFrontPlan(fid, kind, ref) {
   const mine = playerCities();
   if (!ref || !mine.length) return null;
   const origin = mine.reduce((m, c) => wfDist(c, ref) < wfDist(m, ref) ? c : m);
-  const path = wfRoute(origin, ref, wfBlockers(fid, origin, ref));
+  const blk = wfBlockers(fid, origin, ref), ok = o => o === 'player' || o === 'bandit' || o === 'free' || o === fid;
+  const cand = warPois().filter(p => p !== ref && !POI_DEFS[p.type].war && ok(p.owner));
+  // pull: onde a rota gosta de passar (POIs aproveitáveis e clareiras ainda sem POI de guerra)
+  const pull = cand.map(p => ({ x: p.cx, z: p.cz }))
+    .concat((WORLD.warSites || []).filter(q => !WORLD.pois.some(p => p.cx === q.x && p.cz === q.z)));
+  let path = wfRoute(origin, ref, blk, pull), t1 = null;
   if (!path) return null;
-  const cum = [0];
-  for (let k = 1; k < path.length; k++) cum.push(cum[k - 1] + Math.hypot(path[k].x - path[k - 1].x, path[k].z - path[k - 1].z));
-  const ok = o => o === 'player' || o === 'bandit' || o === 'free' || o === fid;
-  const list = [];
-  for (const p of warPois()) {
-    if (p === ref || POI_DEFS[p.type].war || !ok(p.owner)) continue;
-    const a = wfAlong(path, cum, p.cx, p.cz);
-    if (a.d <= WAR.front.band) list.push({ p, t: a.t });
+  // A cadeia sai da rota; a rota refeita por ela passa perto de outros POIs, então uma segunda passada os acrescenta.
+  for (let pass = 0; pass < 2; pass++) {
+    const cum = [0];
+    for (let k = 1; k < path.length; k++) cum.push(cum[k - 1] + Math.hypot(path[k].x - path[k - 1].x, path[k].z - path[k - 1].z));
+    const list = [];
+    for (const p of cand) {
+      const a = wfAlong(path, cum, p.cx, p.cz);
+      if (a.d <= WAR.front.band) list.push({ p, t: a.t });
+    }
+    list.sort((x, y) => x.t - y.t);
+    // A rota PASSA pelos POIs da cadeia (eles são os entrepostos) e, depois, também pelos POIs de guerra planejados.
+    const th = wfThread(origin, ref, blk, list.map(o => o.p), pull);
+    if (!th) { if (t1) break; return null; }
+    const same = t1 && t1.stops.length === th.stops.length && t1.stops.every((p, i) => p === th.stops[i]);
+    t1 = th; path = th.path;
+    if (same) break;
   }
-  list.sort((x, y) => x.t - y.t);
-  // A rota PASSA pelos POIs da cadeia (eles são os entrepostos) e, depois, também pelos POIs de guerra planejados.
-  const blk = wfBlockers(fid, origin, ref);
-  const t1 = wfThread(origin, ref, blk, list.map(o => o.p));
   if (!t1) return null;
   const plan = { kind, fid, target: ref, origin, path: t1.path, len: t1.len, chain: t1.stops,
     ts: t1.at.map(v => v / (t1.len || 1)), war: [] };
@@ -200,7 +216,7 @@ function warFrontPlan(fid, kind, ref) {
   if (!war.length) return plan;
   const stops = plan.chain.map((p, i) => ({ cx: p.cx, cz: p.cz, o: p, s: plan.ts[i], w: false }))
     .concat(war.map(e => ({ cx: e.cx, cz: e.cz, o: e, s: e.t, w: true }))).sort((x, y) => x.s - y.s);
-  const t2 = wfThread(origin, ref, blk, stops);
+  const t2 = wfThread(origin, ref, blk, stops, pull);
   if (!t2) return plan;   // sem rota passando pelos POIs de guerra: fica a rota só com a cadeia
   plan.path = t2.path; plan.len = t2.len; plan.chain = []; plan.ts = []; plan.war = [];
   t2.stops.forEach((st, i) => {
@@ -213,7 +229,7 @@ function warFrontPlan(fid, kind, ref) {
 
 // Refaz a rota trecho a trecho: origem → parada 1 → ... → alvo. Cada parada tem cx, cz. Parada sem rota por terra a partir da
 // anterior sai. Devolve {path, len, stops (as que ficaram), at (distância de cada uma desde a origem)} ou null (sem rota ao alvo).
-function wfThread(origin, ref, blk, stops) {
+function wfThread(origin, ref, blk, stops, pull) {
   const full = [{ x: origin.cx, z: origin.cz }], kept = [], at = [];
   let cur = origin, len = 0;
   const add = seg => {
@@ -223,11 +239,11 @@ function wfThread(origin, ref, blk, stops) {
     }
   };
   for (const st of stops) {
-    const seg = wfRoute(cur, st, blk);
+    const seg = wfRoute(cur, st, blk, pull);
     if (!seg) continue;
     add(seg); kept.push(st); at.push(len); cur = st;
   }
-  const last = wfRoute(cur, ref, blk);
+  const last = wfRoute(cur, ref, blk, pull);
   if (!last) return null;
   add(last);
   return { path: full, len, stops: kept, at };

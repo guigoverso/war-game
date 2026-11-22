@@ -72,7 +72,7 @@ Decisões fechadas com o usuário (2026-11-21), depois da tarefa 3 pronta e de t
 | Etapa | O que faz | Tam. | Sessão |
 |---|---|---|---|
 | 4.1 ✅ | **Correções de espaço (feita):** folga de 22 ou mais, cidade medida como quadrado, folga entre POI de guerra e POI comum; rota em duas passadas de folga | P | Continua desta: o bug e os números estão no contexto |
-| 4.2 | **A + B:** `band` maior e cadeia com mais POIs existentes; a rota prefere clareiras e POIs (desconto de custo na busca) | M | Continua da 4.1: mesmo código (`js/warfront.js`) |
+| 4.2 ✅ | **A + B (feita):** `band` maior e cadeia com mais POIs existentes; a rota prefere clareiras e POIs (desconto de custo na busca) | M | Continua da 4.1: mesmo código (`js/warfront.js`) |
 | 4.3 | **Os 6 tipos de POI de guerra:** raios, construtores novos (Atalaia, Barricada, Hospital com NPCs, Depósito com barricadas), textos e números nos modificadores | G | **Nova:** só mexe em `js/pois.js` e no visual; contexto limpo. Brief cita este arquivo |
 | 4.4 | **Dormentes e anel das cidades:** 4 decorações, corredores, `WORLD.dormant`, conversão e reversão, pesos por posição, dono por terços e `banditChance`, salto máximo no plano | G | **Nova:** a mais arriscada e depende da 4.2 e da 4.3 já commitadas |
 | 4.5 | **Rota bloqueada:** mostra o que bloqueia e a facção; recusa o alvo na declaração | M | Continua da 4.4: mesmo plano de rota |
