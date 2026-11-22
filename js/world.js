@@ -78,6 +78,7 @@ async function genWorld(seed,status,dominant){
   WORLD.shapeName=SHAPES[shape];
   const landMask=(x,z)=>{
     const u=(x-W/2)/(W/2),v=(z-W/2)/(W/2);
+    if(tileTestOn())return 1-smooth(0.97,1,Math.max(Math.abs(u),Math.abs(v)));   // mapa de teste (?cenario=batalha): terra até quase a borda, sem forma de ilha
     const wx=wn.fbm(x/110,z/110,3)-0.5,wz=wn.fbm(x/110+50,z/110-30,3)-0.5;
     const box=(a,b)=>Math.pow(Math.pow(Math.abs(a),4)+Math.pow(Math.abs(b),4),0.25);
     switch(shape){
@@ -145,7 +146,7 @@ async function genWorld(seed,status,dominant){
   if(WORLD.showcaseMode){for(let i=0;i<W*W;i++){H[i]=SEA+6;B[i]=BIO_PLAINS}}   // mapa manual dos POIs (?cenario=pois): toda a superfície apagada e plana
   // nº de cidades proporcional à terra do mapa (terra ÷ 48 mil, entre 6 e 8); ?cid=N força um número (estudo)
   let landN=0;for(let i=0;i<W*W;i+=9)if(H[i]>=SEA+1)landN++;
-  const NC=Math.max(4,Math.min(16,+(new URLSearchParams(location.search).get('cid'))||Math.max(6,Math.min(8,Math.round(landN*9/48000)))));
+  const NC=tileTestOn()?2:Math.max(4,Math.min(16,+(new URLSearchParams(location.search).get('cid'))||Math.max(6,Math.min(8,Math.round(landN*9/48000)))));   // mapa de teste: duas cidades
   const inShow=(x,z)=>WORLD.showcaseMode&&Math.abs(x-W/2)<210&&Math.abs(z-W/2)<170;   // área reservada aos POIs do mapa manual: sem cidades
   // 2) Locais das cidades
   status('Escolhendo locais para as cidades...');await tick();
@@ -164,7 +165,8 @@ async function genWorld(seed,status,dominant){
   // O número de cidades depende da área útil: uma cidade tem até 90 blocos de lado, mais a faixa de terreno aplainado em volta. Se a terra (ilha pequena, faixa
   // estreita, deserto recortado) não comporta 7 cidades afastadas, o mundo ganha MENOS cidades em vez de cidades coladas (a construção e o aplainamento se atropelavam).
   const sites=[],MIND=220,MINC=6;   // MIND: distância mínima entre os centros; só desce (de 10 em 10, até 64) se não couberem ao menos MINC cidades
-  if(cand.length)sites.push(cand[rng.int(0,cand.length-1)]);
+  if(tileTestOn())for(const k of[TILE_TEST.home,TILE_TEST.big])sites.push({x:k.x,z:k.z,b:B[k.z*W+k.x]});   // mapa de teste: a sua cidade (pequena, num canto) e a da outra facção (grande)
+  else if(cand.length)sites.push(cand[rng.int(0,cand.length-1)]);
   const pickSites=floorD=>{
     while(sites.length<NC&&cand.length){
       let bestC=null,bs=-1e9,bmd=0;
@@ -184,16 +186,16 @@ async function genWorld(seed,status,dominant){
       if(H[z*W+x]>=SEA+1&&!inShow(x,z)&&sites.every(s=>Math.hypot(s.x-x,s.z-z)>minD))sites.push({x,z,b:B[z*W+x]});
     }
   };
-  pickSites(MIND);
-  for(let fl=MIND-10;sites.length<MINC&&fl>=64;fl-=10)pickSites(fl);
+  if(!tileTestOn()){pickSites(MIND);
+    for(let fl=MIND-10;sites.length<MINC&&fl>=64;fl-=10)pickSites(fl)}
   const used=new Set();
   const cities=sites.map((s,i)=>{
     const bio=B[s.z*W+s.x];
-    return{id:i,cx:s.x,cz:s.z,half:rng.int(36,45),biome:bio,owner:'enemy',state:'idle',home:false,rank:0,
+    return{id:i,cx:s.x,cz:s.z,half:tileTestOn()?(i===0?TILE_TEST.home.half:TILE_TEST.big.half):rng.int(36,45),biome:bio,owner:'enemy',state:'idle',home:false,rank:0,
       enemies:[],npcs:[],walk:[],spawns:[],towers:[],gates:[],flags:[],props:[],aliveEnemies:0,totalEnemies:0};
   });
   // cidade inicial: a mais próxima do centro do mapa
-  const home=cities[rng.int(0,cities.length-1)];home.home=true;home.owner='player';home.state='conquered';WORLD.home=home;
+  const home=tileTestOn()?cities[0]:cities[rng.int(0,cities.length-1)];home.home=true;home.owner='player';home.state='conquered';WORLD.home=home;   // (mapa de teste: a cidade pequena do canto é a sua)
   const others=cities.filter(c=>c!==home).sort((a,b)=>Math.hypot(a.cx-home.cx,a.cz-home.cz)-Math.hypot(b.cx-home.cx,b.cz-home.cz));
   others.forEach((c,i)=>c.rank=i+1);
   for(const c of cities){c.name=cityName(rng,c.biome,used)}

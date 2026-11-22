@@ -52,7 +52,7 @@ function genFactions(){
   const cities=WORLD.cities,home=WORLD.home,rng=new RNG((WORLD.seed*2654435761+7)>>>0);
   const npc=cities.filter(c=>c!==home),n=Math.min(npc.length,rng.int(FAC_MIN_NPC,FAC_MAX_NPC));
   // uma cidade-semente por facção, o mais afastadas possível; as demais vão para a semente mais próxima (toda facção fica com pelo menos 1 cidade)
-  const dist=(a,b)=>Math.hypot(a.cx-b.cx,a.cz-b.cz),seeds=[rng.pick(npc)];
+  const dist=(a,b)=>Math.hypot(a.cx-b.cx,a.cz-b.cz),seeds=npc.length?[rng.pick(npc)]:[];   // (sem cidades NPC, como no mapa de teste de uma cidade só, não há facção NPC)
   while(seeds.length<n){let best=null,bd=-1;for(const c of npc){if(seeds.includes(c))continue;const d=Math.min(...seeds.map(s=>dist(s,c)));if(d>bd){bd=d;best=c}}seeds.push(best)}
   // temperamentos: com 3 ou 4 facções NPC há ao menos uma pacífica e uma agressiva; o resto sorteia (25/50/25)
   const roll=()=>{const r=rng.r();return r<0.25?'pacifica':r<0.75?'neutra':'agressiva'};

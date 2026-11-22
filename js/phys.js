@@ -1,6 +1,6 @@
 'use strict';
 // ---------- Colisão, raycast e movimento ----------
-const W=(()=>{const w=+(new URLSearchParams(location.search).get('w')||704);return Math.max(640,Math.min(1280,Math.round(w/32)*32))})(),SEA=10,CHK=32,NCH=W/CHK;   // tamanho do mapa: 704 por padrão (menor que o antigo 896, que cansava de atravessar); ?w=640 volta ao antigo (múltiplo de 32)
+const W=(()=>{const q=new URLSearchParams(location.search),w=+(q.get('w')||(tileTestOn()?TILE_TEST.size:704));return Math.max(tileTestOn()?256:640,Math.min(1280,Math.round(w/32)*32))})(),SEA=10,CHK=32,NCH=W/CHK;   // tamanho do mapa: 704 por padrão (menor que o antigo 896, que cansava de atravessar); ?w=640 volta ao antigo (múltiplo de 32); ?cenario=batalha usa TILE_TEST.size (map-modifiers.js)
 // Mundo de baixo: as dungeons e o escritório ficam bem abaixo do mapa, nas mesmas posições (x,z). Abaixo de UNDER_Y o terreno é ignorado.
 // A barreira separa os dois mundos: o que cruza o plano de UNDER_Y (de cima ou de baixo) é bloqueado/removido, e quem chega perto (40 blocos) some antes.
 const UNDER_Y=-100,BAR_UP=UNDER_Y+40,BAR_DOWN=UNDER_Y-80;   // BAR_UP: limite inferior do mundo de cima; BAR_DOWN: limite superior do mundo de baixo

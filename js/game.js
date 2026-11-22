@@ -723,8 +723,11 @@ function frame(){
   requestAnimationFrame(frame);
   const dt=Math.min(0.05,clock.getDelta());
   updateMusic(dt);
+  const t0=performance.now();
   if(G.running&&!G.panel){if(G.frozen)camera.rotation.set(P.pitch,P.yaw,0);else update(dt)}
+  const t1=performance.now();
   renderer.render(scene,camera);
+  if(typeof tileTestSample==='function')tileTestSample(t1-t0,performance.now()-t1,G.running&&!G.panel);   // tempos do quadro (só mede no cenário ?cenario=batalha)
 }
 
 // ---------- Início ----------
