@@ -428,9 +428,10 @@ function svcPost(p){
       if(!WS.owned[i])return;
       const pk=postPrice(w.packCost,c,'ammo'),full=WS.reserve[i]>=w.pack*8;
       const b=UI.button('+'+w.pack+' '+w.name+' ◉'+pk+' ('+WS.reserve[i]+')','gold',()=>{
-        if(Ledger.spend({gold:pk})){WS.reserve[i]=Math.min(WS.reserve[i]+w.pack,w.pack*8);sfx('coin',0)}svcRender();
+        if(pistolDebtOk(i,pk)&&P.coins<pk)Ledger.borrow({gold:pk}),WS.reserve[i]=Math.min(WS.reserve[i]+w.pack,w.pack*8),sfx('coin',0);
+        else if(Ledger.spend({gold:pk})){WS.reserve[i]=Math.min(WS.reserve[i]+w.pack,w.pack*8);sfx('coin',0)}svcRender();
       });
-      b.disabled=debt||full||P.coins<pk;row(b,postPriceTag(c,'ammo'));
+      b.disabled=full||(!pistolDebtOk(i,pk)&&(debt||P.coins<pk));row(b,postPriceTag(c,'ammo'));
     });
     else postSellTab(p,c,body);
   });

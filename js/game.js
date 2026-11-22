@@ -214,7 +214,7 @@ function renderShop(){
   const weaponsHtml=WEAPONS.map((w,i)=>{
     const own=WS.owned[i],pr=pc(w.price,c,'weapon'),pk=pc(w.packCost,c,'ammo');
     return '<div class="card'+(own?'':' locked')+'"><b>'+(i+1)+'. '+w.name+'</b><div class="st">'+w.desc+'<br>Dano '+w.dmg+(w.pellets>1?' ×'+w.pellets:'')+' • '+w.rpm+' dpm • Pente '+w.mag+'</div>'+
-      (own?'<div class="st">Munição reserva: '+WS.reserve[i]+'<br>Durabilidade: '+(weaponBroken(i)?'<b style="color:#ff6a6a">QUEBRADA</b>':Math.round(durOf(i))+'%')+'</div>'+tagLine(priceTag(c,'ammo','Munição')+(durOf(i)<100?' '+priceTag(c,'repair','Conserto'):''))+'<button data-a="ammo" data-i="'+i+'" '+(P.coins<pk?'disabled':'')+'>+'+w.pack+' munição ◉'+pk+'</button>'+(durOf(i)<100?'<button data-a="repair" data-i="'+i+'">🔧 Consertar ◉'+repairCost(i,c)+(P.coins<repairCost(i,c)?' (gera dívida)':'')+'</button>':'')
+      (own?'<div class="st">Munição reserva: '+WS.reserve[i]+'<br>Durabilidade: '+(weaponBroken(i)?'<b style="color:#ff6a6a">QUEBRADA</b>':Math.round(durOf(i))+'%')+'</div>'+tagLine(priceTag(c,'ammo','Munição')+(durOf(i)<100?' '+priceTag(c,'repair','Conserto'):''))+'<button data-a="ammo" data-i="'+i+'" '+(P.coins<pk&&!pistolDebtOk(i,pk)?'disabled':'')+'>+'+w.pack+' munição ◉'+pk+'</button>'+(durOf(i)<100?'<button data-a="repair" data-i="'+i+'">🔧 Consertar ◉'+repairCost(i,c)+(P.coins<repairCost(i,c)?' (gera dívida)':'')+'</button>':'')
           :tagLine(priceTag(c,'weapon'))+'<button class="gold" data-a="buy" data-i="'+i+'" '+(P.coins<pr?'disabled':'')+'>Comprar ◉'+pr+'</button>')+'</div>';
   }).join('');
   const utilsHtml='<div class="card"><b>🛡 Colete à prova de bala</b><div class="st">Absorve 60% do dano recebido até acabar (100 de proteção).<br>Proteção atual: '+Math.ceil(P.armor)+'/100</div>'+tagLine(priceTag(c,'vest'))+'<button class="gold" data-a="vest" '+(P.coins<pc(180,c,'vest')||P.armor>=100?'disabled':'')+'>Comprar ◉'+pc(180,c,'vest')+'</button></div>'
@@ -233,7 +233,7 @@ $('shopgrid').addEventListener('click',e=>{
   if(b.dataset.a==='vest'){const pr=pc(180,c,'vest');if(P.coins>=pr&&P.armor<100){P.coins-=pr;P.armor=100;sfx('coin',0);toast('Colete equipado!',1500)}renderShop();return}
   const i=+b.dataset.i,w=WEAPONS[i],pr=pc(w.price,c,'weapon'),pk=pc(w.packCost,c,'ammo');
   if(b.dataset.a==='buy'&&P.coins>=pr){if(giveWeapon(i,true)){P.coins-=pr;sfx('coin',0);toast(w.name+' adquirida!'+(slotOfWeapon(i)>=0?' (barra '+(slotOfWeapon(i)+1)+')':' Está na bolsa: coloque-a na barra 1–6.'),2500)}}
-  else if(b.dataset.a==='ammo'&&P.coins>=pk){P.coins-=pk;WS.reserve[i]=Math.min(WS.reserve[i]+w.pack,w.pack*8);sfx('coin',0)}
+  else if(b.dataset.a==='ammo'&&(P.coins>=pk||pistolDebtOk(i,pk))){P.coins-=pk;WS.reserve[i]=Math.min(WS.reserve[i]+w.pack,w.pack*8);sfx('coin',0)}
   renderShop();
 });
 function openClinic(c){G.clinicCity=c;G.clinicMode='menu';openPanel('clinic');renderClinic()}

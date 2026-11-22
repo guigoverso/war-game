@@ -15,7 +15,8 @@ Bilhete de passagem entre sessões e PCs: **leia no início, atualize no fim** (
 
 ## Pendências
 - **1A (código pronto, NÃO testado na tela):** ordem de movimento dos soldados. **V** manda todos ao ponto mirado (anel azul), **X** cancela; perseguem só inimigos a até 25 blocos do ponto; invasão (`armyAssault`) cancela a ordem. Por ora vale para todos (grupos ficam para depois). Smoke OK; meu teste automático de movimento travou, então testar em `?cenario=batalha&mute=1`. Ajustes em `js/modifiers/army-modifiers.js`.
-- **Próxima etapa:** 1C (pistola inquebrável) ou 1B (cidades em blocos).
+- **1C (código pronto, NÃO testado na tela):** pistola inquebrável (sempre 100%) e munição dela comprável em dívida até -9999 (loja de armas e entreposto). Morte sem dívida e kit do comandante ficam para a etapa 6.
+- **Próxima etapa:** 1B (cidades em blocos).
 - **1B:** cidades em blocos e com formatos variados (hoje quadrado com muitos lotes vazios): primeiro ler `city.js` e levantar usos de `c.half`. **1C:** pistola inquebrável e munição da pistola em dívida até -9999 (exceção ao bloqueio de `Ledger.anyDebt()`).
 - **Cenário `?cenario=batalha`:** jogador fica invencível (modo criativo); falta medir com placa de vídeo real; sem faixa de árvores na borda; HUD mostra "Cidades: 1/7" no mapa de 2 cidades. `node tests/batalha.js` foi ajustado depois das duas cidades e **não foi rodado de novo**.
 - **Aberto no design:** tamanho do exército de raid, preço do aluguel de navio (início 100), ilha inicial pequena vira porto, dungeons/portais no mundo novo, quanto a torre de vigia nova alcança. Tarefa futura: percorrer todas as mecânicas depois que a mudança estabilizar.

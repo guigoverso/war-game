@@ -280,11 +280,11 @@ function refreshHotbar(){
 }
 
 // ---------- durabilidade das armas ----------
-const durOf=i=>(STATE.dur&&STATE.dur[i]!==undefined)?STATE.dur[i]:100;
+const durOf=i=>weaponUnbreakable(i)?100:(STATE.dur&&STATE.dur[i]!==undefined)?STATE.dur[i]:100;   // pistola: sempre 100%
 function weaponBroken(i){return durOf(i===undefined?WS.cur:i)<=0}
 function durMul(){const d=durOf(WS.cur);return d<25?0.75:d<50?0.9:1}
 function wearWeapon(){
-  if(G.noWear)return;
+  if(G.noWear||weaponUnbreakable(WS.cur))return;
   const i=WS.cur,before=STATE.dur[i];STATE.dur[i]=Math.max(0,before-WEAR[i]*(STATE.legend[i]?0.5:1));const now=STATE.dur[i];   // armas lendárias gastam metade
   if(before>=25&&now<25)toast('⚠ '+wName(i)+' desgastada (25%). Conserte no armeiro.',3000);
   else if(before>=10&&now<10)toast('⚠ '+wName(i)+' quase quebrando (10%)!',3000);
