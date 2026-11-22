@@ -90,7 +90,8 @@ Decisões fechadas com o usuário (2026-11-21), depois da tarefa 3 pronta e de t
 - **Como testar:** `?cenario=guerra`: conquistar em ordem libera o card; pular um POI é recusado; guerra por POI com `warFrontPlan(...,'poi',p)`.
 - **Continua da 4:** reaproveita a UI e o estado já montados.
 
-## Tarefa 6: teste de fumaça e documentação
+## Tarefa 6: teste de fumaça e documentação (feita em 2026-11-22)
+- **Feito:** o smoke já cobre rota, POIs de guerra, save/restore, dormentes, reversão, declaração com mapa, ordem da conquista, frente por POI e aba Guerra; `docs/fase-6-guerra.md` e `docs/MAPA.md` atualizados.
 - **O que fazer:** `tests/smoke.js`: plano da rota (cadeia ordenada, desvio), construção e remoção dos POIs de guerra, ida e volta de save. Atualizar `docs/fase-6-guerra.md` (feature 36 para ✅ ou 🔶, item 4b, "Ainda em aberto") e `docs/MAPA.md` (arquivo `warfront.js`, `WAR.front`, textos). Rodar `/encerrar-sessao`.
 - **Continua da 5:** é fechamento e usa tudo o que está no contexto.
 

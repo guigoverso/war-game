@@ -166,7 +166,7 @@ Aguardando as ideias. Ligações já previstas: caravana de suprimento como alvo
 
 ## Ainda em aberto
 - Derrota do jogador: se a frente é empurrada até o fim (perder cidade, tributo; capital = fim de jogo "por enquanto").
-- Quantos pontos a cidade final custa e quantos POIs mínimos são "maioria" (depende da frente da guerra, feature 36).
+- Quantos pontos a cidade final custa e quantos POIs mínimos são "maioria" (depende da frente da guerra, feature 36, que já fornece a cadeia: `warFrontLine`).
 - Verificar se 2 pontos por rodada em guerra dão uma guerra de 3 a 4 rodadas de ataque.
 - Caminho por terra entre as cidades na geração do mundo (só se algum cenário ficar sem rota; guerra naval é ideia futura).
 - Números exatos de `WAR` (marcos da fadiga, custo de operação, chance de sabotagem).
@@ -187,7 +187,7 @@ Legenda: ✅ implementado · 🔶 parcial · ⬜ não implementado. (Atualizado 
 4. ✅ Cenário `?cenario=guerra` (2026-11-21; ver regras abaixo). Falta ligar os botões às operações quando existirem
 
 **B. Núcleo (a campanha jogável)**
-4b. ⬜ Frente da guerra (feature 36): cidade-alvo, cidade sua mais próxima, POIs no caminho, POIs de guerra de complemento e lista de POIs obrigatórios. Vem antes do 5, pois as operações, o cabo de guerra (7) e a batalha final (9) usam a lista
+4b. ✅ Frente da guerra (feature 36; feita em 2026-11-22, `docs/features/3_frente-da-guerra.md`): cidade-alvo, cidade sua mais próxima, POIs no caminho, POIs de guerra de complemento e lista de POIs obrigatórios. Vem antes do 5, pois as operações, o cabo de guerra (7) e a batalha final (9) usam a lista
 5. ⬜ Operações no turno do Líder (ataque, defesa)
 6. ⬜ Locais proibidos
 7. ⬜ Cabo de guerra
@@ -253,7 +253,7 @@ Legenda: ✅ implementado · 🔶 parcial · ⬜ não implementado. (Atualizado 
 | 33 | Novas mecânicas de caravana | ⬜ | Falta a lista do usuário |
 | 34 | Mover declaração de guerra e paz das políticas para a Negociação | 🔶 | Já estão na Negociação; falta remover as políticas antigas |
 | 35 | Evolução da facção e das cidades | ✅ | Balancear `LVL` jogando. Regras abaixo.
-| 36 | Frente da guerra (cidade-alvo, caminho, POIs obrigatórios) | ⬜ | Tudo; desenho abaixo, com perguntas em aberto |
+| 36 | Frente da guerra (cidade-alvo, caminho, POIs obrigatórios) | 🔶 | Feito: rota, cadeia, 6 POIs de guerra, dormentes, declaração com mapa, alvo POI, ordem da conquista adjacente, aba Guerra. Falta: operações, retomada, cards (itens 5 a 9) |
 
 ### Descrição e regras das features
 4. Os bandidos podem tomar os POIs nas seguintes condições:
@@ -276,7 +276,7 @@ Exemplo 2: na rodada 3 o Comandante conquistou uma Taverna perto de uma cidade s
 
 18. **Cenário `?cenario=guerra` (2026-11-21; `warScenario` em `js/war.js`, números em `WAR.scenario`).** Semente 11, modo criativo, rodada 3 no turno do Comandante, ◉20000, facção nível 3, capital + 1 cidade conquistada. Por padrão a guerra **já está declarada** (`facDeclareWar`; com `WAR.scenario.startAtWar = false` o cenário começa em paz e você declara pela Negociação) contra a facção NPC com mais cidades, forçada a agressiva, com uma campanha em `STATE.war.camps`. Os POIs permanentes (sem ruínas) são divididos: metade com você (`warScenarioPlayerPois`, arredonda para baixo, então com total ímpar o NPC fica com a maioria); os seus são os mais perto de você em relação ao inimigo. Painel na pausa → Facções: cidade inimiga, POI inimigo, **Conquistar POI** (o POI inimigo mais perto vira seu), Perder POI, encerrar rodada, curar, recomeçar. **Testar:** `?cenario=guerra`, abrir o painel, conferir a contagem de POIs, clicar em Conquistar POI (contagem muda). Smoke: `guerra: cenário`.
 
-36. **Frente da guerra (desenho do usuário, 2026-11-21; ainda sem código).** Fluxo, depois que a guerra é declarada:
+36. **Frente da guerra (desenho do usuário, 2026-11-21; código pronto, ver `docs/features/3_frente-da-guerra.md`).** Fluxo, depois que a guerra é declarada:
 - O jogador **escolhe uma cidade do inimigo** para conquistar (a cidade-alvo).
 - O jogo calcula a **cidade do jogador mais próxima** da cidade-alvo (origem da frente).
 - O jogo calcula os **POIs permanentes no caminho**: em **linha reta** entre as duas cidades ou, se estiverem ligados diretamente, pela **estrada**.
