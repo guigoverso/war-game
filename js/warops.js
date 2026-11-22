@@ -91,5 +91,39 @@ function warOpOwnerChanged(p, o) {
   const op = warOpsLive('attack').find(x => x.target === p.id && x.state === 'ativa');
   if (!op) return;
   op.state = 'ok';
-  for (const d of warX().ops) if (d.after === op.id && d.state === 'aguarda') d.state = 'ativa';
+  for (const d of warX().ops) if (d.after === op.id && d.state === 'aguarda') {
+    d.state = 'ativa';
+    const q = warOpPoi(d); if (q) poiGarrisonSync(q);   // a dependente ganha a guarnição na hora
+  }
 }
+
+// ---------- Execução no turno do Comandante (tarefa 4) ----------
+// O POI p tem operação de ataque 'ativa' agora? (só então ele pode ser tomado; guarnição de WAR.garrisonMin ou mais)
+const warOpArmed = p => warOpsLive('attack').some(o => o.target === p.id && o.state === 'ativa');
+// Área c (guarnição de POI ou cidade) está blindada? Só em guerra: POI da trilha (de bandidos ou da facção inimiga) sem operação
+// ativa, e cidade da facção inimiga (a operação da cidade só chega com a batalha final). Quem está blindado não morre.
+function warBlindado(c) {
+  if (!c || !STATE.war || !warActive()) return false;
+  if (c.kind === 'poi') {
+    const p = c.poi;
+    if (!p || warOpTrailFid(p) === undefined) return false;
+    if (p.owner !== 'bandit' && typeof p.owner !== 'number') return false;
+    return !warOpArmed(p);
+  }
+  return !c.kind && c.owner === 'enemy' && !c.rebel && c.fid !== undefined && !!warX().camps[c.fid];
+}
+// Aviso "território proibido" (no máximo um a cada 4 s) quando o jogador fere quem está blindado.
+let WAR_FORBID_T = 0;
+function warForbiddenWarn() {
+  const t = performance.now();
+  if (t - WAR_FORBID_T < 4000) return;
+  WAR_FORBID_T = t; toast(TXT_WAR_FORBIDDEN, 3500);
+}
+// Ao entrar no turno do Comandante, os alvos das operações ativas recebem a guarnição (poiGarrisonSync).
+Hooks.on('leaderEnd', () => {
+  for (const o of warOpsLive('attack')) { const q = o.state === 'ativa' && warOpPoi(o); if (q) poiGarrisonSync(q); }
+});
+// Nova rodada: guarnição de POI de facção cuja operação acabou é desfeita (as de bandidos ficam).
+Hooks.on('round', () => {
+  for (const p of WORLD.pois || []) if (p.gar && typeof p.owner === 'number') poiGarrisonSync(p);
+});

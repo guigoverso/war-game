@@ -21,7 +21,7 @@ function giveAllyVest(a){
 // Só vale nas brigas entre eles; o dano em você e nos seus soldados não muda.
 const WILD_TIER={wolf:{in:3,out:1},spider:{in:2.5,out:1},scorpion:{in:2,out:1.2},boar:{in:1.5,out:1.4},bear:{in:1,out:1.6}};
 function hurtTarget(tg,dmg,fx,fz,src){
-  if(tg===P)damagePlayer(dmg,fx,fz);
+  if(tg===P){if(src&&typeof warBlindado==='function'&&warBlindado(src.city))dmg*=WAR.forbiddenFactor;damagePlayer(dmg,fx,fz)}   // guardas de território proibido: ×10 (warops.js)
   else if(tg.kind==='enemy'){
     if(src){const sp=src.city.kind==='pack',tp=tg.city.kind==='pack';
       if(!sp&&tp)dmg*=(WILD_TIER[tg.type]||{in:1}).in;else if(sp&&!tp)dmg*=(WILD_TIER[src.type]||{out:1}).out}

@@ -41,6 +41,8 @@ const TXT_WAR_OP_STATE = { aguarda: 'aguardando', ativa: 'ativa', ok: 'cumprida'
 const txtWarOpLabel = (type, poi, en) => (type === 'attack' ? 'Ataque a ' : 'Operação em ') + poi + ' contra ' + en;
 // Toast de operação lançada (poi = nome do POI); cancelar não avisa.
 const txtWarOpPlanned = (poi, wait) => '⚔ Ataque a ' + poi + ' lançado' + (wait ? ' (aguarda o ataque anterior).' : '.');
+// Toast quando o jogador fere quem está blindado (POI ou cidade inimiga da trilha sem operação ativa).
+const TXT_WAR_FORBIDDEN = '🚫 Território proibido: sem uma operação de ataque ativa eles não caem, e os guardas atiram com força.';
 // Toast quando um POI da trilha limpo de bandidos é anexado na hora (sem o cartão "Terras livres").
 const txtWarAutoAnnex = poi => '🏴 ' + poi + ' limpo e anexado ao seu domínio (POI da trilha da guerra).';
 

@@ -56,10 +56,13 @@ function poiGarrisonPlan(p){   // quanto mais longe da sua capital, mais bandido
 }
 function poiGarrisonPopulate(p){
   if(p.show||p.gar)return;
-  if(p.type==='ruins'){if(poiX().done[p.id])return}else if(p.owner!=='bandit')return;
+  const armed=typeof warOpArmed==='function'&&warOpArmed(p);   // operação de ataque ativa (warops.js): guarnição de 10+ mesmo em POI de facção
+  if(p.type==='ruins'){if(poiX().done[p.id])return}else if(p.owner!=='bandit'&&!(armed&&typeof p.owner==='number'))return;
   const d=POI_DEFS[p.type],rng=new RNG((WORLD.seed*29+p.id*61+STATE.round*7+5)>>>0),ru=p.type==='ruins';
-  const pl=ru?{n:5,tier:2,hpMul:1}:poiGarrisonPlan(p),n=pl.n,tier=pl.tier;
-  const c=newArea('poi',1000+p.id,ru?'Guardiões das ruínas':'Bandidos — '+d.n,{x:p.cx,z:p.cz,y:p.y},rng,{rank:tier,hpMul:pl.hpMul,half:d.r,leash:d.r+12,poi:p});
+  const pl=ru?{n:5,tier:2,hpMul:1}:poiGarrisonPlan(p);
+  if(armed){pl.n=Math.max(pl.n,WAR.garrisonMin);if(typeof p.owner==='number')pl.tier=Math.min(4,Math.max(pl.tier,poiLvl(p.owner)))}   // tipos pelo nível da facção e pela distância
+  const n=pl.n,tier=pl.tier;
+  const c=newArea('poi',1000+p.id,ru?'Guardiões das ruínas':(typeof p.owner==='number'?'Soldados — ':'Bandidos — ')+d.n,{x:p.cx,z:p.cz,y:p.y},rng,{rank:tier,hpMul:pl.hpMul,half:d.r,leash:d.r+12,poi:p});
   p.gar=c;(WORLD.garrisons=WORLD.garrisons||[]).push(c);WORLD.areas.push(c);
   const pick=i=>{
     if(ru)return i<3?'spider':'brute';   // ruínas: aranhas e guardiões
@@ -78,13 +81,15 @@ function poiGarrisonRemove(p){
 }
 function poiGarrisonSync(p){   // POI de guerra fora da guerra fica sem bandidos
   if(!POI_READY)return;
-  if(!p.show){const want=poiLive(p)&&(p.type==='ruins'?!poiX().done[p.id]:p.owner==='bandit');if(want)poiGarrisonPopulate(p);else poiGarrisonRemove(p)}
+  if(!p.show){const want=poiLive(p)&&(p.type==='ruins'?!poiX().done[p.id]:p.owner==='bandit'||(typeof warOpArmed==='function'&&typeof p.owner==='number'&&warOpArmed(p)));if(want)poiGarrisonPopulate(p);else poiGarrisonRemove(p)}
   poiCivSync(p);
 }
 function poiPopulateAll(){POI_READY=true;dormBuildAll();for(const p of WORLD.pois||[]){poiGarrisonSync(p);poiHuntChest(p)}}   // chamado por populateWild (poi.js) e depois de carregar um salvamento (poiApply)
 function poiGarrisonCleared(c){
   const p=c.poi;c.state='cleared';if(!p)return;if(c._ally){c._ally=false;armyConquered(WORLD.home)}   // os soldados voltam para casa
   if(p.type==='ruins'){poiX().done[p.id]=true;poiGarrisonRemove(p);sfx('win',0);toast('🏛 Guardiões das ruínas derrotados: o baú foi destrancado. Eles voltam na próxima rodada.',4500);return}
+  if(typeof p.owner==='number'&&typeof warOpArmed==='function'&&warOpArmed(p)){   // POI de facção tomado por operação de ataque: vira seu na hora (a dependente fica ativa)
+    poiGarrisonRemove(p);poiX().conq[p.id]=STATE.round;poiSetOwner(p,'player');sfx('win',0);toast(txtWarAutoAnnex(POI_DEFS[p.type].n),4500);return}
   if(p.owner!=='bandit')return;
   poiHuntLoot(p);
   poiGarrisonRemove(p);poiSetOwner(p,'free');poiX().clr[p.id]=poiX().conq[p.id]=STATE.round;sfx('win',0);   // conq: rodada N da conquista (os moradores vêm na N+1, mesmo anexando só na N+1)

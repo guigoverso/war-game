@@ -591,6 +591,7 @@ function damageEnemy(e,amount,head,byAlly,src){   // src: outro bicho/soldado qu
   if(e.armor>0){const ab=Math.min(e.armor,amount*0.6);e.armor-=ab;amount-=ab}
   // o tiro é sentido: o inimigo se encolhe e a ação dele atrasa por instantes (golem, urso e brutamonte aguentam melhor)
   {const st=(e.type==='golem'||e.type==='bear'||e.type==='brute')?0.08:0.16;e.reactT=Math.max(e.reactT||0,st);e.flinch=st*1.4;e.lunge=0;if(e.wind>0){e.wind=0;e.model.arms.forEach(a=>a.rotation.x=0.4)}}
+  if(typeof warBlindado==='function'&&warBlindado(e.city)){if(!byAlly&&!src)warForbiddenWarn();amount=Math.min(amount,Math.max(0,e.hp-1))}   // blindagem de guerra (warops.js): anima o acerto, mas a vida nunca zera
   e.hp-=amount;e.flash=0.1;
   burst(e.x,e.y+e.lift+e.def.h*0.6,e.z,e.model.golem?[0x888888,0x666666]:[0xb01818,0x801010],head?12:7,5,0.1);
   if(e.hp<=0){
