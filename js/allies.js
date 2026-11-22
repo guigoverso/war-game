@@ -111,6 +111,7 @@ function damageAlly(a,dmg){
   if(a.hp<=0){a.alive=false;a.deadT=0;if(!a.temp&&!(typeof REBB!=='undefined'&&REBB.active)&&!(ARMY.reserve>0))toast('☠ Um soldado seu caiu! Recrute outro no Quartel.',3000)}   // com reserva, um substituto já vem a caminho   // sem aviso nas batalhas de rebelião (o contador de aliados mostra)
 }
 function armyAssault(c,msg,only){   // only: filtro opcional (quais soldados)
+  if(!only)orderCancel();   // a invasão manda os soldados atrás de você: a ordem antiga cai
   let n=0;const sy=Math.sin(P.yaw),cy=Math.cos(P.yaw),tot=allyCount();
   for(const a of ALLIES){if(!a.alive||(only&&!only(a)))continue;
     // aparecem atrás do jogador, em formação escalonada
@@ -138,8 +139,42 @@ function allyFindTarget(a,w){
   }
   a.tgtE=best;a.seekE=seek;
 }
+// ---------- ordem de movimento (temporária, não é salva; números em modifiers/army-modifiers.js) ----------
+// Com a ordem ativa, todos os soldados soltos vão ao ponto, formam em volta e atiram; só perseguem inimigos perto dele.
+const ORDER={on:false,x:0,z:0,mark:null,t:0};
+function orderMarker(){   // anel azul no chão, criado na primeira ordem
+  if(!ORDER.mark){
+    const g=new THREE.Mesh(new THREE.RingGeometry(0.9,1.3,24),new THREE.MeshBasicMaterial({color:ORDER_MARK_COLOR,transparent:true,opacity:0.8,side:THREE.DoubleSide,depthWrite:false}));
+    g.rotation.x=-Math.PI/2;scene.add(g);ORDER.mark=g;
+  }
+  return ORDER.mark;
+}
+function orderGo(){   // mira do jogador -> ponto do chão
+  if(!canOrderAllies())return;   // sem avisos: notificação nova só com aprovação do usuário (CLAUDE.md)
+  const d=new THREE.Vector3(),o=new THREE.Vector3();camera.getWorldDirection(d);camera.getWorldPosition(o);
+  rayWorld(o.x,o.y,o.z,d.x,d.y,d.z,ORDER_MAX_DIST);
+  if(RAY.kind===0)return;
+  ORDER.x=o.x+d.x*RAY.t;ORDER.z=o.z+d.z*RAY.t;ORDER.on=true;
+  const m=orderMarker();m.position.set(ORDER.x,tH(ORDER.x,ORDER.z)+0.15,ORDER.z);
+  for(const a of ALLIES)if(a.alive)a.path=null;   // recalcula o caminho já no destino novo
+  if(orderInBattle())sfx('coin',0);
+}
+function orderCancel(){
+  if(!ORDER.on)return;ORDER.on=false;if(ORDER.mark)ORDER.mark.visible=false;
+  for(const a of ALLIES)a.path=null;
+}
+function orderInBattle(){return ALLIES.some(a=>a.alive&&a.state==='assault')}   // em batalha, com os soldados invocados: só então há marcador e som
+function updateOrderMarker(dt){
+  if(ORDER.mark)ORDER.mark.visible=ORDER.on&&orderInBattle();
+  if(ORDER.on&&ORDER.mark){ORDER.t+=dt;const s=1+Math.sin(ORDER.t*4)*0.12;ORDER.mark.scale.set(s,s,s)}}
+// anda até o seu lugar na formação em volta do ponto da ordem; devolve se está andando
+function orderStep(a,dt,faceYaw){   // faceYaw: se dado, continua olhando para o alvo enquanto anda
+  const r=ORDER_RING*(1+(a.slot%3)*0.6),tx=ORDER.x+Math.cos(a.ang)*r,tz=ORDER.z+Math.sin(a.ang)*r;
+  const d=Math.hypot(tx-a.x,tz-a.z);if(d<1.2)return false;
+  navMove(a,tx,tz,d>25?6:3.4,dt,a.r,1.8,1.05);if(faceYaw===undefined)a.yaw=Math.atan2(tx-a.x,tz-a.z);return true;
+}
 function updateAlly(a,dt){
-  const w=WEAPONS[ARMY.weapon];
+  const w=WEAPONS[ARMY.weapon],ord=ORDER.on&&!a.post;
   if(!a.alive){a.deadT+=dt;a.group.rotation.z=Math.min(1,a.deadT*3)*1.5;if(a.deadT>5){scene.remove(a.group);a.gone=true}return}
   a.cool-=dt;a.scanT-=dt;
   if(a.state==='assault'){const c=a.assaultCity;if(!c||c.state!=='attacking'||c.aliveEnemies<=0){a.state='patrol';a.patrolCity=c||WORLD.home}}
@@ -150,7 +185,11 @@ function updateAlly(a,dt){
     const dx=t.x-a.x,dz=t.z-a.z,d=Math.hypot(dx,dz),face=Math.atan2(dx,dz);
     a.yaw+=((face-a.yaw+Math.PI*3)%(Math.PI*2)-Math.PI)*Math.min(1,dt*10);
     const hold=(w.range>100?35:w.id==='shotgun'?8:18)*(a.holdMul||1)*(a.holdM||1);
-    if(d>hold){navMove(a,t.x,t.z,3.8,dt,a.r,1.8,1.05);moving=true}
+    if(ord){   // a ordem tem prioridade: vai ao ponto atirando; só depois de chegar persegue inimigos perto dele
+      moving=orderStep(a,dt,face);
+      if(!moving&&d>hold&&Math.hypot(t.x-ORDER.x,t.z-ORDER.z)<=ORDER_CHASE){navMove(a,t.x,t.z,3.8,dt,a.r,1.8,1.05);moving=true}
+    }
+    else if(d>hold){navMove(a,t.x,t.z,3.8,dt,a.r,1.8,1.05);moving=true}
     else if(typeof REBB!=='undefined'&&REBB.active){   // batalha de rebelião: não fica plantado ao atirar; anda de lado (como os inimigos) e recua se o alvo chega perto demais
       a.strafeT=(a.strafeT||0)-dt;if(a.strafeT<=0){a.strafe=(a.strafe||1)*-1;a.strafeT=0.8+Math.random()*2}
       moveXZ(a,-dz/(d||1)*a.strafe*2.4*dt,dx/(d||1)*a.strafe*2.4*dt,a.r,1.8,1.05);
@@ -168,6 +207,7 @@ function updateAlly(a,dt){
         else damageEnemy(t,w.dmg*(w.pellets>1?w.pellets*0.55:1)*allyDmgMul()*(a.dmgM||1)*0.22,false,true);
       }
     }
+  }else if(ord){moving=orderStep(a,dt)
   }else if(a.state==='assault'){
     const c=a.assaultCity,dc=Math.hypot(c.cx-a.x,c.cz-a.z);
     const fm=a.form||{ang:0,r:0};let tx=c.cx+Math.cos(fm.ang)*fm.r,tz=c.cz+Math.sin(fm.ang)*fm.r;
@@ -231,7 +271,7 @@ function updateCitySentries(dt){
   }
 }
 function updateAllies(dt){
-  updateCitySentries(dt);
+  updateCitySentries(dt);updateOrderMarker(dt);
   ARMY.rt=(ARMY.rt||0)-dt;if(ARMY.rt<=0){ARMY.rt=2;armyReinforce()}   // a cada 2 s a reserva repõe uma vaga aberta
   for(let i=ALLIES.length-1;i>=0;i--){const a=ALLIES[i];if(a.gone){ALLIES.splice(i,1);continue}updateAlly(a,dt)}
 }

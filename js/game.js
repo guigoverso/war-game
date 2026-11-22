@@ -353,6 +353,7 @@ canvas.addEventListener('mousedown',e=>{
   if(!G.locked&&!G.panel){try{canvas.requestPointerLock()}catch(_){}return}
   if(G.office){if(e.button===0&&!G.panel){if(G.office.meet)meetInteract();else if(nearBook())openBook()}return}   // no escritório, clicar diante da mesa abre o livro
   if(G.panel||G.frozen)return;
+  if(e.button===ORDER_MOUSE_BUTTON){e.preventDefault();orderGo();return}   // botão do meio: ordem aos soldados (allies.js)
   if(e.button===0){if(WS.rod)fishLeft(true);else{G.fireHeld=true;G.firePressed=true}}   // com a vara, o botão esquerdo é o minigame
   else if(e.button===2){if(WS.rod)fishRight(true);else G.aiming=true}                  // e o botão direito lança/recolhe a linha
 });
@@ -409,6 +410,8 @@ window.addEventListener('keydown',e=>{
   else if(e.code==='KeyE')doInteract();
   else if(e.code==='KeyF'){if(G.attackCity)startAttack(G.attackCity)}
   else if(e.code==='KeyB')openInventory();
+  else if(e.code===ORDER_KEY_GO)orderGo();          // ordem: soldados vão ao ponto mirado (allies.js)
+  else if(e.code===ORDER_KEY_CANCEL)orderCancel();
   else if(e.code==='Digit7'||e.code==='Digit8'||e.code==='Digit9')useBar(+e.code.slice(5)-7);
   else if(e.code.startsWith('Digit')){const i=+e.code.slice(5)-1;if(i>=0&&i<WBAR)selectSlot(i)}
 });

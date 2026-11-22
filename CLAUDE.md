@@ -44,6 +44,10 @@ Cada rodada (a partir da 1; a 0 é preparação) tem o **turno do Líder** (deci
 - Facções, relações, missões, rebelião, eventos, reuniões: `docs/fase-5-*.md`.
 - Guerra e POIs: `docs/fase-6-guerra.md`. Ideias soltas: `docs/ideias-e-design.md`.
 
+## Como responder
+- **Notificações (toast, aviso na tela, relatório da rodada):** nenhuma notificação nova entra sem aprovação do usuário. Antes de criar, diga qual é o **gatilho** e qual é a **mensagem** e espere a aprovação; sem ela, a ação fica silenciosa.
+- Quando o usuário perguntar se algo é possível ("tem como...?", "dá para...?"), responda com uma **previsão** (viabilidade, como ficaria, custo e riscos) e **não implemente** até ele pedir.
+
 ## Git
 - Branch de trabalho atual: **`factions-update`**. Não faça push em outra branch sem o usuário pedir. Não crie pull request sem pedido.
 - Commits em português, descrevendo o "o quê" e o "porquê" em poucas linhas.
