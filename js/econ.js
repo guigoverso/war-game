@@ -99,7 +99,7 @@ const qPay=q=>Math.round(q.reward*priceMulOf(rewardFx()));
 // ---------- economia das cidades ----------
 const ec=c=>STATE.rd.cities[c.id];
 const focusOf=c=>{const e=ec(c);return e.type==='port'?e.pf:e.type};
-const maxActions=()=>STATE.rd.lvl;
+const maxActions=()=>STATE.rd.lvl+(warActive()?WAR.leaderPointsBonus:0);   // guerra: +bônus de pontos de líder
 function portPct(pf,ps){   // porto: o jogador escolhe o que produz (0%) e o que falta (200%); o resto fica em 150% / 100% (só recursos físicos são necessidades)
   const p={},rest=NEEDS.filter(r=>r!==pf&&r!==ps);if(NEEDS.includes(pf))p[pf]=0;p[ps]=200;rest.forEach((r,i)=>p[r]=[150,100,100][i]);return p;
 }

@@ -14,8 +14,9 @@ const WAR = {
     // Acréscimo de necessidade em cada marco, na mesma ordem de marks (0.15 = +15%). Padrão: +15%, +30%, +45%
     supplyBonus: [0.15, 0.30, 0.45],
     // Quanto a fadiga do jogador sobe por tipo de evento (do maior para o menor). Padrão: sabotagem sofrida 3,
-    // ataque a POI inimigo 2, defesa de POI conquistado 1, defesa de POI quase nada (0.25)
-    gain: { sabotageTaken: 3, attackPoi: 2, defendConquered: 1, defendPoi: 0.25 },
+    // ataque a POI inimigo 2, defesa de POI conquistado 1, defesa de POI quase nada (0.25). attackExtra: soma extra do segundo
+    // ataque da mesma rodada (1). opFailed: soma quando uma operação lançada não é cumprida (1). Só acumulam em STATE.war.fat
+    gain: { sabotageTaken: 3, attackPoi: 2, defendConquered: 1, defendPoi: 0.25, attackExtra: 1, opFailed: 1 },
     // Fadiga que uma operação de "reduzir fadiga" tira, e a chance de ela falhar (o santuário falha 30%). Padrão: 2 e 0.3
     reduceBy: 2, reduceFail: 0.3,
     // Fadiga simples dos NPC (sem marcos): o que sobe ao perder POI, perder batalha ou sofrer sabotagem, e o que desce ao
@@ -24,12 +25,28 @@ const WAR = {
   },
   // Pontos de líder por rodada = facLvl() + bônus durante a guerra. Padrão: +1 (perde ao acabar a guerra)
   leaderPointsBonus: 1,
-  // Custo de cada operação do turno do Líder, em pontos de líder. Padrão: 1 cada; a cidade final custa mais (3)
-  opCost: { attack: 1, defense: 1, sabotage: 1, reduceFatigue: 1, retaliation: 1, city: 3 },
+  // Custo de cada operação do turno do Líder, em pontos de líder. Padrão: 1 cada; o ataque à cidade custa 2 (fixo)
+  opCost: { attack: 1, defense: 1, sabotage: 1, reduceFatigue: 1, retaliation: 1, city: 2 },
+  // Teto de operações de ataque lançadas por rodada. Padrão: 2
+  maxAttacksPerRound: 2,
+  // Mínimo de soldados de tipos variados na guarnição de um POI inimigo quando a operação de ataque fica ativa. Padrão: 10
+  garrisonMin: 10,
+  // Quantas rodadas o log narrativo da guerra (STATE.war.log) guarda; as mais antigas somem. Padrão: 30
+  logMax: 30,
+  // Tipos de operação do turno do Líder: on = disponível; off = motivo mostrado no botão desativado (estrutura pronta, regra nos
+  // itens seguintes). Padrão: só o ataque está ativo
+  ops: {
+    attack: { on: true },
+    defense: { on: false, off: 'Chega com o item 11 (defesa reativa).' },
+    sabotage: { on: false, off: 'Chega com a espionagem (itens 15 e 16).' },
+    reduceFatigue: { on: false, off: 'Chega com a fadiga com efeitos (item 13).' }
+  },
   // Fração dos POIs permanentes que o jogador precisa controlar para atacar a cidade inimiga ("maioria"). Padrão: 0.5
-  // (estritamente mais que isso: com 4 POIs na frente, 3 bastam). Falta calibrar.
+  // (estritamente mais que isso: com 4 POIs na frente, 3 bastam). Falta calibrar. (Reservado: a cidade só é atacável com os
+  // dois POIs das pontas já seus, ver operações de guerra)
   majority: 0.5,
-  // Penalidade de entrar em local proibido (turno do Comandante): dano que o jogador causa ÷10 e que recebe ×10. Padrão: 10
+  // Blindagem em guerra: POI/cidade inimigo da trilha sem operação ativa não morre. Fator ×10 de dano que o jogador RECEBE dos
+  // guardas ali (o ÷10 do que ele causa foi substituído pela blindagem). Padrão: 10
   forbiddenFactor: 10,
   // Entrada dos aliados: rodadas de atraso do aliado do jogador (1 a 2) e "questão de tempo" da facção agressiva
   // aliada do inimigo (2 a 4). Padrão: [1,2] e [2,4]

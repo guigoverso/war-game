@@ -6,9 +6,9 @@
 //  camps  campanha por inimigo principal {fid: {kind:'attack'|'defense', since:rodada, allies:{player:[fid], enemy:[fid]}}}
 //  ops    operações planejadas na rodada: {type, target, fid, cost}
 //  inc    ataques inimigos pendentes (viram operação de Defesa no turno do Líder seguinte): {fid, target}
-//  pts    pontos de líder gastos na rodada atual
-// Ainda não há operações nem batalhas: este arquivo só dá o chão para elas (itens 5 a 13 do plano da fase 6).
-const warNew = () => ({ fat: 0, nfat: {}, camps: {}, ops: [], inc: [], pts: 0, trace: [] });   // trace: POIs de guerra que ficaram como rastro depois da paz (warfront.js)
+//  log    log narrativo da guerra: [{round, id, args, result}] (texto montado na hora por warEventText, texts/war-event-texts.js)
+// Os pontos de líder gastos são os de STATE.rd.actions (econ.js). Ainda não há batalhas (itens 6 a 13 do plano da fase 6).
+const warNew = () => ({ fat: 0, nfat: {}, camps: {}, ops: [], inc: [], log: [], trace: [] });   // trace: POIs de guerra que ficaram como rastro depois da paz (warfront.js)
 Hooks.on('resetState', () => { STATE.war = warNew(); });
 // Acessor: cria o estado se faltar (partida nova ou save antigo) e completa campos que faltem.
 function warX() {
@@ -21,6 +21,13 @@ const warActive = () => Object.keys(warX().camps).length > 0;
 // Marco de fadiga atual do jogador (0 a 3) e acréscimo de suprimento correspondente.
 const warMark = () => warFatigueMark(warX().fat);
 const warSupply = () => warSupplyBonus(warX().fat);
+// Registra um evento no log da guerra (rodada atual). id = chave de WAR_EV; result = 'success' | 'failed'. Guarda só as
+// últimas WAR.logMax rodadas.
+function warLog(id, args, result) {
+  const W = warX(); W.log.push({ round: STATE.round, id, args: args || [], result: result || 'success' });
+  const min = STATE.round - WAR.logMax + 1;
+  W.log = W.log.filter(e => e.round >= min);
+}
 // Aplica o estado lido de um save (save.js).
 function warApply(s) { STATE.war = Object.assign(warNew(), s || {}); }
 

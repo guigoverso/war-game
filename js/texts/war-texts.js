@@ -75,15 +75,6 @@ const txtWarTabRow = (i, n, o, mine, next) => '<li>' + i + '. ' + (mine ? '✔ '
 // Caderno, aba Guerra: estado da Conquista. kind = 'city' ou 'poi', ok = liberada.
 const txtWarTabState = (kind, ok) => '<p>' + (ok ? '✅ ' : '🔒 ') + '<b>' + (kind === 'poi' ? 'Conquista do POI-alvo' : 'Conquista de Cidade') + '</b> ' +
   (ok ? 'liberada.' : 'bloqueada: falta controlar o POI mais perto da sua cidade e o mais perto do alvo.') + '</p>';
-// Caderno, aba Guerra: aviso sem guerra, e guerra sem frente.
-const TXT_WAR_TAB_NONE = '<h3>⚔ Guerra</h3><p>Você não está em guerra. Para declarar, abra a <b>Negociação</b> de uma facção (aba Facções) e escolha o alvo no mapa.</p>';
-const TXT_WAR_TAB_NOFRONT = '<p class="ldsm">Guerra sem frente montada (forçada pelo modo criativo ou declarada antes da frente existir). Para ter a frente, faça a paz e declare de novo pela Negociação (Facções → Guerra), escolhendo o alvo no mapa.</p>';
-// Caderno, aba Guerra: ajuda à direita.
-const TXT_WAR_TAB_HELP = '<h3>Como funciona a frente</h3><p class="ldsm">A rota liga sua cidade mais próxima ao alvo, passando pela cadeia de POIs. '
-  + 'Só se conquista o POI <b>adjacente</b> à sua área (▶). A Conquista de Cidade só libera quando o POI mais perto de cada lado é seu. '
-  + 'Os POIs de guerra (acampamentos, trincheiras...) somem quando a guerra acaba.</p>';
-// Caderno, aba Guerra (só no cenário de guerra): título dos atalhos de teste.
-const TXT_WAR_TAB_SCN = '<h4>🧪 Testes do cenário</h4><p class="ldsm">Atalhos até as operações existirem. Conquistar só aceita o POI adjacente.</p>';
 // Cenário de guerra: aviso do botão "Conquistar POI" quando o POI mais perto não é adjacente à sua área. n = nome do POI.
 const txtWarScnNotAdjacent = n => '⛔ ' + n + ' não é adjacente: conquiste os POIs da frente em ordem, a partir da sua cidade.';
 // Cenário de guerra: linha do painel com a cadeia da frente. items = [{n, o (dono), mine, next}] da sua cidade ao alvo; tn = nome do
