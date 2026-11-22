@@ -93,3 +93,6 @@ const txtWarScnSummary = (en, a, b, o) => 'Inimigo: <b>' + en + '</b> • POIs: 
 // conquistável fica longe dela. lado = 'origem' ou 'alvo'; nome = cidade; d = distância em blocos.
 const txtWarRingFail = (lado, nome, d) => '⚠ Nenhum terreno livre perto de ' + nome + ' (' + lado + '): o POI conquistável mais próximo fica a ' +
   d + ' blocos da muralha.';
+
+// Aba Efeitos (buffs): bônus de pontos de líder durante a guerra. n = WAR.leaderPointsBonus.
+const txtWarBuffLeader = n => '⚔️ Em guerra: +' + n + ' ponto' + (n > 1 ? 's' : '') + ' de líder enquanto durar o conflito';

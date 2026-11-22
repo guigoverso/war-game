@@ -140,6 +140,7 @@ function buffsPages(){
     if(en&&en.press)bad.push('⚔ '+c.name+' sob repressão: necessidades +'+50*en.press.n+'%')}
   // caravanas (suas e das NPC)
   for(const r of rd.routes)good.push('🛒 Caravana '+routeName(r)+': a necessidade do produto da outra cidade cai (100% some, 150% vira 100%, 200% vira 150%) <small>(enquanto a rota existir)</small>');
+  if(warActive())good.push(txtWarBuffLeader(WAR.leaderPointsBonus));   // guerra: +pontos de líder (econ.js maxActions)
   poiPostEffects(good,bad);
   const li=a=>a.length?'<ul class="ldul">'+a.map(t=>'<li>'+t+'</li>').join('')+'</ul>':'<p class="ldsm">Nenhum agora.</p>';
   return['<h3>✅ Buffs ativos</h3>'+li(good),'<h3>⚠ Debuffs ativos</h3>'+li(bad)];
