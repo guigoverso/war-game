@@ -103,9 +103,11 @@ function genRelief(P,stamps,roads,pois){
     const i=z*W+x;let h=preH(x,z);
     if(RV){   // rio desenhado: aplicado depois da costa (senão a praia entope a foz): vale suave em volta do leito, depois o leito
       h=coast(h);
-      if(dominant!=='mountain')h=lerp(h,SEA+2,RV.RVAL[i]*0.7*(1-mtnV*0.6));
-      else h=lerp(h,SEA+3,RV.RVAL[i]*0.55);
-      HF[i]=lerp(h,SEA-2.5,RV.RCH[i]);MT[i]=mtnV;continue;
+      if(h>=SEA){   // o vale só mexe na terra (no mar ele levantava o fundo)
+        if(dominant!=='mountain')h=lerp(h,SEA+2,RV.RVAL[i]*0.7*(1-mtnV*0.6));
+        else h=lerp(h,SEA+3,RV.RVAL[i]*0.55);
+      }
+      HF[i]=Math.min(h,lerp(h,SEA-2.5,RV.RCH[i]));MT[i]=mtnV;continue;   // o leito só desce (a foz no mar não levanta o fundo)
     }else{
       const rv=Math.abs(nr.fbm(x/80+200,z/80-120,3)-0.5);
       if(dominant!=='mountain')h=lerp(h,SEA+2,smooth(0.16,0.05,rv)*0.6*(1-mtnV));       // vale aberto em volta do rio
