@@ -43,6 +43,8 @@ Objetivo: preparar o terreno. Conflita com quase tudo, então **nada em paralelo
 1. **Especificação (conversa e documento, sem código de jogo):** decidir tudo abaixo e escrever em `docs/features/` (um arquivo novo, ex.: `8_tiles-e-vilas.md`) e atualizar `5_mapa-mundi.md`.
 2. **Implementação:** só depois da aprovação, quebrada em sessões (cidades maiores; tipos de tile; vilas; lógica do mundo de tile).
 
+> **Andamento (2026-11-23):** especificação em `8_tiles-e-vilas.md` (tile 384, cidades enormes 5 a 7, vilas até 10%, temas de tile, POIs pousada e alojamento); plano da fase de implementação em `9_plano-implementacao-tiles.md` (sessões 4.0 a 4G).
+
 Assuntos da etapa:
 - **Cidades maiores e de tamanhos variados.** Inclui o "passo 4 da 1B" (cidades de 200 de lado e calibragem, hoje raio de 36 a 45) e a relação com o tile de 320 da etapa 3. Medir tempo de geração e ajustar `CITY_FOOT`/`CITY_MULTI`.
 - **Novos tipos de tile** (fazenda, mineradora, serraria e outros): quais existem, onde nascem no grafo da etapa 5, o que cada um produz/consome e como se relacionam com os POIs atuais (`POI_DEFS`).
