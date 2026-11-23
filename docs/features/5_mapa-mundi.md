@@ -380,7 +380,7 @@ Grade perfeita descartada. Proposta:
 - **[VALIDADO]** O cenário `?cenario=batalha` funciona (o usuário testou). Correções feitas no caminho: `WORLD.home` (comentário no meio da linha) e guerra declarada antes do ataque (sem guerra, atacar é "crime" e os soldados não vêm).
 - **[A IMPLEMENTAR]** **Cidades em blocos com formatos variados:** hoje a cidade (quadrado de meia-largura `half`) tem muitos lotes vazios; passa a ser montada em blocos (quarteirões) e com pegadas mais variadas que o quadrado (L, T, cruz, oval, irregular), muro e portões acompanhando. Etapa 1B do plano.
 - **[A IMPLEMENTAR]** **Ordem de movimento dos soldados:** o jogador clica num ponto e os soldados se movem até lá. Etapa 1A do plano.
-- **[PLANO]** Ordem de implementação em `docs/features/6_plano-mapa-mundi.md` (etapas 0 a 10, mundo novo atrás de `?mundo=1`).
+- **[PLANO]** Ordem de implementação em `docs/features/6_plano-mapa-mundi.md` (etapas 0 a 11, mundo novo atrás de `?mundo=1`).
 
 ## Perguntas abertas (ordem de importância)
 > Rodada 14: pendentes: tecla da ordem dos soldados e se vale para todos ou por grupo; as pendências de rodadas anteriores continuam.

@@ -160,4 +160,4 @@ Fase 1 → Fase 2 → Fase 3 (independente da 2 depois da 1, mas melhor depois d
 - Cenários (`?cenario=pois`, `batalha`, `guerra`) não se aplicam ao protótipo.
 - **Portões abertos sem estrada** (pedido do usuário, semente 3, cidade 0 em (497,501), saída sul): hoje `buildCity` faz a rua até todo portão aberto (`c.gland`), mas só os portões que a MST usa recebem estrada; os outros terminam em grama. Ideia: ligar cada um deles à estrada mais próxima (sem ponte, com comprimento máximo) ou fechar o portão. **Implementado no modo reserva** (`reservePlanRoads`, `RESERVE.gateLinkMax` = 40): ligação à estrada planejada mais próxima, sem ponte; sem estrada por perto o portão segue sem estrada. Falta validar na tela e o gerador antigo não tem isso.
 - Rio atravessando a cidade, cais, e portões em posições livres (fora dos 4 eixos) ficam como melhorias futuras.
-- O mapa mundi (etapas 3 e 4 do `6_plano-mapa-mundi.md`) vai trocar este gerador; levar para lá a regra "reservar primeiro, esculpir depois".
+- O mapa mundi (etapas 3 a 5 do `6_plano-mapa-mundi.md`) vai trocar este gerador; levar para lá a regra "reservar primeiro, esculpir depois".
