@@ -158,6 +158,18 @@ function cityFootFlatten(c,apron){
     }
   }
 }
+// quadrado antigo (cidade sem pegada: mapas de teste ou sem chão): média da altura, platô de c.half+1 blocos e rampa de 20
+function citySquareFlatten(c){
+  let sum=0,n=0;
+  for(let dz=-c.half;dz<=c.half;dz+=3)for(let dx=-c.half;dx<=c.half;dx+=3){sum+=H[(c.cz+dz)*W+c.cx+dx];n++}
+  c.y=Math.max(SEA+2,Math.round(sum/n));
+  const R=c.half+1,F=20;
+  for(let dz=-(R+F);dz<=R+F;dz++)for(let dx=-(R+F);dx<=R+F;dx++){
+    const x=c.cx+dx,z=c.cz+dz;if(x<1||z<1||x>=W-1||z>=W-1)continue;
+    const d=Math.max(Math.abs(dx),Math.abs(dz)),i=z*W+x;
+    if(d<=R){H[i]=c.y}else if(d<R+F)H[i]=Math.round(lerp(c.y,H[i],smooth(0,1,(d-R)/F)));
+  }
+}
 // distância (blocos) do ponto de mundo (x,z) até a pegada da cidade; 255 se longe
 function cityFootDist(c,x,z){
   const M=c.fM,lx=Math.floor(x)-c.cx+M,lz=Math.floor(z)-c.cz+M,NM=2*M+1;

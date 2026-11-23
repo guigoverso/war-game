@@ -19,6 +19,10 @@ const RESERVE = {
   mtnChance: 0.8, mtnMax: 2,
   // roughPenalty: peso do desnível em volta na escolha do local da cidade no modo reserva (o antigo é 0.35); menor = aceita cidade perto de serra. Padrão: 0.15
   roughPenalty: 0.15,
+  // roadWater: custo extra do A* por célula de água nas estradas do modo reserva (o antigo é 1); maior = prefere travessia curta ou contornar. Padrão: 3
+  roadWater: 3,
+  // gateLinkMax: distância máxima (blocos) de um portão aberto sem estrada até a estrada mais próxima para ligar os dois (sem ponte); mais longe, o portão fica sem estrada. Padrão: 40
+  gateLinkMax: 40,
   // waterBias / waterNear: preferência por margem de água (fase 4; ainda não usados). Padrões: 0.7 e 12
   waterBias: 0.7, waterNear: 12
 };

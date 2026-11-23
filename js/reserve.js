@@ -56,3 +56,124 @@ function reserveMountains(c,seed){
   for(const [d] of opts)if(cnt<RESERVE.mtnMax&&rg.chance(RESERVE.mtnChance)){m[d]=true;cnt++}
   if(cnt)c.mtn=m;
 }
+
+// ---------- Estradas e pontes por reserva (feature 7, fase 2) ----------
+// Com a pegada das cidades já aplainada (genRelief com `stamps`), cada estrada é traçada SEM pintar nada (roadTiles) e vira um corredor:
+// altura suavizada ao longo da rota, ponte com tabuleiro reto na altura das margens e cabeceira de BRIDGE_HEAD blocos no mesmo nível.
+// O corredor entra no terreno final (reserveRoadsRelief, dentro de genRelief) e só depois T/WORLD.bt/WORLD.bridges são pintados (reservePaintRoads).
+// plan = {own: Map(célula -> {h, h0, t:'r'|'b', w}), sh: Map(célula -> altura do ombro), bridges: [...], bad}
+function reservePlanRoads(cities,edges){
+  const own=new Map(),sh=new Map(),plan={own,sh,bridges:[],bad:0},hd=BRIDGE_HEAD;
+  // reserva uma estrada (a lista de tiles já traçada por roadTiles). noBridge: desiste (false) se precisar de ponte
+  const lay=(a,b,tiles,noBridge)=>{
+    const n=tiles.length;
+    const ki=i=>tiles[i].z*W+tiles[i].x,base=tiles.map((t,i)=>H[ki(i)]),wet=base.map(h=>h<SEA);
+    // trechos curtos de água viram aterro de estrada comum; os outros viram ponte (trechos de ponte muito próximos viram uma só)
+    const segs=[];
+    for(let i=0;i<n;){
+      if(!wet[i]){i++;continue}
+      let f=i;while(f+1<n&&wet[f+1])f++;
+      if(f-i+1>ROAD_FILL_MAX){
+        const q=segs[segs.length-1];
+        if(q&&i-q[1]-1<=2*hd)q[1]=f;else segs.push([i,f]);
+      }
+      i=f+1;
+    }
+    if(noBridge&&segs.length)return false;
+    const bridge=new Uint8Array(n),head=new Uint8Array(n),pin=new Array(n).fill(null);
+    for(const [i,f] of segs){
+      for(let j=i;j<=f;j++)bridge[j]=1;
+      // altura do tabuleiro: a das margens (média das duas); se um tile já é tabuleiro de outra estrada, usa a dele
+      let dk=null;
+      for(let j=Math.max(0,i-hd);j<=Math.min(n-1,f+hd)&&dk===null;j++)for(let dz=-5;dz<=5&&dk===null;dz++)for(let dx=-5;dx<=5;dx++){   // (5 blocos: tabuleiros vizinhos se encostam e precisam da mesma altura)
+        const o=own.get((tiles[j].z+dz)*W+tiles[j].x+dx);if(o&&o.t==='b'){dk=o.h;break}}   // cabeceira ou tabuleiro de outra estrada por perto
+      if(dk===null){const hl=base[Math.max(0,i-1)],hr=base[Math.min(n-1,f+1)];dk=Math.max(SEA+1,Math.round((hl+hr)/2))}
+      for(let j=Math.max(0,i-hd);j<=Math.min(n-1,f+hd);j++){pin[j]=dk;if(!bridge[j])head[j]=1}
+    }
+    // altura ao longo da rota: média móvel (janela de 11) sobre a terra, depois os pontos fixos (ponte, cabeceira, portões, cruzamentos), depois limite de 1 por bloco
+    let hs=base.map(h=>Math.max(h,SEA+1));
+    for(let pass=0;pass<3;pass++){const nx=hs.slice();for(let i=0;i<n;i++){let s2=0,c2=0;for(let k=-5;k<=5;k++){const j=i+k;if(j>=0&&j<n){s2+=hs[j];c2++}}nx[i]=s2/c2}hs=nx}
+    hs=hs.map(Math.round);
+    for(let i=0;i<n;i++){const o=own.get(ki(i));if(o&&pin[i]===null)pin[i]=o.h}   // cruzamento (ou ponta de ligação) com estrada já planejada
+    pin[0]=pin[0]??base[0];pin[n-1]=pin[n-1]??base[n-1];   // os portões ficam na altura da faixa plana da cidade
+    for(let i=0;i<n;i++)if(pin[i]!==null)hs[i]=pin[i];
+    for(let i=1;i<n;i++)if(pin[i]===null)hs[i]=clamp(hs[i],hs[i-1]-1,hs[i-1]+1);
+    for(let i=n-2;i>=0;i--)if(pin[i]===null)hs[i]=clamp(hs[i],hs[i+1]-1,hs[i+1]+1);
+    // ponte já existente (outra estrada passou antes pelos mesmos tiles): não registra de novo
+    const dup=segs.map(([i,f])=>{for(let j=i;j<=f;j++){const o=own.get(ki(j));if(!o||o.t!=='b')return false}return true});
+    // carimba o corredor: primeiro a reservar a célula, fica com ela
+    for(let i=0;i<n;i++){
+      const wide=bridge[i]||head[i],R=wide?BRIDGE_R:1.5;
+      for(let dz=-2;dz<=2;dz++)for(let dx=-2;dx<=2;dx++){
+        const x=tiles[i].x+dx,z=tiles[i].z+dz;if(x<1||z<1||x>=W-1||z>=W-1)continue;
+        const d=Math.hypot(dx,dz),k=z*W+x;
+        if(d<=R){if(!own.has(k))own.set(k,{h:hs[i],h0:H[k],t:wide?'b':'r'})}
+        else if(d<=2.6&&!wide&&!sh.has(k))sh.set(k,hs[i]);
+      }
+    }
+    segs.forEach(([i,f],q)=>{
+      if(dup[q])return;
+      const s0=Math.max(0,i-hd),e0=Math.min(n-1,f+hd);
+      plan.bridges.push({tiles:tiles.slice(s0,e0+1).map(t=>({x:t.x,z:t.z})),len:f-i+1,wi:i-s0,we:f-s0,road:[a.id,b.id]});
+    });
+    let span=0,run=0;for(let i=0;i<n;i++){if(wet[i]){run++;span=Math.max(span,run)}else run=0}
+    if(span>ROAD_SPAN_MAX)plan.bad++;
+    return true;
+  };
+  for(const e of edges){
+    const a=cities[e[0]],b=cities[e[1]];
+    lay(a,b,roadTiles(a,b,cities,{water:RESERVE.roadWater,isRoad:k=>own.has(k)}),false);
+  }
+  // portões abertos sem estrada: ligam-se à estrada planejada mais próxima (até RESERVE.gateLinkMax blocos, sem ponte); sem estrada por perto ficam como estão
+  let links=0;
+  for(const c of cities)for(const d of['E','W','S','N']){
+    if(!c.gland||!c.gland[d]||c.gates.some(g=>g.dir===d))continue;
+    const [gx,gz]=cityGatePos(c,d,3);
+    if(own.has(Math.floor(gz)*W+Math.floor(gx))){c.gates.push({dir:d});continue}   // a estrada de outro portão já passa em cima
+    let best=-1,bd=1e9;
+    for(const [k,o] of own){if(o.t!=='r')continue;const q=Math.hypot(k%W-gx,((k/W)|0)-gz);if(q<bd){bd=q;best=k}}
+    if(best<0||bd>RESERVE.gateLinkMax)continue;
+    const tgt={cx:best%W,cz:(best/W)|0,half:-3,gates:[]};   // alvo: a célula de estrada (mesmo truque das estradas de POI)
+    const tiles=roadTiles(c,tgt,cities,{water:RESERVE.roadWater,isRoad:k=>own.has(k),dirA:d});
+    if(lay(c,tgt,tiles,true))links++;else c.gates.pop();   // (roadTiles já registrou o portão; sem ponte ele volta a ficar sem estrada)
+  }
+  WORLD.reserve=Object.assign(WORLD.reserve||{},{gateLinks:links,roads:edges.length,bridges:plan.bridges.length,roadsBad:plan.bad});
+  WORLD.roadPlan=plan;   // (para as ferramentas de teste)
+  return plan;
+}
+// dentro de genRelief: terra do corredor na altura planejada (também sob o aterro); ombros limitados a 1 bloco de diferença; a água sob o tabuleiro fica
+function reserveRoadsRelief(plan){
+  for(const [k,o] of plan.own)if(!(o.t==='b'&&o.h0<SEA))H[k]=o.h;
+  for(const [k,h] of plan.sh)if(!plan.own.has(k)&&H[k]>=SEA)H[k]=clamp(H[k],h-1,h+1);
+}
+// depois do terreno final: pinta T_ROAD/T_BRIDGE, o leito das pontes (WORLD.bt) e o registro WORLD.bridges
+function reservePaintRoads(plan){
+  const BT=WORLD.bt;
+  for(const [k,o] of plan.own){
+    if(o.t==='r'){T[k]=T_ROAD;continue}
+    BT.set(k,{h0:o.h0});H[k]=o.h;T[k]=T_BRIDGE;
+  }
+  for(const br of plan.bridges)WORLD.bridges.push(Object.assign({id:WORLD.bridges.length,toll:null},br));
+}
+// Depois das estradas de POI (genPOIs): portão aberto ainda sem estrada liga-se ao T_ROAD mais próximo (inclui as estradas de POI, que só existem agora).
+// Usa o carveRoad antigo (pinta na hora, sem ponte) e desenha o toco de 4 blocos além da borda, como buildCity faz nos portões com estrada.
+function reserveGateLinks(cities){
+  let n=0;
+  for(const c of cities)for(const d of['E','W','S','N']){
+    if(!c.gland||!c.gland[d]||c.gates.some(g=>g.dir===d))continue;
+    const [gx,gz]=cityGatePos(c,d,3);let best=null,bd=1e9;
+    for(let z=6;z<W-6;z+=3)for(let x=6;x<W-6;x+=3){
+      if(T[z*W+x]!==T_ROAD||cityNear(c,x,z,8))continue;
+      const q=Math.hypot(x-gx,z-gz);if(q<bd){bd=q;best=[x,z]}
+    }
+    if(!best||bd>RESERVE.gateLinkMax)continue;
+    if(!carveRoad(c,{cx:best[0],cz:best[1],half:-3,gates:[]},cities,{water:ROAD_WATER_OLD,noBridge:true,dirA:d,pinEnds:true})){c.gates.pop();continue}
+    const E=c.gedge[d];
+    for(let k=1;k<=4;k++)for(let w=-1;w<=1;w++){
+      const lx=d==='E'?E+k:d==='W'?-E-k:w,lz=d==='S'?E+k:d==='N'?-E-k:w;
+      if(getT(c.cx+lx,c.cz+lz)===T_NAT)setTL(c,lx,lz,T_ROAD);
+    }
+    n++;
+  }
+  if(WORLD.reserve)WORLD.reserve.gateLinksLate=n;
+}

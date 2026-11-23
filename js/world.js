@@ -63,8 +63,8 @@ function cityName(rng,biome,used){
 
 const DOM_NAMES={plains:'Planícies',forest:'Florestas',mountain:'Montanhas',snow:'Neve',desert:'Deserto'};
 // Relevo, rios e biomas (H e B). P = {seed,dominant,shape,sAng,bayA}; stamps = reservas (cidades) aplicadas depois da suavização e antes dos biomas
-// (js/reserve.js). Sem stamps o resultado é o mesmo do gerador antigo. Não consome o RNG do mundo: tudo sai da semente.
-function genRelief(P,stamps){
+// (js/reserve.js); roads = corredores de estrada (fase 2). Sem stamps o resultado é o mesmo do gerador antigo. Não consome o RNG do mundo: tudo sai da semente.
+function genRelief(P,stamps,roads){
   const {seed,dominant,shape,sAng,bayA}=P;
   const nz=new Noise(seed),nt=new Noise(seed+11),nm=new Noise(seed+23),nr=new Noise(seed+37),nd=new Noise(seed+51),nj=new Noise(seed+77);
   const wn=new Noise(seed+131);
@@ -107,7 +107,8 @@ function genRelief(P,stamps){
     }
   }
   for(let i=0;i<W*W;i++)H[i]=Math.max(SEA-3,Math.round(HF[i]));
-  if(stamps)for(const c of stamps)cityFootFlatten(c,RESERVE.apron);   // reservas: pegada e faixa plana + rampa (js/reserve.js)
+  if(stamps)for(const c of stamps)c.foot?cityFootFlatten(c,RESERVE.apron):citySquareFlatten(c);   // reservas: pegada e faixa plana + rampa (js/reserve.js)
+  if(roads)reserveRoadsRelief(roads);   // corredores de estrada e pontes (js/reserve.js)
   // biomas por percentil: garante variedade em qualquer semente
   const TT=new Float32Array(W*W),MM=new Float32Array(W*W),ts=[],ms=[];
   for(let z=0;z<W;z++)for(let x=0;x<W;x++){
@@ -210,7 +211,7 @@ async function genWorld(seed,status,dominant){
     const t0=performance.now();
     reserveCities(cities,cand,seed,MINC);cities.forEach((c,i)=>c.id=i);
     for(const c of cities)reserveMountains(c,seed);
-    genRelief(RP,cities.filter(c=>c.foot));
+    genRelief(RP,cities);
     for(const c of cities)if(c.foot)c.biome=B[c.cz*W+c.cx];
     WORLD.reserve.ms=Math.round(performance.now()-t0);console.log('reserva:',JSON.stringify(WORLD.reserve));
   }
@@ -236,49 +237,21 @@ async function genWorld(seed,status,dominant){
   }
   // aplaina o terreno sob cada cidade
   for(const c of cities){
-    if(RES?c.foot:(cityFootPlan(c,seed)||cityFootRelocate(c,cities,cand,seed))){if(!RES)cityFootFlatten(c);continue}   // a cidade se adapta ao terreno (cityfoot.js); sem chão: troca de lugar; sem alternativa: quadrado antigo
-    let sum=0,n=0;
-    for(let dz=-c.half;dz<=c.half;dz+=3)for(let dx=-c.half;dx<=c.half;dx+=3){sum+=H[(c.cz+dz)*W+c.cx+dx];n++}
-    c.y=Math.max(SEA+2,Math.round(sum/n));
-    const R=c.half+1,F=20;
-    for(let dz=-(R+F);dz<=R+F;dz++)for(let dx=-(R+F);dx<=R+F;dx++){
-      const x=c.cx+dx,z=c.cz+dz;if(x<1||z<1||x>=W-1||z>=W-1)continue;
-      const d=Math.max(Math.abs(dx),Math.abs(dz)),i=z*W+x;
-      if(d<=R){H[i]=c.y}else if(d<R+F)H[i]=Math.round(lerp(c.y,H[i],smooth(0,1,(d-R)/F)));
-    }
+    if(RES)continue;   // modo reserva: o terreno final já tem o chão de todas as cidades (genRelief)
+    if(cityFootPlan(c,seed)||cityFootRelocate(c,cities,cand,seed)){cityFootFlatten(c);continue}   // a cidade se adapta ao terreno (cityfoot.js); sem chão: troca de lugar; sem alternativa: quadrado antigo
+    citySquareFlatten(c);
   }
 
   for(const c of cities)cityFootGates(c);   // onde a pegada de cada cidade termina em cada eixo (portões e pontas de estrada)
   // 3) Estradas ligando as cidades (MST + atalhos)
   status('Traçando estradas e pontes...');await tick();
-  const edges=[],inT=new Set([0]);
-  while(inT.size<cities.length){
-    let best=null,bd=1e9;
-    for(const a of inT)for(let j=0;j<cities.length;j++){if(inT.has(j))continue;
-      const d=Math.hypot(cities[a].cx-cities[j].cx,cities[a].cz-cities[j].cz);if(d<bd){bd=d;best=[a,j]}}
-    edges.push(best);inT.add(best[1]);
-  }
-  const extra=[];
-  for(let i=0;i<cities.length;i++)for(let j=i+1;j<cities.length;j++){
-    if(edges.some(e=>(e[0]===i&&e[1]===j)||(e[0]===j&&e[1]===i)))continue;
-    extra.push([i,j,Math.hypot(cities[i].cx-cities[j].cx,cities[i].cz-cities[j].cz)]);
-  }
-  extra.sort((a,b)=>a[2]-b[2]);
-  for(let k=0;k<2&&k<extra.length;k++)if(extra[k][2]<150)edges.push([extra[k][0],extra[k][1]]);
-  // garantia (Fase 4H): todas as cidades precisam estar ligadas por estrada/ponte. A árvore geradora acima já cobre isso;
-  // se alguma sobrar isolada (ex.: poucas cidades no mapa), liga o par mais próximo entre os grupos.
-  {
-    const par=cities.map((_,i)=>i),find=i=>{while(par[i]!==i){par[i]=par[par[i]];i=par[i]}return i};
-    for(const e of edges)par[find(e[0])]=find(e[1]);
-    for(;;){
-      let best=null,bd=1e9;
-      for(let i=0;i<cities.length;i++)for(let j=i+1;j<cities.length;j++){
-        if(find(i)===find(j))continue;const d=Math.hypot(cities[i].cx-cities[j].cx,cities[i].cz-cities[j].cz);if(d<bd){bd=d;best=[i,j]}}
-      if(!best)break;edges.push(best);par[find(best[0])]=find(best[1]);
-    }
-  }
+  const edges=roadEdges(cities);
   WORLD.links=edges.map(e=>[e[0],e[1]]);
-  for(const e of edges){carveRoad(cities[e[0]],cities[e[1]],cities);await tick()}
+  if(RES){   // reserva (js/reserve.js): rotas e pontes sobre o terreno já aplainado, corredor reservado, terreno final em volta
+    const t1=performance.now(),plan=reservePlanRoads(cities,edges);await tick();
+    genRelief(RP,cities,plan);for(const c of cities)cityFootGates(c);
+    reservePaintRoads(plan);WORLD.reserve.msRoads=Math.round(performance.now()-t1);
+  }else for(const e of edges){carveRoad(cities[e[0]],cities[e[1]],cities);await tick()}
   // litoral: conta água nas redondezas de cada cidade (anel de 4 a 45 blocos além da muralha). É o que decide quem pode ser o porto.
   for(const c of cities){
     let wet=0;
@@ -310,12 +283,44 @@ async function genWorld(seed,status,dominant){
   return WORLD;
 }
 
-function carveRoad(a,b,cities,opts){
-  const C=4,N=W/C,wc0=(opts&&opts.water!==undefined)?opts.water:ROAD_WATER;
+// Quais cidades se ligam por estrada: árvore geradora mínima, até 2 atalhos curtos e a garantia de que o grafo é conexo.
+function roadEdges(cities){
+  const edges=[],inT=new Set([0]);
+  while(inT.size<cities.length){
+    let best=null,bd=1e9;
+    for(const a of inT)for(let j=0;j<cities.length;j++){if(inT.has(j))continue;
+      const d=Math.hypot(cities[a].cx-cities[j].cx,cities[a].cz-cities[j].cz);if(d<bd){bd=d;best=[a,j]}}
+    edges.push(best);inT.add(best[1]);
+  }
+  const extra=[];
+  for(let i=0;i<cities.length;i++)for(let j=i+1;j<cities.length;j++){
+    if(edges.some(e=>(e[0]===i&&e[1]===j)||(e[0]===j&&e[1]===i)))continue;
+    extra.push([i,j,Math.hypot(cities[i].cx-cities[j].cx,cities[i].cz-cities[j].cz)]);
+  }
+  extra.sort((a,b)=>a[2]-b[2]);
+  for(let k=0;k<2&&k<extra.length;k++)if(extra[k][2]<150)edges.push([extra[k][0],extra[k][1]]);
+  // garantia (Fase 4H): todas as cidades precisam estar ligadas por estrada/ponte. A árvore geradora acima já cobre isso;
+  // se alguma sobrar isolada (ex.: poucas cidades no mapa), liga o par mais próximo entre os grupos.
+  {
+    const par=cities.map((_,i)=>i),find=i=>{while(par[i]!==i){par[i]=par[par[i]];i=par[i]}return i};
+    for(const e of edges)par[find(e[0])]=find(e[1]);
+    for(;;){
+      let best=null,bd=1e9;
+      for(let i=0;i<cities.length;i++)for(let j=i+1;j<cities.length;j++){
+        if(find(i)===find(j))continue;const d=Math.hypot(cities[i].cx-cities[j].cx,cities[i].cz-cities[j].cz);if(d<bd){bd=d;best=[i,j]}}
+      if(!best)break;edges.push(best);par[find(best[0])]=find(best[1]);
+    }
+  }
+  return edges;
+}
+// Traça a rota de estrada entre duas cidades (portões escolhidos aqui, A* na grade de 4 blocos) e devolve os blocos em linha reta entre os pontos.
+// opts.water: custo extra por célula de água; opts.dirA: força o portão da cidade a; opts.pinEnds (carveRoad): pontas e cruzamentos ficam na altura do chão atual; opts.noBridge (carveRoad): desiste se o trajeto precisar de ponte; opts.isRoad(k): célula que já é estrada (custo menor). Não pinta nada.
+function roadTiles(a,b,cities,opts){
+  const C=4,N=W/C,wc0=(opts&&opts.water!==undefined)?opts.water:ROAD_WATER,isRoad=(opts&&opts.isRoad)||(k=>T[k]===T_ROAD);
   const gate=(c,o)=>{const dx=o.cx-c.cx,dz=o.cz-c.cz;
     // o portão é o eixo que mais aponta para a outra cidade e tem terra do lado de fora (c.gland, cityfoot.js)
     const pref=[['E',dx],['W',-dx],['S',dz],['N',-dz]].sort((p,q)=>q[1]-p[1]);
-    const d=(pref.find(p=>!c.gland||c.gland[p[0]])||pref[0])[0];c.gates.push({dir:d});
+    const d=(opts&&opts.dirA&&c===a)?opts.dirA:(pref.find(p=>!c.gland||c.gland[p[0]])||pref[0])[0];c.gates.push({dir:d});
     const [x,z]=cityGatePos(c,d,3);return{x,z}};   // 3 blocos além da borda da pegada
   const ga=gate(a,b),gb=gate(b,a);
   const cityPen=(x,z)=>{let p=0;for(const c of cities){const d=Math.max(Math.abs(x-c.cx),Math.abs(z-c.cz));
@@ -335,7 +340,7 @@ function carveRoad(a,b,cities,opts){
         const hx=vx*C+2,hz=vz*C+2,hv=H[hz*W+hx],hu=H[(uz*C+2)*W+ux*C+2];
         let cost=(dx&&dz?1.414:1)*C;const dh=Math.abs(eh(hv)-eh(hu));
         cost*=1+dh*dh*0.9+(hv<SEA?wc:0)+cityPen(hx,hz);
-        if(T[hz*W+hx]===T_ROAD)cost*=0.35;
+        if(isRoad(hz*W+hx))cost*=0.35;
         const ng=g[u]+cost;
         if(ng<g[v]){g[v]=ng;came[v]=u;hp.push(ng+Math.hypot(gx-vx,gz-vz)*C*0.35,v)}
       }
@@ -355,6 +360,10 @@ function carveRoad(a,b,cities,opts){
     const dx=Math.abs(x1-x0),dz=Math.abs(z1-z0),sx=x0<x1?1:-1,sz=z0<z1?1:-1;let err=dx-dz;
     for(;;){tiles.push({x:x0,z:z0});if(x0===x1&&z0===z1)break;const e2=2*err;if(e2>-dz){err-=dz;x0+=sx}if(e2<dx){err+=dx;z0+=sz}}
   }
+  return tiles;
+}
+function carveRoad(a,b,cities,opts){
+  const tiles=roadTiles(a,b,cities,opts);
   const n=tiles.length;
   const h0=tiles.map(t=>H[t.z*W+t.x]),bridge=h0.map(h=>h<SEA);
   // trechos curtos de água (até ROAD_FILL_MAX blocos seguidos) viram aterro de estrada comum, não ponte: sem o chão alternando entre estrada e ponte
@@ -364,12 +373,17 @@ function carveRoad(a,b,cities,opts){
     if(e-i+1<=ROAD_FILL_MAX)for(let k=i;k<=e;k++)bridge[k]=false;
     i=e+1;
   }
+  if(opts&&opts.noBridge&&bridge.some(Boolean))return false;   // (estradas de POI no modo reserva: sem ponte, a estrada simplesmente não é aberta)
   let hs=h0.map(h=>Math.max(h,SEA+1));
   for(let pass=0;pass<3;pass++){const nx=hs.slice();for(let i=0;i<n;i++){let s2=0,c2=0;for(let k=-5;k<=5;k++){const j=i+k;if(j>=0&&j<n){s2+=hs[j];c2++}}nx[i]=s2/c2}hs=nx}
   hs=hs.map(Math.round);
   for(let i=0;i<n;i++)if(bridge[i])hs[i]=Math.max(hs[i],SEA+1);
-  for(let i=1;i<n;i++)hs[i]=clamp(hs[i],hs[i-1]-1,hs[i-1]+1);
-  for(let i=n-2;i>=0;i--)hs[i]=clamp(hs[i],hs[i+1]-1,hs[i+1]+1);
+  // opts.pinEnds: as pontas e os tiles sobre estrada que já existe ficam na altura atual do chão (a estrada nova emenda sem degrau; sem isto a média
+  // móvel puxava a ponta para outra altura e aparecia uma parede de 2 ou mais blocos no portão e no cruzamento)
+  const pin=(opts&&opts.pinEnds)?tiles.map((t,i)=>i===0||i===n-1||T[t.z*W+t.x]===T_ROAD||T[t.z*W+t.x]===T_BRIDGE):null;
+  if(pin)for(let i=0;i<n;i++)if(pin[i])hs[i]=Math.max(h0[i],SEA+1);
+  for(let i=1;i<n;i++)if(!pin||!pin[i])hs[i]=clamp(hs[i],hs[i-1]-1,hs[i-1]+1);
+  for(let i=n-2;i>=0;i--)if(!pin||!pin[i])hs[i]=clamp(hs[i],hs[i+1]-1,hs[i+1]+1);
   const BT=WORLD.bt;
   for(let i=0;i<n;i++){
     const h=hs[i],px=tiles[i].x,pz=tiles[i].z;
@@ -404,6 +418,7 @@ function carveRoad(a,b,cities,opts){
       wi:i-s0,we:e-s0,road:[a.id===undefined?-1:a.id,b.id===undefined?-1:b.id],toll:null});
     i=e;
   }
+  return true;
 }
 
 // ---------- Natureza ----------

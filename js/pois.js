@@ -761,8 +761,9 @@ function genWorldPois(cities,taken){
       const k=T[z*W+x];if(k!==T_ROAD&&k!==T_BRIDGE)continue;const d=Math.hypot(x-p.cx,z-p.cz);if(d<bd){bd=d;best=[x,z]}
     }
     if(!best||bd<POI_DEFS[p.type].r+6)continue;
-    carveRoad(pseudo(p),{cx:best[0],cz:best[1],half:-3,gates:[]},cities.concat(WORLD.pois.filter(q=>q!==p&&q.type!=='bridge').map(pseudo)),{water:ROAD_WATER_OLD});   // só por terra
+    carveRoad(pseudo(p),{cx:best[0],cz:best[1],half:-3,gates:[]},cities.concat(WORLD.pois.filter(q=>q!==p&&q.type!=='bridge').map(pseudo)),{water:ROAD_WATER_OLD,noBridge:reserveOn(),pinEnds:reserveOn()});   // só por terra (no modo reserva nem ponte: as pontes vêm só do plano de js/reserve.js)
   }
+  if(reserveOn())reserveGateLinks(cities);   // portões ainda sem estrada ligam-se à mais próxima, inclusive às estradas de POI (js/reserve.js)
   poiApply();
 }
 
