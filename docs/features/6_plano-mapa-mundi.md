@@ -24,7 +24,7 @@ Arquivos que não se sobrepõem entre si; uma sessão para cada (1A e 1C podem i
   - Tamanhos novos (cidade de 200 de lado) são o caso principal. Teste: `?cenario=batalha`, `?cenario=pois` e partida normal; conferir moradores, nav e raid.
 - **1C. Pistola inquebrável e munição em dívida (P).** Pistola sem desgaste; só a munição da pistola pode ser comprada em dívida até **-9999** (exceção ao bloqueio de `Ledger.anyDebt()` em `store.js`); morte nunca gera dívida; kit do comandante novo (pistola, munição, cura) fica para a etapa 7. Números em `economy-modifiers.js`/`army-modifiers.js`.
 
-## Etapa 2: arquitetura em camadas, sem mudar o jogo (G; sessão própria)
+## Etapa 2: arquitetura em camadas, sem mudar o jogo (G; sessão própria) — FEITA em 2026-11-23 (ver `docs/MAPA.md`, seção Camadas; faltou separar os arquivos mistos da raiz de `js/`, que acontece nas etapas 5 a 8)
 Objetivo: preparar o terreno. Conflita com quase tudo, então **nada em paralelo**.
 1. Pastas `js/core`, `js/macro`, `js/local`, `js/ui`, mantendo scripts globais e a ordem de carga em `index.html`; regra: `macro` não usa Three.js nem DOM.
 2. `WORLD` e `W` passam a ser "o mapa local ativo" (`MAP`), com alias temporário; `W` deixa de ser `const` (tamanho por tile); `scene` passa a ser trocável (cena do mapa local e cena do mapa mundi).

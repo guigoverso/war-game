@@ -1,6 +1,8 @@
 'use strict';
 // ---------- Renderização em blocos ----------
-const scene=new THREE.Scene();
+// scene = cena do mapa ativo; trocável (sceneUse) para ter uma cena do mapa local e outra do mapa mundi (etapa 6). Quem adicionou luzes na cena inicial deve readicioná-las na nova.
+let scene=new THREE.Scene();
+function sceneUse(s){scene=s;return s}
 const matCache=new Map();
 function mat(c){let m=matCache.get(c);if(!m){m=new THREE.MeshLambertMaterial({color:c});matCache.set(c,m)}return m}
 const MAT_TERRAIN=new THREE.MeshLambertMaterial({vertexColors:true});

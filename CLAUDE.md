@@ -23,6 +23,7 @@ Ao editar código: mantenha novas funções com linhas de até ~120 caracteres e
   Ele abre `?auto=1&mute=1&seed=11` e `?cenario=pois&auto=1&mute=1` e imprime OK/FALHA para carga sem erros, POIs, serviços, binóculo, moradores e Negociação.
 
 ## Mapa do código (`js/`)
+- Pastas (etapa 2 do mapa mundi): `js/core`, `js/macro` (sem Three.js/DOM; teste `node tests/macro/run.js`), `js/local`, `js/ui`; o que mistura camadas segue na raiz de `js/`. Lista por pasta em `docs/MAPA.md`; a ordem de carga é a do `index.html`.
 - Mundo/render: `util`, `modifiers/` (constantes e regras ajustáveis pelo usuário, por categoria), `texts/` (textos do jogo, por categoria), `render`, `voxel`, `phys`, `world` (geração por semente), `city` (cidades e prédios), `nav`.
 - Entidades: `entities` (NPCs, inimigos, IA), `allies` (soldados do jogador, escolha de alvo `pickTarget`), `weapons`, `ambient`.
 - Jogo: `game` (laço principal, entrada, interação `doInteract`/`updateInteract`, painéis), `state` (STATE serializável, Ledger de recursos, Hooks), `save` (salvar/carregar com versão).

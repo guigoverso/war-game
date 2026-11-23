@@ -3,11 +3,26 @@
 Referência rápida para achar as coisas sem varrer o código. Nomes são exatos (função/constante global).
 Se renomear ou mover algo listado aqui, atualize esta página.
 
+## Camadas (etapa 2 do plano do mapa mundi; `js/` em pastas, scripts continuam globais)
+Pastas só organizam; a **ordem de carga** é a do `index.html` (não mudou). Os nomes dos arquivos abaixo seguem exatos; a pasta de cada um:
+- **`js/core/`** (base compartilhada): `util`, `render`, `voxel`, `phys`, `state`, `data`, `save`, `game` (laço principal e entrada, carrega por último).
+- **`js/macro/`** (**regra: não usa Three.js nem DOM**; hoje só o que já era limpo): `econ`, `facsupply`, `meetfx`, `warops`. Conferido por `node tests/macro/run.js` (carrega esta pasta num `vm` sem `THREE`/`document`).
+- **`js/local/`** (mapa local: terreno, cidades, entidades, POIs): `world`, `city`, `cityfoot`, `reserve`, `rivers`, `nav`, `entities`, `weapons`, `allies`, `poi`, `pois`, `poigame`, `quests`, `ambient`, `dungeon`, `office`, `fishing`, `cooking`, `tiletest`, `rebmine`.
+- **`js/ui/`** (telas e painéis): `ui`, `inventory`, `store`, `book`, `bookmap`, `warbook`, `flageditor`, `negoc`.
+- **Ainda na raiz de `js/`** (misturam regra macro com DOM/mapa; serão separados nas etapas 5 a 8): `rounds`, `factions`, `facgraph`, `facevents`, `policies`, `war`, `warfront`, `missions`, `globalev`, `meeting`, `raids`, `caravans`, `rebellion`, `warehouse`, `scenario`.
+- `js/modifiers/` e `js/texts/` como antes.
+
+**Mapa local ativo (`MAP`).** `MAP` (`world.js`, `let`) é o mapa local ativo; `WORLD` é alias temporário (mesmo objeto). `W` e `NCH` (`phys.js`) deixaram de ser `const`: `mapSetSize(n)` troca o lado do mapa; `mapSizeDefault()` lê `?w=`/`TILE_TEST`. `mapSync()` guarda `size,H,T,B` em `MAP`; `mapUse(m)` ativa outro mapa (troca `MAP`/`WORLD`, `W`, `H/T/B`). `Col`, `CHUNKS` e `TREEC` ainda são únicos (a troca completa fica para a etapa 3). `scene` (`render.js`) é `let`; `sceneUse(s)` a troca (luzes de `game.js` precisam ser readicionadas à nova cena).
+
+**`genWorld(seed,status,dominant,opts)` em etapas** (`world.js`; `opts.size` = lado do mapa). Cada etapa recebe o contexto `X` de `worldInit` e pode ser chamada sozinha: `worldInit` (zera, tamanho, aloca) → `worldReliefStage` (forma e `genRelief`) → `worldCitiesStage` (locais, reserva, facções, terreno sob as cidades) → `worldRoadsStage` (estradas e pontes) → `worldBuildStage` (litoral, tipos, `buildCity`) → `worldNatureStage` (POIs, árvores) → `worldMeshStage` (malha, minimapa). `genRelief` também é composto: `reliefTerrain` (altura, costa), `reliefRivers`, reservas, `reliefBiomes`. A geração é idêntica à de antes (`tests/mundo-hash.js` compara H/T/B/cidades/POIs).
+
+**Testes novos:** `node tests/macro/run.js` (macro em Node: `tests/macro/carregar.js` carrega scripts num `vm`; hoje confere economia determinística), `cd tests && node mundo-hash.js <raiz> seed=11 "seed=5&reserva=1"` (impressão digital do mundo; rode na raiz antiga e na nova para comparar).
+
 ## Ordem de carga (`index.html`, fim do arquivo)
-util → modifiers/* → texts/* → render → voxel → phys → world → city → nav → entities → weapons → allies → poi → quests → ambient → data →
+util → modifiers/* → texts/* → render → voxel → phys → world → city → cityfoot → reserve → rivers → nav → entities → weapons → allies → poi → quests → ambient → data →
 state → ui → inventory → store → cooking → fishing → dungeon → raids → warehouse → econ → office → caravans → book → bookmap → rounds → policies →
 factions → facgraph → facsupply → rebellion → rebmine → facevents → meetfx → meeting → globalev → flageditor →
-scenario → missions → pois → poigame → negoc → save → **game** (último: laço principal e entrada).
+scenario → tiletest → missions → pois → poigame → negoc → warfront → warops → warbook → save → **game** (último: laço principal e entrada).
 Código no topo de um arquivo só pode usar o que veio antes; dentro de funções, qualquer global serve.
 
 ## Arquivos

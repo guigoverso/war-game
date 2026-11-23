@@ -2,7 +2,13 @@
 // ---------- Geração procedural do mundo ----------
 const T_NAT=0,T_ROAD=1,T_STREET=2,T_PLAZA=3,T_FLOOR=4,T_BRIDGE=5,T_GARDEN=6,T_SOIL=7,T_WHEAT=8,T_OUT=9;   // T_OUT: fora da pegada da cidade, só durante buildCity (cityfoot.js)
 const BIO_PLAINS=0,BIO_FOREST=1,BIO_DESERT=2,BIO_SNOW=3,BIO_ROCK=4;
-const WORLD={cities:[],seed:0,home:null,chunkMeshes:[],mapCanvas:null,windmills:[]};
+// MAP = o mapa local ATIVO (terreno, cidades, rios, estradas...). WORLD é um alias temporário (mesmo objeto) para o código que ainda usa o nome antigo.
+// Etapa 2 do plano do mapa mundi: o mapa mundi terá vários mapas locais; mapUse(m) troca o ativo (tamanho W, H/T/B e WORLD). Chunks, colisões e cena
+// ainda são únicos (a troca completa vem na etapa 3); mapSync() guarda em MAP o estado de grade atual.
+let MAP={cities:[],seed:0,home:null,chunkMeshes:[],mapCanvas:null,windmills:[],size:0};
+let WORLD=MAP;
+function mapSync(){MAP.size=W;MAP.H=H;MAP.T=T;MAP.B=B}
+function mapUse(m){MAP=WORLD=m;if(m.size)mapSetSize(m.size);if(m.H){H=m.H;T=m.T;B=m.B}return m}
 // Estradas sobre a água (números de balanceamento): custo extra do A* por célula de água (antes 6 = quase sempre contornava),
 // ROAD_FILL_MAX: trecho de água de até esse tamanho (blocos) vira aterro e não ponte,
 // vão máximo de água seguida (blocos; acima disso a estrada refaz o trajeto com o custo antigo) e cabeceira (blocos de terra com tabuleiro em cada ponta).
@@ -65,7 +71,16 @@ function cityName(rng,biome,used){
 const DOM_NAMES={plains:'Planícies',forest:'Florestas',mountain:'Montanhas',snow:'Neve',desert:'Deserto'};
 // Relevo, rios e biomas (H e B). P = {seed,dominant,shape,sAng,bayA}; stamps = reservas (cidades) aplicadas depois da suavização e antes dos biomas
 // (js/reserve.js); roads = corredores de estrada (fase 2). Sem stamps o resultado é o mesmo do gerador antigo. Não consome o RNG do mundo: tudo sai da semente.
+// Relevo em etapas (cada uma chamável sozinha; a ordem é a de genRelief): reliefTerrain (altura base, costa e rios), reservas das cidades/POIs/estradas, reliefBiomes.
 function genRelief(P,stamps,roads,pois){
+  reliefTerrain(P);
+  if(stamps)for(const c of stamps)c.foot?cityFootFlatten(c,RESERVE.apron):citySquareFlatten(c);   // reservas: pegada e faixa plana + rampa (js/reserve.js)
+  if(pois)reservePoisRelief(pois);   // POIs grandes reservados (fase 3, js/reserve.js)
+  if(roads)reserveRoadsRelief(roads);   // corredores de estrada e pontes (js/reserve.js)
+  reliefBiomes(P);
+}
+// Etapa relevo (+ rios): preenche H a partir do campo de altura, da forma do mapa (landMask), da costa e dos rios.
+function reliefTerrain(P){
   const {seed,dominant,shape,sAng,bayA}=P;
   const nz=new Noise(seed),nt=new Noise(seed+11),nm=new Noise(seed+23),nr=new Noise(seed+37),nd=new Noise(seed+51),nj=new Noise(seed+77);
   const wn=new Noise(seed+131);
@@ -98,7 +113,7 @@ function genRelief(P,stamps,roads,pois){
     h=lerp(h,SEA+1.2+(baseV-0.5)*3,smooth(0.02,0.5,edgeV)*(1-mtnV*0.5));
     return h-smooth(0.45,0.95,edgeV)*6;
   };
-  if(P.drawn&&!P.rivers){P.rivers=genRivers(P,(x,z)=>coast(preH(x,z)));WORLD.rivers=P.rivers.paths}   // rios desenhados (js/rivers.js): calculados uma vez por mundo
+  reliefRivers(P,preH,coast);   // rios desenhados (js/rivers.js): calculados uma vez por mundo
   const RV=P.drawn?P.rivers:null;
   for(let z=0;z<W;z++)for(let x=0;x<W;x++){
     const i=z*W+x;let h=preH(x,z);
@@ -126,9 +141,15 @@ function genRelief(P,stamps,roads,pois){
     }
   }
   for(let i=0;i<W*W;i++)H[i]=Math.max(SEA-3,Math.round(HF[i]));
-  if(stamps)for(const c of stamps)c.foot?cityFootFlatten(c,RESERVE.apron):citySquareFlatten(c);   // reservas: pegada e faixa plana + rampa (js/reserve.js)
-  if(pois)reservePoisRelief(pois);   // POIs grandes reservados (fase 3, js/reserve.js)
-  if(roads)reserveRoadsRelief(roads);   // corredores de estrada e pontes (js/reserve.js)
+}
+// Etapa rios (só no modo reserva): polilinhas e mapas de leito/vale, uma vez por mundo, guardados em P.rivers e WORLD.rivers.
+function reliefRivers(P,preH,coast){
+  if(P.drawn&&!P.rivers){P.rivers=genRivers(P,(x,z)=>coast(preH(x,z)));WORLD.rivers=P.rivers.paths}
+}
+// Etapa biomas: temperatura/umidade por percentil sobre o relevo já pronto (depois das reservas), rocha por altura e distância entre deserto e neve.
+function reliefBiomes(P){
+  const {seed,dominant}=P;
+  const nt=new Noise(seed+11),nm=new Noise(seed+23),nj=new Noise(seed+77);
   // biomas por percentil: garante variedade em qualquer semente
   const TT=new Float32Array(W*W),MM=new Float32Array(W*W),ts=[],ms=[];
   for(let z=0;z<W;z++)for(let x=0;x<W;x++){
@@ -159,7 +180,21 @@ function genRelief(P,stamps,roads,pois){
   }
   if(WORLD.showcaseMode){for(let i=0;i<W*W;i++){H[i]=SEA+6;B[i]=BIO_PLAINS}}   // mapa manual dos POIs (?cenario=pois): toda a superfície apagada e plana
 }
-async function genWorld(seed,status,dominant){
+// Geração em etapas (cada uma recebe o contexto X criado por worldInit e pode ser chamada sozinha, na ordem abaixo; os testes em Node e a etapa 3 do plano
+// do mapa mundi geram só o que precisam). opts.size = lado do mapa local em blocos (padrão: o W atual). X = {seed,rng,nd,RP,cities,cand,RES,MINC,edges}.
+async function genWorld(seed,status,dominant,opts){
+  const X=worldInit(seed,dominant,opts);
+  await worldReliefStage(X,status);   // 1) relevo, rios e biomas
+  await worldCitiesStage(X,status);   // 2) locais, reserva, facções e terreno das cidades
+  await worldRoadsStage(X,status);    // 3) estradas e pontes
+  await worldBuildStage(X,status);    // 4) litoral, tipos e prédios das cidades
+  await worldNatureStage(X,status);   // 5) POIs, árvores, pedras e flores
+  await worldMeshStage(X,status);     // 6) malha do terreno e minimapa
+  return WORLD;
+}
+// Etapa 0: zera o mapa ativo, define o tamanho e aloca H/T/B/chunks. Devolve o contexto X.
+function worldInit(seed,dominant,opts){
+  if(opts&&opts.size)mapSetSize(opts.size);
   // bioma dominante: escolhido pelo jogador ou sorteado pela semente
   if(!DOM_NAMES[dominant])dominant=['plains','forest','mountain','snow','desert'][new RNG(seed+999).int(0,4)];
   WORLD.dominant=dominant;WORLD.seed=seed;WORLD.cities=[];WORLD.chunkMeshes=[];WORLD.windmills=[];WORLD.bt=new Map();WORLD.bridges=[];WORLD.poiPlan=null;WORLD.rivers=null;WORLD.dgSite=null;WORLD.noRail=new Set();WORLD.showcaseMode=new URLSearchParams(location.search).get('cenario')==='pois';
@@ -168,23 +203,31 @@ async function genWorld(seed,status,dominant){
   const nz=new Noise(seed),nt=new Noise(seed+11),nm=new Noise(seed+23),nr=new Noise(seed+37),nd=new Noise(seed+51),nj=new Noise(seed+77);TNOISE=new Noise(seed+303);
   H=new Int16Array(W*W);T=new Uint8Array(W*W);B=new Uint8Array(W*W);
   TREEC.clear();CHUNKS.length=0;LEAVES.length=0;LZ.clear();for(let i=0;i<NCH*NCH;i++){CHUNKS.push(new BoxBatch());LEAVES.push(new BoxBatch())}
-
-  // 1) Relevo, rios e biomas (função genRelief)
+  const RES=reserveOn()&&!WORLD.showcaseMode;   // RES: modo reserva (js/reserve.js)
+  const X={seed,rng,nd,RES,MINC:6,cities:[],cand:[],edges:[],RP:null};
+  mapSync();
+  return X;
+}
+// Etapa 1: relevo, rios e biomas (função genRelief)
+async function worldReliefStage(X,status){
+  const {seed,rng}=X;
   const SHAPES=['Ilha irregular','Continente recortado','Anel com mar interno','Península com baía','Faixa de terra diagonal'];
   const shape=rng.int(0,4),sAng=rng.range(0,6.283),bayA=rng.range(0,6.283);   // forma do mapa varia por semente
   WORLD.shapeName=SHAPES[shape];
   status('Esculpindo montanhas, rios e lagos...');await tick();
-  const RP={seed,dominant,shape,sAng,bayA,drawn:reserveOn()&&!WORLD.showcaseMode&&RIVER.on};   // drawn: rios desenhados (fase 5)
+  const RP=X.RP={seed,dominant:WORLD.dominant,shape,sAng,bayA,drawn:reserveOn()&&!WORLD.showcaseMode&&RIVER.on};   // drawn: rios desenhados (fase 5)
   genRelief(RP,null);
+}
+// Etapa 2: locais das cidades, reserva (modo reserva), cidade inicial, facções, estilos e terreno sob cada cidade.
+async function worldCitiesStage(X,status){
+  const {seed,rng,RES,RP,cand}=X;
   // nº de cidades proporcional à terra do mapa (terra ÷ 48 mil, entre 6 e 8); ?cid=N força um número (estudo)
   let landN=0;for(let i=0;i<W*W;i+=9)if(H[i]>=SEA+1)landN++;
   const NC=tileTestOn()?2:Math.max(4,Math.min(16,+(new URLSearchParams(location.search).get('cid'))||Math.max(6,Math.min(8,Math.round(landN*9/48000)))));   // mapa de teste: duas cidades
   const inShow=(x,z)=>WORLD.showcaseMode&&Math.abs(x-W/2)<210&&Math.abs(z-W/2)<170;   // área reservada aos POIs do mapa manual: sem cidades
-  const RES=reserveOn()&&!WORLD.showcaseMode;   // RES: modo reserva (js/reserve.js)
   // 2) Locais das cidades
   status('Escolhendo locais para as cidades...');await tick();
   // candidatos planos em terra; depois escolhe pontos o mais afastados possível entre si
-  const cand=[];
   for(let relax=1;relax<=6&&cand.length<700;relax*=1.6){
     cand.length=0;
     for(let t=0,nT=Math.round(34000*(W/640)*(W/640));t<nT;t++){   // (mais tentativas num mapa maior)
@@ -197,7 +240,7 @@ async function genWorld(seed,status,dominant){
   }
   // O número de cidades depende da área útil: uma cidade tem até 90 blocos de lado, mais a faixa de terreno aplainado em volta. Se a terra (ilha pequena, faixa
   // estreita, deserto recortado) não comporta 7 cidades afastadas, o mundo ganha MENOS cidades em vez de cidades coladas (a construção e o aplainamento se atropelavam).
-  const sites=[],MIND=220,MINC=6;   // MIND: distância mínima entre os centros; só desce (de 10 em 10, até 64) se não couberem ao menos MINC cidades
+  const sites=[],MIND=220,MINC=X.MINC;   // MIND: distância mínima entre os centros; só desce (de 10 em 10, até 64) se não couberem ao menos MINC cidades
   if(tileTestOn())for(const k of[TILE_TEST.home,TILE_TEST.big])sites.push({x:k.x,z:k.z,b:B[k.z*W+k.x]});   // mapa de teste: a sua cidade (pequena, num canto) e a da outra facção (grande)
   else if(cand.length)sites.push(cand[rng.int(0,cand.length-1)]);
   const wRng=new RNG((seed*71+5)>>>0);if(RES)reserveWaterDist(cand);   // distância de cada candidato até a água do rascunho (fase 4)
@@ -266,10 +309,15 @@ async function genWorld(seed,status,dominant){
     citySquareFlatten(c);
   }
 
+  X.cities=cities;
+}
+// Etapa 3: estradas ligando as cidades (e pontes; no modo reserva o terreno final nasce com os corredores).
+async function worldRoadsStage(X,status){
+  const {seed,RES,RP,cities}=X;
   for(const c of cities)cityFootGates(c);   // onde a pegada de cada cidade termina em cada eixo (portões e pontas de estrada)
   // 3) Estradas ligando as cidades (MST + atalhos)
   status('Traçando estradas e pontes...');await tick();
-  const edges=roadEdges(cities);
+  const edges=X.edges=roadEdges(cities);
   WORLD.links=edges.map(e=>[e[0],e[1]]);
   if(RES){   // reserva (js/reserve.js): rotas e pontes sobre o terreno já aplainado, corredor reservado, terreno final em volta
     const t1=performance.now(),plan=reservePlanRoads(cities,edges);await tick();
@@ -277,6 +325,10 @@ async function genWorld(seed,status,dominant){
     genRelief(RP,cities,plan,WORLD.poiPlan);for(const c of cities)cityFootGates(c);
     reservePaintRoads(plan);WORLD.reserve.msRoads=Math.round(performance.now()-t1);
   }else for(const e of edges){carveRoad(cities[e[0]],cities[e[1]],cities);await tick()}
+}
+// Etapa 4: litoral (quem pode ser porto), tipo de cada cidade e construção dos prédios.
+async function worldBuildStage(X,status){
+  const {seed,cities}=X;
   // litoral: conta água nas redondezas de cada cidade (anel de 4 a 45 blocos além da muralha). É o que decide quem pode ser o porto.
   for(const c of cities){
     let wet=0;
@@ -294,18 +346,23 @@ async function genWorld(seed,status,dominant){
     buildCity(c,new RNG(seed*31+c.id*977+5));
   }
 
-  // 5) Natureza
+}
+// Etapa 5: natureza e POIs (guarda a cópia do terreno em WORLD.snap antes dos POIs mexerem no chão).
+async function worldNatureStage(X,status){
+  const {rng,nd,cities}=X;
   status('Escondendo baús, grutas e acampamentos...');await tick();
   WORLD.snap={H:H.slice(),T:T.slice(),B:B.slice()};
   genPOIs(rng,cities);
   status('Plantando árvores, pedras e flores...');await tick();
   genDecor(rng,nd,cities);
 
-  // 6) Malha do terreno
+}
+// Etapa 6: malha do terreno e minimapa; fecha o mapa ativo (mapSync guarda H/T/B/tamanho em MAP).
+async function worldMeshStage(X,status){
   status('Montando blocos...');await tick();
   meshTerrain();
   makeMapCanvas();
-  return WORLD;
+  mapSync();
 }
 
 // Quais cidades se ligam por estrada: árvore geradora mínima, até 2 atalhos curtos e a garantia de que o grafo é conexo.
