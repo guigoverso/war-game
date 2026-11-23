@@ -50,6 +50,44 @@ const CITY_FOOT = {
   shapeBase: 0.85, shapeNoise: 0.6, shapeMin: 0.72, relax: [{ dev: 1, beach: 3 }, { dev: 1.5, beach: 3 }, { dev: 2.2, beach: 2 }, { dev: 3, beach: 1 }]
 };
 
+// Cidade ENORME (etapa 4B; tile temático 'cidade', ?cenario=tile&tema=cidade; docs/features/8_tiles-e-vilas.md). Ocupa de 40% a 60% da ÁREA do tile
+// (em 384: lado de 243 a 297). Reaproveita buildCity com ruas em blocos, várias praças e formatos de pegada próprios. Padrões entre parênteses.
+// areaFrac: [mín, máx] da área do tile ocupada pela pegada (0.40 e 0.60). minHalf: raio mínimo (blocos) ao encolher quando o terreno não deixa (100).
+// margin: folga (blocos) entre a caixa da cidade e a borda do tile, para o muro, a rampa e a faixa de árvores (14).
+// plazaOff: quanto a praça sai do centro da pegada (fração de `half`; ainda limitado pela folga do tile) (0.12). devMul: multiplica o desnível
+// aceito pela pegada (CITY_FOOT.maxDev), porque a cidade é grande e o terreno vira terraço (1.5). nudge: quanto o centro pode andar (16).
+// shapes: pesos dos formatos da pegada (ver cityShapeQ em cityfoot.js): quadrado (contorno quase quadrado, o de sempre), circulo, losango, oval,
+// cruz, ele (em L), flor (lobos). Formato forçado por ?forma_cidade=<nome>.
+// edge: recorte irregular do contorno (como CITY_FOOT.shapeBase/shapeNoise/shapeMin, mas bem menor, para o formato ficar legível) (0.97, 0.3 e 0.9).
+// blockStep: [mín, máx] de blocos entre ruas paralelas da malha (quarteirões). avenue: meia-largura (blocos) das avenidas principais; street: das ruas.
+// plazas: [mín, máx] de praças extras além da central; plazaP: meia-largura delas ([mín, máx]).
+// density: blocos de pegada por casa (maior = menos casas; evita milhares de prédios e deixa a geração dentro do limite de 5 s) (260).
+// serviceSpread: distância mínima (blocos) entre prédios de serviço (60). towerGap/towerMax: torres do muro (44 e 70).
+// soldiers: soldados da cidade fora de guerra (10). civ: [mín, máx] de moradores (50, 70); a cidade é grande e precisa de gente nas ruas.
+// walls: tipos de muro sorteados (a cidade enorme sempre tem muro, para o formato aparecer); ?muro=pedra|paliçada|cerca força um.
+const CITY_HUGE = {
+  areaFrac: [0.40, 0.60], minHalf: 100, margin: 14, plazaOff: 0.12, devMul: 1.5, nudge: 16,
+  shapes: { quadrado: 3, circulo: 2, losango: 1, oval: 2, cruz: 1.5, ele: 1.5, flor: 1.5 },
+  edge: { base: 0.97, noise: 0.3, min: 0.9 }, blockStep: [22, 30], avenue: 3, street: 1, plazas: [2, 4], plazaP: [5, 7],
+  density: 260, serviceSpread: 60, towerGap: 44, towerMax: 70, soldiers: 10, civ: [50, 70],
+  walls: ['stone', 'palisade', 'fence']
+};
+// Meia-largura (raio `half0`) da caixa de uma cidade enorme para um tile de lado `size`: a pegada ocupa size² × fração (areaFrac); formatos que
+// enchem menos a caixa (CITY_SHAPES[...].fill, relativo a 0.8 do quadrado) ganham caixa maior, até caber no tile (folga `margin`).
+function cityHugeHalf(rng, size, shape) {
+  const f = rng.range(CITY_HUGE.areaFrac[0], CITY_HUGE.areaFrac[1]), fill = (CITY_SHAPES[shape] || { fill: 0.8 }).fill;
+  return Math.min(Math.floor((size - 1) / 2) - CITY_HUGE.margin, Math.floor(size * Math.sqrt(f) / 2 * Math.sqrt(0.8 / fill)));   // 0.8 = fill do quadrado (caixa de 243 a 297 em 384)
+}
+// Formato da pegada de uma cidade enorme: ?forma_cidade=<nome> ou sorteio por peso (rng).
+function cityHugeShape(rng) {
+  const f = new URLSearchParams(location.search).get('forma_cidade');
+  if (f && CITY_HUGE.shapes[f] !== undefined) return f;
+  const k = Object.keys(CITY_HUGE.shapes), tot = k.reduce((a, s) => a + CITY_HUGE.shapes[s], 0);
+  let r = rng.next() * tot;
+  for (const s of k) { r -= CITY_HUGE.shapes[s]; if (r <= 0) return s }
+  return k[0];
+}
+
 // Custo para evoluir uma cidade do jogador (econ.js canCityUp, book.js)
 // Custo para ir do nível n ao n+1, por nível ATUAL da cidade (n de 1 a 4; o nível 5 é o máximo e não tem custo).
 // Chaves aceitas: gold (ouro), food (comida), ore (minério), wood (madeira), leather (couro).

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Cenários da cidade enorme (sessão 4B)</title>
+<style>
+body{font-family:sans-serif;background:#1d2128;color:#e8e8e8;margin:20px}h1{font-size:20px}p{max-width:900px;color:#b8c0cc}
+.g{display:flex;flex-wrap:wrap;gap:14px}.c{width:384px;background:#2a303a;border-radius:6px;padding:8px}
+.c img{width:384px;height:384px;image-rendering:pixelated;display:block}.c a{color:#ffd24a;font-weight:bold}.c small{color:#9aa4b2}
+</style></head><body>
+<h1>Cenários da cidade enorme (sessão 4B)</h1>
+<p>Cada cartão abre o jogo (precisa de servidor estático: <code>python -m http.server 8123</code> e abrir <code>http://localhost:8123/cenarios-cidades.html</code>) com uma cidade enorme num
+tile de 384. A imagem é a planta do cenário: o contorno vermelho é a <b>pegada</b> da cidade, o ponto amarelo é a praça central. Dentro do jogo, a aba <b>Facções</b> da pausa tem atalhos para
+trocar <b>formato</b>, <b>relevo</b> e <b>muro</b> sem mexer na URL. Tecla <b>N</b> liga o voo (noclip) para ver a cidade de cima. Parâmetros: <code>forma_cidade</code>
+(quadrado, circulo, losango, oval, cruz, ele, flor), <code>relevo</code> (plano, colinas, lago, rio, costa; sem ele, o relevo natural do campo), <code>muro</code> (pedra, palicada, cerca, nenhum), <code>seed</code>.</p>
+<div class="g" id="g"></div>
+<script>
+const base='index.html?cenario=tile&tema=cidade&auto=1&mute=1';
+const L=[
+ ['Quadrado em terreno plano','quadrado','plano',11,'quadrado-11-relevo-plano'],
+ ['Círculo com um lago na borda','circulo','lago',11,'circulo-11-relevo-lago'],
+ ['Cruz cortada por um rio','cruz','rio',11,'cruz-11-relevo-rio'],
+ ['Em L junto ao mar','ele','costa',11,'ele-11-relevo-costa'],
+ ['Oval na diagonal, terreno de colinas','oval','colinas',11,'oval-11-relevo-colinas'],
+ ['Flor em terreno plano','flor','plano',11,'flor-11-relevo-plano'],
+ ['Losango com lago','losango','lago',11,'losango-11-relevo-lago'],
+ ['Em L no relevo natural (semente 3)','ele','',3,'ele-3']];
+document.getElementById('g').innerHTML=L.map(([t,f,r,s,img])=>{const u=base+'&seed='+s+'&forma_cidade='+f+(r?'&relevo='+r:'');
+ return '<div class="c"><img src="docs/img/cidade-enorme/'+img+'.png"><p><a href="'+u+'">'+t+'</a><br><small>'+u.replace('index.html','')+'</small></p></div>'}).join('');
+</script></body></html>

@@ -616,17 +616,17 @@ function populateCities(){
   for(const c of WORLD.cities){
     const rng=new RNG(WORLD.seed*13+c.id*101+9);
     for(const k of c.keepers||[])spawnNpc(c,{role:k.role,x:k.x,z:k.z,y:k.y,yaw:k.yaw,stationary:true,sit:k.sit});
-    const nCiv=c.home?rng.int(26,34):rng.int(14,20);
+    const nCiv=c.huge?rng.int(CITY_HUGE.civ[0],CITY_HUGE.civ[1]):c.home?rng.int(26,34):rng.int(14,20);   // cidade enorme: moradores por CITY_HUGE.civ
     const pts=rng.shuffle(c.walk.slice());
     const chosen=(c.keepers||[]).map(k=>({x:k.x,z:k.z}));let placed=0;
     for(const p of pts){if(placed>=nCiv)break;if(chosen.some(q=>Math.hypot(q.x-p.x,q.z-p.z)<3.2))continue;chosen.push(p);spawnNpc(c,{role:'civ',x:p.x,z:p.z});placed++}
     if(c.home)for(const g of c.gateSpots)spawnNpc(c,{role:'guard',x:g.x,z:g.z,yaw:Math.atan2(g.x-c.cx,g.z-c.cz)});
     if(!c.home){
-      const rank=c.rank,n=8+3*rank,plan=[];
-      const ns=rank>=3?Math.min(c.towers.length,rank>=4?8:4):0;
+      const rank=c.rank,n=c.huge?CITY_HUGE.soldiers:8+3*rank,plan=[];   // cidade enorme: só os soldados de CITY_HUGE.soldiers (fora de guerra)
+      const ns=rank>=3&&!c.huge?Math.min(c.towers.length,rank>=4?8:4):0;
       for(let i=0;i<ns;i++)plan.push({t:'sniper',tw:c.towers[i]});
-      const ng=rank>=4?(rank>=6?3:2):0;for(let i=0;i<ng;i++)plan.push({t:'golem'});
-      const wt=[['soldier',6],['hound',rank>=1?2.2:0],['spider',rank>=2?2:0],['brute',rank>=3?1.6:0],['bot',rank>=3?2:0],['sniper',rank>=3?0.8:0]];
+      const ng=rank>=4&&!c.huge?(rank>=6?3:2):0;for(let i=0;i<ng;i++)plan.push({t:'golem'});
+      const wt=c.huge?[['soldier',1]]:[['soldier',6],['hound',rank>=1?2.2:0],['spider',rank>=2?2:0],['brute',rank>=3?1.6:0],['bot',rank>=3?2:0],['sniper',rank>=3?0.8:0]];
       const tot=wt.reduce((a,b)=>a+b[1],0);
       while(plan.length<n){let r=rng.next()*tot,t='soldier';for(const w of wt){r-=w[1];if(r<=0){t=w[0];break}}plan.push({t})}
       const spots=rng.shuffle(c.walk.filter(p=>Math.hypot(p.x-c.cx,p.z-c.cz)>4));

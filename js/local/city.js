@@ -563,14 +563,66 @@ function cityWallDraw(c,wt,rng){
   // torres: duas ao lado de cada portão e outras ao longo do muro, afastadas entre si
   const placed=towerAt.slice();
   for(const q of rng.shuffle(ring.slice())){
-    if(placed.length>=CITY_FOOT.towerMax)break;
+    if(placed.length>=(c.huge?CITY_HUGE.towerMax:CITY_FOOT.towerMax))break;
     const tx=q[0]-1,tz=q[1]-1;
-    if(placed.some(t=>Math.max(Math.abs(t[0]-tx),Math.abs(t[1]-tz))<CITY_FOOT.towerGap))continue;
+    if(placed.some(t=>Math.max(Math.abs(t[0]-tx),Math.abs(t[1]-tz))<(c.huge?CITY_HUGE.towerGap:CITY_FOOT.towerGap)))continue;
     placed.push([tx,tz]);
   }
   for(const [tx,tz] of placed)cityTowerDraw(c,wt,wc,tx,tz);
 }
-function buildCity(c,rng){  const Hc=c.half;
+// ---------- Cidade enorme (4B): quarteirões, praças extras e sorteio de lotes (parâmetros em CITY_HUGE, js/modifiers/city-modifiers.js) ----------
+// Malha de quarteirões: ruas paralelas em x e em z (espaçamento sorteado de blockStep por trecho), além das duas avenidas do centro. Cada rua vai da
+// borda da caixa até a borda oposta ou morre numa rua perpendicular (T ou beco), sempre atravessando a avenida. Acrescenta os retângulos a `streets`
+// e devolve as praças extras [{x,z,p,round,feat}] (também acrescentadas a `streets`, para as casas e os níveis tratarem a praça como rua).
+function cityHugeBlocks(c,rng,S,P,Hc,streets){
+  const K=CITY_HUGE,sw=K.street;
+  const lines=()=>{const a=[];for(const sg of[-1,1])for(let o=P+rng.int(12,16);o<=Hc-8;o+=rng.int(K.blockStep[0],K.blockStep[1]))a.push(sg*o);return a.sort((p,q)=>p-q)};
+  const xs=lines(),zs=lines(),vSpan=new Map(),hSpan=new Map();
+  const end=(list,sg)=>{const o=list.filter(a=>a*sg>0);return(o.length&&rng.chance(0.3))?rng.pick(o):sg*Hc};   // ponta da rua: borda ou outra rua
+  for(const o of zs){const a=end(xs,-1),b=end(xs,1);hSpan.set(o,[a,b]);streets.push({x0:a,x1:b,z0:o-sw,z1:o+sw})}
+  for(const o of xs){const a=end(zs,-1),b=end(zs,1);vSpan.set(o,[a,b]);streets.push({x0:o-sw,x1:o+sw,z0:a,z1:b})}
+  const cands=[];
+  for(const xo of xs)for(const zo of zs){const h=hSpan.get(zo),v=vSpan.get(xo);if(h[0]<=xo&&xo<=h[1]&&v[0]<=zo&&zo<=v[1]&&Math.hypot(xo,zo)>P+30)cands.push([xo,zo])}
+  rng.shuffle(cands);
+  const plazas=[],want=rng.int(K.plazas[0],K.plazas[1]);
+  for(const [x,z] of cands){
+    if(plazas.length>=want)break;
+    const p=rng.int(K.plazaP[0],K.plazaP[1]);
+    if(![[0,0],[p,p],[-p,p],[p,-p],[-p,-p]].every(d=>cityIn(c,x+d[0],z+d[1])))continue;
+    if(plazas.some(q=>Math.hypot(q.x-x,q.z-z)<50))continue;
+    plazas.push({x,z,p,round:rng.chance(0.4),feat:rng.pick(['fountain','statue','well','tree'])});
+    streets.push({x0:x-p,x1:x+p,z0:z-p,z1:z+p});
+  }
+  return plazas;
+}
+// chão da praça extra (T_PLAZA; redonda ou quadrada) por cima das ruas que se cruzam nela
+function cityMiniPlazaFloor(c,q,inFoot){
+  fillT(c,{x0:q.x-q.p,x1:q.x+q.p,z0:q.z-q.p,z1:q.z+q.p},T_PLAZA,(x,z)=>inFoot(x,z)&&(!q.round||Math.hypot(x-q.x,z-q.z)<=q.p+0.6));
+}
+// peça central, lampiões e dois bancos da praça extra (depois dos níveis das ruas, porque tudo sobe com o terreno)
+function cityMiniPlazaDecor(c,q,rng){
+  const x=q.x+0.5,z=q.z+0.5;
+  if(q.feat==='fountain'){
+    Bc(c,x-2,0,z-2,x+2,0.6,z+2,0x8a8a8a,true);Bc(c,x-1.6,0.6,z-1.6,x+1.6,0.75,z+1.6,0x3a7ad8,false,{j:0.02});
+    Bc(c,x-0.4,0.75,z-0.4,x+0.4,2.4,z+0.4,0x9a9a9a,true);Bc(c,x-0.9,2.4,z-0.9,x+0.9,2.6,z+0.9,0x9a9a9a,false);
+  }else if(q.feat==='statue'){
+    Bc(c,x-1.1,0,z-1.1,x+1.1,1.1,z+1.1,0x7a7a7a,true);Bc(c,x-0.4,1.1,z-0.3,x+0.4,3.3,z+0.3,0xb8b8b8,true);Bc(c,x-0.35,3.3,z-0.35,x+0.35,4,z+0.35,0xb8b8b8,false);
+  }else if(q.feat==='well'){
+    Bc(c,x-1.4,0,z-1.4,x+1.4,1,z+1.4,0x8a8a8a,true);Bc(c,x-1,1,z-1,x+1,1.05,z+1,0x1f4a8a,false,{j:0});
+    for(const [a,b] of[[-1.4,-1.4],[1.1,1.1],[-1.4,1.1],[1.1,-1.4]])Bc(c,x+a,1,z+b,x+a+0.3,3,z+b+0.3,0x6b4a2a,false);
+    roofOn(c,x-1.5,z-1.5,x+1.5,z+1.5,3,'hip',c.pal.roofs[0],{trim:c.pal.trim});
+  }else{
+    tinyTree(c,Math.floor(x),Math.floor(z),rng);Bc(c,x-2,0,z-2,x+2,0.45,z+2,0x7a7a7a,false);
+  }
+  const d=q.p-1.2;
+  for(const [a,b] of[[-1,-1],[1,-1],[-1,1],[1,1]])lamp(c,q.x+a*d,q.z+b*d);
+  for(const [a,face] of[[-1,'E'],[1,'W']]){const bx=q.x+a*(q.p-1.5),rc=benchRect(bx,q.z,face);if(!Col.near(c.cx+rc.x0,c.cz+rc.z0,c.cx+rc.x1,c.cz+rc.z1).length)bench(c,bx,q.z,face)}
+}
+// passo de varredura (de cada lista) para achar o par de pontos mais próximo sem comparar tudo: só amostra quando o produto passa de 4 milhões
+function cityStride(la,lb){return la.length*lb.length>4e6?[Math.ceil(la.length/2000),Math.ceil(lb.length/2000)]:[1,1]}
+// n lotes hw x hd sorteados em torno de blocos da pegada (fcs); quem chama confere se o lote serve (tryHouse)
+function cityLotSample(rng,fcs,hw,hd,n){const o=[];for(let i=0;i<n;i++){const q=rng.pick(fcs);o.push([q[0]-(hw>>1),q[1]-(hd>>1),hw,hd])}return o}
+function buildCity(c,rng){  const Hc=c.half,hg=!!c.huge,tBuild=performance.now();   // hg: cidade enorme (4B): ruas em blocos, várias praças, população própria
   BX_LIFT=c.lv?c:null;   // multiníveis: toda caixa e colisão nova sobe o nível do terreno naquele ponto (Bx, addCol)
   const ps=PAL[c.biome===BIO_ROCK?1:c.biome];
   c.ctype=(WORLD.ctype&&WORLD.ctype[c.id])||null;   // tipo da cidade (ver cityTypePlan, econ.js)
@@ -579,16 +631,17 @@ function buildCity(c,rng){  const Hc=c.half;
   if(ord){c.pal.walls=rng.shuffle(ps.walls.slice()).slice(0,4);c.pal.roofs=rng.shuffle(ps.roofs.slice()).slice(0,3)}
   const mix=!ord&&!cha;
   if(cha||mix){c.pal.walls=ps.walls.slice();c.pal.roofs=ps.roofs.slice()}
-  const propMax=cha?90:ord?24:70,treeN=cha?140:ord?30:110;
+  const propMax=(cha?90:ord?24:70)*(hg?3:1),treeN=(cha?140:ord?30:110)*(hg?4:1);
   c.flagMat=new THREE.MeshLambertMaterial({color:0xffffff});facSetFlag(c);   // bandeira da facção dona da cidade
-  const S=ord?2:cha?1:rng.int(1,3),P=rng.int(8,11);
+  const S=hg?CITY_HUGE.avenue:ord?2:cha?1:rng.int(1,3),P=hg?rng.int(9,12):rng.int(8,11);
   c.S=S;c.P=P;
   // áreas reservadas aos prédios especiais (cantos da praça): nenhuma rua nova pode atravessá-las
   const spRects=[];for(const sx of[-1,1])for(const sz of[-1,1])spRects.push({x0:sx>0?S+1:-(S+11),x1:sx>0?S+11:-(S+1),z0:sz>0?P+1:-(P+10),z1:sz>0?P+10:-(P+1)});
   const spHit=q=>spRects.some(s=>ovr(q,s,1));
   const streets=[{x0:-Hc,x1:Hc,z0:-S,z1:S},{x0:-S,x1:S,z0:-Hc,z1:Hc}];
   // estilo: ordenada (grade/anel regulares), mista, caótica (ruas orgânicas com desvios e becos)
-  let layout=ord?rng.pick(['grid','grid','ring']):cha?rng.pick(['organic','organic','organic','cross']):rng.pick(['organic','organic','organic','cross','cross','double']);
+  const plazas=[];   // praças extras da cidade enorme
+  let layout=hg?'blocos':ord?rng.pick(['grid','grid','ring']):cha?rng.pick(['organic','organic','organic','cross']):rng.pick(['organic','organic','organic','cross','cross','double']);
   const stepO=rng.int(16,18),offs=[];
   for(let o=P+12;o<=Hc-4;o+=ord?stepO:rng.int(13,17))offs.push(o);
   if(layout==='ring'&&Hc-5<P+13)layout='grid';
@@ -604,6 +657,8 @@ function buildCity(c,rng){  const Hc=c.half;
     const ring=r=>streets.push({x0:-r,x1:r,z0:-r-1,z1:-r+1},{x0:-r,x1:r,z0:r-1,z1:r+1},{x0:-r-1,x1:-r+1,z0:-r,z1:r},{x0:r-1,x1:r+1,z0:-r,z1:r});
     const rr=Hc-5;ring(rr);
     const ro=Math.max(P+14,Math.round(Hc*0.58));if(ro<rr-9)ring(ro);
+  }else if(layout==='blocos'){
+    plazas.push(...cityHugeBlocks(c,rng,S,P,Hc,streets));
   }else if(layout==='organic'){
     streets.length=0;
     const arm=horiz=>{
@@ -647,7 +702,8 @@ function buildCity(c,rng){  const Hc=c.half;
       // pedaço solto de maior tamanho primeiro
       for(let i=0;i<lists.length;i++)if(i!==main&&(bestC<0||lists[i].length>lists[bestC].length))bestC=i;
       let bd=1e9,pa=null,pb=null;
-      for(const a of lists[bestC])for(const b of lists[main]){const d=Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1]);if(d<bd){bd=d;pa=a;pb=b}}
+      const sa=cityStride(lists[bestC],lists[main]);
+      for(let ia=0;ia<lists[bestC].length;ia+=sa[0]){const a=lists[bestC][ia];for(let ib=0;ib<lists[main].length;ib+=sa[1]){const b=lists[main][ib];const d=Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1]);if(d<bd){bd=d;pa=a;pb=b}}}
       const cl=v=>clamp(v,-Hc+3,Hc-3);
       const hz=(x0,x1,z)=>({x0:cl(Math.min(x0,x1))-1,x1:cl(Math.max(x0,x1))+1,z0:cl(z)-1,z1:cl(z)+1}),vt=(z0,z1,x)=>({x0:cl(x)-1,x1:cl(x)+1,z0:cl(Math.min(z0,z1))-1,z1:cl(Math.max(z0,z1))+1});
       let opt=[hz(pa[0],pb[0],pa[1]),vt(pa[1],pb[1],pb[0])];
@@ -664,6 +720,7 @@ function buildCity(c,rng){  const Hc=c.half;
   };
   const inFoot=(x,z)=>getT(c.cx+Math.floor(x),c.cz+Math.floor(z))!==T_OUT;
   for(const s of streets)fillT(c,s,T_STREET,inFoot);
+  for(const q of plazas)cityMiniPlazaFloor(c,q,inFoot);   // praças extras (cidade enorme): chão de praça sobre o cruzamento
   // extremidades das estradas fora do muro (a partir da borda da pegada em cada eixo, c.gedge)
   const GE=c.gedge,GO=c.gland,used=new Set((c.gates||[]).map(g=>g.dir));   // GO: portões abertos (terra do lado de fora); used: portões com estrada
   for(let k=1;k<=4;k++)for(let w=-1;w<=1;w++){   // ponta de estrada só nos portões que têm estrada (sem tocos soltos)
@@ -683,6 +740,7 @@ function buildCity(c,rng){  const Hc=c.half;
   }
 
   cityStreetLevels(c,streets);   // multiníveis: cada rua com a largura inteira no mesmo nível (cityfoot.js)
+  for(const q of plazas)cityMiniPlazaDecor(c,q,rng);
   // peça central da praça
   const feat=rng.pick(['fountain','fountain','statue','well','tree']);
   if(feat==='fountain'){
@@ -767,7 +825,7 @@ function buildCity(c,rng){  const Hc=c.half;
   const useDoor=ld=>{ld.path.forEach(q=>{setTL(c,q.x0,q.z0,T_STREET);res.push({x0:q.x0-1,x1:q.x1+1,z0:q.z0-1,z1:q.z1+1})})};
   // prédios de serviço (centros já postos): ficam afastados entre si (CITY_FOOT.serviceSpread) para os serviços se espalharem pela cidade
   const svc=[];let spreadOn=true;   // spreadOn: preferência de afastar os serviços (desligada na 2ª tentativa dos prédios que não couberam)
-  const svcFar=(cx,cz)=>!svc.some(q=>Math.hypot(q[0]-cx,q[1]-cz)<CITY_FOOT.serviceSpread);
+  const svcFar=(cx,cz)=>!svc.some(q=>Math.hypot(q[0]-cx,q[1]-cz)<(hg?CITY_HUGE.serviceSpread:CITY_FOOT.serviceSpread));
   // lote w x d (ou girado) para um prédio de serviço: longe da praça e dos outros serviços, com porta para uma rua. null = não achou
   const spreadLot=(w,d)=>{
     for(let at=0;at<CITY_FOOT.serviceTries;at++){
@@ -860,7 +918,7 @@ function buildCity(c,rng){  const Hc=c.half;
   });
 
   // casas: ordenada = fileiras regulares; caótica = tamanhos, alturas, telhados e ruínas variados; mista = intermediário
-  const target=c.foot?Math.round(fcs.length/CITY_FOOT.density):Math.round(Hc*Hc/(cha?65:mix?62:60)),cityRoofT=c.biome===BIO_DESERT?'flat':'gable';
+  const target=c.foot?Math.round(fcs.length/(hg?CITY_HUGE.density:CITY_FOOT.density)):Math.round(Hc*Hc/(cha?65:mix?62:60)),cityRoofT=c.biome===BIO_DESERT?'flat':'gable';
   c.rej={};const rej=k=>{c.rej[k]=(c.rej[k]||0)+1;return false};
   const tryHouse=(r,sp)=>{
     const hallTurn=sp==='hall',sk=(sp&&sp!=='hall')?sp:null;   // sp: 'hall' (prefeitura), 'store' (loja), 'tavern' (taverna) ou falso (casa comum)
@@ -905,7 +963,9 @@ function buildCity(c,rng){  const Hc=c.half;
   const inLot=(hx,hz,hw,hd)=>cityIn(c,hx+(hw>>1),hz+(hd>>1));   // o centro do lote está na pegada (sem pegada, sempre)
   for(const sizes of[[[11,9],[9,11],[10,9],[9,10]],[[9,7],[7,9],[8,6],[6,8]]])for(const so of[true,false]){   // grande de 2 andares primeiro; depois o pequeno (e, sem achar, sem afastar)
     if(c.hall)break;spreadOn=so;
-    const cand=[];for(const [hw,hd] of sizes)for(let hx=-Hc+3;hx<=Hc-3-hw;hx++)for(let hz=-Hc+3;hz<=Hc-3-hd;hz++)if(inLot(hx,hz,hw,hd))cand.push([hx,hz,hw,hd]);
+    const cand=[];
+    if(hg)for(const [hw,hd] of sizes)cand.push(...cityLotSample(rng,fcs,hw,hd,500));   // cidade enorme: sorteio dentro da pegada (listar todos os lotes pesa)
+    else for(const [hw,hd] of sizes)for(let hx=-Hc+3;hx<=Hc-3-hw;hx++)for(let hz=-Hc+3;hz<=Hc-3-hd;hz++)if(inLot(hx,hz,hw,hd))cand.push([hx,hz,hw,hd]);
     rng.shuffle(cand);
     for(let i=0;i<cand.length&&!c.hall;i++){const q=cand[i];tryHouse({x0:q[0],x1:q[0]+q[2]-1,z0:q[1],z1:q[1]+q[3]-1},'hall')}
   }
@@ -917,7 +977,8 @@ function buildCity(c,rng){  const Hc=c.half;
     for(const so of[true,false])for(const [hw,hd] of sizes){   // 1ª volta: serviços afastados; 2ª: sem afastar, se não couber
       if(c[sp])break;spreadOn=so;
       const cands=[];
-      for(let hx=-Hc+3;hx<=Hc-3-hw;hx++)for(let hz=-Hc+3;hz<=Hc-3-hd;hz++)if(inLot(hx,hz,hw,hd))cands.push([hx,hz,hw,hd]);
+      if(hg)cands.push(...cityLotSample(rng,fcs,hw,hd,700));
+      else for(let hx=-Hc+3;hx<=Hc-3-hw;hx++)for(let hz=-Hc+3;hz<=Hc-3-hd;hz++)if(inLot(hx,hz,hw,hd))cands.push([hx,hz,hw,hd]);
       rng.shuffle(cands);
       for(let i=0;i<Math.min(cands.length,700)&&!c[sp];i++){const q=cands[i];tryHouse({x0:q[0],x1:q[0]+q[2]-1,z0:q[1],z1:q[1]+q[3]-1},sp)}
     }
@@ -954,13 +1015,13 @@ function buildCity(c,rng){  const Hc=c.half;
       }
     }
     // 2) preenchimento aleatório do que sobrou
-    for(let at=0;at<(c.foot?3000:cha?2200:1100)&&houses.length<target+4;at++){
+    for(let at=0;at<(c.foot?(hg?target*14:3000):cha?2200:1100)&&houses.length<target+4;at++){
       const w=cha?rng.int(4,11):rng.int(5,8),d=cha?rng.int(4,10):rng.int(5,8);
       const [x0,z0]=lotAt(w,d);
       tryHouse({x0,x1:x0+w-1,z0,z1:z0+d-1},false);
     }
   }
-  if(ord)for(let at=0;at<(c.foot?2500:900)&&houses.length<target+4;at++){const w=rng.int(5,7),d=rng.int(5,7),[x0,z0]=lotAt(w,d);tryHouse({x0,x1:x0+w-1,z0,z1:z0+d-1},false)}
+  if(ord)for(let at=0;at<(c.foot?(hg?target*10:2500):900)&&houses.length<target+4;at++){const w=rng.int(5,7),d=rng.int(5,7),[x0,z0]=lotAt(w,d);tryHouse({x0,x1:x0+w-1,z0,z1:z0+d-1},false)}
   // última checagem: qualquer trecho de rua ainda solto é ligado à rede principal por um caminho em L (só por terreno livre)
   for(let iter=0;iter<12;iter++){
     const isSt=(x,z)=>{const tt=getT(c.cx+x,c.cz+z);return tt===T_STREET||tt===T_PLAZA},free=(x,z)=>{const tt=getT(c.cx+x,c.cz+z);return tt===T_NAT||tt===T_GARDEN||tt===T_STREET||tt===T_PLAZA};
@@ -976,7 +1037,8 @@ function buildCity(c,rng){  const Hc=c.half;
     for(let i=0;i<lists.length&&!fixed;i++){
       if(i===main)continue;
       let bd=1e9,pa=null,pb=null;
-      for(const a of lists[i])for(const b of lists[main]){const d=Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1]);if(d<bd){bd=d;pa=a;pb=b}}
+      const sa=cityStride(lists[i],lists[main]);
+      for(let ia=0;ia<lists[i].length;ia+=sa[0]){const a=lists[i][ia];for(let ib=0;ib<lists[main].length;ib+=sa[1]){const b=lists[main][ib];const d=Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1]);if(d<bd){bd=d;pa=a;pb=b}}}
       const L=(ax,az,bx,bz,hFirst)=>{const out=[];let x=ax,z=az;const stepX=()=>{while(x!==bx){x+=Math.sign(bx-x);out.push([x,z])}},stepZ=()=>{while(z!==bz){z+=Math.sign(bz-z);out.push([x,z])}};if(hFirst){stepX();stepZ()}else{stepZ();stepX()}return out};
       for(const hf of[true,false]){
         const cells=L(pa[0],pa[1],pb[0],pb[1],hf);
@@ -1120,7 +1182,7 @@ function buildCity(c,rng){  const Hc=c.half;
       if(Col.near(c.cx+x-0.3,c.cz+z-0.3,c.cx+x+1.3,c.cz+z+1.3).length===0)c.walk.push({x:c.cx+x+0.5,z:c.cz+z+0.5});
     }
   }
-  c.specials=specials;
+  c.specials=specials;c.plazaCount=plazas.length;c.buildMs=Math.round(performance.now()-tBuild);
   c.gateSpots=[['N',S+1,-GE.N+1],['S',-S,GE.S-1],['E',GE.E-1,S+1],['W',-GE.W+1,-S]].filter(q=>GO[q[0]]).map(q=>q.slice(1)).map(p=>({x:c.cx+p[0]+0.5,z:c.cz+p[1]+0.5}));
 }
 
@@ -1324,7 +1386,7 @@ function featLaundry(c,O,rng){
 }
 function cityDecor(c,rng,res,houses,Hc,S,P,doors){
   const plan=['pen','farm','picnic','pond','garden','stalls','pen','farm','cart','wood','laundry','picnic','garden','wood','cart','laundry','pen','farm'],dims={pen:[11,9],farm:[9,7],picnic:[7,7],pond:[8,7],garden:[7,6],stalls:[12,5],cart:[6,5],wood:[6,4],laundry:[7,3]};
-  const n=Math.max(6,Math.round(Hc/3.2)),list=plan.slice(0,2).concat(rng.shuffle(plan.slice(2))).slice(0,n);
+  const hg=!!c.huge,base=hg?plan.concat(plan,plan):plan,n=hg?48:Math.max(6,Math.round(Hc/3.2)),list=base.slice(0,2).concat(rng.shuffle(base.slice(2))).slice(0,n);   // cidade enorme: 48 cantinhos
   const feats={pen:featPen,farm:featFarm,picnic:featPicnic,pond:featPond,garden:featGarden,stalls:featStalls,cart:featCart,wood:featWood,laundry:featLaundry};
   for(const k of list){
     const O=cityLotFinder(c,rng,res,houses,Hc,dims[k][0],dims[k][1],260);
@@ -1345,10 +1407,10 @@ function cityDecor(c,rng,res,houses,Hc,S,P,doors){
   };
   const sts=rng.shuffle(c.streets.slice());
   for(const s of sts){
-    if(nb>=8)break;
+    if(nb>=(hg?30:8))break;
     const horiz=(s.x1-s.x0)>=(s.z1-s.z0);
     const a0=horiz?s.x0:s.z0,a1=horiz?s.x1:s.z1;
-    for(let a=a0+3;a<a1-2&&nb<8;a+=rng.int(7,11)){
+    for(let a=a0+3;a<a1-2&&nb<(hg?30:8);a+=rng.int(7,11)){
       const sg=rng.chance(0.5)?1:-1;
       let ok;
       if(horiz)ok=tryB(a+0.5,sg>0?s.z1+1.9:s.z0-0.9,sg>0?'N':'S');else ok=tryB(sg>0?s.x1+1.9:s.x0-0.9,a+0.5,sg>0?'W':'E');

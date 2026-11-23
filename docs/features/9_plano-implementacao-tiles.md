@@ -23,7 +23,7 @@ Especificação: `docs/features/8_tiles-e-vilas.md` (fonte da verdade). Este arq
 
 **Acréscimos da rodada 8:** o descritor de tile aceita um **descritor de batalha** opcional `{tipo: conquista|defesa|choque, entradaAtacante, entradaDefensor, estacionado}`; `?cenario=tile&batalha=defesa&entrada=L` para testar. Nesta sessão só o descritor; a montagem vem na 4E.
 
-### 4B. Cidade enorme (G) — **SESSÃO NOVA**, depois da 4A e da etapa 1B
+### 4B. Cidade enorme (G) — **FEITA em 2026-11-23** (resumo em `docs/MAPA.md`, galeria `cenarios-cidades.html`), depois da 4A e da etapa 1B
 Pegada de lado 243 a 297 (40% a 60% do tile), `CITY_FOOT`, ruas em blocos, muro e portões na pegada. Medir tempo de geração (a 4A mede a linha de base do mapa atual; o limite do tile será essa referência), população, nav (`NAV.budget`) e FPS; ajustar `CITY_MULTI`. **Dependência:** a 1B está feita até o multinível; o que falta dela (formatos, cidade não esticada) é feito nesta sessão e na 4C. Conflita com 4C em `city.js`/`cityfoot.js`: **não rodar em paralelo**.
 
 **Acréscimo (rodada 9):** a 1B foi feita até o multinível; **entram aqui** as cidades que **não sejam uma vila grande esticada** (formatos, blocos, praças próprias). Cidade com 10 soldados fora de guerra.

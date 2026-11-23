@@ -17,7 +17,7 @@ function mapWindowPick(seed, dominant) {
   const size = mapTileSize();
   if (q.has('wx') && q.has('wz')) {   // ?wx=&wz=: janela livre centrada num ponto do mundo (sem grade nem trilhas), para comparar terrenos que se sobrepõem
     const free = wfWindow(F, +q.get('wx'), +q.get('wz'), size, { tile: true, free: true, ti: -1, tj: -1, kind: q.get('tipo') === 'cidade' ? 'cidade' : 'natureza', neighbors: [], openings: [] });
-    free.tema = tileThemeOk(q.get('tema')) ? q.get('tema') : 'passagem'; free.empty = tileEmptyOn(); free.battle = null;
+    free.tema = tileThemeOk(q.get('tema')) ? q.get('tema') : 'passagem'; free.empty = tileEmptyOn(free.tema); free.cityKind = tileCityKind(free.tema); free.bare = tileBare(); free.battle = null;
     free.desc = tileDescribe(F, free, { tema: free.tema });
     return free;
   }
@@ -32,15 +32,28 @@ function mapWindowPick(seed, dominant) {
 // Guarda win.tema, win.battle e win.desc; win.empty = tile vazio (4A: só terreno e borda; ?cidade=1 mantém a cidade central da etapa 3).
 function mapTileDescribe(win, q) {
   const F = win.F, tema = tileThemeOk(q.get('tema')) ? q.get('tema') : tileThemeFor(F.seed, win.ti, win.tj, q.get('temas'));
-  win.tema = tema; win.empty = tileEmptyOn();
+  win.tema = tema; win.empty = tileEmptyOn(tema); win.cityKind = tileCityKind(tema); win.bare = tileBare();
   win.battle = tileBattle(win.openings, q.get('batalha'), q.get('entrada'), q.get('entrada2'), q.get('estac'));
   win.desc = tileDescribe(F, win, { tema, batalha: win.battle });
 }
 
 // Relevo da janela: altura de cada bloco vem direto do campo (substitui reliefTerrain). Rios são vales do próprio campo.
 function reliefField(P) {
-  const { F, ox, oz } = P.win;
+  const { F, ox, oz } = P.win, demo = new URLSearchParams(location.search).get('relevo');
   for (let z = 0; z < W; z++) for (let x = 0; x < W; x++) H[z * W + x] = wfHeight(F, ox + x, oz + z);
+  if (demo && P.win.tile) reliefDemo(demo);
+}
+// Relevo de demonstração (?relevo=plano|colinas|lago|rio|costa), para ver como a cidade enorme se adapta a terrenos conhecidos: troca a altura do campo
+// por terra suave (plano ~±2 blocos, colinas ~±9) e, conforme o nome, um lago, um rio serpenteando ou o mar na borda leste. Só no cenário de tile.
+function reliefDemo(kind) {
+  const n = new Noise(WORLD.seed + 4242), amp = kind === 'colinas' ? 18 : 5, base = SEA + (kind === 'colinas' ? 12 : 7);
+  for (let z = 0; z < W; z++) for (let x = 0; x < W; x++) {
+    let h = base + Math.round(amp * (n.fbm(x / 80 + 7, z / 80 + 3, 3) - 0.5));
+    if (kind === 'lago') { const d = Math.hypot(x - W * 0.66, z - W * 0.4) / 58; if (d < 1.15) h = Math.min(h, SEA - 2 + Math.round(Math.max(0, d - 0.9) * 40)) }
+    else if (kind === 'rio') { const d = Math.abs(z - (W * 0.5 + 46 * Math.sin(x / 63) + 16 * Math.sin(x / 23 + 1))); if (d < 7) h = Math.min(h, SEA - 2) ; else if (d < 12) h = Math.min(h, SEA + 2) }
+    else if (kind === 'costa') { const e = x - (W * 0.80 + 24 * Math.sin(z / 51) + 10 * Math.sin(z / 19)); if (e > 0) h = Math.min(h, SEA + 1 - Math.min(8, Math.round(e / 4))) }
+    H[z * W + x] = h;
+  }
 }
 // Biomas da janela (substitui reliefBiomes): do campo, sobre a altura final (depois de aplainar cidades e estradas).
 function reliefFieldBiomes(P) {
@@ -141,13 +154,27 @@ function tileBorderBuild() {
 function tileScenario() {
   G.introBook = false; STATE.phase = 'commander'; STATE.round = 1; P.coins = 20000;
   facSetIdentity({ name: 'Teste de tile' });
-  STATE.rd.lvl = 1; STATE.rd.actions = maxActions();
+  STATE.rd.lvl = tileCityLevel(); STATE.rd.actions = maxActions();
+}
+// Nível da cidade do jogador no cenário (decide o muro: CITY_WALL_BY_LEVEL). Cidade enorme: nível 5 (muralha de pedra) para o formato aparecer;
+// ?muro=pedra|palicada|cerca|nenhum força o tipo e ?nivel=N força o nível. Os outros temas: 1.
+function tileCityLevel() {
+  const q = new URLSearchParams(location.search), m = { pedra: 5, palicada: 4, cerca: 2, nenhum: 1 }[q.get('muro')];
+  if (q.get('nivel')) return Math.max(1, Math.min(LVL.cityMax, +q.get('nivel') || 1));
+  return m || (mapTileOn() && q.get('tema') === 'cidade' ? 5 : 1);
 }
 // Depois do mundo pronto: ?pos=borda começa dentro da primeira abertura, olhando para fora (para conferir a continuidade com o vizinho).
 function tileAfter() {
   const win = WORLD.win, o = win && win.openings[0], q = new URLSearchParams(location.search);
   if (win && win.empty) tilePlaceFree(o && q.get('pos') !== 'centro' ? o : null);
   else if (q.get('pos') === 'borda' && o) tilePlaceAt(o);
+  tileHugeGarrison();
+}
+// Cidade enorme do jogador (4B): CITY_HUGE.soldiers soldados seus patrulham a cidade, saindo do quartel (nas cidades de outra facção o populateCities põe os inimigos).
+function tileHugeGarrison() {
+  const c = WORLD.home; if (!c || !c.huge) return;
+  const b = c.barracks || { x: c.cx, z: c.cz };
+  for (let i = 0; i < CITY_HUGE.soldiers; i++) spawnAlly(b.x + (i % 5 - 2) * 1.5, b.z + 2 + Math.floor(i / 5) * 1.5, c);
 }
 // Tile vazio: o jogador começa na abertura (olhando para dentro do tile) ou, sem aberturas, no centro.
 function tilePlaceFree(o) {
@@ -167,6 +194,13 @@ function tileUrl(i, j) {
 }
 // Endereço do mesmo tile com outro tema (?tema=).
 function tileThemeUrl(t) { const q = new URLSearchParams(location.search); q.set('tema', t); q.delete('pos'); return '?' + q.toString() }
+// Endereço do mesmo tile com outro valor de um parâmetro (?forma_cidade=, ?relevo=, ?muro=); valor vazio tira o parâmetro.
+function tileParamUrl(k, v) { const q = new URLSearchParams(location.search); if (v) q.set(k, v); else q.delete(k); q.delete('pos'); return '?' + q.toString() }
+// Linha de atalhos (rótulo + um link por opção; a opção atual fica destacada) do painel da cidade enorme.
+function tileParamRow(label, key, names, cur) {
+  return '<p class="ldsm"><b>' + label + '</b> ' + Object.keys(names).map(o => '<a style="margin:2px;padding:2px 6px;border:1px solid ' + (o === cur ? '#e0c040' : '#888')
+    + ';border-radius:4px;display:inline-block;color:inherit" href="' + tileParamUrl(key, o === 'natural' ? '' : o) + '">' + names[o] + '</a>').join('') + '</p>';
+}
 // Endereço da janela livre deslocada (dx,dz) blocos do centro atual (continuidade: o terreno comum às duas janelas tem de ser igual).
 function tileShiftUrl(dx, dz) {
   const win = WORLD.win, q = new URLSearchParams(location.search);
@@ -204,8 +238,17 @@ function tileScenarioHtml() {
     + '<img src="' + tileWorldImage() + '" style="width:252px;image-rendering:pixelated;border:1px solid #555"><p class="ldsm">' + TXT_TILE_MAPHELP + '</p>'
     + '<p class="ldsm"><b>' + TXT_TILE_NEIGHBORS + '</b> ' + (links || TXT_TILE_NONEIGHBOR) + '</p>'
     + '<p class="ldsm"><b>' + TXT_TILE_THEMES + '</b> ' + themes + '</p>'
+    + (win.cityKind === 'enorme' ? tileHugePanel(win) : '')
     + '<p class="ldsm"><b>' + TXT_TILE_SHIFT + '</b> ' + shift + '</p>'
     + '<button class="alt" data-tile="border">' + TXT_TILE_GOBORDER + '</button><br><button class="alt" data-scn="reload">↻ Recomeçar o cenário</button><hr style="border-color:#444">';
+}
+// Painel extra da cidade enorme (4B): resumo e atalhos de formato, relevo e muro, para ver as cidades em vários cenários sem mexer na URL.
+function tileHugePanel(win) {
+  const q = new URLSearchParams(location.search), c = WORLD.home;
+  return '<p class="ldsm" style="margin:2px 0 4px">' + (c && c.huge ? txtTileCityInfo(c) : '') + '</p>'
+    + tileParamRow(TXT_TILE_SHAPES, 'forma_cidade', TXT_TILE_SHAPE_NAME, c ? c.shape : '')
+    + tileParamRow(TXT_TILE_RELIEFS, 'relevo', TXT_TILE_RELIEF_NAME, q.get('relevo') || 'natural')
+    + tileParamRow(TXT_TILE_WALLS, 'muro', TXT_TILE_WALL_NAME, q.get('muro') || 'pedra');
 }
 document.addEventListener('click', e => {
   const b = e.target.closest && e.target.closest('[data-tile]'); if (!b || !WORLD.win) return;

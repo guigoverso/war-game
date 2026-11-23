@@ -60,3 +60,21 @@ const TXT_TILE_GOBORDER = '📍 Ir à primeira abertura da borda';
 
 // Rótulo dos atalhos que deslocam a janela 128 blocos (teste de continuidade: o terreno comum às duas janelas tem de ser igual; compare com o mapa, tecla M).
 const TXT_TILE_SHIFT = 'Deslocar a janela 128 blocos (continuidade):';
+
+// ---------- Cidade enorme (4B): painel do cenário de tile com tema Cidade ----------
+// Rótulo da linha de atalhos que troca o formato da pegada (?forma_cidade=) e nome de cada formato (cidade enorme, CITY_SHAPES em cityfoot.js).
+const TXT_TILE_SHAPES = 'Formato da cidade:';
+const TXT_TILE_SHAPE_NAME = { quadrado: 'Quadrado', circulo: 'Círculo', losango: 'Losango', oval: 'Oval', cruz: 'Cruz', ele: 'Em L', flor: 'Flor' };
+// Rótulo da linha de atalhos que troca o relevo de demonstração (?relevo=) e nome de cada um (mapwin.js reliefDemo; 'natural' = o relevo do campo do mundo).
+const TXT_TILE_RELIEFS = 'Relevo do tile:';
+const TXT_TILE_RELIEF_NAME = { natural: 'Natural', plano: 'Plano', colinas: 'Colinas', lago: 'Lago', rio: 'Rio', costa: 'Costa' };
+// Rótulo da linha de atalhos que troca o muro da cidade (?muro=) e nome de cada tipo.
+const TXT_TILE_WALLS = 'Muro:';
+const TXT_TILE_WALL_NAME = { pedra: 'Pedra', palicada: 'Paliçada', cerca: 'Cerca', nenhum: 'Nenhum' };
+// Resumo da cidade enorme no painel do cenário: formato, caixa, área da pegada (e % do tile), casas, praças extras e tempo de construção. c = cidade (WORLD.home).
+const txtTileCityInfo = c => {
+  let n = 0; if (c.foot) for (let i = 0; i < c.foot.length; i++) n += c.foot[i];
+  return 'Cidade enorme: formato <b>' + (TXT_TILE_SHAPE_NAME[c.shape] || c.shape) + '</b> • caixa ' + (2 * c.half + 1) + '×' + (2 * c.half + 1) + ' • pegada '
+    + n + ' blocos (' + Math.round(n * 100 / (W * W)) + '% do tile) • ' + (c.houses || []).length + ' prédios • ' + (c.streets || []).length + ' ruas • '
+    + (c.plazaCount || 0) + ' praça(s) extra(s) • construída em ' + (c.buildMs || 0) + ' ms';
+};

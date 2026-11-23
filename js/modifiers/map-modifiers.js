@@ -58,7 +58,16 @@ const TILE_COMPOSE = {
 // Tipos de batalha no tile (rodada 8): conquista (a facção ataca o POI principal), defesa (a facção está no principal e repele) e choque (dois batalhões).
 const TILE_BATTLES = ['conquista', 'defesa', 'choque'];
 // Verdadeiro com ?cenario=tile (a 4A abre o tile VAZIO: só terreno, borda e aberturas; ?cidade=1 devolve a cidade central da etapa 3).
-const tileEmptyOn = () => mapTileOn() && new URLSearchParams(location.search).get('cidade') !== '1';
+// Etapa 4B: o tile de tema 'cidade' agora traz a cidade enorme (CITY_HUGE em city-modifiers.js); os outros temas seguem vazios até as sessões 4C/4E.
+// Cidade que o tile recebe: 'enorme' (tema cidade), 'antiga' (?cidade=1: a cidade pequena da etapa 3, para comparar) ou null (tile vazio).
+const tileCityKind = tema => {
+  if (!mapTileOn()) return null;
+  if (new URLSearchParams(location.search).get('cidade') === '1') return 'antiga';
+  return tema === 'cidade' ? 'enorme' : null;
+};
+// Tile sem POIs (só a 4E os põe): todo tile do cenário, menos ?cidade=1 (cidade antiga com os POIs do gerador antigo).
+const tileBare = () => mapTileOn() && new URLSearchParams(location.search).get('cidade') !== '1';
+const tileEmptyOn = tema => mapTileOn() && !tileCityKind(tema);
 
 // ---------- Etapa 3 do plano: campo do mundo e mapa local por janela (atrás de ?mundo=1 e de ?cenario=tile) ----------
 // O mundo é uma FUNÇÃO de posição (js/macro/worldfield.js); o mapa local é uma janela dessa função. Valores = ponto de partida, a calibrar.

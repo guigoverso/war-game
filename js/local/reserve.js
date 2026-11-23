@@ -7,7 +7,7 @@
 function reserveInvented(c){
   if(!c.foot)return 1;
   const Hc=c.half,N=2*Hc+1,A=RESERVE.apron;let tot=0,wet=0;
-  const near=(x,z)=>{for(let dz=-A;dz<=A;dz++)for(let dx=-A;dx<=A;dx++)if(cityIn(c,x+dx,z+dz))return true;return false};
+  const near=(x,z)=>{if(cityIn(c,x,z))return true;for(let dz=-A;dz<=A;dz++)for(let dx=-A;dx<=A;dx++)if(cityIn(c,x+dx,z+dz))return true;return false};
   for(let z=-Hc-A;z<=Hc+A;z++)for(let x=-Hc-A;x<=Hc+A;x++){
     if(!near(x,z))continue;tot++;
     const wx=c.cx+x,wz=c.cz+z;if(wx<0||wz<0||wx>=W||wz>=W||H[wz*W+wx]<SEA+1)wet++;
@@ -23,8 +23,9 @@ function reserveCities(cities,cand,seed,minCities){
   for(;round<RESERVE.maxRounds;round++){
     const bad=cities.filter(c=>!reserveOK(c));if(!bad.length)break;
     for(const c of bad){
-      while(!reserveOK(c)&&(c.half0||c.half)>RESERVE.minHalf){   // encolhe de 4 em 4
-        c.half0=Math.max(RESERVE.minHalf,(c.half0||c.half)-4);cityFootPlan(c,seed);
+      const mh=c.huge?CITY_HUGE.minHalf:RESERVE.minHalf;
+      while(!reserveOK(c)&&(c.half0||c.half)>mh){   // encolhe de 4 em 4 (cidade enorme: até CITY_HUGE.minHalf)
+        c.half0=Math.max(mh,(c.half0||c.half)-4);cityFootPlan(c,seed);
       }
       if(!reserveOK(c)&&cityFootRelocate(c,cities,cand,seed)&&reserveOK(c))continue;
     }

@@ -275,7 +275,10 @@ async function worldCitiesStage(X,status){
   const used=new Set();
   const cities=sites.map((s,i)=>{
     const bio=B[s.z*W+s.x];
-    return{id:i,wantWater:!!s.ww,cx:s.x,cz:s.z,half:tileTestOn()?(i===0?TILE_TEST.home.half:TILE_TEST.big.half):rng.int(36,45),biome:bio,owner:'enemy',state:'idle',home:false,rank:0,
+    const huge=X.win&&X.win.cityKind==='enorme';   // tile de cidade (4B): cidade enorme, com formato próprio (cityHugeShape, city-modifiers.js)
+    const hr=huge?new RNG((seed*37+i*101+13)>>>0):null;if(hr)for(let k=0;k<4;k++)hr.next();
+    const shp=huge?cityHugeShape(hr):null;
+    return{id:i,wantWater:!!s.ww,cx:s.x,cz:s.z,half:tileTestOn()?(i===0?TILE_TEST.home.half:TILE_TEST.big.half):huge?cityHugeHalf(hr,W,shp):rng.int(36,45),huge,shape:shp,biome:bio,owner:'enemy',state:'idle',home:false,rank:0,
       enemies:[],npcs:[],walk:[],spawns:[],towers:[],gates:[],flags:[],props:[],aliveEnemies:0,totalEnemies:0};
   });
   if(RES){   // reserva: verifica no rascunho, depois gera o terreno final em volta das pegadas (passada 2)
@@ -327,7 +330,7 @@ async function worldRoadsStage(X,status){
   WORLD.links=edges.map(e=>[e[0],e[1]]);
   if(RES){   // reserva (js/reserve.js): rotas e pontes sobre o terreno já aplainado, corredor reservado, terreno final em volta
     const t1=performance.now(),plan=reservePlanRoads(cities,edges);await tick();
-    WORLD.poiPlan=reservePois(cities,plan);   // POIs grandes: lugares no rascunho, plataforma no terreno final (fase 3)
+    WORLD.poiPlan=X.win&&X.win.bare?null:reservePois(cities,plan);   // POIs grandes: lugares no rascunho, plataforma no terreno final (fase 3)
     genRelief(RP,cities,plan,WORLD.poiPlan);for(const c of cities)cityFootGates(c);
     reservePaintRoads(plan);WORLD.reserve.msRoads=Math.round(performance.now()-t1);
   }else for(const e of edges){carveRoad(cities[e[0]],cities[e[1]],cities);await tick()}
@@ -360,7 +363,7 @@ async function worldNatureStage(X,status){
   status('Escondendo baús, grutas e acampamentos...');await tick();
   if(X.win){tileTrailLinks(cities);tileBorderPlan()}   // janela do campo do mundo: estrada das trilhas até as aberturas e plano da borda de árvores (mapwin.js)
   WORLD.snap={H:H.slice(),T:T.slice(),B:B.slice()};
-  if(X.win&&X.win.empty){WORLD.camps=[];WORLD.caves=[];WORLD.chests=[];WORLD.packs=[];WORLD.pois=[];WORLD.areas=cities.slice();FIRES.length=0}   // tile vazio (4A): sem POIs (a 4E os põe)
+  if(X.win&&X.win.bare){WORLD.camps=[];WORLD.caves=[];WORLD.chests=[];WORLD.packs=[];WORLD.pois=[];WORLD.areas=cities.slice();FIRES.length=0}   // tile vazio (4A): sem POIs (a 4E os põe)
   else genPOIs(rng,cities);
   status('Plantando árvores, pedras e flores...');await tick();
   genDecor(rng,nd,cities);
