@@ -1,0 +1,11 @@
+const http=require('http'),fs=require('fs'),path=require('path');
+const {chromium}=require('../node_modules/playwright');
+const ROOT=path.resolve(__dirname,'../..');
+const srv=http.createServer((req,res)=>{const u=decodeURIComponent(req.url.split('?')[0]),f=path.join(ROOT,u==='/'?'index.html':u);
+  fs.readFile(f,(e,d)=>{if(e){res.writeHead(404);return res.end()}res.writeHead(200,{'Content-Type':path.extname(f)==='.js'?'text/javascript':path.extname(f)==='.html'?'text/html':'application/octet-stream'});res.end(d)})});
+(async()=>{await new Promise(r=>srv.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+srv.address().port;const b=await chromium.launch();
+const [seed,ci,x0,z0]=process.argv.slice(2).map(Number);
+const p=await b.newPage();p.on('console',m=>{if(m.text().startsWith('LOT'))console.log(m.text())});await p.addInitScript('window.DBGLOT=1');await p.goto(base+'/index.html?auto=1&mute=1&seed='+seed+'&reserva=1');
+await p.waitForFunction(()=>typeof G!=='undefined'&&G.running&&Array.isArray(WORLD.pois),null,{timeout:180000});
+const o=await p.evaluate(([ci,x0,z0])=>{const c=WORLD.cities[ci],Hc=c.half,N=2*Hc+1,rows=[];for(let z=z0;z<z0+10;z++){let r='';for(let x=x0;x<x0+16;x++){const k=(z+Hc)*N+x+Hc;r+=(c.foot[k]?String(c.lv[k]).padStart(3):'  .')+(c.lvLock[k]?'*':' ')}rows.push(r)}return rows},[ci,x0,z0]);
+console.log(o.join('\n'));await b.close();srv.close()})();

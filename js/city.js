@@ -28,13 +28,13 @@ function addFlag(c,lx,ly,lz,ph){
   Bc(c,lx-0.4,ly,lz-0.4,lx+0.4,ly+0.25,lz+0.4,0x6a6a6a,false,{j:0.08});Bc(c,lx-0.2,ly+0.25,lz-0.2,lx+0.2,ly+0.45,lz+0.2,0x7a7a7a,false,{j:0.08});   // base de pedra
   Bc(c,lx-0.14,ly+ph,lz-0.14,lx+0.14,ly+ph+0.28,lz+0.14,0xe0b030,false,{j:0});                                                                    // ponteira
   const m=new THREE.Mesh(GEO_BOX,c.flagMat);m.scale.set(1.3,0.85,0.08);
-  m.position.set(c.cx+lx+0.75,c.y+ly+ph-0.5,c.cz+lz);scene.add(m);c.flags.push(m);
-  const t=new THREE.Mesh(GEO_BOX,c.flagMat);t.scale.set(0.5,0.35,0.08);t.position.set(c.cx+lx+1.65,c.y+ly+ph-0.35,c.cz+lz);scene.add(t);c.flags.push(t);   // ponta rasgada
+  m.position.set(c.cx+lx+0.75,c.y+cityLv(c,lx,lz)+ly+ph-0.5,c.cz+lz);scene.add(m);c.flags.push(m);
+  const t=new THREE.Mesh(GEO_BOX,c.flagMat);t.scale.set(0.5,0.35,0.08);t.position.set(c.cx+lx+1.65,c.y+cityLv(c,lx,lz)+ly+ph-0.35,c.cz+lz);scene.add(t);c.flags.push(t);   // ponta rasgada
 }
 // bandeira grande da facção (caixa fina com a textura; fica fora de c.flags, então não balança)
 function addBanner(c,lx,ly,lz,w,h,alongX){
   const m=new THREE.Mesh(GEO_BOX,c.flagMat);m.scale.set(alongX?w:0.1,h,alongX?0.1:w);
-  m.position.set(c.cx+lx,c.y+ly,c.cz+lz);scene.add(m);(c.banners=c.banners||[]).push(m);return m;
+  m.position.set(c.cx+lx,c.y+cityLv(c,lx,lz)+ly,c.cz+lz);scene.add(m);(c.banners=c.banners||[]).push(m);return m;
 }
 // mastro com a bandeira da facção presa no topo, estendida para o lado dir (+1/-1) ao longo do eixo da bandeira
 function addMast(c,lx,lz,h,fw,fh,alongX,dir){
@@ -73,7 +73,7 @@ function hay(c,x,z){
   for(const k of[0.3,0.9])Bc(c,x-0.04,0,z+k,x+1.34,1.3,z+k+0.07,0x6a5a2a,false,{j:0});                                     // cordas
 }
 function tinyTree(c,lx,lz,rng){
-  const th=rng.int(3,4),cx=c.cx+lx+0.5,cz=c.cz+lz+0.5,y=c.y;
+  const th=rng.int(3,4),cx=c.cx+lx+0.5,cz=c.cz+lz+0.5,y=c.y+cityLv(c,lx,lz);
   const lc=c.biome===BIO_SNOW?0x1f4a2e:c.biome===BIO_DESERT?0x6b8a2a:0x2a6a24;
   Bx(cx-0.35,y,cz-0.35,cx+0.35,y+th,cz+0.35,0x6b4a2a,true);
   Bx(cx-1.5,y+th-1,cz-1.5,cx+1.5,y+th+0.5,cz+1.5,leafCol(rng,lc),false,{j:0.1,b:true});
@@ -253,12 +253,12 @@ function buildHall(c,f,D,doorU,rng,o){
     for(const du of[-3.4,2.8])FB(c,f,dc+du,1.0,dc+du+0.6,1.08,Y+1.0,Y+3.2,0x2a6aff,false,{j:0});   // bandeiras azuis
     FB(c,f,U-2.1,4.6,U-1.1,V-1.5,Y,Y+3.0,DK,true,{j:0.02});   // estante na parede leste
     for(let row=0;row<3;row++)for(let k=0;k<Math.floor((V-6.3)/0.32);k++)FB(c,f,U-2.2,4.7+k*0.32,U-2.1,4.7+k*0.32+0.26,Y+0.35+row*0.95,Y+0.35+row*0.95+0.45+0.1*((k*7+row)%3),[0xa02a2a,0x2a5aa0,0x2a8a4a,0xc8a020,0x6a2a8a,0xe0d8c0][(k*5+row*3)%6],false,{j:0});
-    const lp=wx(dc,1.75);c.leader={x:lp[0],z:lp[1],y:c.y+SH};
-    c.keepers.push({role:'leader',x:lp[0],z:lp[1],yaw:face+Math.PI,sit:true,y:c.y+SH+0.02});   // de frente para quem sobe a escada
+    const lp=wx(dc,1.75);c.leader={x:lp[0],z:lp[1],y:cityYat(c,lp[0],lp[1])+SH};
+    c.keepers.push({role:'leader',x:lp[0],z:lp[1],yaw:face+Math.PI,sit:true,y:cityYat(c,lp[0],lp[1])+SH+0.02});   // de frente para quem sobe a escada
   }else{
-    const lp=wx(U-2,V-2);c.leader={x:lp[0],z:lp[1],y:c.y};c.keepers.push({role:'leader',x:lp[0],z:lp[1],yaw:face});
+    const lp=wx(U-2,V-2);c.leader={x:lp[0],z:lp[1],y:cityYat(c,lp[0],lp[1])};c.keepers.push({role:'leader',x:lp[0],z:lp[1],yaw:face});
   }
-  const sp=wx(doorU+1,-0.22);makeSign('PREFEITURA',3.8,0.85,0x2a3a5a,0xf0e0a0,sp[0],c.y+3.5,sp[1],D);
+  const sp=wx(doorU+1,-0.22);makeSign('PREFEITURA',3.8,0.85,0x2a3a5a,0xf0e0a0,sp[0],cityYat(c,sp[0],sp[1])+3.5,sp[1],D);
 }
 // armazém: prateleiras de caixotes e barris, pilhas de sacos e um grande baú de guarda no centro (c.warehouse = ponto de uso)
 function buildWarehouse(c,f,D,doorU,rng){
@@ -270,7 +270,7 @@ function buildWarehouse(c,f,D,doorU,rng){
   for(const u of[1.1,U-2.0])FB(c,f,u,V-3.0,u+0.9,V-2.1,0,0.9,0x6b3a22,false,{j:0.03});  // grande baú de guarda no centro
   FB(c,f,mid-1.2,V-3.6,mid+1.2,V-2.6,0,1.0,WOOD,true);FB(c,f,mid-1.5,V-3.9,mid+1.5,V-2.5,1.0,1.25,DK,false,{j:0.02});FB(c,f,mid-0.2,V-3.95,mid+0.2,V-2.45,0.8,1.2,0xe0b030,false,{j:0});
   const p=wx(mid,V-4.4);c.warehouse={x:p[0],z:p[1]};
-  const sp=wx(doorU+1,-0.22);makeSign('ARMAZÉM',3.4,0.85,0x5a4a2a,0xf0e0b0,sp[0],c.y+3.3,sp[1],D);
+  const sp=wx(doorU+1,-0.22);makeSign('ARMAZÉM',3.4,0.85,0x5a4a2a,0xf0e0b0,sp[0],cityYat(c,sp[0],sp[1])+3.3,sp[1],D);
 }
 // edifício do tipo da cidade (c.works): sem placa; o formato e as cores é que chamam atenção (tipo em c.ctype, vindo de cityTypePlan).
 // n: nome (aba Locais); sz: tamanhos de lote tentados; o: opções do corpo (altura, parede, telhado...)
@@ -299,7 +299,7 @@ function buildWorks(c,f,D,doorU,rng,type){
   if(type==='food'){   // moinho de vento: torre alta com cúpula, galeria e pás giratórias (WORLD.windmills) na parede da porta
     FB(c,f,-0.3,-0.3,U+0.3,0.1,6,6.4,0x6b4a2a,false,{j:0});FB(c,f,-0.3,V-0.1,U+0.3,V+0.3,6,6.4,0x6b4a2a,false,{j:0});FB(c,f,-0.3,-0.3,0.1,V+0.3,6,6.4,0x6b4a2a,false,{j:0});FB(c,f,U-0.1,-0.3,U+0.3,V+0.3,6,6.4,0x6b4a2a,false,{j:0});   // galeria
     FB(c,f,mid-0.2,-1.3,mid+0.2,0,7.2,7.6,0x4a2f1a,false,{j:0});   // eixo
-    const nrm={N:[0,-1],S:[0,1],W:[-1,0],E:[1,0]}[D],hp=wx(mid,-1.4),g=new THREE.Group();g.position.set(hp[0],c.y+7.4,hp[1]);g.rotation.y=Math.atan2(nrm[0],nrm[1]);
+    const nrm={N:[0,-1],S:[0,1],W:[-1,0],E:[1,0]}[D],hp=wx(mid,-1.4),g=new THREE.Group();g.position.set(hp[0],cityYat(c,hp[0],hp[1])+7.4,hp[1]);g.rotation.y=Math.atan2(nrm[0],nrm[1]);
     part(g,GEO_BOX,0.6,0.6,0.5,0x4a2f1a,0,0,0);
     for(let b=0;b<4;b++){const arm=new THREE.Group();arm.rotation.z=b*Math.PI/2;part(arm,GEO_BOX,0.4,4.6,0.12,0x6b4a2a,0,2.6,0);part(arm,GEO_BOX,1.2,3.2,0.06,0xf0e8d0,0.8,3.0,0);g.add(arm)}
     scene.add(g);WORLD.windmills.push(g);
@@ -359,7 +359,7 @@ function buildStore(c,f,D,doorU,rng){
   const p=wx(mid,f.V-4.4);c.store={x:p[0],z:p[1]};
   const k=wx(mid,f.V-1.9);c.keepers=c.keepers||[];
   c.keepers.push({role:'merchant',x:k[0],z:k[1],yaw:(()=>{const o={N:[0,-1],S:[0,1],E:[1,0],W:[-1,0]}[D];return Math.atan2(o[0],o[1])})()});
-  const sp=wx(doorU+1,-0.22);makeSign('LOJA',2.6,0.85,0x2a5a3a,0xf2f0d0,sp[0],c.y+3.3,sp[1],D);
+  const sp=wx(doorU+1,-0.22);makeSign('LOJA',2.6,0.85,0x2a5a3a,0xf2f0d0,sp[0],cityYat(c,sp[0],sp[1])+3.3,sp[1],D);
 }
 // taverna grande: balcão com prateleiras e barris, mesas com bancos, canecas de cerveja e comida nas mesas, clientes sentados
 // e um fogão no fundo (o jogador cozinha nele; o taverneiro vende comida pronta no balcão)
@@ -412,7 +412,7 @@ function buildTavern(c,f,D,doorU,rng,opt){opt=opt||{};   // opt (taverna dos POI
   const ps=wx((su0+su1)/2,V-3.6);c.stove={x:ps[0],z:ps[1]};
   const k=wx(cm,V-1.7);
   c.keepers.push({role:'cook',x:k[0],z:k[1],yaw:(()=>{const o={N:[0,-1],S:[0,1],E:[1,0],W:[-1,0]}[D];return Math.atan2(o[0],o[1])})()});
-  const sp=wx(doorU+1,-0.22);makeSign('TAVERNA',3.2,0.85,0x4a2f1a,0xf0d890,sp[0],c.y+3.3,sp[1],D);
+  const sp=wx(doorU+1,-0.22);makeSign('TAVERNA',3.2,0.85,0x4a2f1a,0xf0d890,sp[0],cityYat(c,sp[0],sp[1])+3.3,sp[1],D);
 }
 
 // ---------- muro da cidade por nível (malha própria, removível) ----------
@@ -457,7 +457,7 @@ function cityTowerDraw(c,wt,wc,tx,tz){
    for(const k of[0,1,2,3]){const sl=[[1.35,-0.04,1.65,0.02],[1.35,2.98,1.65,3.04],[-0.04,1.35,0.02,1.65],[2.98,1.35,3.04,1.65]][k];Bc(c,tx+sl[0],3,tz+sl[1],tx+sl[2],4.1,tz+sl[3],0x1a1a1a,false,{j:0})}}
   for(const [a,b] of[[0,0],[2,0],[0,2],[2,2],[1,0],[0,1],[2,1],[1,2]])Bc(c,tx+a,6.5,tz+b,tx+a+1,7.1,tz+b+1,wc,false);
   Bc(c,tx,6.4,tz,tx+3,6.5,tz+3,0x555555,false,{j:0});
-  c.towers.push({x:c.cx+tx+1.5,z:c.cz+tz+1.5,y:c.y+6.5});
+  c.towers.push({x:c.cx+tx+1.5,z:c.cz+tz+1.5,y:cityYat(c,c.cx+tx+1.5,c.cz+tz+1.5)+6.5});
   addFlag(c,tx+1.5,7.1,tz+1.5,2.6);
 }
 // muro quadrado em torno da caixa `half` (cidades sem pegada: mapas de teste)
@@ -571,6 +571,7 @@ function cityWallDraw(c,wt,rng){
   for(const [tx,tz] of placed)cityTowerDraw(c,wt,wc,tx,tz);
 }
 function buildCity(c,rng){  const Hc=c.half;
+  BX_LIFT=c.lv?c:null;   // multiníveis: toda caixa e colisão nova sobe o nível do terreno naquele ponto (Bx, addCol)
   const ps=PAL[c.biome===BIO_ROCK?1:c.biome];
   c.ctype=(WORLD.ctype&&WORLD.ctype[c.id])||null;   // tipo da cidade (ver cityTypePlan, econ.js)
   c.pal={walls:[rng.pick(ps.walls),rng.pick(ps.walls),rng.pick(ps.walls)],roofs:[rng.pick(ps.roofs),rng.pick(ps.roofs)],base:ps.base,trim:ps.trim,all:ps.walls};
@@ -681,6 +682,7 @@ function buildCity(c,rng){  const Hc=c.half;
     streets.push(r);fillT(c,r,T_STREET,inFoot);res.push({x0:r.x0-1,x1:r.x1+1,z0:r.z0-1,z1:r.z1+1});
   }
 
+  cityStreetLevels(c,streets);   // multiníveis: cada rua com a largura inteira no mesmo nível (cityfoot.js)
   // peça central da praça
   const feat=rng.pick(['fountain','fountain','statue','well','tree']);
   if(feat==='fountain'){
@@ -794,6 +796,7 @@ function buildCity(c,rng){  const Hc=c.half;
       D=sz>0?'N':'S';
       doorU=(sx>0?S+3:-(S+4))-r.x0;
     }
+    cityLot(c,r,lot&&lot.path,D);   // multiníveis: plataforma plana do lote, com o caminho da porta
     res.push({x0:r.x0-1,x1:r.x1+1,z0:r.z0-1,z1:r.z1+1});
     specials[kind]={r,D,doorU};
     if(kind==='market'){
@@ -821,13 +824,13 @@ function buildCity(c,rng){  const Hc=c.half;
       {const fu=doorU<f.U/2?f.U-2.2:1.2;FB(c,f,fu,1.4,fu+1,2.4,0,1.2,0x4a4a2a,true);FB(c,f,fu,2.6,fu+1,3.4,0,1,0x7a5a30,true)}
       const p=wx(mid,f.V-4.4);c.shop={x:p[0],z:p[1]};
       const k=wx(mid,f.V-1.9);c.keepers=c.keepers||[];c.keepers.push({role:'shop',x:k[0],z:k[1],yaw:(()=>{const o={N:[0,-1],S:[0,1],E:[1,0],W:[-1,0]}[D];return Math.atan2(o[0],o[1])})()});
-      const sp=wx(doorU+1,-0.22);makeSign('ARMEIRO',3,0.85,0x6b1f1f,0xffe9a0,sp[0],c.y+3.25,sp[1],D);
+      const sp=wx(doorU+1,-0.22);makeSign('ARMEIRO',3,0.85,0x6b1f1f,0xffe9a0,sp[0],cityYat(c,sp[0],sp[1])+3.25,sp[1],D);
     }else if(kind==='clinic'){
       for(let k=0;k<3;k++){const u=1.2+k*2.3;FB(c,f,u,f.V-2.4,u+1,f.V-1.1,0,0.5,0xf4f4f4,true);FB(c,f,u,f.V-2.4,u+1,f.V-1.8,0.5,0.7,0xd03a3a,false);FB(c,f,u,f.V-1.5,u+1,f.V-1.1,0.5,0.9,0xe8e8e8,false)}
       {const cu=doorU<f.U/2?f.U-3:1.2;FB(c,f,cu,2.2,cu+1.8,3.2,0,1,0xdadada,true)}
       const mid=f.U/2,p=wx(mid,3.2);c.clinic={x:p[0],z:p[1]};
       const k=wx(mid,2.0);c.keepers=c.keepers||[];c.keepers.push({role:'nurse',x:k[0],z:k[1],yaw:0});
-      const sp=wx(doorU+1,-0.22);makeSign('CLÍNICA',3,0.85,0xeeeeee,0xc02020,sp[0],c.y+3.25,sp[1],D);
+      const sp=wx(doorU+1,-0.22);makeSign('CLÍNICA',3,0.85,0xeeeeee,0xc02020,sp[0],cityYat(c,sp[0],sp[1])+3.25,sp[1],D);
       // cruz vermelha no telhado
       const cm=f.map(f.U/2,f.V/2);
       Bc(c,cm[0]-0.5,4.4,cm[1]-1.6,cm[0]+0.5,5.2,cm[1]+1.6,0xd02020,false,{j:0});Bc(c,cm[0]-1.6,4.4,cm[1]-0.5,cm[0]+1.6,5.2,cm[1]+0.5,0xd02020,false,{j:0});
@@ -838,7 +841,7 @@ function buildCity(c,rng){  const Hc=c.half;
       const mid=f.U/2,tu=doorU<f.U/2?f.U-3.4:1.4;FB(c,f,tu,f.V-3.2,tu+2,f.V-2.2,0,0.9,0x6b4a2a,true);FB(c,f,tu+0.2,f.V-3,tu+1.8,f.V-2.4,0.9,0.95,0xd8d0a8,false,{j:0});
       const p=wx(mid,3.2);c.barracks={x:p[0],z:p[1]};
       const k=wx(mid,2.0);c.keepers=c.keepers||[];c.keepers.push({role:'guard',x:k[0],z:k[1],yaw:(()=>{const o={N:[0,-1],S:[0,1],E:[1,0],W:[-1,0]}[D];return Math.atan2(o[0],o[1])})()});
-      const sp=wx(doorU+1,-0.22);makeSign('QUARTEL',3,0.85,0x2a3a5a,0xe8e8e8,sp[0],c.y+3.25,sp[1],D);
+      const sp=wx(doorU+1,-0.22);makeSign('QUARTEL',3,0.85,0x2a3a5a,0xe8e8e8,sp[0],cityYat(c,sp[0],sp[1])+3.25,sp[1],D);
       const cm=f.map(f.U/2,f.V/2);addFlag(c,cm[0],4.4,cm[1],3.2);
     }else{
       // capela: pews, altar, torre
@@ -868,6 +871,7 @@ function buildCity(c,rng){  const Hc=c.half;
     if(c.foot&&sp&&spreadOn&&!svcFar((r.x0+r.x1)/2,(r.z0+r.z1)/2))return rej(9);   // serviços espalhados
     const ld=lotDoor(r);if(ld.err)return rej(ld.err);
     const {D,ns,p,path}=ld;
+    cityLot(c,r,path,D);   // multiníveis: plataforma plana do lote, com o caminho da porta (cityfoot.js)
     const w=r.x1-r.x0+1,d=r.z1-r.z0+1,Uu=ns?w:d,Vv=ns?d:w;
     let h=(cha||mix)?rng.pick([3,4,4,5]):4;
     const ruin=false;   // toda casa tem telhado
@@ -1004,7 +1008,7 @@ function buildCity(c,rng){  const Hc=c.half;
       Bc(c,bx-1.5,0,bz-0.12,bx+1.5,0.8,bz+0.12,0x5a3d22,true);Bc(c,bx-1.4,0.8,bz-0.14,bx+1.4,2.4,bz+0.14,0x6b4a2a,false,{j:0});
       for(const k of[-1.5,1.5])Bc(c,bx+k-0.1,0,bz-0.2,bx+k+0.1,2.6,bz+0.2,0x3a2a18,false,{j:0});
       for(let k=0;k<6;k++){const u=bx-1.1+(k%3)*0.8,y=1.0+Math.floor(k/3)*0.7;Bc(c,u,y,bz+0.14,u+0.6,y+0.5,bz+0.19,rng.pick([0xf2ecd0,0xe8dcc0,0xf4f0e0]),false,{j:0})}
-      c.hall={x:c.cx+bx,z:c.cz+bz+1.6};c.leader={x:c.cx+bx+2.4,z:c.cz+bz+1.4,y:c.y};c.keepers=c.keepers||[];c.keepers.push({role:'leader',x:c.leader.x,z:c.leader.z,yaw:0});break;
+      c.hall={x:c.cx+bx,z:c.cz+bz+1.6};c.leader={x:c.cx+bx+2.4,z:c.cz+bz+1.4,y:cityYat(c,c.cx+bx+2.4,c.cz+bz+1.4)};c.keepers=c.keepers||[];c.keepers.push({role:'leader',x:c.leader.x,z:c.leader.z,yaw:0});break;
     }
   }
   // reserva: se o armazém não coube num prédio, vira uma pilha de caixotes e um baú grande na praça
@@ -1035,7 +1039,7 @@ function buildCity(c,rng){  const Hc=c.half;
       if(res.some(q=>ovr(r,q,0))||houses.some(q=>ovr(r,q,1))||outAny(r,1))continue;
       Bc(c,x0,0,z0,x0+4,5,z0+4,0xe8e0cc,true);Bc(c,x0+0.5,5,z0+0.5,x0+3.5,8,z0+3.5,0xe8e0cc,true);
       let w=2.6,k=0;for(;w>0.6;w-=0.7,k++)Bc(c,x0+2-w,8+k,z0+2-w,x0+2+w,9+k,z0+2+w,0x8b3a2b,true,{b:true});
-      const g=new THREE.Group();g.position.set(c.cx+x0+2,c.y+6.5,c.cz+z0+4.3);
+      const g=new THREE.Group();g.position.set(c.cx+x0+2,cityYat(c,c.cx+x0+2,c.cz+z0+4.3)+6.5,c.cz+z0+4.3);
       for(let b=0;b<4;b++){const arm=new THREE.Group();arm.rotation.z=b*Math.PI/2;part(arm,GEO_BOX,0.4,4.2,0.12,0x6b4a2a,0,2.4,0);part(arm,GEO_BOX,1.1,3,0.06,0xf0e8d0,0.7,2.8,0);g.add(arm)}
       scene.add(g);WORLD.windmills.push(g);
       res.push({x0:x0-1,x1:x0+4,z0:z0-1,z1:z0+4});houses.push(r);break;
@@ -1107,6 +1111,7 @@ function buildCity(c,rng){  const Hc=c.half;
     }
   }
 
+  BX_LIFT=null;
   cityUnmarkOut(c);   // os blocos fora da pegada voltam a ser terreno natural
   // pontos de passeio e de surgimento
   for(let z=-Hc+1;z<=Hc-1;z+=2)for(let x=-Hc+1;x<=Hc-1;x+=2){
@@ -1243,7 +1248,7 @@ function featPen(c,O,rng){
   const bounds={x0:c.cx+I.x0+0.9,x1:c.cx+I.x1+0.1,z0:c.cz+I.z0+(north?2.4:0.9),z1:c.cz+I.z1+(north?0.1:-1.6)+1};
   for(let k=0;k<n;k++){
     const kind=cows?'cow':(rng.chance(0.2)?'cow':'sheep');
-    spawnCritter(kind,lerp(bounds.x0,bounds.x1,rng.next()),c.y,lerp(bounds.z0,bounds.z1,rng.next()),bounds);
+    spawnCritter(kind,lerp(bounds.x0,bounds.x1,rng.next()),c.y+cityLv(c,(bounds.x0+bounds.x1)/2-c.cx,(bounds.z0+bounds.z1)/2-c.cz),lerp(bounds.z0,bounds.z1,rng.next()),bounds);
   }
 }
 function featPicnic(c,O,rng){
@@ -1324,6 +1329,7 @@ function cityDecor(c,rng,res,houses,Hc,S,P,doors){
   for(const k of list){
     const O=cityLotFinder(c,rng,res,houses,Hc,dims[k][0],dims[k][1],260);
     if(!O)continue;
+    cityLot(c,O);
     feats[k](c,O,rng);
     res.push({x0:O.x0-1,x1:O.x1+1,z0:O.z0-1,z1:O.z1+1});houses.push(O);
   }

@@ -165,7 +165,7 @@ function buildCampFull(c,rng){
   }
   c.sceneObjs=scene.children.slice(before);
 }
-function addCol(x0,y0,z0,x1,y1,z1){const b={x0,y0,z0,x1,y1,z1};Col.add(b);if(BX_CAP)BX_CAP.cols.push(b);return b}
+function addCol(x0,y0,z0,x1,y1,z1){if(BX_LIFT){const d=cityLv(BX_LIFT,(x0+x1)/2-BX_LIFT.cx,(z0+z1)/2-BX_LIFT.cz);y0+=d;y1+=d}const b={x0,y0,z0,x1,y1,z1};Col.add(b);if(BX_CAP)BX_CAP.cols.push(b);return b}
 function buildCage(c,rx,rz){
   const h=1.1,PH=2.4,wx=c.cx+rx,wz=c.cz+rz,y=c.y,col=0x4a3a2a,barc=0x3a3a3a;
   const n=Math.abs(rx)<=Math.abs(rz)?[0,rz>0?-1:1]:[rx>0?-1:1,0];   // lado da porta: voltado para o centro do acampamento

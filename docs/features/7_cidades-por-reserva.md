@@ -141,7 +141,7 @@ Motivo: troca a geração de rios; afeta relevo, biomas e pontes.
 
 **Passos.** (1) Relevo base **sem rio** (rascunho sem o termo `rv`). (2) Fontes em terra alta, descida pelo caminho de maior declive até o mar ou depressão (lago); largura cresce com o acúmulo. (3) Escavar o leito no relevo antes da suavização. (4) Cidades (fase 4) e estradas (fase 2) escolhem depois, sobre o novo rascunho. (5) Pontes: cruzamentos escolhidos pela fase 2. **Pronto quando**: rios chegam ao mar, não terminam em beco sem saída, não atravessam cidades, e as 6 sementes passam nas métricas das fases 1 e 2. Risco: muda a cara dos mapas e dos biomas: revisar com o usuário.
 
-## Fase 6: cidades multiníveis (tamanho G) — **NOVA SESSÃO**
+## Fase 6: cidades multiníveis (tamanho G) — **IMPLEMENTADA (sem teste na tela; ver ESTADO.md)**
 Motivo: mexe em construção, navegação e física; precisa de teste longo.
 
 **Objetivo.** Cidades com elevações e depressões suaves (centro mais alto, bairro baixo à beira d'água), casas em plataformas e ruas com rampa.

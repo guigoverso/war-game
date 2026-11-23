@@ -101,13 +101,18 @@ function reservePlanRoads(cities,edges){
     for(let i=n-2;i>=0;i--)if(pin[i]===null)hs[i]=clamp(hs[i],hs[i+1]-1,hs[i+1]+1);
     // ponte já existente (outra estrada passou antes pelos mesmos tiles): não registra de novo
     const dup=segs.map(([i,f])=>{for(let j=i;j<=f;j++){const o=own.get(ki(j));if(!o||o.t!=='b')return false}return true});
-    // carimba o corredor: primeiro a reservar a célula, fica com ela
+    // carimba o corredor: a primeira estrada a reservar a célula fica com ela; dentro da mesma estrada a altura é a do ponto da rota mais próximo
+    const near=new Map();
     for(let i=0;i<n;i++){
       const wide=bridge[i]||head[i],R=wide?BRIDGE_R:1.5;
       for(let dz=-2;dz<=2;dz++)for(let dx=-2;dx<=2;dx++){
         const x=tiles[i].x+dx,z=tiles[i].z+dz;if(x<1||z<1||x>=W-1||z>=W-1)continue;
         const d=Math.hypot(dx,dz),k=z*W+x;
-        if(d<=R){if(!own.has(k))own.set(k,{h:hs[i],h0:H[k],t:wide?'b':'r'})}
+        if(d<=R){
+          const o=own.get(k);
+          if(!o){own.set(k,{h:hs[i],h0:H[k],t:wide?'b':'r'});near.set(k,d)}
+          else if(near.has(k)&&d<near.get(k)-1e-6){o.h=hs[i];near.set(k,d)}   // a altura vem do ponto da rota MAIS PERTO (a faixa inteira fica no mesmo nível, sem degraus ao lado)
+        }
         else if(d<=2.6&&!wide&&!sh.has(k))sh.set(k,hs[i]);
       }
     }

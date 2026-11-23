@@ -375,8 +375,8 @@ function rebRuinsEnsure(c){
   (c.houses||[]).forEach((h,i)=>{
     if(h.bh===undefined||rn(i,1,3)>RUIN.burn)return;   // só prédios de verdade (c.houses também guarda currais e campos, que não têm altura de parede)
     const w=h.x1-h.x0+1,d=h.z1-h.z0+1,x=c.cx+h.x0+w/2,z=c.cz+h.z0+d/2,hb=h.bh||4,hh=hb+0.3;
-    box(w+1.1,hh,d+1.1,x,c.y+hh/2,z,dark(0.5));   // fuligem nas paredes (maior que o prédio por causa do beiral)
-    const at=(u,v)=>{const px=x+(u-0.5)*(w-1),pz=z+(v-0.5)*(d-1);return{px,pz,y:rebTopAt(px,pz,c.y+hb-0.5)}};   // ponto sobre o telhado, ou null se não há telhado ali
+    box(w+1.1,hh,d+1.1,x,cityYat(c,x,z)+hh/2,z,dark(0.5));   // fuligem nas paredes (maior que o prédio por causa do beiral)
+    const at=(u,v)=>{const px=x+(u-0.5)*(w-1),pz=z+(v-0.5)*(d-1);return{px,pz,y:rebTopAt(px,pz,cityYat(c,x,z)+hb-0.5)}};   // ponto sobre o telhado, ou null se não há telhado ali
     const mid=at(0.5,0.5);if(mid.y!==null)box(w*0.55,0.12,d*0.55,mid.px,mid.y+0.07,mid.pz,dark(0.7));   // telhado chamuscado
     for(let k=0;k<4;k++){const q=at(rn(i,k,8),rn(i,k,9));if(q.y===null)continue;const s1=0.6+rn(i,k,5)*0.9,s2=0.4+rn(i,k,6)*0.7;box(s1,s2,s1,q.px,q.y+s2/2,q.pz,new THREE.MeshLambertMaterial({color:0x241a14}))}
     if(rn(i,2,4)<0.7)for(let f=0;f<RUIN.fires;f++){const q=at(rn(i,f,11),rn(i,f,12));if(q.y===null)continue;const m=box(0.7,0.7,0.7,q.px,q.y+0.35,q.pz,new THREE.MeshBasicMaterial({color:0xff7a1a}));fires.push({m,ph:rn(i,f,13)*6.28,y:q.y})}

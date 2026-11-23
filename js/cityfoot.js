@@ -144,11 +144,18 @@ function cityFootFlatten(c,apron){
   const cap=dist=>Math.floor(SEA+1+dist*F.shoreSlope);   // altura máxima a `dist` blocos da água
   c.y=Math.max(SEA+2,Math.min(Math.round(sum/n),cap(dmin)));
   c.fM=M;c.fdist=new Uint8Array(NM*NM);
+  c.lv=null;c.lvLock=null;
+  if(reserveOn()&&CITY_MULTI.on){   // multiníveis (fase 6): elevações e depressões suaves dentro da pegada
+    const di=new Float32Array(NM*NM);
+    for(let z=0;z<NM;z++)for(let x=0;x<NM;x++){const lx=x-M,lz=z-M;di[z*NM+x]=(Math.abs(lx)<=Hc&&Math.abs(lz)<=Hc&&c.foot[(lz+Hc)*N+lx+Hc])?1e9:0}
+    chamfer(di);
+    c.lv=cityHeightMap(c,di,dw,NM,M,cap);
+  }
   for(let z=0;z<NM;z++)for(let x=0;x<NM;x++){
     const i=z*NM+x,d0=d[i],dd=Math.max(0,d0-apron);c.fdist[i]=Math.min(255,Math.round(d0));
     const wx=c.cx+x-M,wz=c.cz+z-M;if(wx<1||wz<1||wx>=W-1||wz>=W-1)continue;
     const hi=wz*W+wx;
-    if(d0===0)H[hi]=c.y;
+    if(d0===0)H[hi]=c.y+(c.lv?c.lv[(z-M+Hc)*N+x-M+Hc]:0);
     else if(dd===0){if(H[hi]>=SEA+1)H[hi]=c.y>H[hi]?Math.max(H[hi],Math.min(c.y,cap(dw[i]))):c.y}   // faixa plana: terra só (água fica)
     else if(c.mtn&&c.mtn[Math.abs(x-M)>Math.abs(z-M)?(x>M?'E':'W'):(z>M?'S':'N')]&&H[hi]>=c.y){H[hi]=Math.min(H[hi],c.y+Math.ceil(dd*RESERVE.mtnSlope))}   // lado de montanha (reserve.js): encosta que sobe `mtnSlope` blocos por bloco até o terreno natural (sem corte)
     else if(dd<F.ramp&&H[hi]>=SEA+1){
@@ -213,4 +220,161 @@ function cityGatePos(c,d,off){
 function cityNear(c,x,z,m){
   if(Math.max(Math.abs(x-c.cx),Math.abs(z-c.cz))>=c.half+m)return false;
   return !c.fdist||cityFootDist(c,x,z)<m+1;
+}
+
+// ---------- Cidades multiníveis (fase 6) ----------
+// c.lv: nível de cada ponto da pegada em relação a c.y (a praça), em blocos inteiros, mesma indexação de c.foot (grade (2*half+1)^2).
+// Ondulação suave (ruído de valores) com a praça e a faixa junto ao muro sempre em 0, centro mais alto que o resto (bowl), bairro baixo perto da
+// água (lowShore) e inclinação limitada (slope), de modo que as ruas subam no máximo 1 bloco a cada 1/slope blocos. di/dw: distância (chanfro) até
+// fora da pegada / até a água na grade NM (centro M); cap: altura máxima por distância da água (cityFootFlatten).
+function cityHeightMap(c,di,dw,NM,M,cap){
+  const K=CITY_MULTI,Hc=c.half,N=2*Hc+1,sd=((WORLD.seed||0)*7919+c.id*104729)|0;
+  const hh=(i,j)=>{let h=(Math.imul(i,374761393)+Math.imul(j,668265263)+sd)|0;h=Math.imul(h^(h>>>13),1274126177);return((h^(h>>>16))>>>0)/4294967295};
+  const vn=(x,z)=>{   // ruído de valores bilinear suave, [0,1]
+    const i=Math.floor(x),j=Math.floor(z),fx=smooth(0,1,x-i),fz=smooth(0,1,z-j);
+    return lerp(lerp(hh(i,j),hh(i+1,j),fx),lerp(hh(i,j+1),hh(i+1,j+1),fx),fz);
+  };
+  // cidade encostada em serra (c.mtn): ondulação maior e o terreno sobe em direção ao lado da montanha
+  const sides=c.mtn?Object.keys(c.mtn).filter(d=>c.mtn[d]):[],amp=K.amp*(sides.length?K.mtnAmp:1);
+  const mt=(x,z)=>{let v=0;for(const d of sides){const a=d==='E'?x:d==='W'?-x:d==='S'?z:-z;v+=K.mtnRise*smooth(0,1,clamp(a/Hc,0,1))}return v};
+  const f=new Float32Array(N*N),pin=new Uint8Array(N*N);
+  for(let z=-Hc;z<=Hc;z++)for(let x=-Hc;x<=Hc;x++){
+    const k=(z+Hc)*N+x+Hc;if(!c.foot[k])continue;
+    const nk=(z+M)*NM+x+M,r=Math.max(Math.abs(x),Math.abs(z));
+    const w=smooth(0,1,clamp((r-K.plazaFlat)/K.plazaRamp,0,1))*smooth(0,1,clamp((di[nk]-2)/K.edge,0,1));
+    if(w<=0){pin[k]=1;continue}
+    let v=amp*(2*vn(x/K.scale+50,z/K.scale+50)-1)-K.bowl*smooth(0,1,clamp((r-K.plazaFlat)/(Hc-K.plazaFlat),0,1))
+         -K.lowShore*clamp(1-dw[nk]/K.shoreReach,0,1)+mt(x,z);
+    f[k]=v*w;
+  }
+  // limita a inclinação (real): duas voltas de varredura nos dois sentidos, com os pontos fixos (0) como âncora
+  const sl=K.slope*(sides.length?K.mtnAmp:1),s1=sl,s2=sl*1.414;
+  const lim=(i,j,sl)=>{if(pin[i]||!c.foot[j])return;f[i]=Math.min(f[j]+sl,Math.max(f[j]-sl,f[i]))};
+  for(let rd=0;rd<8;rd++){
+    for(let z=1;z<N-1;z++)for(let x=1;x<N-1;x++){const i=z*N+x;if(!c.foot[i])continue;lim(i,i-1,s1);lim(i,i-N,s1);lim(i,i-N-1,s2);lim(i,i-N+1,s2)}
+    for(let z=N-2;z>0;z--)for(let x=N-2;x>0;x--){const i=z*N+x;if(!c.foot[i])continue;lim(i,i+1,s1);lim(i,i+N,s1);lim(i,i+N+1,s2);lim(i,i+N-1,s2)}
+  }
+  const lv=new Int8Array(N*N);c.lvEdge=new Uint8Array(N*N);c.lvCap=new Int8Array(N*N);   // lvEdge: distância (blocos) até fora da pegada
+  for(let z=-Hc;z<=Hc;z++)for(let x=-Hc;x<=Hc;x++){
+    const k=(z+Hc)*N+x+Hc;if(!c.foot[k])continue;
+    c.lvEdge[k]=Math.min(255,Math.round(di[(z+M)*NM+x+M]));
+    let v=Math.round(f[k]);const mx=cap(dw[(z+M)*NM+x+M]);
+    c.lvCap[k]=clamp(mx-c.y,-100,100);
+    if(c.y+v>mx)v=mx-c.y;if(c.y+v<SEA+1)v=SEA+1-c.y;lv[k]=v;
+  }
+  // o corte pela distância da água (cap) pode abrir degraus de 2: só abaixa o vizinho mais alto até a diferença ser 1 (nunca passa do teto)
+  for(let pass=0,ch=1;ch&&pass<30;pass++){
+    ch=0;
+    for(let z=-Hc;z<=Hc;z++)for(let x=-Hc;x<=Hc;x++){
+      const k=(z+Hc)*N+x+Hc;if(!c.foot[k])continue;
+      for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++){
+        if(!dx&&!dz)continue;const a=x+dx,b=z+dz;if(a<-Hc||b<-Hc||a>Hc||b>Hc)continue;
+        const j=(b+Hc)*N+a+Hc;if(c.foot[j]&&lv[k]>lv[j]+1){lv[k]=lv[j]+1;ch=1}
+      }
+    }
+  }
+  return lv;
+}
+// nível (blocos acima de c.y) no ponto local (lx,lz); 0 fora da pegada ou em cidades sem mapa de altura
+function cityLv(c,lx,lz){
+  if(!c.lv)return 0;
+  const Hc=c.half,x=Math.floor(lx),z=Math.floor(lz);
+  if(x<-Hc||z<-Hc||x>Hc||z>Hc)return 0;
+  return c.lv[(z+Hc)*(2*Hc+1)+x+Hc];
+}
+// altura do chão da cidade no ponto de mundo (wx,wz) (c.y + nível)
+const cityYat=(c,wx,wz)=>c.y+cityLv(c,wx-c.cx,wz-c.cz);
+// plataforma plana do lote r (coordenadas locais; os cantos do beiral entram com 1 bloco de folga): o nível vira a média do lote,
+// path/D: caminho da porta e lado da porta; ele e mais 1 bloco além dele ficam no nível da plataforma (o degrau nasce depois da entrada).
+// o terreno (H) acompanha e a faixa em volta (CITY_MULTI.lotRing) fica a no máximo 1 bloco da plataforma. Devolve o nível. Sem mapa de altura: 0.
+function cityLot(c,r,path,D){
+  if(!c.lv)return 0;
+  const Hc=c.half,N=2*Hc+1,at=(x,z)=>(z+Hc)*N+x+Hc,ok=(x,z)=>x>=-Hc&&z>=-Hc&&x<=Hc&&z<=Hc&&c.foot[at(x,z)];
+  const body={x0:r.x0-1,x1:r.x1+1,z0:r.z0-1,z1:r.z1+1},parts=[body];   // partes da plataforma: o lote (com 1 bloco de folga) e a entrada
+  if(path&&path.length){   // entrada: caminho da porta + 1 bloco além, no mesmo nível (o degrau fica depois)
+    let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;
+    for(const q of path){x0=Math.min(x0,q.x0);x1=Math.max(x1,q.x1);z0=Math.min(z0,q.z0);z1=Math.max(z1,q.z1)}
+    if(D==='N')z0--;else if(D==='S')z1++;else if(D==='W')x0--;else x1++;
+    parts.push({x0,x1,z0,z1});
+  }
+  const inP=(x,z)=>parts.some(q=>x>=q.x0&&x<=q.x1&&z>=q.z0&&z<=q.z1);
+  const dist=(x,z)=>Math.min(...parts.map(q=>Math.max(q.x0-x,x-q.x1,q.z0-z,z-q.z1)));   // distância (Chebyshev) até a plataforma
+  const bx0=Math.min(...parts.map(q=>q.x0)),bx1=Math.max(...parts.map(q=>q.x1)),bz0=Math.min(...parts.map(q=>q.z0)),bz1=Math.max(...parts.map(q=>q.z1));
+  let sum=0,n=0,dmin=255;
+  for(let z=body.z0;z<=body.z1;z++)for(let x=body.x0;x<=body.x1;x++)if(ok(x,z)){sum+=c.lv[at(x,z)];n++;dmin=Math.min(dmin,c.lvEdge[at(x,z)])}
+  if(!n)return 0;
+  c.lvLock=c.lvLock||new Uint8Array(N*N);
+  let h=clamp(Math.round(sum/n),-(dmin-1),dmin-1);   // junto à borda da pegada o nível volta a 0 (muro, torres e portões)
+  const R=CITY_MULTI.lotRing;
+  {   // plataformas vizinhas já travadas: a diferença de nível não passa de 1 bloco por bloco de distância
+    let lo=-99,hi=99;
+    for(let z=bz0-R-1;z<=bz1+R+1;z++)for(let x=bx0-R-1;x<=bx1+R+1;x++){
+      if(!ok(x,z)||!c.lvLock[at(x,z)]||inP(x,z))continue;
+      const d=dist(x,z);if(d>R+1)continue;
+      lo=Math.max(lo,c.lv[at(x,z)]-d);hi=Math.min(hi,c.lv[at(x,z)]+d);
+    }
+    if(lo<=hi)h=clamp(h,lo,hi);else if(lo<99&&hi>-99)h=Math.round((lo+hi)/2);   // vizinhas em conflito: o meio
+  }
+  const setH=(x,z,v)=>{const wx=c.cx+x,wz=c.cz+z;if(wx>=1&&wz>=1&&wx<W-1&&wz<W-1)H[wz*W+wx]=c.y+v};
+  for(let z=bz0;z<=bz1;z++)for(let x=bx0;x<=bx1;x++){
+    if(!ok(x,z)||!inP(x,z))continue;
+    const inR=x>=r.x0&&x<=r.x1&&z>=r.z0&&z<=r.z1;
+    if(!inR&&(c.lvLock[at(x,z)]||c.lvEdge[at(x,z)]-1<Math.abs(h)))continue;   // folga e entrada não sobrescrevem outra plataforma nem a borda
+    c.lv[at(x,z)]=h;c.lvLock[at(x,z)]=1;setH(x,z,h);
+  }
+  cityLvRing(c,bx0-R,bz0-R,bx1+R,bz1+R,R);
+  return h;
+}
+
+// células livres (sem plataforma travada) da área [x0..x1]x[z0..z1] (coordenadas locais) seguem as travadas por perto: no máximo 1 bloco de diferença por
+// bloco de distância (até R+1), dentro do teto da margem e da borda da pegada; sem solução, no meio dos dois limites. Atualiza c.lv e o terreno H.
+function cityLvRing(c,x0,z0,x1,z1,R){
+  const Hc=c.half,N=2*Hc+1,at=(x,z)=>(z+Hc)*N+x+Hc,ok=(x,z)=>x>=-Hc&&z>=-Hc&&x<=Hc&&z<=Hc&&c.foot[at(x,z)];
+  for(let z=z0;z<=z1;z++)for(let x=x0;x<=x1;x++){
+    if(!ok(x,z)||c.lvLock[at(x,z)])continue;
+    let lo=-99,hi=99;
+    for(let dz=-R-1;dz<=R+1;dz++)for(let dx=-R-1;dx<=R+1;dx++){
+      if(!ok(x+dx,z+dz)||!c.lvLock[at(x+dx,z+dz)])continue;
+      const d=Math.max(Math.abs(dx),Math.abs(dz)),L=c.lv[at(x+dx,z+dz)];lo=Math.max(lo,L-d);hi=Math.min(hi,L+d);
+    }
+    const e=Math.max(0,c.lvEdge[at(x,z)]-1),cur=c.lv[at(x,z)];
+    let v=lo<=hi?clamp(clamp(cur,lo,hi),-e,e):(lo<99&&hi>-99?Math.round((lo+hi)/2):cur);   // sem solução: no meio dos dois limites
+    v=Math.max(Math.min(v,c.lvCap[at(x,z)]),SEA+1-c.y);
+    if(v!==cur){c.lv[at(x,z)]=v;const wx=c.cx+x,wz=c.cz+z;if(wx>=1&&wz>=1&&wx<W-1&&wz<W-1)H[wz*W+wx]=c.y+v}
+  }
+}
+// ruas niveladas: em cada ponto ao longo de uma rua, a largura inteira fica no mesmo nível (média da seção), então a rua só tem degraus ao
+// comprimento (não pedaços altos e baixos lado a lado). Os cruzamentos são alisados (diferença máxima de 1) e as ruas ficam travadas (lvLock),
+// de modo que as plataformas das casas se ajustam a elas. Chamada em buildCity depois de todas as ruas estarem definidas.
+function cityStreetLevels(c,streets){
+  if(!c.lv)return;
+  const Hc=c.half,N=2*Hc+1,at=(x,z)=>(z+Hc)*N+x+Hc,ok=(x,z)=>x>=-Hc&&z>=-Hc&&x<=Hc&&z<=Hc&&c.foot[at(x,z)];
+  c.lvLock=c.lvLock||new Uint8Array(N*N);
+  const st=new Uint8Array(N*N),lim=k=>Math.min(Math.max(0,c.lvEdge[k]-1),c.lvCap[k]>=0?99:99);
+  for(const s of streets){
+    const horiz=(s.x1-s.x0)>=(s.z1-s.z0),a0=horiz?s.x0:s.z0,a1=horiz?s.x1:s.z1,b0=horiz?s.z0:s.x0,b1=horiz?s.z1:s.x1;
+    for(let a=Math.max(a0,-Hc);a<=Math.min(a1,Hc);a++){
+      const cs=[];let sum=0;
+      for(let b=b0;b<=b1;b++){const x=horiz?a:b,z=horiz?b:a;if(ok(x,z)){cs.push(at(x,z));sum+=c.lv[at(x,z)]}}
+      if(!cs.length)continue;
+      const m=Math.round(sum/cs.length);
+      for(const k of cs){c.lv[k]=clamp(m,-lim(k),lim(k));st[k]=1}
+    }
+  }
+  const nbr=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]];
+  for(let it=0,ch=1;ch&&it<20;it++){   // cruzamentos e ruas que se tocam: no máximo 1 bloco de diferença entre vizinhas
+    ch=0;
+    for(let z=-Hc;z<=Hc;z++)for(let x=-Hc;x<=Hc;x++){
+      const k=at(x,z);if(!st[k])continue;
+      let lo=-99,hi=99;
+      for(const [dx,dz] of nbr){if(!ok(x+dx,z+dz)||!st[at(x+dx,z+dz)])continue;const L=c.lv[at(x+dx,z+dz)];lo=Math.max(lo,L-1);hi=Math.min(hi,L+1)}
+      if(lo>hi)continue;
+      const v=clamp(clamp(c.lv[k],lo,hi),-lim(k),lim(k));if(v!==c.lv[k]){c.lv[k]=v;ch=1}
+    }
+  }
+  for(let z=-Hc;z<=Hc;z++)for(let x=-Hc;x<=Hc;x++){
+    const k=at(x,z);if(!st[k])continue;
+    c.lvLock[k]=1;const wx=c.cx+x,wz=c.cz+z;if(wx>=1&&wz>=1&&wx<W-1&&wz<W-1)H[wz*W+wx]=c.y+c.lv[k];
+  }
+  cityLvRing(c,-Hc,-Hc,Hc,Hc,CITY_MULTI.lotRing);   // o terreno em volta acompanha as ruas
 }

@@ -443,8 +443,8 @@ function updateInteract(){
     if(c.store){const ds=Math.hypot(P.x-c.store.x,P.z-c.store.z);if(ds<4.5){G.target={type:'store',c};lines.push('[E] Loja: vender e comprar itens')}}
     if(c.tavern){const ds=Math.hypot(P.x-c.tavern.x,P.z-c.tavern.z);if(ds<3.2){G.target={type:'tavern',c};lines.push('[E] Taverneiro: comprar comida pronta')}}
     if(c.stove){const ds=Math.hypot(P.x-c.stove.x,P.z-c.stove.z);if(ds<3.0){G.target={type:'stove',c};lines.push('[E] Fogão: cozinhar')}}
-    if(c.warehouse){const ds=Math.hypot(P.x-c.warehouse.x,P.z-c.warehouse.z);if(ds<4.5&&Math.abs(P.y-c.y)<2.6){if(c.owner==='player'){G.target={type:'warehouse',c};lines.push('[E] Armazém: guardar itens, entregar suprimentos e recolher a produção')}else lines.push('🔒 Armazém fechado — conquiste a cidade')}}
-    if(c.hall){const ds=Math.hypot(P.x-c.hall.x,P.z-c.hall.z);if(ds<4.5&&Math.abs(P.y-c.y)<2.6){if(c.owner==='player'){G.target={type:'hall',c};lines.push('[E] Prefeitura: quadro de missões'+(msDeliverFor(c)?' • há entrega aqui':''))}else{const dm=msDeliverFor(c);if(dm){G.target={type:'msdeliver',c,m:dm};lines.push('[E] Entregar '+msDeliverTxt(dm)+' (missão)')}else lines.push('🔒 Prefeitura fechada — conquiste a cidade')}}}
+    if(c.warehouse){const ds=Math.hypot(P.x-c.warehouse.x,P.z-c.warehouse.z);if(ds<4.5&&Math.abs(P.y-cityYat(c,c.warehouse.x,c.warehouse.z))<2.6){if(c.owner==='player'){G.target={type:'warehouse',c};lines.push('[E] Armazém: guardar itens, entregar suprimentos e recolher a produção')}else lines.push('🔒 Armazém fechado — conquiste a cidade')}}
+    if(c.hall){const ds=Math.hypot(P.x-c.hall.x,P.z-c.hall.z);if(ds<4.5&&Math.abs(P.y-cityYat(c,c.hall.x,c.hall.z))<2.6){if(c.owner==='player'){G.target={type:'hall',c};lines.push('[E] Prefeitura: quadro de missões'+(msDeliverFor(c)?' • há entrega aqui':''))}else{const dm=msDeliverFor(c);if(dm){G.target={type:'msdeliver',c,m:dm};lines.push('[E] Entregar '+msDeliverTxt(dm)+' (missão)')}else lines.push('🔒 Prefeitura fechada — conquiste a cidade')}}}
     if(c.owner==='enemy'&&c.state==='idle'&&d<c.half+10&&relStatus(c.fid)==='war'){G.attackCity=c;lines.push('[F] ATACAR '+c.name.toUpperCase())}   // invasão só em guerra
   }
   for(const c of WORLD.camps){if(c.gone)continue;const d=Math.max(Math.abs(P.x-c.cx),Math.abs(P.z-c.cz));if(d<c.half+8&&d<bestD){bestD=d;G.curCity=c}
@@ -811,8 +811,8 @@ function renderLocs(){
 document.addEventListener('click',e=>{
   const bt=e.target.closest('#locscheat button');if(!bt||!bt.dataset.loc)return;
   const k=bt.dataset.loc,t=k[0],id=+k.slice(1);let x,z,y;
-  if(t==='w'){const c=WORLD.cities.find(q=>q.id===id);if(!c||!c.works)return;x=c.works.x;z=c.works.z;y=c.y+0.3}
-  else if(t==='c'){const c=WORLD.cities.find(q=>q.id===id);if(!c)return;x=c.cx+c.S+2.5;z=c.cz+c.P-2;y=c.y+0.3}
+  if(t==='w'){const c=WORLD.cities.find(q=>q.id===id);if(!c||!c.works)return;x=c.works.x;z=c.works.z;y=tH(x,z)+0.3}
+  else if(t==='c'){const c=WORLD.cities.find(q=>q.id===id);if(!c)return;x=c.cx+c.S+2.5;z=c.cz+c.P-2;y=tH(x,z)+0.3}
   else if(t==='o'){const o=WORLD.pois.find(q=>q.id===id);if(!o)return;x=o.cx;z=o.cz+POI_DEFS[o.type].r+4;y=tH(x,z)+0.3}
   else if(t==='p'){const p=STATE.portals[id];if(!p)return;x=p.x+4;z=p.z;y=tH(x,z)+0.3}
   else{const a=(t==='k'?WORLD.camps:WORLD.caves).find(q=>q.id===id);if(!a)return;x=a.cx+6;z=a.cz;y=tH(x,z)+0.3}

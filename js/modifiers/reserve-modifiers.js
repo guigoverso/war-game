@@ -61,5 +61,25 @@ const RIVER = {
   // lake: um poço natural do terreno (depressão) com pelo menos esta profundidade (blocos) vira lago onde o rio passa; lakeMax: raio máximo (blocos). Padrões: 2 e 10
   lake: 2, lakeMax: 10
 };
+// ---------- Cidades multiníveis (fase 6; só com ?reserva=1; ?niveis=0 desliga, para comparar) ----------
+const CITY_MULTI = {
+  // on: a cidade ganha elevações e depressões suaves (mapa de altura c.lv), com casas em plataformas. Padrão: ligado
+  on: new URLSearchParams(location.search).get('niveis') !== '0',
+  // amp: variação máxima (blocos) do relevo da cidade para cima e para baixo; scale: tamanho (blocos) das ondulações. Padrões: 4 e 26
+  amp: 4, scale: 26,
+  // slope: inclinação máxima das ruas (blocos de altura por bloco; 0.3 = 1 bloco a cada ~3). Padrão: 0.3
+  slope: 0.3,
+  // plazaFlat: raio (blocos, medido em quadrado) da praça que fica sempre plano, e plazaRamp: distância até as ondulações valerem por inteiro. Padrões: 13 e 14
+  plazaFlat: 13, plazaRamp: 14,
+  // edge: faixa (blocos) junto à borda da cidade que volta ao nível da faixa plana (o muro, as torres e os portões ficam no nível c.y). Padrão: 7
+  edge: 7,
+  // bowl: quanto (blocos) o bairro longe da praça é mais baixo que o centro (a praça fica mais alta); lowShore: quanto o bairro à beira d'água desce;
+  // shoreReach: distância (blocos) da água em que esse bairro baixo começa. Padrões: 1.5, 2 e 16
+  bowl: 1.5, lowShore: 2, shoreReach: 16,
+  // lotRing: faixa (blocos) em volta de cada plataforma de casa onde o terreno é limitado a 1 bloco de diferença dela (degrau de acesso). Padrão: 4
+  lotRing: 4,
+  // mtnAmp: multiplica a ondulação e a inclinação das cidades encostadas em serra (c.mtn); mtnRise: quanto (blocos) o terreno sobe em direção ao lado da montanha. Padrões: 1.6 e 5
+  mtnAmp: 1.6, mtnRise: 5
+};
 // o POI deste tipo entra na reserva?
 const poiReserved = type => RESERVE.poiOn && RESERVE.poiTypes.includes(type);

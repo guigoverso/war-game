@@ -11,8 +11,9 @@ const CHUNKS=[];
 function chunkOf(x,z){const cx=clamp(Math.floor(x/CHK),0,NCH-1),cz=clamp(Math.floor(z/CHK),0,NCH-1);return CHUNKS[cz*NCH+cx]}
 // Caixa estática (malha + colisão opcional) em coordenadas de mundo
 // captura: quando definida, as caixas vão para uma malha própria (removível) em vez da malha do chunk
-let BX_CAP=null;
+let BX_CAP=null,BX_LIFT=null;   // BX_LIFT: cidade multinível em construção (js/cityfoot.js): caixas e colisões sobem o nível local
 function Bx(x0,y0,z0,x1,y1,z1,color,col,o){
+  if(BX_LIFT){const d=cityLv(BX_LIFT,(x0+x1)/2-BX_LIFT.cx,(z0+z1)/2-BX_LIFT.cz);y0+=d;y1+=d}
   if(BX_CAP){BX_CAP.batch.box(x0,y0,z0,x1,y1,z1,color,o);if(col){const b={x0,y0,z0,x1,y1,z1};Col.add(b);BX_CAP.cols.push(b)}return}
   if(o&&o.lf){leafOf((x0+x1)/2,(z0+z1)/2).box(x0,y0,z0,x1,y1,z1,color,o);return}   // folhas: malha à parte, que fica translúcida quando o jogador está sob a copa
   chunkOf((x0+x1)/2,(z0+z1)/2).box(x0,y0,z0,x1,y1,z1,color,o);
@@ -639,6 +640,7 @@ function tileColor(x,z,i){
   const t=T[i],b=B[i],r=hash2(x,z,3),v=0.9+r*0.2;
   let c;
   if(t===T_STREET||t===T_PLAZA||t===T_FLOOR||t===T_CAVE)c=0x777777;
+  else if(t===T_ROAD)c=0x7a6240;   // lados da estrada: terra batida, na cor do caminho (antes pegava a cor do bioma, ex.: amarelo no deserto)
   else if(t===T_BRIDGE)c=0x7d7d84;   // lado da cabeceira (a ponte em terra): pedra
   else if(b===BIO_DESERT)c=0xc9b777;
   else if(b===BIO_ROCK)c=0x777777;
