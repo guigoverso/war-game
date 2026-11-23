@@ -2,8 +2,8 @@
 
 Especificação: `docs/features/8_tiles-e-vilas.md` (fonte da verdade). Este arquivo só define **ordem, escopo e em que sessão cada parte roda**. Branch: `mapa-mundi-update`. Tudo atrás de `?mundo=1`; o jogo atual continua o padrão. A guerra segue pausada.
 
-## Antes: o que a especificação ainda não fechou
-Faltam duas conversas da fase de especificação: **conteúdo do tile** (fixo x sorteado, o que o jogador faz ali, NPCs, bordas e aberturas) e **lógica de mundo de tile** (estado fora da tela já decidido: diferenças da semente + produção resumida; falta o formato e a ligação com rodadas e economia). A composição por tile (tabela da proposta) também espera aprovação. **Isso deve ser fechado na sessão atual**, que tem todo o contexto das decisões; só então começam as sessões abaixo.
+## Estado da especificação
+**Fechada em 2026-11-23** (`8_tiles-e-vilas.md`, rodadas 1 a 9). Ficam para depois, anotados lá: ligação do tile com rodadas e economia (etapas 7 e 8), anexação e carne/couro do tile Animais (etapa 8), POIs de guerra por zona (etapa 10). Linha de base medida: mapa 704 gera em 7,7 a 10,9 s; previsão do tile de 384, ~2,2 s; limite proposto 4 s (tile) e 5 s (cidade enorme). Em caso de dúvida de uma sessão, vale o `8_tiles-e-vilas.md`; este arquivo só ordena o trabalho.
 
 ## Princípios (iguais aos do plano 6)
 - Cada sessão termina com: `node tests/smoke.js` OK, teste na tela pelo usuário, `docs/MAPA.md` e `docs/ESTADO.md` atualizados, commit.
@@ -17,7 +17,7 @@ Faltam duas conversas da fase de especificação: **conteúdo do tile** (fixo x 
 É o lembrete obrigatório do plano 6. Só leitura de código mais um documento: `docs/features/10_como-as-cidades-sao-feitas-hoje.md`, de ponta a ponta (`genWorld` -> `reserve.js` -> `cityfoot.js` -> `buildCity` -> `carveRoad`/pontes -> serviços e NPCs; modificadores `CITY_FOOT`, `RESERVE`, `CITY_MULTI`; regra "reservar primeiro, esculpir depois"). Sessão nova porque o contexto desta conversa não ajuda e a leitura do código é grande (`city.js` tem ~1200 linhas). Pode rodar **em paralelo** com a especificação.
 
 ### 4A. Base do tile (M) — **SESSÃO NOVA**
-`TILE_SIZE` 384 (um só valor), lista de temas (cidade, vila, fazenda, mina, serraria, animais, ponte, fortaleza, ruínas, passagem), tabela de composição por tema e proporção de temas na criação do mundo, tudo em `map-modifiers.js`. Descritor de tile `{seed, tema, terreno, saídas, dono}` e `?cenario=tile&tema=...&tam=384`. Revisar `mapwin.js`, `worldfield.js` e `tiletest.js` para a janela de 384. Pronto quando: um tile de qualquer tema abre vazio (só terreno e bordas) com continuidade para o vizinho.
+`TILE_SIZE` 384 (um só valor), lista de temas (cidade, vila, fazenda, mina, serraria, animais, ponte, fortaleza, ruínas, passagem), tabela de composição por tema e proporção de temas na criação do mundo (por URL, `?temas=70`, até haver menu), tudo em `map-modifiers.js`. Descritor de tile `{seed, tema, terreno, saídas, dono}` e `?cenario=tile&tema=...&tam=384`. Revisar `mapwin.js`, `worldfield.js` e `tiletest.js` para a janela de 384. Pronto quando: um tile de qualquer tema abre vazio (só terreno e bordas) com continuidade para o vizinho.
 
 **Acréscimos da rodada 7:** o descritor guarda as aberturas (posição por hash da aresta); a entrada nasce na abertura de onde o jogador veio; sair = andar até uma abertura (confirmação) ou abrir o mapa mundi, ambos gastam ações do mapa. Layout fixo pela semente; o que renova (acampamentos, grutas, bandos) entra na 4F como diferença da semente.
 
@@ -48,5 +48,5 @@ Roda o smoke, joga um tile de cada tema, confere o tempo de geração e atualiza
 Só `4B` e `4C` mexem nos mesmos arquivos; as demais não se sobrepõem entre si.
 
 ## Sessão nova ou a atual?
-- **Sessão atual:** terminar a especificação (conteúdo do tile, lógica de mundo, aprovar a composição). Não escrever código de jogo aqui.
-- **Sessão nova:** toda sessão de implementação (4.0 a 4G). Prompt de abertura sugerido: "Leia docs/ESTADO.md, docs/features/8_tiles-e-vilas.md e docs/features/9_plano-implementacao-tiles.md e comece a sessão 4X". Todas na branch `mapa-mundi-update`, com `git pull` no início e `/encerrar-sessao` no fim.
+- **Todas as sessões de implementação (4.0 a 4G) rodam em sessão nova**, sem código de jogo na sessão de especificação. Prompt de abertura sugerido: "Leia docs/ESTADO.md, docs/features/8_tiles-e-vilas.md e docs/features/9_plano-implementacao-tiles.md e comece a sessão 4X". Todas na branch `mapa-mundi-update`, com `git pull` no início e `/encerrar-sessao` no fim.
+- Primeiras a abrir: **4.0** (leitura) e **4A**, em paralelo.
