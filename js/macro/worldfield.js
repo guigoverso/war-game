@@ -158,12 +158,18 @@ function wfOpenings(F, win, i, j) {
     const lx = clampN(ex.x - win.ox, 1, S - 2), lz = clampN(ex.z - win.oz, 1, S - 2);
     if (!wfLandAt(F, win.ox + lx, win.oz + lz)) continue;
     const dx = ex.from.x - ex.x, dz = ex.from.z - ex.z, dl = Math.hypot(dx, dz) || 1;
-    out.push({ dir: tr.dir, to: [tr.i, tr.j], x: Math.round(lx), z: Math.round(lz), ix: dx / dl, iz: dz / dl });
+    const side = lx <= 2 ? 'W' : lx >= S - 3 ? 'E' : lz <= 2 ? 'N' : 'S';   // lado da janela por onde a trilha sai
+    out.push({ dir: tr.dir, to: [tr.i, tr.j], x: Math.round(lx), z: Math.round(lz), ix: dx / dl, iz: dz / dl, side });
   }
   return out;
 }
 const clampN = (v, a, b) => (v < a ? a : v > b ? b : v);
 
+// Custo de um tile sem saída de verdade: 1 se não há trilha nem abertura na borda (trilha que cai na água não abre a borda), 0,4 por abertura que falta.
+function tileOpenPenalty(F, w, i, j) {
+  const tr = wfTrails(F, i, j).length, op = wfOpenings(F, w, i, j).length;
+  return op ? (tr - op) * 0.4 : 1;
+}
 // Escolhe o tile padrão da grade para o cenário: com terra perto de landTarget, ao menos uma trilha e o mais perto do centro do mundo.
 // Devolve { i, j }. Se ti/tj vierem da URL, só confere que existem.
 function wfPickTile(F, size, ti, tj) {
@@ -173,7 +179,7 @@ function wfPickTile(F, size, ti, tj) {
   for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
     const n = wfNode(F, i, j), w = wfWindow(F, n.x, n.z, size), f = wfLandFrac(F, w.ox, w.oz, size, WORLD_FIELD.sampleStep * 2);
     if (f < WORLD_FIELD.landMin) continue;
-    const sc = Math.abs(f - WORLD_FIELD.landTarget) * 2 + Math.hypot(n.x - F.S / 2, n.z - F.S / 2) / F.S + (wfTrails(F, i, j).length ? 0 : 1);
+    const sc = Math.abs(f - WORLD_FIELD.landTarget) * 2 + Math.hypot(n.x - F.S / 2, n.z - F.S / 2) / F.S + tileOpenPenalty(F, w, i, j);
     if (sc < bs) { bs = sc; best = { i, j } }
   }
   if (!best) {   // mundo quase todo mar: o tile de maior fração de terra

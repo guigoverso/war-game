@@ -207,7 +207,7 @@ function worldInit(seed,dominant,opts){
   const nz=new Noise(seed),nt=new Noise(seed+11),nm=new Noise(seed+23),nr=new Noise(seed+37),nd=new Noise(seed+51),nj=new Noise(seed+77);TNOISE=new Noise(seed+303);
   H=new Int16Array(W*W);T=new Uint8Array(W*W);B=new Uint8Array(W*W);
   TREEC.clear();CHUNKS.length=0;LEAVES.length=0;LZ.clear();for(let i=0;i<NCH*NCH;i++){CHUNKS.push(new BoxBatch());LEAVES.push(new BoxBatch())}
-  const RES=reserveOn()&&!WORLD.showcaseMode;   // RES: modo reserva (js/reserve.js)
+  const RES=reserveOn()&&!WORLD.showcaseMode&&!(win&&win.empty);   // RES: modo reserva (js/reserve.js)
   const X={seed,rng,nd,RES,MINC:win&&win.tile?1:6,cities:[],cand:[],edges:[],RP:null,win};   // tile do campo do mundo: uma cidade só
   mapSync();
   return X;
@@ -309,7 +309,7 @@ async function worldCitiesStage(X,status){
   }
   // aplaina o terreno sob cada cidade
   for(const c of cities){
-    if(RES)continue;   // modo reserva: o terreno final já tem o chão de todas as cidades (genRelief)
+    if(RES||(X.win&&X.win.empty))continue;   // tile vazio (4A): sem cidade para aplainar; modo reserva: o terreno final já tem o chão de todas as cidades (genRelief)
     if(cityFootPlan(c,seed)||cityFootRelocate(c,cities,cand,seed)){cityFootFlatten(c);continue}   // a cidade se adapta ao terreno (cityfoot.js); sem chão: troca de lugar; sem alternativa: quadrado antigo
     citySquareFlatten(c);
   }
@@ -319,6 +319,7 @@ async function worldCitiesStage(X,status){
 // Etapa 3: estradas ligando as cidades (e pontes; no modo reserva o terreno final nasce com os corredores).
 async function worldRoadsStage(X,status){
   const {seed,RES,RP,cities}=X;
+  if(X.win&&X.win.empty)return;   // tile vazio (4A): sem estradas entre cidades
   for(const c of cities)cityFootGates(c);   // onde a pegada de cada cidade termina em cada eixo (portões e pontas de estrada)
   // 3) Estradas ligando as cidades (MST + atalhos)
   status('Traçando estradas e pontes...');await tick();
@@ -346,6 +347,7 @@ async function worldBuildStage(X,status){
 
   WORLD.ctype=cityTypePlan(cities,seed,{});   // tipo (economia) de cada cidade, decidido já aqui: a cidade ganha o edifício do tipo (city.js)
   // 4) Cidades
+  if(X.win&&X.win.empty){for(const c of cities)Object.assign(c,{half:1,S:1,P:1,gateSpots:[],keepers:[]});return}   // tile vazio (4A): a cidade-âncora (o jogo exige uma) fica sem prédios
   for(const c of cities){
     status('Construindo '+c.name+'...');await tick();
     buildCity(c,new RNG(seed*31+c.id*977+5));
@@ -358,7 +360,8 @@ async function worldNatureStage(X,status){
   status('Escondendo baús, grutas e acampamentos...');await tick();
   if(X.win){tileTrailLinks(cities);tileBorderPlan()}   // janela do campo do mundo: estrada das trilhas até as aberturas e plano da borda de árvores (mapwin.js)
   WORLD.snap={H:H.slice(),T:T.slice(),B:B.slice()};
-  genPOIs(rng,cities);
+  if(X.win&&X.win.empty){WORLD.camps=[];WORLD.caves=[];WORLD.chests=[];WORLD.packs=[];WORLD.pois=[];WORLD.areas=cities.slice();FIRES.length=0}   // tile vazio (4A): sem POIs (a 4E os põe)
+  else genPOIs(rng,cities);
   status('Plantando árvores, pedras e flores...');await tick();
   genDecor(rng,nd,cities);
   if(X.win)tileBorderBuild();   // árvores densas e parede de colisão na borda, menos nas aberturas (mapwin.js)

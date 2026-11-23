@@ -17,14 +17,24 @@ function mapWindowPick(seed, dominant) {
   const size = mapTileSize();
   if (q.has('wx') && q.has('wz')) {   // ?wx=&wz=: janela livre centrada num ponto do mundo (sem grade nem trilhas), para comparar terrenos que se sobrepõem
     const free = wfWindow(F, +q.get('wx'), +q.get('wz'), size, { tile: true, free: true, ti: -1, tj: -1, kind: q.get('tipo') === 'cidade' ? 'cidade' : 'natureza', neighbors: [], openings: [] });
+    free.tema = tileThemeOk(q.get('tema')) ? q.get('tema') : 'passagem'; free.empty = tileEmptyOn(); free.battle = null;
+    free.desc = tileDescribe(F, free, { tema: free.tema });
     return free;
   }
   const t = wfPickTile(F, size, q.has('ti') ? +q.get('ti') : NaN, q.has('tj') ? +q.get('tj') : NaN), n = wfNode(F, t.i, t.j);
   const win = wfWindow(F, n.x, n.z, size, { tile: true, ti: t.i, tj: t.j, kind: q.get('tipo') === 'cidade' ? 'cidade' : 'natureza' });
   win.neighbors = wfTrails(F, t.i, t.j);
   win.openings = wfOpenings(F, win, t.i, t.j);
-  for (const o of win.openings) o.side = o.x <= 2 ? 'W' : o.x >= size - 3 ? 'E' : o.z <= 2 ? 'N' : 'S';
+  mapTileDescribe(win, q);
   return win;
+}
+// Tema (?tema=; sem ele, sorteio pela semente com ?temas=% de tiles temáticos), batalha (?batalha=&entrada=...) e descritor do tile (js/macro/tile.js).
+// Guarda win.tema, win.battle e win.desc; win.empty = tile vazio (4A: só terreno e borda; ?cidade=1 mantém a cidade central da etapa 3).
+function mapTileDescribe(win, q) {
+  const F = win.F, tema = tileThemeOk(q.get('tema')) ? q.get('tema') : tileThemeFor(F.seed, win.ti, win.tj, q.get('temas'));
+  win.tema = tema; win.empty = tileEmptyOn();
+  win.battle = tileBattle(win.openings, q.get('batalha'), q.get('entrada'), q.get('entrada2'), q.get('estac'));
+  win.desc = tileDescribe(F, win, { tema, batalha: win.battle });
 }
 
 // Relevo da janela: altura de cada bloco vem direto do campo (substitui reliefTerrain). Rios são vales do próprio campo.
@@ -52,7 +62,7 @@ function mapTileSite(cand) {
 // 8 blocos para dentro (o A* de roadTiles não chega à última fileira) e um trecho reto liga esse ponto à borda. Abertura sem estrada possível (água no
 // caminho, sem portão aberto) fica como trilha natural: a borda continua aberta ali.
 function tileTrailLinks(cities) {
-  const win = WORLD.win; if (!win || !win.openings.length || !cities.length) return;
+  const win = WORLD.win; if (!win || win.empty || !win.openings.length || !cities.length) return;
   const c = WORLD.home || cities[0], dirs = [['E', 1, 0], ['W', -1, 0], ['S', 0, 1], ['N', 0, -1]];
   for (const o of win.openings) {
     const inx = o.side === 'W' ? 1 : o.side === 'E' ? -1 : 0, inz = o.side === 'N' ? 1 : o.side === 'S' ? -1 : 0;
@@ -135,8 +145,15 @@ function tileScenario() {
 }
 // Depois do mundo pronto: ?pos=borda começa dentro da primeira abertura, olhando para fora (para conferir a continuidade com o vizinho).
 function tileAfter() {
-  const win = WORLD.win, o = win && win.openings[0];
-  if (new URLSearchParams(location.search).get('pos') === 'borda' && o) tilePlaceAt(o);
+  const win = WORLD.win, o = win && win.openings[0], q = new URLSearchParams(location.search);
+  if (win && win.empty) tilePlaceFree(o && q.get('pos') !== 'centro' ? o : null);
+  else if (q.get('pos') === 'borda' && o) tilePlaceAt(o);
+}
+// Tile vazio: o jogador começa na abertura (olhando para dentro do tile) ou, sem aberturas, no centro.
+function tilePlaceFree(o) {
+  if (o) { tilePlaceAt(o); return }
+  const f = freeSpot(W >> 1, W >> 1, 0.5, 1.8, 0.45);
+  P.x = f[0]; P.z = f[1]; P.y = tH(P.x, P.z) + 0.1; P.vx = P.vz = P.vy = 0; P.camY = P.y; P.pitch = -0.05;
 }
 function tilePlaceAt(o) {
   const x = clamp(o.x + o.ix * 14, 2, W - 3), z = clamp(o.z + o.iz * 14, 2, W - 3), f = freeSpot(x, z, 0.5, 1.8, 0.45);
@@ -145,9 +162,11 @@ function tilePlaceAt(o) {
 }
 // Endereço do tile (i,j) mantendo os outros parâmetros da URL.
 function tileUrl(i, j) {
-  const q = new URLSearchParams(location.search); q.set('ti', i); q.set('tj', j); q.delete('pos');
+  const q = new URLSearchParams(location.search); q.set('ti', i); q.set('tj', j); q.delete('pos'); q.delete('tema');
   return '?' + q.toString();
 }
+// Endereço do mesmo tile com outro tema (?tema=).
+function tileThemeUrl(t) { const q = new URLSearchParams(location.search); q.set('tema', t); q.delete('pos'); return '?' + q.toString() }
 // Endereço da janela livre deslocada (dx,dz) blocos do centro atual (continuidade: o terreno comum às duas janelas tem de ser igual).
 function tileShiftUrl(dx, dz) {
   const win = WORLD.win, q = new URLSearchParams(location.search);
@@ -179,9 +198,12 @@ function tileScenarioHtml() {
   const win = WORLD.win; if (!win) return '';
   const links = win.neighbors.map(t => '<a class="alt" style="margin:2px;padding:3px 8px;border:1px solid #888;border-radius:4px;display:inline-block;color:inherit" href="' + tileUrl(t.i, t.j) + '">' + txtTileDirLabel(t) + '</a>').join('');
   const shift = [[-128, 0, '←'], [128, 0, '→'], [0, -128, '↑'], [0, 128, '↓']].map(k => '<a style="margin:2px;padding:3px 8px;border:1px solid #888;border-radius:4px;display:inline-block;color:inherit" href="' + tileShiftUrl(k[0], k[1]) + '">' + k[2] + '</a>').join('');
+  const themes = TILE_THEMES.map(t => '<a style="margin:2px;padding:2px 6px;border:1px solid ' + (t === win.tema ? '#e0c040' : '#888') + ';border-radius:4px;display:inline-block;color:inherit" href="'
+    + tileThemeUrl(t) + '">' + TXT_TILE_THEME[t] + '</a>').join('');
   return '<p class="ptitle">' + TXT_TILE_TITLE + '</p><p class="ldsm" style="margin:2px 0 4px">' + txtTileInfo(win) + '</p>'
     + '<img src="' + tileWorldImage() + '" style="width:252px;image-rendering:pixelated;border:1px solid #555"><p class="ldsm">' + TXT_TILE_MAPHELP + '</p>'
     + '<p class="ldsm"><b>' + TXT_TILE_NEIGHBORS + '</b> ' + (links || TXT_TILE_NONEIGHBOR) + '</p>'
+    + '<p class="ldsm"><b>' + TXT_TILE_THEMES + '</b> ' + themes + '</p>'
     + '<p class="ldsm"><b>' + TXT_TILE_SHIFT + '</b> ' + shift + '</p>'
     + '<button class="alt" data-tile="border">' + TXT_TILE_GOBORDER + '</button><br><button class="alt" data-scn="reload">↻ Recomeçar o cenário</button><hr style="border-color:#444">';
 }

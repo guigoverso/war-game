@@ -26,9 +26,26 @@ const TXT_TILE_TITLE = '🧪 Teste de tile (janela do campo do mundo)';
 
 // Dados do tile no painel. win = WORLD.win (formato do mundo, posição na grade, tipo, tamanho, aberturas e trilhas).
 const txtTileInfo = win =>
-  'Formato do mundo: <b>' + win.F.fmtName + '</b> • ' + (win.free ? '<b>janela livre</b>' : 'tile <b>' + win.ti + ',' + win.tj + '</b>') + ' (' + win.kind + ', ' + win.size + '×' + win.size + ') • centro no mundo ('
+  'Formato do mundo: <b>' + win.F.fmtName + '</b> • ' + (win.free ? '<b>janela livre</b>' : 'tile <b>' + win.ti + ',' + win.tj + '</b>') + ' (' + win.size + '×' + win.size + ') • centro no mundo ('
   + win.cx + ', ' + win.cz + ') • ' + win.neighbors.length + ' trilha(s), ' + win.openings.length + ' abertura(s) na borda'
-  + (win.openings.length ? ' (' + win.openings.map(o => o.dir + (o.road ? '' : ' sem estrada')).join(', ') + ')' : '') + '.';
+  + (win.openings.length ? ' (' + win.openings.map(o => o.dir + (o.road ? '' : ' sem estrada')).join(', ') + ')' : '') + '.'
+  + (win.desc ? txtTileDesc(win) : '');
+
+// Rótulo de cada tema de tile (painel do cenário de tile).
+const TXT_TILE_THEME = { cidade: 'Cidade', vila: 'Vila', fazenda: 'Fazenda', mina: 'Mina', serraria: 'Serraria', animais: 'Animais', ponte: 'Ponte',
+  fortaleza: 'Fortaleza', ruinas: 'Ruínas', passagem: 'Passagem' };
+// Linha do descritor do tile no painel: tema, terreno (água e biomas), adequação do terreno ao tema, batalha e se o tile está vazio. win = WORLD.win.
+const txtTileDesc = win => {
+  const d = win.desc, t = d.terreno, bn = ['planície', 'floresta', 'deserto', 'neve', 'rocha'], b = t.biomas;
+  return '<br>Tema: <b>' + TXT_TILE_THEME[d.tema] + '</b> • terreno: ' + Math.round(t.agua * 100) + '% água; '
+    + bn.map((n, k) => Math.round(b[k] * 100) + '% ' + n).join(', ') + ' (da terra) • adequação ao tema ' + Math.round(d.adequacao * 100) + '%'
+    + (d.batalha ? ' • batalha <b>' + d.batalha.tipo + '</b>: atacante entra por ' + (d.batalha.entradaAtacante || '—')
+      + (d.batalha.entradaDefensor ? ', defensor por ' + d.batalha.entradaDefensor : '') + (d.batalha.estacionado ? ', estacionado: ' + d.batalha.estacionado : '')
+      + (d.batalha.ajustada ? ' (entrada pedida não existe: ajustada)' : '') : '')
+    + (win.empty ? ' • <i>tile vazio (só terreno e bordas; POIs vêm na 4E)</i>' : '');
+};
+// Rótulo do atalho que troca o tema do tile atual (painel do cenário de tile).
+const TXT_TILE_THEMES = 'Trocar o tema:';
 
 // Legenda da imagem do mundo no painel do cenário de tile.
 const TXT_TILE_MAPHELP = 'Quadrado vermelho = este tile; pontos brancos = centros da grade; linhas claras = trilhas. A grade é provisória (etapa 5 troca por um grafo).';

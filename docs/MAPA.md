@@ -6,7 +6,7 @@ Se renomear ou mover algo listado aqui, atualize esta página.
 ## Camadas (etapa 2 do plano do mapa mundi; `js/` em pastas, scripts continuam globais)
 Pastas só organizam; a **ordem de carga** é a do `index.html` (não mudou). Os nomes dos arquivos abaixo seguem exatos; a pasta de cada um:
 - **`js/core/`** (base compartilhada): `util`, `render`, `voxel`, `phys`, `state`, `data`, `save`, `game` (laço principal e entrada, carrega por último).
-- **`js/macro/`** (**regra: não usa Three.js nem DOM**): `econ`, `facsupply`, `meetfx`, `warops`, `worldfield` (etapa 3). Conferido por `node tests/macro/run.js` (carrega esta pasta num `vm` sem `THREE`/`document`).
+- **`js/macro/`** (**regra: não usa Three.js nem DOM**): `econ`, `facsupply`, `meetfx`, `warops`, `worldfield` (etapa 3), `tile` (etapa 4A). Conferido por `node tests/macro/run.js` (carrega esta pasta num `vm` sem `THREE`/`document`).
 - **`js/local/`** (mapa local: terreno, cidades, entidades, POIs): `world`, `city`, `cityfoot`, `reserve`, `rivers`, `nav`, `entities`, `weapons`, `allies`, `poi`, `pois`, `poigame`, `quests`, `ambient`, `dungeon`, `office`, `fishing`, `cooking`, `tiletest`, `rebmine`, `mapwin` (etapa 3).
 - **`js/ui/`** (telas e painéis): `ui`, `inventory`, `store`, `book`, `bookmap`, `warbook`, `flageditor`, `negoc`.
 - **Ainda na raiz de `js/`** (misturam regra macro com DOM/mapa; serão separados nas etapas 5 a 8): `rounds`, `factions`, `facgraph`, `facevents`, `policies`, `war`, `warfront`, `missions`, `globalev`, `meeting`, `raids`, `caravans`, `rebellion`, `warehouse`, `scenario`.
@@ -24,6 +24,13 @@ Pastas só organizam; a **ordem de carga** é a do `index.html` (não mudou). Os
 - Números em `WORLD_FIELD` e funções `mapTileOn`/`mapWorldOn`/`mapTileSize` (`modifiers/map-modifiers.js`); textos `TXT_TILE_*`/`txtTile*` (`texts/map-texts.js`).
 - URL: `?cenario=tile&auto=1&mute=1` (`&ti=&tj=` tile da grade, `&tipo=cidade` janela de 320 (padrão 256), `&forma=`, `&wx=&wz=` janela livre, `&pos=borda`); `?mundo=1` gera o mapa normal (704) como janela do campo, sem trilhas (borda toda fechada).
 - Teste em Node: `cd tests && node macro/campo.js [semente] [--mapa]` (terra por formato, borda do mundo é mar, determinismo, biomas, continuidade entre janelas, trilhas simétricas, aberturas, plano da borda com globais falsas).
+
+**Etapa 4A (base do tile; `docs/features/8_tiles-e-vilas.md`, plano `9_plano-implementacao-tiles.md`):**
+- `modifiers/map-modifiers.js`: `TILE_SIZE` (384, único; `WORLD_FIELD.spacing` o usa e `sizeCity/sizeNature` foram removidos), `TILE_THEMES` (10 temas), `TILE_THEME_BIOMES`, `TILE_THEME_WEIGHT` (proporção entre temas), `TILE_THEMED_PCT` (% de tiles com tema; `?temas=70`), `TILE_COMPOSE` + `TILE_CHESTS` (tabela de composição por tema, só dados: a 4E lê), `TILE_BATTLES`, `tileEmptyOn()`; `mapTileSize()` lê `?tam=`.
+- `macro/tile.js` (sem Three.js/DOM): `tileThemeFor(seed,i,j,pct)`, `tileThemedPct`, `tileTerrain`/`tileFit` (terreno medido e adequação ao tema), `tileEntrance`/`tileBattle` (descritor de batalha `{tipo, entradaAtacante, entradaDefensor, estacionado}`), `tileDescribe` -> `{seed, tema, terreno, adequacao, saidas, dono, batalha}`. `wfOpenings` agora devolve `side`; `wfPickTile` evita tile cuja trilha não abre a borda (`tileOpenPenalty`).
+- `local/mapwin.js`: `mapTileDescribe` guarda `WORLD.win.tema/.battle/.desc/.empty`; com `?cenario=tile` o tile abre **vazio** (sem POIs, estradas nem prédios; `world.js` pula `buildCity`, estradas, `genPOIs` e deixa uma cidade-âncora de `half:1`, porque o jogo exige `WORLD.home`); `?cidade=1` devolve a cidade central da etapa 3. `tilePlaceFree` põe o jogador na primeira abertura.
+- URL: `?cenario=tile&tema=fazenda&tam=384&batalha=defesa&entrada=L` (`L`/`O`/`N`/`S`; `&entrada2=` e `&estac=atacante|defensor` no choque); sem `?tema=` o tema sai do sorteio por `?temas=`. Painel (pausa, aba Facções): tema, terreno, batalha e atalhos de tema.
+- Testes: `node tests/macro/tile.js`, `cd tests && node tile.js` (15 casos no navegador, 10 temas, batalhas, tile vazio, lado 384).
 
 **Testes novos:** `node tests/macro/run.js` (macro em Node: `tests/macro/carregar.js` carrega scripts num `vm`; hoje confere economia determinística), `cd tests && node mundo-hash.js <raiz> seed=11 "seed=5&reserva=1"` (impressão digital do mundo; rode na raiz antiga e na nova para comparar).
 

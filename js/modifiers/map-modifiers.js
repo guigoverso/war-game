@@ -28,14 +28,44 @@ const TILE_TEST = {
 // Verdadeiro quando o cenário de teste de batalha está ligado pela URL.
 const tileTestOn = () => new URLSearchParams(location.search).get('cenario') === 'batalha';
 
+// ---------- Etapa 4 do plano: tiles com tema (feature 8, docs/features/8_tiles-e-vilas.md; plano em 9_plano-implementacao-tiles.md) ----------
+// Lado do tile (mapa local), em blocos, igual para TODOS os tiles (múltiplo de 32). ?tam=N troca só para teste. Padrão: 384
+const TILE_SIZE = 384;
+// Temas de tile (o tema decide o POI principal e a composição). 'passagem' = tile sem tema, fora das rotas, sem vila nem comércio.
+const TILE_THEMES = ['cidade', 'vila', 'fazenda', 'mina', 'serraria', 'animais', 'ponte', 'fortaleza', 'ruinas', 'passagem'];
+// Biomas em que cada tema nasce (0 planície, 1 floresta, 2 deserto, 3 neve, 4 rocha; lista vazia = qualquer; ponte = água). Padrão: tabela da rodada 2
+const TILE_THEME_BIOMES = { cidade: [], vila: [], fazenda: [0, 2], mina: [3, 4], serraria: [1], animais: [1], ponte: [], fortaleza: [], ruinas: [], passagem: [] };
+// Peso de cada tema ao sortear o tema de um tile temático (proporção inicial de um mundo de ~36 nós: 5 a 7 cidades, 7 a 9 vilas, ~10 de recurso,
+// 2 a 3 fortalezas, 2 a 3 pontes, 1 a 2 ruínas). Padrão: cidade 6, vila 8, fazenda 4, mina 3, serraria 3, animais 2, ponte 2.5, fortaleza 2.5, ruínas 1.5
+const TILE_THEME_WEIGHT = { cidade: 6, vila: 8, fazenda: 4, mina: 3, serraria: 3, animais: 2, ponte: 2.5, fortaleza: 2.5, ruinas: 1.5 };
+// Porcentagem de tiles COM tema (o resto é passagem) quando o jogador não escolhe. Opção da criação do mundo; por enquanto ?temas=N na URL. Limites 0 a 100. Padrão: 70
+const TILE_THEMED_PCT = { def: 70, min: 0, max: 100 };
+// Composição de POIs por tema (tabela aprovada da feature 8): principal, tema (min a max entre as opções) e ambiente (min a max entre as opções);
+// baús escondidos em todo tile. As opções são ids de POI (ou 'qualquer' = qualquer POI, com peso pelo terreno). Só dados: o gerador (4E) lê.
+const TILE_CHESTS = [6, 10];
+const TILE_COMPOSE = {
+  cidade:   { main: 'cidade', theme: [4, 5, ['qualquer']], ambient: [3, 5, ['acampamento', 'bando', 'gruta']] },
+  vila:     { main: 'vila', theme: [4, 5, ['pousada', 'taverna', 'fazenda_pequena', 'santuario', 'entreposto']], ambient: [3, 5, ['acampamento', 'bando', 'gruta', 'torre_vigia']] },
+  fazenda:  { main: 'fazenda', theme: [4, 5, ['fazenda_pequena', 'plantacao', 'pousada', 'taverna', 'vila_ou_descanso']], ambient: [6, 8, ['acampamento', 'bando', 'torre_vigia', 'ruinas_rara']] },
+  mina:     { main: 'mina', theme: [4, 5, ['mina_pequena', 'alojamento', 'pousada', 'entreposto', 'vila_ou_descanso']], ambient: [6, 8, ['gruta', 'acampamento', 'bando']] },
+  serraria: { main: 'serraria', theme: [4, 5, ['serraria_pequena', 'alojamento', 'pousada', 'cacadores', 'vila_ou_descanso']], ambient: [6, 8, ['bando', 'acampamento', 'torre_vigia']] },
+  animais:  { main: 'cacadores', theme: [4, 5, ['cacadores_pequeno', 'alojamento', 'pousada', 'santuario']], ambient: [6, 8, ['bando', 'gruta', 'acampamento']] },
+  ponte:    { main: 'ponte', theme: [4, 5, ['pousada', 'taverna', 'entreposto', 'pesca', 'torre_vigia']], ambient: [6, 8, ['acampamento', 'bando']] },
+  fortaleza:{ main: 'forte', theme: [4, 5, ['acampamento_fortificado', 'atalaia', 'trincheira', 'pousada', 'vila_apoio']], ambient: [6, 8, ['acampamento', 'bando', 'gruta']] },
+  ruinas:   { main: 'ruinas', theme: [4, 5, ['ruinas_menor', 'reliquia', 'santuario']], ambient: [6, 8, ['guardioes', 'bando', 'gruta', 'acampamento']] },
+  passagem: { main: null, theme: [0, 2, ['fazenda', 'santuario', 'pousada_abandonada']], ambient: [8, 12, ['caverna', 'acampamento', 'bando', 'matilha']] }
+};
+// Tipos de batalha no tile (rodada 8): conquista (a facção ataca o POI principal), defesa (a facção está no principal e repele) e choque (dois batalhões).
+const TILE_BATTLES = ['conquista', 'defesa', 'choque'];
+// Verdadeiro com ?cenario=tile (a 4A abre o tile VAZIO: só terreno, borda e aberturas; ?cidade=1 devolve a cidade central da etapa 3).
+const tileEmptyOn = () => mapTileOn() && new URLSearchParams(location.search).get('cidade') !== '1';
+
 // ---------- Etapa 3 do plano: campo do mundo e mapa local por janela (atrás de ?mundo=1 e de ?cenario=tile) ----------
 // O mundo é uma FUNÇÃO de posição (js/macro/worldfield.js); o mapa local é uma janela dessa função. Valores = ponto de partida, a calibrar.
 const WORLD_FIELD = {
   // Grade PROVISÓRIA de tiles (a etapa 5 troca por um grafo): quantos tiles de lado, distância entre centros e quanto cada centro pode sair do lugar
-  // (em blocos). Mundo = tiles x spacing de lado. Padrão: 7, 288, 48
-  tiles: 7, spacing: 288, jitter: 48,
-  // Tamanho da janela por tipo de tile, em blocos (múltiplo de 32). Padrão: cidade 320, natureza 256
-  sizeCity: 320, sizeNature: 256,
+  // (em blocos). Mundo = tiles x spacing de lado. A distância é o TILE_SIZE (tiles vizinhos se encostam). Padrão: 7, TILE_SIZE (384), 48
+  tiles: 7, spacing: TILE_SIZE, jitter: 48,
   // Formatos do mundo (landMask em escala de mundo). Padrão: continentes, pangeia, arquipélagos e grande lago
   formats: ['continentes', 'pangeia', 'arquipelagos', 'lago'],
   // Largura da transição terra-mar em unidades do mundo (1 = metade do mundo, ~1000 blocos). Menor = costa mais curta. Padrão: 0.12
@@ -53,9 +83,14 @@ const WORLD_FIELD = {
   // Detalhe fino do relevo (1 = igual ao mapa antigo; menor = terreno mais liso). Padrão: 0.8
   detail: 0.8
 };
-// ?cenario=tile mostra um tile da grade (?ti=&tj= escolhe; ?tipo=cidade usa a janela de cidade; ?forma= escolhe o formato; ?pos=borda começa na primeira abertura).
+// ?cenario=tile mostra um tile da grade: ?ti=&tj= escolhe; ?tema=fazenda o tema (sem ele sai do sorteio por ?temas=70); ?tam=384 o lado; ?forma= o formato do mundo;
+// ?pos=borda começa na primeira abertura; ?batalha=defesa&entrada=L descreve uma batalha (conquista|defesa|choque; &entrada2=O segundo lado do choque;
+// &estac=atacante|defensor = quem já estava no tile).
 const mapTileOn = () => new URLSearchParams(location.search).get('cenario') === 'tile';
 // ?mundo=1 (ou o cenário de tile) gera o mapa local como janela do campo do mundo, em vez do mapa antigo.
 const mapWorldOn = () => mapTileOn() || new URLSearchParams(location.search).get('mundo') === '1';
-// Lado da janela de tile pedida pela URL (?tipo=cidade = sizeCity; qualquer outro = sizeNature).
-const mapTileSize = () => new URLSearchParams(location.search).get('tipo') === 'cidade' ? WORLD_FIELD.sizeCity : WORLD_FIELD.sizeNature;
+// Lado do tile: TILE_SIZE, ou ?tam=N (arredondado a múltiplo de 32, entre 128 e 768).
+const mapTileSize = () => {
+  const t = +new URLSearchParams(location.search).get('tam');
+  return t ? Math.max(128, Math.min(768, Math.round(t / 32) * 32)) : TILE_SIZE;
+};

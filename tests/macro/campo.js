@@ -41,8 +41,8 @@ const tr=run(`(()=>{const F=wfCreate(${seed},{format:'pangeia'}),N=WORLD_FIELD.t
   return{n,sim,path}})()`);
 ok(tr.n>0,'trilhas existem na grade ('+tr.n+' pontas)');ok(tr.sim,'trilhas simétricas entre vizinhos');ok(tr.path,'traçado da trilha igual dos dois lados');
 // aberturas: dentro da janela, na borda, com terra
-const ab=run(`(()=>{const F=wfCreate(${seed},{format:'pangeia'}),t=wfPickTile(F,256),n=wfNode(F,t.i,t.j),w=wfWindow(F,n.x,n.z,256),o=wfOpenings(F,w,t.i,t.j),tl=wfTrails(F,t.i,t.j);
-  return{t,n:o.length,trails:tl.length,borda:o.every(a=>a.x<=2||a.z<=2||a.x>=253||a.z>=253),terra:o.every(a=>wfHeight(F,w.ox+a.x,w.oz+a.z)>=wfSea()+1),frac:wfLandFrac(F,w.ox,w.oz,256)}})()`);
+const ab=run(`(()=>{const F=wfCreate(${seed},{format:'pangeia'}),t=wfPickTile(F,384),n=wfNode(F,t.i,t.j),w=wfWindow(F,n.x,n.z,384),o=wfOpenings(F,w,t.i,t.j),tl=wfTrails(F,t.i,t.j);
+  return{t,n:o.length,trails:tl.length,borda:o.every(a=>a.x<=2||a.z<=2||a.x>=381||a.z>=381),terra:o.every(a=>wfHeight(F,w.ox+a.x,w.oz+a.z)>=wfSea()+1),frac:wfLandFrac(F,w.ox,w.oz,384)}})()`);
 ok(ab.n>0&&ab.n<=ab.trails,'tile padrão '+ab.t.i+','+ab.t.j+': '+ab.n+' abertura(s) para '+ab.trails+' trilha(s)');
 ok(ab.borda,'aberturas ficam na borda da janela');ok(ab.terra,'aberturas têm terra');
 ok(ab.frac>=0.45,'tile padrão tem '+(ab.frac*100).toFixed(0)+'% de terra (>=45%)');
@@ -52,19 +52,19 @@ ok(ab.frac>=0.45,'tile padrão tem '+(ab.frac*100).toFixed(0)+'% de terra (>=45%
   const vm=require('vm'),fs=require('fs'),path=require('path');
   const {ctx,run:r2}=require('./carregar')();
   ctx.document={addEventListener(){}};ctx.location.search='?cenario=tile&seed='+seed;
-  vm.runInContext("var SEA=10,W=256,H=new Int16Array(256*256),T=new Uint8Array(256*256),B=new Uint8Array(256*256),WORLD={seed:"+seed+"},Col={n:0,add(){this.n++}};"
+  vm.runInContext("var SEA=10,W=384,H=new Int16Array(384*384),T=new Uint8Array(384*384),B=new Uint8Array(384*384),WORLD={seed:"+seed+"},Col={n:0,add(){this.n++}};"
     +"const T_NAT=0,BIO_DESERT=2,BIO_SNOW=3,BIO_ROCK=4;const addTree=()=>{},addRock=()=>{};",ctx);
   vm.runInContext(fs.readFileSync(path.resolve(__dirname,'../../js/local/mapwin.js'),'utf8'),ctx,{filename:'mapwin.js'});
   const w=r2(`(()=>{const win=mapWindowPick(${seed},'plains');WORLD.win=win;reliefField({win});reliefFieldBiomes({win});tileBorderPlan();
     let band=0,solid=0;for(const v of win.band){if(v)band++;if(v===2)solid++}
     // as aberturas ficam livres: nenhuma célula da faixa no corredor
     let livre=true;for(const o of win.openings){for(let k=0;k<=WORLD_FIELD.gapDepth;k++){const x=o.x+(o.side==='W'?k:o.side==='E'?-k:0),z=o.z+(o.side==='N'?k:o.side==='S'?-k:0);
-      if(win.band[Math.max(0,Math.min(255,z))*256+Math.max(0,Math.min(255,x))])livre=false}}
+      if(win.band[Math.max(0,Math.min(383,z))*384+Math.max(0,Math.min(383,x))])livre=false}}
     // a altura do mapa local é a do campo
-    let igual=true;for(let k=0;k<400;k++){const x=k*7%256,z=k*13%256;if(H[z*256+x]!==wfHeight(win.F,win.ox+x,win.oz+z))igual=false}
+    let igual=true;for(let k=0;k<400;k++){const x=k*7%384,z=k*13%384;if(H[z*384+x]!==wfHeight(win.F,win.ox+x,win.oz+z))igual=false}
     Col.n=0;tileBorderBuild();
     return{tile:win.ti+','+win.tj,size:win.size,aber:win.openings.length,band,solid,livre,igual,paredes:Col.n,sides:win.openings.map(o=>o.side)}})()`);
-  ok(w.size===256,'janela de tile: lado 256');
+  ok(w.size===384,'janela de tile: lado 384 (TILE_SIZE)');
   ok(w.igual,'mapa local = campo do mundo (alturas iguais)');
   ok(w.band>500&&w.solid>200,'borda: '+w.band+' células de faixa, '+w.solid+' de parede');
   ok(w.livre,'aberturas ('+w.sides.join(',')+') livres de faixa');
