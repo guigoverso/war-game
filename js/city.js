@@ -448,7 +448,20 @@ function cityWallSync(){
   for(const c of WORLD.cities)if(c.owner==='player'){const lvl=cityLvl(c);if(c.wallLvl!==lvl){cityWallRebuild(c,lvl,true);any=true}else citySentrySync(c)}
   if(any)buildNav();
 }
-function cityWallDraw(c,wt,rng){
+// uma torre 3x3 ancorada em (tx,tz) (coordenadas locais do centro da cidade): colisão, blocos, ameias, bandeira e registro em c.towers
+function cityTowerDraw(c,wt,wc,tx,tz){
+  {const tc=wt==='stone'?shadec(wc,0.95):0x5a3d22;
+   addCol(c.cx+tx,c.y-4,c.cz+tz,c.cx+tx+3,c.y+6.5,c.cz+tz+3);
+   [[-4,0.5],[0.5,2],[2,3.5],[3.5,5],[5,6.5]].forEach((q,k)=>Bc(c,tx,q[0],tz,tx+3,q[1],tz+3,shadec(tc,k%2?1.08:0.92),false,{j:0.05}));
+   Bc(c,tx-0.2,5.8,tz-0.2,tx+3.2,6.5,tz+3.2,shadec(tc,1.12),false,{j:0.04});
+   for(const k of[0,1,2,3]){const sl=[[1.35,-0.04,1.65,0.02],[1.35,2.98,1.65,3.04],[-0.04,1.35,0.02,1.65],[2.98,1.35,3.04,1.65]][k];Bc(c,tx+sl[0],3,tz+sl[1],tx+sl[2],4.1,tz+sl[3],0x1a1a1a,false,{j:0})}}
+  for(const [a,b] of[[0,0],[2,0],[0,2],[2,2],[1,0],[0,1],[2,1],[1,2]])Bc(c,tx+a,6.5,tz+b,tx+a+1,7.1,tz+b+1,wc,false);
+  Bc(c,tx,6.4,tz,tx+3,6.5,tz+3,0x555555,false,{j:0});
+  c.towers.push({x:c.cx+tx+1.5,z:c.cz+tz+1.5,y:c.y+6.5});
+  addFlag(c,tx+1.5,7.1,tz+1.5,2.6);
+}
+// muro quadrado em torno da caixa `half` (cidades sem pegada: mapas de teste)
+function cityWallDrawBox(c,wt,rng){
   const Hc=c.half,S=c.S,cha=c.style==='caotica';
     const wc=wt==='stone'?(c.biome===BIO_DESERT?0xd2c08a:0x8a8a8a):0x6b4a2a;
     const lo=-Hc-1,hi=Hc+2;
@@ -489,20 +502,74 @@ function cityWallDraw(c,wt,rng){
       const tpos=[];
       for(const sx of[-1,1])for(const sz of[-1,1])tpos.push([sx>0?Hc:-Hc-2,sz>0?Hc:-Hc-2]);
       for(let a=S+16;a<Hc-6;a+=24)for(const sg of[-1,1]){const q=sg*a;tpos.push([q-1,-Hc-2],[q-1,Hc],[-Hc-2,q-1],[Hc,q-1])}
-      for(const [tx,tz] of tpos){
-        {const tc=wt==='stone'?shadec(wc,0.95):0x5a3d22;
-         addCol(c.cx+tx,c.y-4,c.cz+tz,c.cx+tx+3,c.y+6.5,c.cz+tz+3);
-         [[-4,0.5],[0.5,2],[2,3.5],[3.5,5],[5,6.5]].forEach((q,k)=>Bc(c,tx,q[0],tz,tx+3,q[1],tz+3,shadec(tc,k%2?1.08:0.92),false,{j:0.05}));
-         Bc(c,tx-0.2,5.8,tz-0.2,tx+3.2,6.5,tz+3.2,shadec(tc,1.12),false,{j:0.04});
-         for(const k of[0,1,2,3]){const sl=[[1.35,-0.04,1.65,0.02],[1.35,2.98,1.65,3.04],[-0.04,1.35,0.02,1.65],[2.98,1.35,3.04,1.65]][k];Bc(c,tx+sl[0],3,tz+sl[1],tx+sl[2],4.1,tz+sl[3],0x1a1a1a,false,{j:0})}}
-        for(const [a,b] of[[0,0],[2,0],[0,2],[2,2],[1,0],[0,1],[2,1],[1,2]])Bc(c,tx+a,6.5,tz+b,tx+a+1,7.1,tz+b+1,wc,false);
-        Bc(c,tx,6.4,tz,tx+3,6.5,tz+3,0x555555,false,{j:0});
-        c.towers.push({x:c.cx+tx+1.5,z:c.cz+tz+1.5,y:c.y+6.5});
-        addFlag(c,tx+1.5,7.1,tz+1.5,2.6);
-      }
+      for(const [tx,tz] of tpos)cityTowerDraw(c,wt,wc,tx,tz);
     }
 }
 
+// desenha o muro da cidade (tipo wt): segue a borda da pegada; sem pegada, o quadrado antigo
+function cityWallDraw(c,wt,rng){
+  if(!c.foot)return cityWallDrawBox(c,wt,rng);
+  const Hc=c.half,S=c.S,cha=c.style==='caotica',E=c.gedge;
+  const wc=wt==='stone'?(c.biome===BIO_DESERT?0xd2c08a:0x8a8a8a):0x6b4a2a;
+  // blocos do muro: anel de blocos fora da pegada, colados nela (inclusive na diagonal), em terra e fora da abertura dos portões
+  const O=c.gland;   // portões abertos; os que dão para o mar ficam com o muro fechado
+  const inGate=(x,z)=>(O.E&&x>0&&x>=E.E-1&&Math.abs(z)<=S)||(O.W&&x<0&&-x>=E.W-1&&Math.abs(z)<=S)||(O.S&&z>0&&z>=E.S-1&&Math.abs(x)<=S)||(O.N&&z<0&&-z>=E.N-1&&Math.abs(x)<=S);
+  const ring=[];
+  for(let z=-Hc-1;z<=Hc+1;z++)for(let x=-Hc-1;x<=Hc+1;x++){
+    if(cityIn(c,x,z))continue;
+    let adj=false;for(let dz=-1;dz<=1&&!adj;dz++)for(let dx=-1;dx<=1;dx++)if(cityIn(c,x+dx,z+dz)){adj=true;break}
+    const wx=c.cx+x,wz=c.cz+z;
+    if(!adj||inGate(x,z)||wx<0||wz<0||wx>=W||wz>=W||H[wz*W+wx]<SEA+1)continue;
+    const tt=getT(wx,wz);if(tt===T_ROAD||tt===T_BRIDGE)continue;   // onde passa estrada o muro abre (nada de muro sobre o caminho)
+    ring.push([x,z]);
+  }
+  const hasR=new Set(ring.map(q=>q[0]+','+q[1]));
+  if(wt==='stone'){   // colisão em faixas horizontais (uma caixa por trecho contínuo de cada linha)
+    const rows=new Map();for(const [x,z] of ring){if(!rows.has(z))rows.set(z,[]);rows.get(z).push(x)}
+    for(const [z,xs] of rows){
+      xs.sort((a,b)=>a-b);let a0=xs[0],pv=xs[0];
+      for(let k=1;k<=xs.length;k++){
+        if(k<xs.length&&xs[k]===pv+1){pv=xs[k];continue}
+        addCol(c.cx+a0,c.y-3,c.cz+z,c.cx+pv+1,c.y+3,c.cz+z+1);
+        if(k<xs.length){a0=xs[k];pv=xs[k]}
+      }
+    }
+  }
+  for(const [x,z] of ring){
+    if(wt==='palisade'&&!(cha&&rng.chance(0.1))){
+      const hh=rng.range(2.8,3.7),pc=shadec(wc,rng.range(0.85,1.15));
+      Bc(c,x,-3,z,x+1,hh,z+1,pc,true,{j:0.08});Bc(c,x+0.25,hh,z+0.25,x+0.75,hh+0.45,z+0.75,pc,false,{j:0.08});
+      for(const y of[0.8,2.0])Bc(c,x-0.05,y,z-0.05,x+1.05,y+0.3,z+1.05,0x4a3320,false,{j:0.03});
+    }else if(wt==='stone'){
+      const bk=(ya,yb,col)=>Bc(c,x,ya,z,x+1,yb,z+1,col,false,{j:0.04});
+      bk(-3,0.6,shadec(wc,0.8+rng.range(0,0.2)));bk(0.6,1.8,shadec(wc,0.88+rng.range(0,0.22)));bk(1.8,3,shadec(wc,0.9+rng.range(0,0.22)));
+      if((x+z)%2===0)bk(3,3.7,shadec(wc,0.95+rng.range(0,0.15)));
+    }else if(wt==='fence'){
+      Bc(c,x,0.5,z+0.35,x+1,0.7,z+0.65,0x7a5a30,true);Bc(c,x+0.35,0.5,z,x+0.65,0.7,z+1,0x7a5a30,true);
+      Bc(c,x+0.3,0,z+0.3,x+0.7,1.1,z+0.7,0x5a3d22,true);
+    }
+  }
+  if(wt==='fence')return;
+  // portões: dois pilares e uma viga sobre a rua principal, em cada um dos 4 eixos, e uma bandeira
+  const gp=(x,z)=>Bc(c,x,-3,z,x+1,5,z+1,wt==='stone'?shadec(wc,0.9):0x4a3320,true);
+  const gates=[['E',E.E+1,0],['W',-E.W-1,0],['S',0,E.S+1],['N',0,-E.N-1]];
+  const towerAt=[];
+  for(const [d,gx,gz] of gates){
+    if(!O[d])continue;
+    const ew=d==='E'||d==='W';
+    if(ew){gp(gx,-S-1);gp(gx,S+1);Bc(c,gx,4,-S-1,gx+1,4.8,S+2,0x4a3320,false);addFlag(c,gx+0.5,5,-S-0.5,2.2);towerAt.push([gx-1,-S-4],[gx-1,S+2])}
+    else{gp(-S-1,gz);gp(S+1,gz);Bc(c,-S-1,4,gz,S+2,4.8,gz+1,0x4a3320,false);addFlag(c,-S-0.5,5,gz+0.5,2.2);towerAt.push([-S-4,gz-1],[S+2,gz-1])}
+  }
+  // torres: duas ao lado de cada portão e outras ao longo do muro, afastadas entre si
+  const placed=towerAt.slice();
+  for(const q of rng.shuffle(ring.slice())){
+    if(placed.length>=CITY_FOOT.towerMax)break;
+    const tx=q[0]-1,tz=q[1]-1;
+    if(placed.some(t=>Math.max(Math.abs(t[0]-tx),Math.abs(t[1]-tz))<CITY_FOOT.towerGap))continue;
+    placed.push([tx,tz]);
+  }
+  for(const [tx,tz] of placed)cityTowerDraw(c,wt,wc,tx,tz);
+}
 function buildCity(c,rng){  const Hc=c.half;
   const ps=PAL[c.biome===BIO_ROCK?1:c.biome];
   c.ctype=(WORLD.ctype&&WORLD.ctype[c.id])||null;   // tipo da cidade (ver cityTypePlan, econ.js)
@@ -588,10 +655,19 @@ function buildCity(c,rng){  const Hc=c.half;
     }
   }
   c.streets=streets;
-  for(const s of streets)fillT(c,s,T_STREET);
-  // extremidades das estradas fora do muro
-  for(let k=1;k<=4;k++)for(let w=-1;w<=1;w++){
-    setTL(c,Hc+k,w,T_ROAD);setTL(c,-Hc-k,w,T_ROAD);setTL(c,w,Hc+k,T_ROAD);setTL(c,w,-Hc-k,T_ROAD);
+  cityMarkOut(c);   // fora da pegada (cityfoot.js) nada é construído: os blocos viram T_OUT até o fim desta função
+  const outAny=(r,m)=>{   // algum bloco do retângulo (com margem m) está fora da pegada?
+    if(!c.foot)return false;
+    for(let z=r.z0-m;z<=r.z1+m;z++)for(let x=r.x0-m;x<=r.x1+m;x++)if(getT(c.cx+x,c.cz+z)===T_OUT)return true;
+    return false;
+  };
+  const inFoot=(x,z)=>getT(c.cx+Math.floor(x),c.cz+Math.floor(z))!==T_OUT;
+  for(const s of streets)fillT(c,s,T_STREET,inFoot);
+  // extremidades das estradas fora do muro (a partir da borda da pegada em cada eixo, c.gedge)
+  const GE=c.gedge,GO=c.gland,used=new Set((c.gates||[]).map(g=>g.dir));   // GO: portões abertos (terra do lado de fora); used: portões com estrada
+  for(let k=1;k<=4;k++)for(let w=-1;w<=1;w++){   // ponta de estrada só nos portões que têm estrada (sem tocos soltos)
+    if(used.has('E'))setTL(c,GE.E+k,w,T_ROAD);if(used.has('W'))setTL(c,-GE.W-k,w,T_ROAD);
+    if(used.has('S'))setTL(c,w,GE.S+k,T_ROAD);if(used.has('N'))setTL(c,w,-GE.N-k,T_ROAD);
   }
   // praça
   const plaza={x0:-P,x1:P,z0:-P,z1:P},round=rng.chance(0.4);
@@ -600,6 +676,10 @@ function buildCity(c,rng){  const Hc=c.half;
   const res=[];streets.forEach(s=>res.push({x0:s.x0-1,x1:s.x1+1,z0:s.z0-1,z1:s.z1+1}));
   res.push({x0:-P-1,x1:P+1,z0:-P-1,z1:P+1});
   const houses=[];
+  // com pegada: uma rua reta liga a praça a cada portão (organic e outros layouts podem não passar pelo eixo)
+  if(c.foot)for(const r of[{d:'E',x0:P+1,x1:GE.E,z0:-S,z1:S},{d:'W',x0:-GE.W,x1:-P-1,z0:-S,z1:S},{d:'S',x0:-S,x1:S,z0:P+1,z1:GE.S},{d:'N',x0:-S,x1:S,z0:-GE.N,z1:-P-1}].filter(q=>GO[q.d])){
+    streets.push(r);fillT(c,r,T_STREET,inFoot);res.push({x0:r.x0-1,x1:r.x1+1,z0:r.z0-1,z1:r.z1+1});
+  }
 
   // peça central da praça
   const feat=rng.pick(['fountain','fountain','statue','well','tree']);
@@ -645,9 +725,60 @@ function buildCity(c,rng){  const Hc=c.half;
     for(let k=0;k<5;k++)Bc(c,px-0.8+rng.range(0,1.3),0.65,pz-0.8+rng.range(0,1.3),px-0.5+rng.range(0,1.3),1.1,pz-0.5+rng.range(0,1.3),rng.pick([0xe8454f,0xf2d13d,0xffffff,0xb06ae0,0xff8fb0]),false,{j:0});
   }
   // lampiões ao longo das ruas
-  if(layout!=='organic')for(let t=P+4;t<Hc-2;t+=8){lamp(c,t,S+1.5);lamp(c,-t,-S-1.5);lamp(c,S+1.5,-t);lamp(c,-S-1.5,t)}
+  if(layout!=='organic')for(let t=P+4;t<Hc-2;t+=8){
+    for(const [x,z] of[[t,S+1.5],[-t,-S-1.5],[S+1.5,-t],[-S-1.5,t]])if(inFoot(x,z))lamp(c,x,z);
+  }
 
   // edifícios especiais nos cantos da praça
+  const fcs=[];   // blocos da pegada (para sortear lotes só dentro dela)
+  if(c.foot)for(let z=-Hc;z<=Hc;z++)for(let x=-Hc;x<=Hc;x++)if(cityIn(c,x,z))fcs.push([x,z]);
+  const maxBd=cha?9:mix?8:5.5;   // distância máxima do lote até uma rua
+  const lotAt=(w,d)=>{   // canto de um lote w x d: sorteado na pegada (ou na caixa inteira, sem pegada)
+    if(!fcs.length)return[rng.int(-Hc+3,Hc-3-w),rng.int(-Hc+3,Hc-3-d)];
+    const q=rng.pick(fcs);return[q[0]-(w>>1),q[1]-(d>>1)];
+  };
+  // porta e caminho de um lote: lado voltado para a rua mais próxima e o caminho até ela. {err:código} se o lote não serve
+  const lotDoor=r=>{
+    let best=null,bd=1e9;
+    for(const s of streets){const dx=Math.max(s.x0-r.x1,r.x0-s.x1,0),dz=Math.max(s.z0-r.z1,r.z0-s.z1,0),dd=Math.hypot(dx,dz);if(dd<bd){bd=dd;best={s,dx,dz}}}
+    if(bd>maxBd||bd<1)return{err:4};
+    let D;
+    if(best.dz>=best.dx)D=(best.s.z1<r.z0)?'N':'S';else D=(best.s.x1<r.x0)?'W':'E';
+    const ns=(D==='N'||D==='S');
+    const lo=ns?r.x0:r.z0,hi=ns?r.x1:r.z1;
+    const sLo=ns?best.s.x0:best.s.z0,sHi=ns?best.s.x1:best.s.z1;
+    let p=clamp(Math.round((Math.max(lo,sLo)+Math.min(hi,sHi))/2-1),lo+1,hi-2);
+    if(!(Math.min(hi,sHi)>=Math.max(lo,sLo)))p=Math.floor((lo+hi)/2);
+    // caminho da porta até a rua: avança até tocar um tile de rua; se não chegar, o lote é recusado (nada de trechos soltos)
+    const path=[];let reach=false;
+    for(let g=1;g<=Math.ceil(maxBd)+2;g++){
+      const cells=[0,1].map(k=>({px:ns?p+k:(D==='W'?r.x0-g:r.x1+g),pz:ns?(D==='N'?r.z0-g:r.z1+g):p+k}));
+      if(cells.some(q=>{const tt=getT(c.cx+q.px,c.cz+q.pz);return tt===T_STREET||tt===T_PLAZA})){reach=true;break}
+      cells.forEach(q=>path.push({x0:q.px,x1:q.px,z0:q.pz,z1:q.pz}));
+    }
+    if(!reach)return{err:7};
+    if(path.some(q=>houses.some(h=>ovr(q,h,0))))return{err:5};
+    if(path.some(q=>Math.abs(q.x0)>Hc-2||Math.abs(q.z0)>Hc-2||getT(c.cx+q.x0,c.cz+q.z0)===T_OUT))return{err:6};
+    return{D,ns,p,path};
+  };
+  // o caminho da porta fica reservado (com 1 bloco de folga): nenhum prédio posterior tampa uma entrada
+  const useDoor=ld=>{ld.path.forEach(q=>{setTL(c,q.x0,q.z0,T_STREET);res.push({x0:q.x0-1,x1:q.x1+1,z0:q.z0-1,z1:q.z1+1})})};
+  // prédios de serviço (centros já postos): ficam afastados entre si (CITY_FOOT.serviceSpread) para os serviços se espalharem pela cidade
+  const svc=[];let spreadOn=true;   // spreadOn: preferência de afastar os serviços (desligada na 2ª tentativa dos prédios que não couberam)
+  const svcFar=(cx,cz)=>!svc.some(q=>Math.hypot(q[0]-cx,q[1]-cz)<CITY_FOOT.serviceSpread);
+  // lote w x d (ou girado) para um prédio de serviço: longe da praça e dos outros serviços, com porta para uma rua. null = não achou
+  const spreadLot=(w,d)=>{
+    for(let at=0;at<CITY_FOOT.serviceTries;at++){
+      const rot=rng.chance(0.5),ww=rot?d:w,dd=rot?w:d,[x0,z0]=lotAt(ww,dd),r={x0,x1:x0+ww-1,z0,z1:z0+dd-1};
+      const mx=(r.x0+r.x1)/2,mz=(r.z0+r.z1)/2;
+      if(Math.hypot(mx,mz)<P+CITY_FOOT.serviceMinDist||!svcFar(mx,mz))continue;
+      if(Math.abs(r.x0)>Hc-3||Math.abs(r.x1)>Hc-3||Math.abs(r.z0)>Hc-3||Math.abs(r.z1)>Hc-3)continue;
+      if(res.some(q=>ovr(r,q,0))||outAny(r,0)||houses.some(q=>ovr(r,q,CITY_FOOT.houseGap)))continue;
+      const ld=lotDoor(r);if(ld.err||(ld.D==='N'||ld.D==='S')===rot)continue;   // porta no lado certo para o tamanho (a mobília supõe U=lado maior)
+      svc.push([mx,mz]);return{r,D:ld.D,ns:ld.ns,p:ld.p,path:ld.path};
+    }
+    return null;
+  };
   const kinds=rng.shuffle(['shop','clinic','chapel','barracks']);
   const corners=[[1,1],[-1,1],[1,-1],[-1,-1]];
   const specials={};
@@ -655,10 +786,14 @@ function buildCity(c,rng){  const Hc=c.half;
     const sx=cn[0],sz=cn[1],kind=kinds[idx];
     const dims={shop:[9,7],clinic:[8,7],chapel:[7,8],barracks:[9,7]}[kind];
     const w=dims[0],d=dims[1];
-    const r={x0:sx>0?S+2:-(S+1+w),x1:sx>0?S+1+w:-(S+2),z0:sz>0?P+2:-(P+1+d),z1:sz>0?P+1+d:-(P+2)};
-    const D=sz>0?'N':'S';
-    const doorP=sx>0?S+3:-(S+4);
-    const doorU=doorP-(r.x0);
+    const lot=c.foot?spreadLot(w,d):null;   // com pegada: o prédio vai para um lote longe da praça; sem lote, fica no canto dela
+    let r,D,doorU;
+    if(lot){r=lot.r;D=lot.D;doorU=lot.p-(lot.ns?r.x0:r.z0);useDoor(lot)}
+    else{
+      r={x0:sx>0?S+2:-(S+1+w),x1:sx>0?S+1+w:-(S+2),z0:sz>0?P+2:-(P+1+d),z1:sz>0?P+1+d:-(P+2)};
+      D=sz>0?'N':'S';
+      doorU=(sx>0?S+3:-(S+4))-r.x0;
+    }
     res.push({x0:r.x0-1,x1:r.x1+1,z0:r.z0-1,z1:r.z1+1});
     specials[kind]={r,D,doorU};
     if(kind==='market'){
@@ -677,6 +812,7 @@ function buildCity(c,rng){  const Hc=c.half;
     const wallC=kind==='barracks'?0x7a8268:kind==='clinic'?0xf0f0ee:kind==='chapel'?(c.biome===BIO_DESERT?0xefe1b8:0xe6e2d8):rng.pick(c.pal.walls);
     const o={h:kind==='chapel'?5:4,wall:wallC,roof:kind==='clinic'?0xd8d8d8:kind==='shop'?c.pal.roofs[0]:kind==='barracks'?0x3f4a3a:0x5a4a6a,roofT:kind==='clinic'?'flat':'gable',glass:kind==='chapel'?[0xd03a3a,0x3a5ad0,0xe0c03a,0x3aa05a]:0x9ed4ff,tall:kind==='chapel',chimney:kind==='shop',base:kind==='chapel'?0x888880:undefined};
     const f=makeBuilding(c,r,D,doorU,o,rng);houses.push(r);
+    if(lot)(c.doors=c.doors||[]).push(f.map(doorU+1,-0.5));
     const wx=(u,v)=>{const m=f.map(u,v);return[c.cx+m[0],c.cz+m[1]]};
     if(kind==='shop'){
       const mid=f.U/2;
@@ -721,33 +857,17 @@ function buildCity(c,rng){  const Hc=c.half;
   });
 
   // casas: ordenada = fileiras regulares; caótica = tamanhos, alturas, telhados e ruínas variados; mista = intermediário
-  const target=Math.round(Hc*Hc/(cha?65:mix?62:60)),cityRoofT=c.biome===BIO_DESERT?'flat':'gable',maxBd=cha?9:mix?8:5.5;
+  const target=c.foot?Math.round(fcs.length/CITY_FOOT.density):Math.round(Hc*Hc/(cha?65:mix?62:60)),cityRoofT=c.biome===BIO_DESERT?'flat':'gable';
   c.rej={};const rej=k=>{c.rej[k]=(c.rej[k]||0)+1;return false};
   const tryHouse=(r,sp)=>{
     const hallTurn=sp==='hall',sk=(sp&&sp!=='hall')?sp:null;   // sp: 'hall' (prefeitura), 'store' (loja), 'tavern' (taverna) ou falso (casa comum)
     if(Math.abs(r.x0)>Hc-3||Math.abs(r.x1)>Hc-3||Math.abs(r.z0)>Hc-3||Math.abs(r.z1)>Hc-3)return rej(1);
     if(res.some(q=>ovr(r,q,0)))return rej(2);
-    if(houses.some(q=>ovr(r,q,3)))return rej(3);   // vão mínimo de 3 blocos entre prédios
-    let best=null,bd=1e9;
-    for(const s of streets){const dx=Math.max(s.x0-r.x1,r.x0-s.x1,0),dz=Math.max(s.z0-r.z1,r.z0-s.z1,0),dd=Math.hypot(dx,dz);if(dd<bd){bd=dd;best={s,dx,dz}}}
-    if(bd>maxBd||bd<1)return rej(4);
-    let D;
-    if(best.dz>=best.dx)D=(best.s.z1<r.z0)?'N':'S';else D=(best.s.x1<r.x0)?'W':'E';
-    const ns=(D==='N'||D==='S');
-    const lo=ns?r.x0:r.z0,hi=ns?r.x1:r.z1;
-    const sLo=ns?best.s.x0:best.s.z0,sHi=ns?best.s.x1:best.s.z1;
-    let p=clamp(Math.round((Math.max(lo,sLo)+Math.min(hi,sHi))/2-1),lo+1,hi-2);
-    if(!(Math.min(hi,sHi)>=Math.max(lo,sLo)))p=Math.floor((lo+hi)/2);
-    // caminho da porta até a rua: avança até tocar um tile de rua; se não chegar, o lote é recusado (nada de trechos soltos)
-    const path=[];let reach=false;
-    for(let g=1;g<=Math.ceil(maxBd)+2;g++){
-      const cells=[0,1].map(k=>({px:ns?p+k:(D==='W'?r.x0-g:r.x1+g),pz:ns?(D==='N'?r.z0-g:r.z1+g):p+k}));
-      if(cells.some(q=>{const tt=getT(c.cx+q.px,c.cz+q.pz);return tt===T_STREET||tt===T_PLAZA})){reach=true;break}
-      cells.forEach(q=>path.push({x0:q.px,x1:q.px,z0:q.pz,z1:q.pz}));
-    }
-    if(!reach)return rej(7);
-    if(path.some(q=>houses.some(h=>ovr(q,h,0))))return rej(5);
-    if(path.some(q=>Math.abs(q.x0)>Hc-2||Math.abs(q.z0)>Hc-2))return rej(6);
+    if(outAny(r,c.foot?0:1))return rej(8);   // o lote precisa caber na pegada (a praia já dá folga)
+    if(houses.some(q=>ovr(r,q,c.foot?CITY_FOOT.houseGap:3)))return rej(3);   // vão mínimo entre prédios (3; com pegada, CITY_FOOT.houseGap)
+    if(c.foot&&sp&&spreadOn&&!svcFar((r.x0+r.x1)/2,(r.z0+r.z1)/2))return rej(9);   // serviços espalhados
+    const ld=lotDoor(r);if(ld.err)return rej(ld.err);
+    const {D,ns,p,path}=ld;
     const w=r.x1-r.x0+1,d=r.z1-r.z0+1,Uu=ns?w:d,Vv=ns?d:w;
     let h=(cha||mix)?rng.pick([3,4,4,5]):4;
     const ruin=false;   // toda casa tem telhado
@@ -764,12 +884,12 @@ function buildCity(c,rng){  const Hc=c.half;
     if(sk==='tavern'){o.h=5;o.wall=0xc89a62;o.roof=0x5a3a24;o.roofT='gable';o.chimney=true;o.timber=true;o.shut=0x5a3d22}
     const f=(sk==='works'&&c.ctype==='wood')?makeShed(c,r,D,o,rng):makeBuilding(c,r,D,p-(ns?r.x0:r.z0),o,rng);(c.doors=c.doors||[]).push(f.map(p-(ns?r.x0:r.z0)+1,-0.5));if(floors>1)(c.multi=c.multi||[]).push({r,floors,D,f});
     if(hallTurn)buildHall(c,f,D,p-(ns?r.x0:r.z0),rng,o);else if(sk==='store')buildStore(c,f,D,p-(ns?r.x0:r.z0),rng);else if(sk==='tavern')buildTavern(c,f,D,p-(ns?r.x0:r.z0),rng);else if(sk==='warehouse')buildWarehouse(c,f,D,p-(ns?r.x0:r.z0),rng);else if(sk==='works')buildWorks(c,f,D,p-(ns?r.x0:r.z0),rng,c.ctype);else if(floors>1){const ub=rng.int(1,Math.max(1,f.U-5));FB(c,f,ub,1,ub+1.6,2,0,0.85,0x8a6a3a,true);FB(c,f,ub+0.1,1.1,ub+0.5,1.5,0.85,1.1,0xd8d0c0,false)}else furnishHouse(c,f,rng,D);
-    houses.push(r);path.forEach(q=>setTL(c,q.x0,q.z0,T_STREET));
+    houses.push(r);useDoor(ld);if(c.foot&&sp)svc.push([(r.x0+r.x1)/2,(r.z0+r.z1)/2]);
     res.push({x0:r.x0-1,x1:r.x1+1,z0:r.z0-1,z1:r.z1+1});
     if(rng.chance(ord?0.6:0.4)){
       const sides=['N','S','W','E'].filter(s=>s!==D),sd=rng.pick(sides);
       const gr=sd==='N'?{x0:r.x0,x1:r.x1,z0:r.z0-3,z1:r.z0-2}:sd==='S'?{x0:r.x0,x1:r.x1,z0:r.z1+2,z1:r.z1+3}:sd==='W'?{x0:r.x0-3,x1:r.x0-2,z0:r.z0,z1:r.z1}:{x0:r.x1+2,x1:r.x1+3,z0:r.z0,z1:r.z1};
-      if(Math.abs(gr.x0)<Hc-2&&Math.abs(gr.x1)<Hc-2&&Math.abs(gr.z0)<Hc-2&&Math.abs(gr.z1)<Hc-2&&!res.some(q=>ovr(gr,q,0))&&!houses.some(hh=>hh!==r&&ovr(gr,hh,0))){
+      if(Math.abs(gr.x0)<Hc-2&&Math.abs(gr.x1)<Hc-2&&Math.abs(gr.z0)<Hc-2&&Math.abs(gr.z1)<Hc-2&&!outAny(gr,0)&&!res.some(q=>ovr(gr,q,0))&&!houses.some(hh=>hh!==r&&ovr(gr,hh,0))){
         fillT(c,gr,T_GARDEN);res.push(gr);
         for(let z=gr.z0;z<=gr.z1;z+=1)for(let x=gr.x0;x<=gr.x1;x+=2)if(rng.chance(0.6))Bc(c,x+0.3,0,z+0.3,x+0.7,rng.range(0.3,0.5),z+0.7,rng.pick([0xe8454f,0xf2d13d,0xffffff,0xb06ae0]),false,{j:0});
       }
@@ -778,25 +898,27 @@ function buildCity(c,rng){  const Hc=c.half;
   };
   // a prefeitura é procurada primeiro, em posições aleatórias (garante uma em toda cidade)
   const hallCands=[];
-  for(const sizes of[[[11,9],[9,11],[10,9],[9,10]],[[9,7],[7,9],[8,6],[6,8]]]){   // tenta primeiro o prédio grande de 2 andares; se não couber, o pequeno
-    const cand=[];for(const [hw,hd] of sizes)for(let hx=-Hc+3;hx<=Hc-3-hw;hx++)for(let hz=-Hc+3;hz<=Hc-3-hd;hz++)cand.push([hx,hz,hw,hd]);
+  const inLot=(hx,hz,hw,hd)=>cityIn(c,hx+(hw>>1),hz+(hd>>1));   // o centro do lote está na pegada (sem pegada, sempre)
+  for(const sizes of[[[11,9],[9,11],[10,9],[9,10]],[[9,7],[7,9],[8,6],[6,8]]])for(const so of[true,false]){   // grande de 2 andares primeiro; depois o pequeno (e, sem achar, sem afastar)
+    if(c.hall)break;spreadOn=so;
+    const cand=[];for(const [hw,hd] of sizes)for(let hx=-Hc+3;hx<=Hc-3-hw;hx++)for(let hz=-Hc+3;hz<=Hc-3-hd;hz++)if(inLot(hx,hz,hw,hd))cand.push([hx,hz,hw,hd]);
     rng.shuffle(cand);
     for(let i=0;i<cand.length&&!c.hall;i++){const q=cand[i];tryHouse({x0:q[0],x1:q[0]+q[2]-1,z0:q[1],z1:q[1]+q[3]-1},'hall')}
-    if(c.hall)break;
   }
   // a loja (compra e venda de itens) e a taverna (cozinha) também são procuradas antes das casas comuns
   for(const sp of['store','warehouse','tavern','works']){
     if(sp==='works'&&!c.ctype)continue;   // (só o edifício do tipo: precisa do tipo decidido)
     // a taverna é maior (mesas, balcão e fogão): tenta os tamanhos maiores primeiro
     const sizes=sp==='tavern'?[[12,9],[9,12],[11,8],[8,11],[10,8],[8,10]]:sp==='works'?WORKS[c.ctype].sz:[[8,6],[6,8],[7,6],[6,7]];
-    for(const [hw,hd] of sizes){
-      if(c[sp])break;
+    for(const so of[true,false])for(const [hw,hd] of sizes){   // 1ª volta: serviços afastados; 2ª: sem afastar, se não couber
+      if(c[sp])break;spreadOn=so;
       const cands=[];
-      for(let hx=-Hc+3;hx<=Hc-3-hw;hx++)for(let hz=-Hc+3;hz<=Hc-3-hd;hz++)cands.push([hx,hz,hw,hd]);
+      for(let hx=-Hc+3;hx<=Hc-3-hw;hx++)for(let hz=-Hc+3;hz<=Hc-3-hd;hz++)if(inLot(hx,hz,hw,hd))cands.push([hx,hz,hw,hd]);
       rng.shuffle(cands);
       for(let i=0;i<Math.min(cands.length,700)&&!c[sp];i++){const q=cands[i];tryHouse({x0:q[0],x1:q[0]+q[2]-1,z0:q[1],z1:q[1]+q[3]-1},sp)}
     }
   }
+  spreadOn=true;
   if(ord){
     // fileiras regulares: mesma profundidade, largura e recuo em todas as ruas
     const rowD=rng.pick([6,7,7]),gap=3,setback=2,wB=rng.int(6,8);
@@ -820,21 +942,21 @@ function buildCity(c,rng){  const Hc=c.half;
         const end=horiz?s.x1:s.z1;
         for(let cur=(horiz?s.x0:s.z0)+rng.int(0,2);cur+4<=end;){
           if(rng.chance(cha?0.25:0.12)){cur+=rng.int(2,5);continue}
-          const wB=rng.int(4,cha?10:8),dB=rng.int(5,cha?9:8),sb=rng.int(2,cha?4:3);let r;
+          const wB=rng.int(4,cha?10:8),dB=rng.int(c.foot?4:5,cha?9:8),sb=rng.int(2,cha?4:3);let r;
           if(horiz)r=sg<0?{x0:cur,x1:cur+wB-1,z0:s.z0-sb-dB,z1:s.z0-sb-1}:{x0:cur,x1:cur+wB-1,z0:s.z1+sb+1,z1:s.z1+sb+dB};
           else r=sg<0?{x0:s.x0-sb-dB,x1:s.x0-sb-1,z0:cur,z1:cur+wB-1}:{x0:s.x1+sb+1,x1:s.x1+sb+dB,z0:cur,z1:cur+wB-1};
-          cur+=tryHouse(r,false)?wB+rng.int(3,5):1;
+          cur+=tryHouse(r,false)?wB+(c.foot?rng.int(CITY_FOOT.frontGap[0],CITY_FOOT.frontGap[1]):rng.int(3,5)):1;
         }
       }
     }
     // 2) preenchimento aleatório do que sobrou
-    for(let at=0;at<(cha?2200:1100)&&houses.length<target+4;at++){
+    for(let at=0;at<(c.foot?3000:cha?2200:1100)&&houses.length<target+4;at++){
       const w=cha?rng.int(4,11):rng.int(5,8),d=cha?rng.int(4,10):rng.int(5,8);
-      const x0=rng.int(-Hc+3,Hc-3-w),z0=rng.int(-Hc+3,Hc-3-d);
+      const [x0,z0]=lotAt(w,d);
       tryHouse({x0,x1:x0+w-1,z0,z1:z0+d-1},false);
     }
   }
-  if(ord)for(let at=0;at<900&&houses.length<target+4;at++){const w=rng.int(5,7),d=rng.int(5,7),x0=rng.int(-Hc+3,Hc-3-w),z0=rng.int(-Hc+3,Hc-3-d);tryHouse({x0,x1:x0+w-1,z0,z1:z0+d-1},false)}
+  if(ord)for(let at=0;at<(c.foot?2500:900)&&houses.length<target+4;at++){const w=rng.int(5,7),d=rng.int(5,7),[x0,z0]=lotAt(w,d);tryHouse({x0,x1:x0+w-1,z0,z1:z0+d-1},false)}
   // última checagem: qualquer trecho de rua ainda solto é ligado à rede principal por um caminho em L (só por terreno livre)
   for(let iter=0;iter<12;iter++){
     const isSt=(x,z)=>{const tt=getT(c.cx+x,c.cz+z);return tt===T_STREET||tt===T_PLAZA},free=(x,z)=>{const tt=getT(c.cx+x,c.cz+z);return tt===T_NAT||tt===T_GARDEN||tt===T_STREET||tt===T_PLAZA};
@@ -910,7 +1032,7 @@ function buildCity(c,rng){  const Hc=c.half;
   if(c.biome===BIO_PLAINS||c.biome===BIO_FOREST){
     for(let at=0;at<80;at++){
       const x0=rng.int(-Hc+3,Hc-8),z0=rng.int(-Hc+3,Hc-8),r={x0,x1:x0+3,z0,z1:z0+3};
-      if(res.some(q=>ovr(r,q,0))||houses.some(q=>ovr(r,q,1)))continue;
+      if(res.some(q=>ovr(r,q,0))||houses.some(q=>ovr(r,q,1))||outAny(r,1))continue;
       Bc(c,x0,0,z0,x0+4,5,z0+4,0xe8e0cc,true);Bc(c,x0+0.5,5,z0+0.5,x0+3.5,8,z0+3.5,0xe8e0cc,true);
       let w=2.6,k=0;for(;w>0.6;w-=0.7,k++)Bc(c,x0+2-w,8+k,z0+2-w,x0+2+w,9+k,z0+2+w,0x8b3a2b,true,{b:true});
       const g=new THREE.Group();g.position.set(c.cx+x0+2,c.y+6.5,c.cz+z0+4.3);
@@ -930,7 +1052,7 @@ function buildCity(c,rng){  const Hc=c.half;
   else wt='none';
   cityWallBuild(c,c.home?1:wt==='stone'?5:wt==='palisade'?4:wt==='fence'?2:1,rng,c.home?'none':wt);
   // mastros com a bandeira da facção ladeando cada entrada (norte, sul, leste e oeste); as bandeiras apontam para o centro da entrada
-  for(const [ax,e] of[['z',-Hc-1],['z',Hc+1],['x',-Hc-1],['x',Hc+1]])
+  for(const [ax,e,d] of[['z',-GE.N-1,'N'],['z',GE.S+1,'S'],['x',-GE.W-1,'W'],['x',GE.E+1,'E']].filter(q=>GO[q[2]]))
     for(const [s,dir] of[[-S-1.4,1]]){   // um só mastro por entrada
       if(ax==='z')addMast(c,s,e+0.5,7.4,1.9,1.2,true,dir);else addMast(c,e+0.5,s,7.4,1.9,1.2,false,dir);
     }
@@ -985,6 +1107,7 @@ function buildCity(c,rng){  const Hc=c.half;
     }
   }
 
+  cityUnmarkOut(c);   // os blocos fora da pegada voltam a ser terreno natural
   // pontos de passeio e de surgimento
   for(let z=-Hc+1;z<=Hc-1;z+=2)for(let x=-Hc+1;x<=Hc-1;x+=2){
     const t=getT(c.cx+x,c.cz+z);
@@ -993,7 +1116,7 @@ function buildCity(c,rng){  const Hc=c.half;
     }
   }
   c.specials=specials;
-  c.gateSpots=[[S+1,-Hc+1],[-S,Hc-1],[Hc-1,S+1],[-Hc+1,-S]].map(p=>({x:c.cx+p[0]+0.5,z:c.cz+p[1]+0.5}));
+  c.gateSpots=[['N',S+1,-GE.N+1],['S',-S,GE.S-1],['E',GE.E-1,S+1],['W',-GE.W+1,-S]].filter(q=>GO[q[0]]).map(q=>q.slice(1)).map(p=>({x:c.cx+p[0]+0.5,z:c.cz+p[1]+0.5}));
 }
 
 

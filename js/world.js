@@ -1,11 +1,12 @@
 'use strict';
 // ---------- Geração procedural do mundo ----------
-const T_NAT=0,T_ROAD=1,T_STREET=2,T_PLAZA=3,T_FLOOR=4,T_BRIDGE=5,T_GARDEN=6,T_SOIL=7,T_WHEAT=8;
+const T_NAT=0,T_ROAD=1,T_STREET=2,T_PLAZA=3,T_FLOOR=4,T_BRIDGE=5,T_GARDEN=6,T_SOIL=7,T_WHEAT=8,T_OUT=9;   // T_OUT: fora da pegada da cidade, só durante buildCity (cityfoot.js)
 const BIO_PLAINS=0,BIO_FOREST=1,BIO_DESERT=2,BIO_SNOW=3,BIO_ROCK=4;
 const WORLD={cities:[],seed:0,home:null,chunkMeshes:[],mapCanvas:null,windmills:[]};
 // Estradas sobre a água (números de balanceamento): custo extra do A* por célula de água (antes 6 = quase sempre contornava),
+// ROAD_FILL_MAX: trecho de água de até esse tamanho (blocos) vira aterro e não ponte,
 // vão máximo de água seguida (blocos; acima disso a estrada refaz o trajeto com o custo antigo) e cabeceira (blocos de terra com tabuleiro em cada ponta).
-const ROAD_WATER=1,ROAD_WATER_OLD=6,ROAD_SPAN_MAX=48,BRIDGE_HEAD=3,BRIDGE_R=2.5;   // BRIDGE_R: raio do tabuleiro (5 blocos de largura: cabem 2 personagens lado a lado)
+const ROAD_WATER=1,ROAD_WATER_OLD=6,ROAD_SPAN_MAX=48,ROAD_FILL_MAX=4,BRIDGE_HEAD=3,BRIDGE_R=2.5;   // BRIDGE_R: raio do tabuleiro (5 blocos de largura: cabem 2 personagens lado a lado)
 const CHUNKS=[];
 function chunkOf(x,z){const cx=clamp(Math.floor(x/CHK),0,NCH-1),cz=clamp(Math.floor(z/CHK),0,NCH-1);return CHUNKS[cz*NCH+cx]}
 // Caixa estática (malha + colisão opcional) em coordenadas de mundo
@@ -61,21 +62,12 @@ function cityName(rng,biome,used){
 }
 
 const DOM_NAMES={plains:'Planícies',forest:'Florestas',mountain:'Montanhas',snow:'Neve',desert:'Deserto'};
-async function genWorld(seed,status,dominant){
-  // bioma dominante: escolhido pelo jogador ou sorteado pela semente
-  if(!DOM_NAMES[dominant])dominant=['plains','forest','mountain','snow','desert'][new RNG(seed+999).int(0,4)];
-  WORLD.dominant=dominant;WORLD.seed=seed;WORLD.cities=[];WORLD.chunkMeshes=[];WORLD.windmills=[];WORLD.bt=new Map();WORLD.bridges=[];WORLD.noRail=new Set();WORLD.showcaseMode=new URLSearchParams(location.search).get('cenario')==='pois';
-  Col.map.clear();Col.all.length=0;for(const a of CRITTERS)scene.remove(a.g);CRITTERS.length=0;
-  const rng=new RNG(seed);
-  const nz=new Noise(seed),nt=new Noise(seed+11),nm=new Noise(seed+23),nr=new Noise(seed+37),nd=new Noise(seed+51),nj=new Noise(seed+77);TNOISE=new Noise(seed+303);
-  H=new Int16Array(W*W);T=new Uint8Array(W*W);B=new Uint8Array(W*W);
-  TREEC.clear();CHUNKS.length=0;LEAVES.length=0;LZ.clear();for(let i=0;i<NCH*NCH;i++){CHUNKS.push(new BoxBatch());LEAVES.push(new BoxBatch())}
-
-  // 1) Relevo, rios e biomas
-  // forma do mapa varia por semente
-  const SHAPES=['Ilha irregular','Continente recortado','Anel com mar interno','Península com baía','Faixa de terra diagonal'];
-  const shape=rng.int(0,4),wn=new Noise(seed+131),sAng=rng.range(0,6.283),bayA=rng.range(0,6.283);
-  WORLD.shapeName=SHAPES[shape];
+// Relevo, rios e biomas (H e B). P = {seed,dominant,shape,sAng,bayA}; stamps = reservas (cidades) aplicadas depois da suavização e antes dos biomas
+// (js/reserve.js). Sem stamps o resultado é o mesmo do gerador antigo. Não consome o RNG do mundo: tudo sai da semente.
+function genRelief(P,stamps){
+  const {seed,dominant,shape,sAng,bayA}=P;
+  const nz=new Noise(seed),nt=new Noise(seed+11),nm=new Noise(seed+23),nr=new Noise(seed+37),nd=new Noise(seed+51),nj=new Noise(seed+77);
+  const wn=new Noise(seed+131);
   const landMask=(x,z)=>{
     const u=(x-W/2)/(W/2),v=(z-W/2)/(W/2);
     if(tileTestOn())return 1-smooth(0.97,1,Math.max(Math.abs(u),Math.abs(v)));   // mapa de teste (?cenario=batalha): terra até quase a borda, sem forma de ilha
@@ -88,7 +80,7 @@ async function genWorld(seed,status,dominant){
       case 3:{const a=u+wx*0.3,b=v+wz*0.3,db=Math.hypot(a-Math.cos(bayA)*0.5,b-Math.sin(bayA)*0.5);return(1-smooth(0.72,1,box(a,b)))*smooth(0.26,0.5,db)}
       default:{const a=u+wx*0.3,b=v+wz*0.3,ru=a*Math.cos(sAng)+b*Math.sin(sAng),rv=-a*Math.sin(sAng)+b*Math.cos(sAng);return 1-smooth(0.72,1,Math.hypot(ru/1.1,rv/0.72))}
     }
-  };  status('Esculpindo montanhas, rios e lagos...');await tick();
+  };
   // relevo: fora do modo montanhas as serras são raras e baixas; planícies/desertos/florestas ficam suaves, com praias e margens de rio graduais
   const mtnW=dominant==='mountain'?[0.3,0.55]:[0.64,0.86],amp=dominant==='mountain'?[27,22]:[19,16];
   const HF=new Float32Array(W*W),MT=new Float32Array(W*W);
@@ -115,6 +107,7 @@ async function genWorld(seed,status,dominant){
     }
   }
   for(let i=0;i<W*W;i++)H[i]=Math.max(SEA-3,Math.round(HF[i]));
+  if(stamps)for(const c of stamps)cityFootFlatten(c,RESERVE.apron);   // reservas: pegada e faixa plana + rampa (js/reserve.js)
   // biomas por percentil: garante variedade em qualquer semente
   const TT=new Float32Array(W*W),MM=new Float32Array(W*W),ts=[],ms=[];
   for(let z=0;z<W;z++)for(let x=0;x<W;x++){
@@ -144,10 +137,28 @@ async function genWorld(seed,status,dominant){
     for(let i=0;i<W*W;i++)if(B[i]===lose&&keep[((i/W|0)>>3)*N+((i%W)>>3)])B[i]=BIO_PLAINS;
   }
   if(WORLD.showcaseMode){for(let i=0;i<W*W;i++){H[i]=SEA+6;B[i]=BIO_PLAINS}}   // mapa manual dos POIs (?cenario=pois): toda a superfície apagada e plana
+}
+async function genWorld(seed,status,dominant){
+  // bioma dominante: escolhido pelo jogador ou sorteado pela semente
+  if(!DOM_NAMES[dominant])dominant=['plains','forest','mountain','snow','desert'][new RNG(seed+999).int(0,4)];
+  WORLD.dominant=dominant;WORLD.seed=seed;WORLD.cities=[];WORLD.chunkMeshes=[];WORLD.windmills=[];WORLD.bt=new Map();WORLD.bridges=[];WORLD.noRail=new Set();WORLD.showcaseMode=new URLSearchParams(location.search).get('cenario')==='pois';
+  Col.map.clear();Col.all.length=0;for(const a of CRITTERS)scene.remove(a.g);CRITTERS.length=0;
+  const rng=new RNG(seed);
+  const nz=new Noise(seed),nt=new Noise(seed+11),nm=new Noise(seed+23),nr=new Noise(seed+37),nd=new Noise(seed+51),nj=new Noise(seed+77);TNOISE=new Noise(seed+303);
+  H=new Int16Array(W*W);T=new Uint8Array(W*W);B=new Uint8Array(W*W);
+  TREEC.clear();CHUNKS.length=0;LEAVES.length=0;LZ.clear();for(let i=0;i<NCH*NCH;i++){CHUNKS.push(new BoxBatch());LEAVES.push(new BoxBatch())}
+
+  // 1) Relevo, rios e biomas (função genRelief)
+  const SHAPES=['Ilha irregular','Continente recortado','Anel com mar interno','Península com baía','Faixa de terra diagonal'];
+  const shape=rng.int(0,4),sAng=rng.range(0,6.283),bayA=rng.range(0,6.283);   // forma do mapa varia por semente
+  WORLD.shapeName=SHAPES[shape];
+  status('Esculpindo montanhas, rios e lagos...');await tick();
+  const RP={seed,dominant,shape,sAng,bayA};genRelief(RP,null);
   // nº de cidades proporcional à terra do mapa (terra ÷ 48 mil, entre 6 e 8); ?cid=N força um número (estudo)
   let landN=0;for(let i=0;i<W*W;i+=9)if(H[i]>=SEA+1)landN++;
   const NC=tileTestOn()?2:Math.max(4,Math.min(16,+(new URLSearchParams(location.search).get('cid'))||Math.max(6,Math.min(8,Math.round(landN*9/48000)))));   // mapa de teste: duas cidades
   const inShow=(x,z)=>WORLD.showcaseMode&&Math.abs(x-W/2)<210&&Math.abs(z-W/2)<170;   // área reservada aos POIs do mapa manual: sem cidades
+  const RES=reserveOn()&&!WORLD.showcaseMode;   // RES: modo reserva (js/reserve.js)
   // 2) Locais das cidades
   status('Escolhendo locais para as cidades...');await tick();
   // candidatos planos em terra; depois escolhe pontos o mais afastados possível entre si
@@ -173,7 +184,7 @@ async function genWorld(seed,status,dominant){
       for(const c of cand){
         let md=1e9;for(const s of sites){const d=Math.hypot(s.x-c.x,s.z-c.z);if(d<md)md=d}
         const same=sites.filter(s=>s.b===c.b).length;
-        const sc=md-(same>=3?10:0)-c.rough*0.35+rng.range(0,3);
+        const sc=md-(same>=3?10:0)-c.rough*(RES?RESERVE.roughPenalty:0.35)+rng.range(0,3);
         if(sc>bs){bs=sc;bestC=c;bmd=md}
       }
       if(bmd<floorD)break;   // o melhor lugar que sobrou já é perto demais: não cabe mais cidade
@@ -194,6 +205,15 @@ async function genWorld(seed,status,dominant){
     return{id:i,cx:s.x,cz:s.z,half:tileTestOn()?(i===0?TILE_TEST.home.half:TILE_TEST.big.half):rng.int(36,45),biome:bio,owner:'enemy',state:'idle',home:false,rank:0,
       enemies:[],npcs:[],walk:[],spawns:[],towers:[],gates:[],flags:[],props:[],aliveEnemies:0,totalEnemies:0};
   });
+  if(RES){   // reserva: verifica no rascunho, depois gera o terreno final em volta das pegadas (passada 2)
+    status('Reservando o chão das cidades...');await tick();
+    const t0=performance.now();
+    reserveCities(cities,cand,seed,MINC);cities.forEach((c,i)=>c.id=i);
+    for(const c of cities)reserveMountains(c,seed);
+    genRelief(RP,cities.filter(c=>c.foot));
+    for(const c of cities)if(c.foot)c.biome=B[c.cz*W+c.cx];
+    WORLD.reserve.ms=Math.round(performance.now()-t0);console.log('reserva:',JSON.stringify(WORLD.reserve));
+  }
   // cidade inicial: a mais próxima do centro do mapa
   const home=tileTestOn()?cities[0]:cities[rng.int(0,cities.length-1)];home.home=true;home.owner='player';home.state='conquered';WORLD.home=home;   // (mapa de teste: a cidade pequena do canto é a sua)
   const others=cities.filter(c=>c!==home).sort((a,b)=>Math.hypot(a.cx-home.cx,a.cz-home.cz)-Math.hypot(b.cx-home.cx,b.cz-home.cz));
@@ -216,6 +236,7 @@ async function genWorld(seed,status,dominant){
   }
   // aplaina o terreno sob cada cidade
   for(const c of cities){
+    if(RES?c.foot:(cityFootPlan(c,seed)||cityFootRelocate(c,cities,cand,seed))){if(!RES)cityFootFlatten(c);continue}   // a cidade se adapta ao terreno (cityfoot.js); sem chão: troca de lugar; sem alternativa: quadrado antigo
     let sum=0,n=0;
     for(let dz=-c.half;dz<=c.half;dz+=3)for(let dx=-c.half;dx<=c.half;dx+=3){sum+=H[(c.cz+dz)*W+c.cx+dx];n++}
     c.y=Math.max(SEA+2,Math.round(sum/n));
@@ -227,6 +248,7 @@ async function genWorld(seed,status,dominant){
     }
   }
 
+  for(const c of cities)cityFootGates(c);   // onde a pegada de cada cidade termina em cada eixo (portões e pontas de estrada)
   // 3) Estradas ligando as cidades (MST + atalhos)
   status('Traçando estradas e pontes...');await tick();
   const edges=[],inT=new Set([0]);
@@ -291,11 +313,13 @@ async function genWorld(seed,status,dominant){
 function carveRoad(a,b,cities,opts){
   const C=4,N=W/C,wc0=(opts&&opts.water!==undefined)?opts.water:ROAD_WATER;
   const gate=(c,o)=>{const dx=o.cx-c.cx,dz=o.cz-c.cz;
-    if(Math.abs(dx)>Math.abs(dz)){const s=Math.sign(dx);c.gates.push({dir:s>0?'E':'W'});return{x:c.cx+s*(c.half+3),z:c.cz}}
-    const s=Math.sign(dz);c.gates.push({dir:s>0?'S':'N'});return{x:c.cx,z:c.cz+s*(c.half+3)}};
+    // o portão é o eixo que mais aponta para a outra cidade e tem terra do lado de fora (c.gland, cityfoot.js)
+    const pref=[['E',dx],['W',-dx],['S',dz],['N',-dz]].sort((p,q)=>q[1]-p[1]);
+    const d=(pref.find(p=>!c.gland||c.gland[p[0]])||pref[0])[0];c.gates.push({dir:d});
+    const [x,z]=cityGatePos(c,d,3);return{x,z}};   // 3 blocos além da borda da pegada
   const ga=gate(a,b),gb=gate(b,a);
   const cityPen=(x,z)=>{let p=0;for(const c of cities){const d=Math.max(Math.abs(x-c.cx),Math.abs(z-c.cz));
-    if(c===a||c===b){if(d<c.half+2)p+=30}else if(d<c.half+9)p+=30}return p};
+    if(c===a||c===b){if(cityNear(c,x,z,2))p+=30}else if(cityNear(c,x,z,9))p+=30}return p};
   const s=((ga.z/C)|0)*N+((ga.x/C)|0),goal=((gb.z/C)|0)*N+((gb.x/C)|0),gx=goal%N,gz=(goal/N)|0;
   const eh=v=>Math.max(v,SEA+1);   // a água conta como altura de ponte: o fundo do lago não vira "ribanceira" no custo
   // A* na grade de 4 blocos; wc = custo extra por célula de água
@@ -333,6 +357,13 @@ function carveRoad(a,b,cities,opts){
   }
   const n=tiles.length;
   const h0=tiles.map(t=>H[t.z*W+t.x]),bridge=h0.map(h=>h<SEA);
+  // trechos curtos de água (até ROAD_FILL_MAX blocos seguidos) viram aterro de estrada comum, não ponte: sem o chão alternando entre estrada e ponte
+  for(let i=0;i<n;){
+    if(!bridge[i]){i++;continue}
+    let e=i;while(e+1<n&&bridge[e+1])e++;
+    if(e-i+1<=ROAD_FILL_MAX)for(let k=i;k<=e;k++)bridge[k]=false;
+    i=e+1;
+  }
   let hs=h0.map(h=>Math.max(h,SEA+1));
   for(let pass=0;pass<3;pass++){const nx=hs.slice();for(let i=0;i<n;i++){let s2=0,c2=0;for(let k=-5;k<=5;k++){const j=i+k;if(j>=0&&j<n){s2+=hs[j];c2++}}nx[i]=s2/c2}hs=nx}
   hs=hs.map(Math.round);
@@ -347,6 +378,15 @@ function carveRoad(a,b,cities,opts){
       const d=Math.hypot(dx,dz),k=z*W+x;
       if(d<=(bridge[i]?BRIDGE_R:1.5)){if(T[k]!==T_ROAD&&T[k]!==T_BRIDGE){if(bridge[i])BT.set(k,{h0:H[k]});H[k]=h;T[k]=bridge[i]?T_BRIDGE:T_ROAD}}
       else if(d<=2.6&&T[k]===T_NAT&&!bridge[i]&&H[k]>=SEA)H[k]=clamp(H[k],h-1,h+1);   // (sobre a água não há barranco: o vão fica aberto)
+    }
+  }
+  // fecha furos do tabuleiro: água com tabuleiro em 3 dos 4 lados (curvas da ponte deixam reentrâncias de 1 bloco)
+  for(let i=0;i<n;i++){
+    if(!bridge[i])continue;
+    for(let dz=-4;dz<=4;dz++)for(let dx=-4;dx<=4;dx++){
+      const x=tiles[i].x+dx,z=tiles[i].z+dz;if(x<2||z<2||x>=W-2||z>=W-2)continue;
+      const k=z*W+x;if(T[k]===T_BRIDGE||H[k]>=SEA)continue;
+      if((T[k-1]===T_BRIDGE)+(T[k+1]===T_BRIDGE)+(T[k-W]===T_BRIDGE)+(T[k+W]===T_BRIDGE)>=3){BT.set(k,{h0:H[k]});H[k]=hs[i];T[k]=T_BRIDGE}
     }
   }
   // pontes: cada trecho de água vira um registro (WORLD.bridges) e ganha cabeceira de BRIDGE_HEAD blocos de terra em cada ponta
@@ -367,7 +407,7 @@ function carveRoad(a,b,cities,opts){
 }
 
 // ---------- Natureza ----------
-function nearCity(x,z,m,cities){for(const c of cities){if(Math.max(Math.abs(x-c.cx),Math.abs(z-c.cz))<c.half+m)return true}return false}
+function nearCity(x,z,m,cities){for(const c of cities)if(cityNear(c,x,z,m))return true;return false}   // com pegada: perto = a até m blocos dela
 function clearAround(x,z){for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++)if(getT(x+dx,z+dz)!==T_NAT)return false;return true}
 function leafCol(rng,base){return shadec(base,rng.range(0.85,1.12))}
 // copa em blobs: cubos de tamanhos e posições irregulares, mais escuros embaixo e claros em cima

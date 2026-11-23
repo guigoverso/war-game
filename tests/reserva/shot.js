@@ -1,0 +1,16 @@
+const http=require('http'),fs=require('fs'),path=require('path');
+const {chromium}=require('../node_modules/playwright');
+const ROOT=require('path').resolve(__dirname,'../..'),OUT=process.argv[2],seed=process.argv[3],id=+process.argv[4],dx=+process.argv[5],dz=+process.argv[6],tx=+(process.argv[7]||0),tz=+(process.argv[8]||0);
+const MIME={'.html':'text/html','.js':'text/javascript','.css':'text/css','.png':'image/png'};
+const srv=http.createServer((req,res)=>{const u=decodeURIComponent(req.url.split('?')[0]),f=path.join(ROOT,u==='/'?'index.html':u);
+  fs.readFile(f,(e,d)=>{if(e){res.writeHead(404);return res.end()}res.writeHead(200,{'Content-Type':MIME[path.extname(f)]||'application/octet-stream'});res.end(d)})});
+(async()=>{await new Promise(r=>srv.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+srv.address().port;
+const b=await chromium.launch(),p=await b.newPage({viewport:{width:1280,height:800}});
+await p.goto(base+'/index.html?auto=1&mute=1&seed='+seed);
+await p.waitForFunction(()=>typeof G!=='undefined'&&G.running&&Array.isArray(WORLD.pois),null,{timeout:180000});
+await p.evaluate(()=>{try{closePanel()}catch(e){}leaveOffice()});await p.waitForTimeout(500);
+await p.evaluate(([id,dx,dz,tx,tz])=>{const c0=0;const c=id<0?{cx:0,cz:0}:WORLD.cities[id],x=c.cx+dx,z=c.cz+dz;P.x=x;P.z=z;P.y=tH(x,z)+6;P.vx=P.vz=P.vy=0;P.camY=P.y;
+ P.yaw=Math.atan2(-(c.cx+tx-x),-(c.cz+tz-z));P.pitch=-0.35;},[id,dx,dz,tx,tz]);
+await p.waitForTimeout(700);
+await p.screenshot({path:path.join(OUT,'shot-'+seed+'-'+id+'.png')});
+await b.close();srv.close()})();

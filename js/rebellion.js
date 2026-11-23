@@ -425,7 +425,8 @@ function rebGatePosts(c,n){
   const hx=c.hx||c.half,hz=c.hz||c.half,out=[];
   for(let i=0;i<n;i++){
     const d=dirs[i%dirs.length],k=Math.floor(i/dirs.length),s=(k%2?1:-1)*(1+Math.floor(k/2))*3.2;
-    const x=d==='E'?c.cx+hx-8:d==='W'?c.cx-hx+8:c.cx+s,z=d==='S'?c.cz+hz-8:d==='N'?c.cz-hz+8:c.cz+s,f=freeSpot(x,z,0.4,1.8,0.45)||[x,z];
+    const ge=c.gedge||{E:hx,W:hx,S:hz,N:hz};   // borda da pegada em cada eixo
+    const x=d==='E'?c.cx+ge.E-8:d==='W'?c.cx-ge.W+8:c.cx+s,z=d==='S'?c.cz+ge.S-8:d==='N'?c.cz-ge.N+8:c.cz+s,f=freeSpot(x,z,0.4,1.8,0.45)||[x,z];
     out.push({x:f[0],z:f[1]});
   }
   return out;

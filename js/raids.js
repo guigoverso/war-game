@@ -14,10 +14,10 @@ const inCityZone=(c,pad)=>Math.max(Math.abs(P.x-c.cx),Math.abs(P.z-c.cz))<c.half
 // com RAID_GAP segundos entre as ondas para o jogador se curar e recrutar. Os lados são as entradas (portões) da cidade.
 const RAID_WAVES=[{sides:1,per:5},{sides:2,per:5},{sides:3,per:5}];
 function raidSides(c,n){
-  const dirs=[...new Set((c.gates||[]).map(g=>g.dir))];for(const d of['N','E','S','W'])if(!dirs.includes(d))dirs.push(d);
+  const dirs=[...new Set((c.gates||[]).map(g=>g.dir))];for(const d of['N','E','S','W'])if(!dirs.includes(d)&&(!c.gland||c.gland[d]))dirs.push(d);
   return dirs.slice(0,n);
 }
-function raidSidePos(c,d){const off=c.half+3;return d==='E'?[c.cx+off,c.cz]:d==='W'?[c.cx-off,c.cz]:d==='S'?[c.cx,c.cz+off]:[c.cx,c.cz-off]}
+function raidSidePos(c,d){return cityGatePos(c,d,3)}   // 3 blocos além do portão (borda da pegada)
 // Cidade em combate: durante uma onda (bandidos vivos) os serviços da cidade atacada ficam fechados; só abrem no intervalo entre as ondas.
 function raidLocked(c){   // serviços fechados só enquanto há combate: onda de raid na sua cidade (aberto no intervalo entre ondas) ou ataque a uma cidade inimiga
   if(RAID.active&&RAID.city===c)return !!(RAID.area&&RAID.area.enemies.some(e=>e.alive));
