@@ -27,3 +27,35 @@ const TILE_TEST = {
 };
 // Verdadeiro quando o cenário de teste de batalha está ligado pela URL.
 const tileTestOn = () => new URLSearchParams(location.search).get('cenario') === 'batalha';
+
+// ---------- Etapa 3 do plano: campo do mundo e mapa local por janela (atrás de ?mundo=1 e de ?cenario=tile) ----------
+// O mundo é uma FUNÇÃO de posição (js/macro/worldfield.js); o mapa local é uma janela dessa função. Valores = ponto de partida, a calibrar.
+const WORLD_FIELD = {
+  // Grade PROVISÓRIA de tiles (a etapa 5 troca por um grafo): quantos tiles de lado, distância entre centros e quanto cada centro pode sair do lugar
+  // (em blocos). Mundo = tiles x spacing de lado. Padrão: 7, 288, 48
+  tiles: 7, spacing: 288, jitter: 48,
+  // Tamanho da janela por tipo de tile, em blocos (múltiplo de 32). Padrão: cidade 320, natureza 256
+  sizeCity: 320, sizeNature: 256,
+  // Formatos do mundo (landMask em escala de mundo). Padrão: continentes, pangeia, arquipélagos e grande lago
+  formats: ['continentes', 'pangeia', 'arquipelagos', 'lago'],
+  // Largura da transição terra-mar em unidades do mundo (1 = metade do mundo, ~1000 blocos). Menor = costa mais curta. Padrão: 0.12
+  coastWidth: 0.12,
+  // Fração de terra que um tile/janela deve ter para ser escolhido como padrão (busca a mais próxima de landTarget, mínimo landMin). Padrão: 0.8 e 0.45
+  landTarget: 0.8, landMin: 0.45,
+  // Passo (em blocos) da amostragem usada para medir terra e desenhar o mapa mundi de teste. Padrão: 16
+  sampleStep: 16,
+  // Chance de existir trilha entre dois tiles vizinhos de terra (sorteio pela aresta) e quanto o caminho serpenteia (blocos). Padrão: 0.8 e 36
+  trailProb: 0.8, trailWobble: 36,
+  // Borda fechada por árvores: largura mínima e variação (blocos, com ruído), fração da faixa que é parede de colisão. Padrão: 6, 5, 0.6
+  borderBase: 6, borderVar: 5, borderSolid: 0.6,
+  // Abertura da borda onde há trilha: meia largura e profundidade (blocos para dentro). Padrão: 5 e 24
+  gapHalf: 5, gapDepth: 24,
+  // Detalhe fino do relevo (1 = igual ao mapa antigo; menor = terreno mais liso). Padrão: 0.8
+  detail: 0.8
+};
+// ?cenario=tile mostra um tile da grade (?ti=&tj= escolhe; ?tipo=cidade usa a janela de cidade; ?forma= escolhe o formato; ?pos=borda começa na primeira abertura).
+const mapTileOn = () => new URLSearchParams(location.search).get('cenario') === 'tile';
+// ?mundo=1 (ou o cenário de tile) gera o mapa local como janela do campo do mundo, em vez do mapa antigo.
+const mapWorldOn = () => mapTileOn() || new URLSearchParams(location.search).get('mundo') === '1';
+// Lado da janela de tile pedida pela URL (?tipo=cidade = sizeCity; qualquer outro = sizeNature).
+const mapTileSize = () => new URLSearchParams(location.search).get('tipo') === 'cidade' ? WORLD_FIELD.sizeCity : WORLD_FIELD.sizeNature;

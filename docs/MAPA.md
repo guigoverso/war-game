@@ -6,8 +6,8 @@ Se renomear ou mover algo listado aqui, atualize esta página.
 ## Camadas (etapa 2 do plano do mapa mundi; `js/` em pastas, scripts continuam globais)
 Pastas só organizam; a **ordem de carga** é a do `index.html` (não mudou). Os nomes dos arquivos abaixo seguem exatos; a pasta de cada um:
 - **`js/core/`** (base compartilhada): `util`, `render`, `voxel`, `phys`, `state`, `data`, `save`, `game` (laço principal e entrada, carrega por último).
-- **`js/macro/`** (**regra: não usa Three.js nem DOM**; hoje só o que já era limpo): `econ`, `facsupply`, `meetfx`, `warops`. Conferido por `node tests/macro/run.js` (carrega esta pasta num `vm` sem `THREE`/`document`).
-- **`js/local/`** (mapa local: terreno, cidades, entidades, POIs): `world`, `city`, `cityfoot`, `reserve`, `rivers`, `nav`, `entities`, `weapons`, `allies`, `poi`, `pois`, `poigame`, `quests`, `ambient`, `dungeon`, `office`, `fishing`, `cooking`, `tiletest`, `rebmine`.
+- **`js/macro/`** (**regra: não usa Three.js nem DOM**): `econ`, `facsupply`, `meetfx`, `warops`, `worldfield` (etapa 3). Conferido por `node tests/macro/run.js` (carrega esta pasta num `vm` sem `THREE`/`document`).
+- **`js/local/`** (mapa local: terreno, cidades, entidades, POIs): `world`, `city`, `cityfoot`, `reserve`, `rivers`, `nav`, `entities`, `weapons`, `allies`, `poi`, `pois`, `poigame`, `quests`, `ambient`, `dungeon`, `office`, `fishing`, `cooking`, `tiletest`, `rebmine`, `mapwin` (etapa 3).
 - **`js/ui/`** (telas e painéis): `ui`, `inventory`, `store`, `book`, `bookmap`, `warbook`, `flageditor`, `negoc`.
 - **Ainda na raiz de `js/`** (misturam regra macro com DOM/mapa; serão separados nas etapas 5 a 8): `rounds`, `factions`, `facgraph`, `facevents`, `policies`, `war`, `warfront`, `missions`, `globalev`, `meeting`, `raids`, `caravans`, `rebellion`, `warehouse`, `scenario`.
 - `js/modifiers/` e `js/texts/` como antes.
@@ -18,10 +18,17 @@ Pastas só organizam; a **ordem de carga** é a do `index.html` (não mudou). Os
 
 **Reserva é o padrão** (`reserveOn()` em `reserve-modifiers.js`): `?reserva=0` volta ao gerador antigo; nas referências abaixo a "só com `?reserva=1`" vale "por padrão" (scripts de `tests/reserva` com `RES=1` continuam valendo).
 
+**Etapa 3 (campo do mundo e mapa local por janela; atrás de `?mundo=1` e `?cenario=tile`; roteiro `docs/etapa-3-testes.md`):**
+- `macro/worldfield.js` (sem Three.js/DOM): o mundo como função de posição. `wfCreate(seed,{dominant,format})` -> `F`; `wfLand` (terra/mar, 4 formatos: `continentes`, `pangeia`, `arquipelagos`, `lago`), `wfHeight` (altura inteira, rios são vales do campo), `wfBiome`, `wfLandFrac`. Grade **provisória** de tiles (a etapa 5 troca por grafo): `wfNode(F,i,j)`, `wfHasTrail`/`wfTrails` (trilha por sorteio da aresta, simétrica), `wfTrailPath` (traçado igual dos dois lados), `wfWindow(F,cx,cz,size)` (janela com `ox/oz` inteiros), `wfOpenings` (onde as trilhas cruzam a borda), `wfPickTile`/`wfPickWindow`, `wfAscii` (desenho em texto).
+- `local/mapwin.js`: `mapWindowPick` (chamada em `worldInit`; guarda `WORLD.win`), `reliefField`/`reliefFieldBiomes` (chamadas por `reliefTerrain`/`reliefBiomes` quando `P.win`), `mapTileSite` (cidade no centro da janela; tile tem **uma cidade só** e `X.MINC=1`), `tileTrailLinks` (estrada de cada abertura até um portão aberto, com `carveRoad` como `reserveGateLinks`; `tileRoadStub` liga o ponto a 8 blocos da borda até a borda), `tileBorderPlan` (`WORLD.win.band`: 0 livre, 1 faixa de árvores, 2 parede; largura com ruído; aberturas livres), `tileBorderBuild` (árvores e caixas de colisão invisíveis), cenário (`tileScenario`, `tileAfter`, `tilePlaceAt`, `tileScenarioHtml` com mapa do mundo, atalhos para vizinhos e deslocamento da janela). Ganchos: `world.js` (`worldInit`, `worldReliefStage`, `worldCitiesStage`, `worldNatureStage`, `genDecor`), `poi.js` (`spotOK` evita a faixa), `scenario.js`, `phys.js` (`mapSizeDefault`).
+- Números em `WORLD_FIELD` e funções `mapTileOn`/`mapWorldOn`/`mapTileSize` (`modifiers/map-modifiers.js`); textos `TXT_TILE_*`/`txtTile*` (`texts/map-texts.js`).
+- URL: `?cenario=tile&auto=1&mute=1` (`&ti=&tj=` tile da grade, `&tipo=cidade` janela de 320 (padrão 256), `&forma=`, `&wx=&wz=` janela livre, `&pos=borda`); `?mundo=1` gera o mapa normal (704) como janela do campo, sem trilhas (borda toda fechada).
+- Teste em Node: `cd tests && node macro/campo.js [semente] [--mapa]` (terra por formato, borda do mundo é mar, determinismo, biomas, continuidade entre janelas, trilhas simétricas, aberturas, plano da borda com globais falsas).
+
 **Testes novos:** `node tests/macro/run.js` (macro em Node: `tests/macro/carregar.js` carrega scripts num `vm`; hoje confere economia determinística), `cd tests && node mundo-hash.js <raiz> seed=11 "seed=5&reserva=1"` (impressão digital do mundo; rode na raiz antiga e na nova para comparar).
 
 ## Ordem de carga (`index.html`, fim do arquivo)
-util → modifiers/* → texts/* → render → voxel → phys → world → city → cityfoot → reserve → rivers → nav → entities → weapons → allies → poi → quests → ambient → data →
+util → modifiers/* → texts/* → render → voxel → phys → worldfield → world → city → cityfoot → reserve → rivers → mapwin → nav → entities → weapons → allies → poi → quests → ambient → data →
 state → ui → inventory → store → cooking → fishing → dungeon → raids → warehouse → econ → office → caravans → book → bookmap → rounds → policies →
 factions → facgraph → facsupply → rebellion → rebmine → facevents → meetfx → meeting → globalev → flageditor →
 scenario → tiletest → missions → pois → poigame → negoc → warfront → warops → warbook → save → **game** (último: laço principal e entrada).

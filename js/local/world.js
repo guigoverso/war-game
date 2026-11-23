@@ -81,6 +81,7 @@ function genRelief(P,stamps,roads,pois){
 }
 // Etapa relevo (+ rios): preenche H a partir do campo de altura, da forma do mapa (landMask), da costa e dos rios.
 function reliefTerrain(P){
+  if(P.win){reliefField(P);return}   // janela do campo do mundo (?mundo=1, ?cenario=tile; js/mapwin.js): altura vem de wfHeight, sem forma de ilha própria
   const {seed,dominant,shape,sAng,bayA}=P;
   const nz=new Noise(seed),nt=new Noise(seed+11),nm=new Noise(seed+23),nr=new Noise(seed+37),nd=new Noise(seed+51),nj=new Noise(seed+77);
   const wn=new Noise(seed+131);
@@ -148,6 +149,7 @@ function reliefRivers(P,preH,coast){
 }
 // Etapa biomas: temperatura/umidade por percentil sobre o relevo já pronto (depois das reservas), rocha por altura e distância entre deserto e neve.
 function reliefBiomes(P){
+  if(P.win){reliefFieldBiomes(P);return}   // bioma do campo do mundo (mapwin.js)
   const {seed,dominant}=P;
   const nt=new Noise(seed+11),nm=new Noise(seed+23),nj=new Noise(seed+77);
   // biomas por percentil: garante variedade em qualquer semente
@@ -197,14 +199,16 @@ function worldInit(seed,dominant,opts){
   if(opts&&opts.size)mapSetSize(opts.size);
   // bioma dominante: escolhido pelo jogador ou sorteado pela semente
   if(!DOM_NAMES[dominant])dominant=['plains','forest','mountain','snow','desert'][new RNG(seed+999).int(0,4)];
-  WORLD.dominant=dominant;WORLD.seed=seed;WORLD.cities=[];WORLD.chunkMeshes=[];WORLD.windmills=[];WORLD.bt=new Map();WORLD.bridges=[];WORLD.poiPlan=null;WORLD.rivers=null;WORLD.dgSite=null;WORLD.noRail=new Set();WORLD.showcaseMode=new URLSearchParams(location.search).get('cenario')==='pois';
+  const win=mapWindowPick(seed,dominant);   // janela do campo do mundo (null no jogo normal; js/mapwin.js): o mapa local passa a ser um pedaço do mundo
+  if(win&&win.size!==W)mapSetSize(win.size);
+  WORLD.win=win;WORLD.dominant=dominant;WORLD.seed=seed;WORLD.cities=[];WORLD.chunkMeshes=[];WORLD.windmills=[];WORLD.bt=new Map();WORLD.bridges=[];WORLD.poiPlan=null;WORLD.rivers=null;WORLD.dgSite=null;WORLD.noRail=new Set();WORLD.showcaseMode=new URLSearchParams(location.search).get('cenario')==='pois';
   Col.map.clear();Col.all.length=0;for(const a of CRITTERS)scene.remove(a.g);CRITTERS.length=0;
   const rng=new RNG(seed);
   const nz=new Noise(seed),nt=new Noise(seed+11),nm=new Noise(seed+23),nr=new Noise(seed+37),nd=new Noise(seed+51),nj=new Noise(seed+77);TNOISE=new Noise(seed+303);
   H=new Int16Array(W*W);T=new Uint8Array(W*W);B=new Uint8Array(W*W);
   TREEC.clear();CHUNKS.length=0;LEAVES.length=0;LZ.clear();for(let i=0;i<NCH*NCH;i++){CHUNKS.push(new BoxBatch());LEAVES.push(new BoxBatch())}
   const RES=reserveOn()&&!WORLD.showcaseMode;   // RES: modo reserva (js/reserve.js)
-  const X={seed,rng,nd,RES,MINC:6,cities:[],cand:[],edges:[],RP:null};
+  const X={seed,rng,nd,RES,MINC:win&&win.tile?1:6,cities:[],cand:[],edges:[],RP:null,win};   // tile do campo do mundo: uma cidade só
   mapSync();
   return X;
 }
@@ -213,9 +217,9 @@ async function worldReliefStage(X,status){
   const {seed,rng}=X;
   const SHAPES=['Ilha irregular','Continente recortado','Anel com mar interno','Península com baía','Faixa de terra diagonal'];
   const shape=rng.int(0,4),sAng=rng.range(0,6.283),bayA=rng.range(0,6.283);   // forma do mapa varia por semente
-  WORLD.shapeName=SHAPES[shape];
+  WORLD.shapeName=X.win?X.win.F.fmtName:SHAPES[shape];
   status('Esculpindo montanhas, rios e lagos...');await tick();
-  const RP=X.RP={seed,dominant:WORLD.dominant,shape,sAng,bayA,drawn:reserveOn()&&!WORLD.showcaseMode&&RIVER.on};   // drawn: rios desenhados (fase 5)
+  const RP=X.RP={seed,dominant:WORLD.dominant,shape,sAng,bayA,drawn:reserveOn()&&!WORLD.showcaseMode&&RIVER.on&&!X.win,win:X.win};   // drawn: rios desenhados (fase 5)
   genRelief(RP,null);
 }
 // Etapa 2: locais das cidades, reserva (modo reserva), cidade inicial, facções, estilos e terreno sob cada cidade.
@@ -223,7 +227,7 @@ async function worldCitiesStage(X,status){
   const {seed,rng,RES,RP,cand}=X;
   // nº de cidades proporcional à terra do mapa (terra ÷ 48 mil, entre 6 e 8); ?cid=N força um número (estudo)
   let landN=0;for(let i=0;i<W*W;i+=9)if(H[i]>=SEA+1)landN++;
-  const NC=tileTestOn()?2:Math.max(4,Math.min(16,+(new URLSearchParams(location.search).get('cid'))||Math.max(6,Math.min(8,Math.round(landN*9/48000)))));   // mapa de teste: duas cidades
+  const NC=tileTestOn()?2:(X.win&&X.win.tile)?1:Math.max(4,Math.min(16,+(new URLSearchParams(location.search).get('cid'))||Math.max(6,Math.min(8,Math.round(landN*9/48000)))));   // mapa de teste: duas cidades
   const inShow=(x,z)=>WORLD.showcaseMode&&Math.abs(x-W/2)<210&&Math.abs(z-W/2)<170;   // área reservada aos POIs do mapa manual: sem cidades
   // 2) Locais das cidades
   status('Escolhendo locais para as cidades...');await tick();
@@ -242,6 +246,7 @@ async function worldCitiesStage(X,status){
   // estreita, deserto recortado) não comporta 7 cidades afastadas, o mundo ganha MENOS cidades em vez de cidades coladas (a construção e o aplainamento se atropelavam).
   const sites=[],MIND=220,MINC=X.MINC;   // MIND: distância mínima entre os centros; só desce (de 10 em 10, até 64) se não couberem ao menos MINC cidades
   if(tileTestOn())for(const k of[TILE_TEST.home,TILE_TEST.big])sites.push({x:k.x,z:k.z,b:B[k.z*W+k.x]});   // mapa de teste: a sua cidade (pequena, num canto) e a da outra facção (grande)
+  else if(X.win&&X.win.tile){const k=mapTileSite(cand);if(k)sites.push(k)}   // tile do campo do mundo: a cidade no centro da janela (js/mapwin.js)
   else if(cand.length)sites.push(cand[rng.int(0,cand.length-1)]);
   const wRng=new RNG((seed*71+5)>>>0);if(RES)reserveWaterDist(cand);   // distância de cada candidato até a água do rascunho (fase 4)
   const pickSites=floorD=>{
@@ -351,11 +356,12 @@ async function worldBuildStage(X,status){
 async function worldNatureStage(X,status){
   const {rng,nd,cities}=X;
   status('Escondendo baús, grutas e acampamentos...');await tick();
+  if(X.win){tileTrailLinks(cities);tileBorderPlan()}   // janela do campo do mundo: estrada das trilhas até as aberturas e plano da borda de árvores (mapwin.js)
   WORLD.snap={H:H.slice(),T:T.slice(),B:B.slice()};
   genPOIs(rng,cities);
   status('Plantando árvores, pedras e flores...');await tick();
   genDecor(rng,nd,cities);
-
+  if(X.win)tileBorderBuild();   // árvores densas e parede de colisão na borda, menos nas aberturas (mapwin.js)
 }
 // Etapa 6: malha do terreno e minimapa; fecha o mapa ativo (mapSync guarda H/T/B/tamanho em MAP).
 async function worldMeshStage(X,status){
@@ -611,6 +617,7 @@ function genDecor(rng,dn,cities){
   for(let z=3;z<W-3;z+=2)for(let x=3;x<W-3;x+=2){
     const px=x+rng.int(0,1),pz=z+rng.int(0,1),i=pz*W+px;
     if(T[i]!==T_NAT)continue;const h=H[i];if(h<SEA+1)continue;
+    if(WORLD.win&&WORLD.win.band&&WORLD.win.band[i])continue;   // faixa da borda: quem planta é tileBorderBuild
     if(nearCity(px,pz,4,cities))continue;
     if(WORLD.camps.some(k=>Math.hypot(px-k.cx,pz-k.cz)<13.5))continue;   // acampamentos ficam sem árvores, pedras e plantas ao redor
     if(WORLD.pois&&WORLD.pois.some(k=>Math.hypot(px-k.cx,pz-k.cz)<POI_DEFS[k.type].r+5))continue;   // POIs também (a margem deixa as copas das árvores de fora)

@@ -11,6 +11,7 @@ function scenarioApply(){
   if(new URLSearchParams(location.search).get('cenario')==='rebeliao'){rebScenario();return}   // cenário da rebelião de cidade NPC (rebellion.js)
   if(new URLSearchParams(location.search).get('cenario')==='guerra'){warScenario();return}   // cenário da guerra (war.js)
   if(tileTestOn()){tileTestScenario();return}   // teste de batalha num mapa local de cidade (tiletest.js)
+  if(mapTileOn()){tileScenario();return}   // um tile do campo do mundo (mapwin.js)
   if(new URLSearchParams(location.search).get('cenario')!=='caravanas')return;
   SCN.on=true;G.introBook=false;STATE.phase='commander';STATE.round=1;P.coins=20000;
   facSetIdentity({name:'Cenário de caravanas'});
@@ -38,6 +39,7 @@ function scenarioAfter(){
   if(typeof REBSCN!=='undefined'&&REBSCN.on){rebScenarioAfter();return}
   if(typeof WARSCN!=='undefined'&&WARSCN.on){warScenarioAfter();return}
   if(typeof TILETEST!=='undefined'&&TILETEST.on){tileTestAfter();return}
+  if(mapTileOn()){tileAfter();return}
   if(!SCN.on)return;
   const i=CARAVANS.findIndex(c=>c.city.owner==='enemy');scenarioGo(i>=0?i:0,true);
   toast('🧪 Cenário de caravanas: 3 rotas (aliada, favorável e neutra). Pausa (Tab) → Facções → "Ir até a caravana". Atire nos guardas de uma caravana de NPC para ver o crime.',9000);
@@ -53,6 +55,7 @@ function scenarioHtml(){
   if(typeof REBSCN!=='undefined'&&REBSCN.on)return rebScenarioHtml();
   if(typeof WARSCN!=='undefined'&&WARSCN.on)return warScenarioHtml();
   if(typeof TILETEST!=='undefined'&&TILETEST.on)return tileTestHtml();
+  if(mapTileOn())return tileScenarioHtml();
   if(!SCN.on)return '';
   const rows=CARAVANS.map((car,i)=>{
     const mineC=car.city.owner==='player',f=facOf(car.city.fid),st=mineC?'sua':REL_ST[relStatus(car.city.fid)].n,col=hex6(FAC_COLORS[f.color].c);

@@ -18,3 +18,28 @@ const TXT_TILETEST_HELP = 'Mede o desempenho com muitos atores. "Medir" grava a 
 const txtTileTestPerf = (p, e, a) =>
   p.fps.toFixed(1) + ' qps • atualizar ' + p.upd.toFixed(1) + ' ms • desenhar ' + p.ren.toFixed(1) + ' ms (' + p.frames + ' quadros) • inimigos '
   + e + ' • aliados ' + a;
+
+// ---------- Cenário ?cenario=tile (campo do mundo e mapa local por janela; js/local/mapwin.js) ----------
+
+// Cabeçalho do painel do cenário de tile (aba Facções da pausa).
+const TXT_TILE_TITLE = '🧪 Teste de tile (janela do campo do mundo)';
+
+// Dados do tile no painel. win = WORLD.win (formato do mundo, posição na grade, tipo, tamanho, aberturas e trilhas).
+const txtTileInfo = win =>
+  'Formato do mundo: <b>' + win.F.fmtName + '</b> • ' + (win.free ? '<b>janela livre</b>' : 'tile <b>' + win.ti + ',' + win.tj + '</b>') + ' (' + win.kind + ', ' + win.size + '×' + win.size + ') • centro no mundo ('
+  + win.cx + ', ' + win.cz + ') • ' + win.neighbors.length + ' trilha(s), ' + win.openings.length + ' abertura(s) na borda'
+  + (win.openings.length ? ' (' + win.openings.map(o => o.dir + (o.road ? '' : ' sem estrada')).join(', ') + ')' : '') + '.';
+
+// Legenda da imagem do mundo no painel do cenário de tile.
+const TXT_TILE_MAPHELP = 'Quadrado vermelho = este tile; pontos brancos = centros da grade; linhas claras = trilhas. A grade é provisória (etapa 5 troca por um grafo).';
+
+// Rótulo do atalho para um tile vizinho. t = {dir:'E'|'W'|'S'|'N', i, j}.
+const txtTileDirLabel = t => ({ E: '→ Leste', W: '← Oeste', S: '↓ Sul', N: '↑ Norte' }[t.dir]) + ' (' + t.i + ',' + t.j + ')';
+
+// Linha dos atalhos para vizinhos; texto quando o tile não tem trilha; botão que leva o jogador à primeira abertura.
+const TXT_TILE_NEIGHBORS = 'Ir para o vizinho:';
+const TXT_TILE_NONEIGHBOR = 'nenhum (tile sem trilhas; use ?ti=&tj= na URL)';
+const TXT_TILE_GOBORDER = '📍 Ir à primeira abertura da borda';
+
+// Rótulo dos atalhos que deslocam a janela 128 blocos (teste de continuidade: o terreno comum às duas janelas tem de ser igual; compare com o mapa, tecla M).
+const TXT_TILE_SHIFT = 'Deslocar a janela 128 blocos (continuidade):';

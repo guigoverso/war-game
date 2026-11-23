@@ -32,7 +32,7 @@ Objetivo: preparar o terreno. Conflita com quase tudo, então **nada em paralelo
 4. Ferramenta de teste em Node para a camada `macro` (rodadas, economia, facções sem navegador).
 - Pronto quando: smoke igual ao de antes, partida normal idêntica, `docs/MAPA.md` reescrito por camada.
 
-## Etapa 3: campo do mundo e mapa local por janela (G)
+## Etapa 3: campo do mundo e mapa local por janela (G) — CÓDIGO PRONTO em 2026-11-23, falta o teste na tela (roteiro em `docs/etapa-3-testes.md`; resumo em `docs/MAPA.md`, seção Etapa 3)
 - Mundo como **função de posição** (altura, água, bioma, rios) e os 4 formatos: continentes, pangeia, arquipélagos, grande lago (`landMask` em escala de mundo).
 - Gerador local recebe uma janela do campo (tile de 320 de cidade, 256 de natureza), com borda orgânica fechada por árvores e aberturas só onde há trilha para um vizinho.
 - Estrada local a partir das aberturas (hash da aresta); costa, baía, ilha e rios vindos do campo.

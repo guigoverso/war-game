@@ -312,7 +312,10 @@ function facForceStatus(fid,st){
 }
 function renderFacCheats(){
   const box=document.getElementById('facscheat');if(!box)return;
-  if(!WORLD.factions||!WORLD.factions.length){box.textContent='Gere o mundo primeiro.';return}
+  if(!WORLD.factions||!WORLD.factions.length){   // sem facção NPC (tile de uma cidade só): ainda mostra o painel do cenário
+    if(WORLD.cities&&WORLD.cities.length&&typeof scenarioHtml==='function')box.innerHTML=scenarioHtml();else box.textContent='Gere o mundo primeiro.';
+    return;
+  }
   box.innerHTML=(typeof scenarioHtml==='function'?scenarioHtml():'')+WORLD.factions.map(f=>{
     const st=relStatus(f.id),r=relOf(f.id);
     return '<div style="margin:6px 0"><i style="color:'+hex6(FAC_COLORS[f.color].c)+';font-style:normal">■</i> <b>'+f.name+'</b> <small>('+facTemperName(f)+', '+facCities(f.id).length+' cidade(s))</small><br>'

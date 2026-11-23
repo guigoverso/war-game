@@ -13,6 +13,7 @@ function flattenArea(x,z,r,y,F){
 }
 function spotOK(x,z,r,taken,gap,maxRange,wet){   // wet: fração de pontos de água aceita (o POI aterra a poça ao nivelar)
   if(x<r+8||z<r+8||x>W-r-8||z>W-r-8)return null;
+  const bd=WORLD.win&&WORLD.win.band;if(bd&&bd[z*W+x])return null;   // janela do campo do mundo: a faixa de árvores da borda (mapwin.js) fica livre de POIs
   for(const t of taken)if(Math.hypot(t.x-x,t.z-z)<t.r+gap)return null;
   let mn=99,mx=-99,sum=0,n=0,w=0,tot=0;
   for(let dz=-r-1;dz<=r+1;dz+=2)for(let dx=-r-1;dx<=r+1;dx+=2){
