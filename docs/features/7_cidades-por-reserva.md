@@ -127,7 +127,7 @@ Motivo: código de POIs é outro bloco (`poi.js`, `pois.js`, `warfront.js`) e me
 
 **Como testar.** Smoke (inclui POIs, serviços e Negociação), `?cenario=pois` (não usa reserva), contagem de POIs por semente. **Pronto quando**: mesmos tipos e quantidades de POIs de antes (±), nenhum POI no mar ou em encosta, smoke OK.
 
-## Fase 4: preferência por água (tamanho P) — **MESMA SESSÃO da fase 1** (se sobrar contexto; senão nova)
+## Fase 4: preferência por água (tamanho P) — **IMPLEMENTADA (sem teste na tela; ver ESTADO.md)**
 Motivo: é só um bônus na pontuação de local; pequeno.
 
 **Objetivo.** Parte das cidades prefere margem de rio ou lago, mas não é obrigatório.

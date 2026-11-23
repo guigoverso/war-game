@@ -218,3 +218,20 @@ function reserveFlatDisc(x,z,r,y,ramp){   // ramp: alcance da rampa (padrão RES
     const k=Math.max(0,d-r)*RESERVE.poiSlope,i=pz*W+px;H[i]=d<=r?y:Math.round(clamp(H[i],y-k,y+k));
   }
 }
+
+// ---------- Preferência por água (feature 7, fase 4) ----------
+// No rascunho, mede a distância de cada candidato de cidade até a água (rio, lago ou mar; H < SEA) e guarda em c.wd (RESERVE.waterMax se não há água por perto).
+// Cidade que "prefere água" (sorteio com RESERVE.waterBias em genWorld) ganha pontos em pickSites (reserveWaterScore) perto da distância ideal:
+// a borda da cidade (cerca de 42 blocos do centro) a RESERVE.waterNear blocos da margem. As demais ficam indiferentes (nem bônus nem castigo).
+function reserveWaterDist(cand){
+  const R=RESERVE.waterMax;
+  for(const c of cand){
+    let best=R;
+    for(let dz=-R;dz<=R;dz+=4)for(let dx=-R;dx<=R;dx+=4){
+      const x=c.x+dx,z=c.z+dz;if(x<0||z<0||x>=W||z>=W)continue;
+      const d=Math.hypot(dx,dz);if(d<best&&H[z*W+x]<SEA)best=d;
+    }
+    c.wd=best;
+  }
+}
+const reserveWaterScore=c=>RESERVE.waterBonus*(1-clamp(Math.abs(c.wd-RESERVE.waterNear-42)/RESERVE.waterTol,0,1));

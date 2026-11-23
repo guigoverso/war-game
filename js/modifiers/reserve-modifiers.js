@@ -23,8 +23,12 @@ const RESERVE = {
   roadWater: 3,
   // gateLinkMax: distância máxima (blocos) de um portão aberto sem estrada até a estrada mais próxima para ligar os dois (sem ponte); mais longe, o portão fica sem estrada. Padrão: 40
   gateLinkMax: 40,
-  // waterBias / waterNear: preferência por margem de água (fase 4; ainda não usados). Padrões: 0.7 e 12
+  // waterBias: chance de cada cidade preferir a margem de um rio, lago ou o mar (as outras são indiferentes); waterNear: distância ideal (blocos)
+  // entre a borda da cidade e a água. Padrões: 0.7 e 12
   waterBias: 0.7, waterNear: 12,
+  // waterBonus: pontos que o local ideal ganha na escolha (a distância entre cidades vale ~220; maior = a água pesa mais); waterTol: a partir de quantos
+  // blocos do ideal o bônus zera; waterMax: alcance da busca por água a partir do centro. Padrões: 60, 50 e 110
+  waterBonus: 60, waterTol: 50, waterMax: 110,
   // poiOn: liga a reserva dos POIs grandes (fase 3). Padrão: true
   poiOn: true,
   // poiTypes: POIs permanentes grandes e de tamanho fixo que entram na reserva (o chão final nasce com a plataforma e a rampa deles);

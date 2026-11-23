@@ -180,16 +180,19 @@ async function genWorld(seed,status,dominant){
   const sites=[],MIND=220,MINC=6;   // MIND: distância mínima entre os centros; só desce (de 10 em 10, até 64) se não couberem ao menos MINC cidades
   if(tileTestOn())for(const k of[TILE_TEST.home,TILE_TEST.big])sites.push({x:k.x,z:k.z,b:B[k.z*W+k.x]});   // mapa de teste: a sua cidade (pequena, num canto) e a da outra facção (grande)
   else if(cand.length)sites.push(cand[rng.int(0,cand.length-1)]);
+  const wRng=new RNG((seed*71+5)>>>0);if(RES)reserveWaterDist(cand);   // distância de cada candidato até a água do rascunho (fase 4)
   const pickSites=floorD=>{
     while(sites.length<NC&&cand.length){
+      const ww=RES&&wRng.chance(RESERVE.waterBias);   // esta cidade prefere margem de água? (sorteio por semente, js/reserve.js)
       let bestC=null,bs=-1e9,bmd=0;
       for(const c of cand){
         let md=1e9;for(const s of sites){const d=Math.hypot(s.x-c.x,s.z-c.z);if(d<md)md=d}
         const same=sites.filter(s=>s.b===c.b).length;
-        const sc=md-(same>=3?10:0)-c.rough*(RES?RESERVE.roughPenalty:0.35)+rng.range(0,3);
+        const sc=md-(same>=3?10:0)-c.rough*(RES?RESERVE.roughPenalty:0.35)+rng.range(0,3)+(ww?reserveWaterScore(c):0);
         if(sc>bs){bs=sc;bestC=c;bmd=md}
       }
       if(bmd<floorD)break;   // o melhor lugar que sobrou já é perto demais: não cabe mais cidade
+      if(ww)bestC=Object.assign({},bestC,{ww:true});
       sites.push(bestC);
     }
     // último recurso (poucos candidatos): sempre em terra firme, afastado das outras; relaxa a distância até o piso se não achar
@@ -204,7 +207,7 @@ async function genWorld(seed,status,dominant){
   const used=new Set();
   const cities=sites.map((s,i)=>{
     const bio=B[s.z*W+s.x];
-    return{id:i,cx:s.x,cz:s.z,half:tileTestOn()?(i===0?TILE_TEST.home.half:TILE_TEST.big.half):rng.int(36,45),biome:bio,owner:'enemy',state:'idle',home:false,rank:0,
+    return{id:i,wantWater:!!s.ww,cx:s.x,cz:s.z,half:tileTestOn()?(i===0?TILE_TEST.home.half:TILE_TEST.big.half):rng.int(36,45),biome:bio,owner:'enemy',state:'idle',home:false,rank:0,
       enemies:[],npcs:[],walk:[],spawns:[],towers:[],gates:[],flags:[],props:[],aliveEnemies:0,totalEnemies:0};
   });
   if(RES){   // reserva: verifica no rascunho, depois gera o terreno final em volta das pegadas (passada 2)
