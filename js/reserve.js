@@ -204,6 +204,7 @@ function reservePoisRelief(list){
       const x=p.cx+dx,z=p.cz+dz;if(x<2||z<2||x>=W-2||z>=W-2)continue;
       const d=Math.max(Math.hypot(dx,dz)-r,0),i=z*W+x;
       if(d>R)continue;
+      if(WORLD.rivers&&H[i]<SEA)continue;   // rio desenhado: a rampa não aterra a água
       if(d>0&&cs.some(c=>Math.abs(c.cx-x)<=c.half+RESERVE.apron+8&&Math.abs(c.cz-z)<=c.half+RESERVE.apron+8))continue;
       const k=d*S;H[i]=d===0?y:Math.round(clamp(H[i],y-k,y+k));
     }
@@ -215,7 +216,7 @@ function reserveFlatDisc(x,z,r,y,ramp){   // ramp: alcance da rampa (padrão RES
   const E=r+(ramp||RESERVE.dormRamp);
   for(let dz=-E;dz<=E;dz++)for(let dx=-E;dx<=E;dx++){
     const px=x+dx,pz=z+dz,d=Math.hypot(dx,dz);if(px<2||pz<2||px>=W-2||pz>=W-2||d>E)continue;
-    const k=Math.max(0,d-r)*RESERVE.poiSlope,i=pz*W+px;H[i]=d<=r?y:Math.round(clamp(H[i],y-k,y+k));
+    const k=Math.max(0,d-r)*RESERVE.poiSlope,i=pz*W+px;if(WORLD.rivers&&H[i]<SEA)continue;H[i]=d<=r?y:Math.round(clamp(H[i],y-k,y+k));
   }
 }
 

@@ -43,5 +43,23 @@ const RESERVE = {
   poiRampLate: 4,
   poiTypes: ['farm', 'mine', 'sawmill', 'sanctuary', 'post', 'fort', 'tavern']
 };
+// ---------- Rios desenhados (fase 5; só com ?reserva=1, js/rivers.js) ----------
+const RIVER = {
+  // on: liga os rios desenhados (nascem no alto e descem até o mar) no lugar do ruído de rios do gerador antigo; ?rios=0 desliga (comparação). Padrão: ligado
+  on: new URLSearchParams(location.search).get('rios') !== '0',
+  // count: quantos rios (mínimo e máximo; sorteio por semente); spacing: distância mínima (blocos) entre duas nascentes. Padrões: [3, 5] e 130
+  count: [3, 5], spacing: 130,
+  // srcRise: altura mínima da nascente acima do mar (blocos); srcSea: distância mínima da nascente até o mar (blocos); minLen: rio mais curto aceito (blocos).
+  // Padrões: 5, 45 e 90
+  srcRise: 5, srcSea: 45, minLen: 90,
+  // spring: comprimento (blocos) do trecho de nascente em que o leito ainda é raso e vai ficando fundo. Padrão: 30
+  spring: 30,
+  // wMin/wGrow/wMax: meia-largura do leito (blocos) = wMin + wGrow × distância percorrida, até wMax; mergeBoost: acréscimo por rio que se junta. Padrões: 1.4, 0.012, 4.5 e 0.3
+  wMin: 1.4, wGrow: 0.012, wMax: 4.5, mergeBoost: 0.3,
+  // valley: alcance (blocos) do vale suave em volta do leito; bank: largura (blocos) da margem em declive. Padrões: 18 e 5
+  valley: 18, bank: 5,
+  // lake: um poço natural do terreno (depressão) com pelo menos esta profundidade (blocos) vira lago onde o rio passa; lakeMax: raio máximo (blocos). Padrões: 2 e 10
+  lake: 2, lakeMax: 10
+};
 // o POI deste tipo entra na reserva?
 const poiReserved = type => RESERVE.poiOn && RESERVE.poiTypes.includes(type);

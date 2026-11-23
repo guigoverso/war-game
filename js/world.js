@@ -84,18 +84,34 @@ function genRelief(P,stamps,roads,pois){
   // relevo: fora do modo montanhas as serras são raras e baixas; planícies/desertos/florestas ficam suaves, com praias e margens de rio graduais
   const mtnW=dominant==='mountain'?[0.3,0.55]:[0.64,0.86],amp=dominant==='mountain'?[27,22]:[19,16];
   const HF=new Float32Array(W*W),MT=new Float32Array(W*W);
-  for(let z=0;z<W;z++)for(let x=0;x<W;x++){
-    const edge=1-landMask(x,z);
-    const base=nz.fbm(x/100,z/100,4);
-    const mtn=smooth(mtnW[0],mtnW[1],nm.fbm(x/140+5,z/140+9,3));
+  let baseV=0,mtnV=0,edgeV=0;
+  // relevo de um ponto sem rios (altura bruta); guarda base, serra e borda nas variáveis acima para o resto da conta
+  const preH=(x,z)=>{
+    edgeV=1-landMask(x,z);
+    baseV=nz.fbm(x/100,z/100,4);
+    mtnV=smooth(mtnW[0],mtnW[1],nm.fbm(x/140+5,z/140+9,3));
     const ridge=1-Math.abs(2*nr.fbm(x/55,z/55,3)-1);
-    let h=SEA+6+(base-0.5)*amp[0]+mtn*(ridge*amp[1]+4)+(nd.fbm(x/10,z/10,2)-0.5)*(dominant==='mountain'?3.4:2);
-    const rv=Math.abs(nr.fbm(x/80+200,z/80-120,3)-0.5);
-    if(dominant!=='mountain')h=lerp(h,SEA+2,smooth(0.16,0.05,rv)*0.6*(1-mtn));       // vale aberto em volta do rio
-    h=lerp(h,SEA-2.5,smooth(0.07,0.014,rv)*(1-mtn*0.85));                            // margem em declive suave
-    h=lerp(h,SEA+1.2+(base-0.5)*3,smooth(0.02,0.5,edge)*(1-mtn*0.5));              // o relevo desce devagar até a praia
-    h-=smooth(0.45,0.95,edge)*6;                                                      // e então afunda no mar
-    HF[z*W+x]=h;MT[z*W+x]=mtn;
+    return SEA+6+(baseV-0.5)*amp[0]+mtnV*(ridge*amp[1]+4)+(nd.fbm(x/10,z/10,2)-0.5)*(dominant==='mountain'?3.4:2);
+  };
+  const coast=h=>{   // o relevo desce devagar até a praia e então afunda no mar
+    h=lerp(h,SEA+1.2+(baseV-0.5)*3,smooth(0.02,0.5,edgeV)*(1-mtnV*0.5));
+    return h-smooth(0.45,0.95,edgeV)*6;
+  };
+  if(P.drawn&&!P.rivers){P.rivers=genRivers(P,(x,z)=>coast(preH(x,z)));WORLD.rivers=P.rivers.paths}   // rios desenhados (js/rivers.js): calculados uma vez por mundo
+  const RV=P.drawn?P.rivers:null;
+  for(let z=0;z<W;z++)for(let x=0;x<W;x++){
+    const i=z*W+x;let h=preH(x,z);
+    if(RV){   // rio desenhado: aplicado depois da costa (senão a praia entope a foz): vale suave em volta do leito, depois o leito
+      h=coast(h);
+      if(dominant!=='mountain')h=lerp(h,SEA+2,RV.RVAL[i]*0.7*(1-mtnV*0.6));
+      else h=lerp(h,SEA+3,RV.RVAL[i]*0.55);
+      HF[i]=lerp(h,SEA-2.5,RV.RCH[i]);MT[i]=mtnV;continue;
+    }else{
+      const rv=Math.abs(nr.fbm(x/80+200,z/80-120,3)-0.5);
+      if(dominant!=='mountain')h=lerp(h,SEA+2,smooth(0.16,0.05,rv)*0.6*(1-mtnV));       // vale aberto em volta do rio
+      h=lerp(h,SEA-2.5,smooth(0.07,0.014,rv)*(1-mtnV*0.85));                            // margem em declive suave
+    }
+    HF[i]=coast(h);MT[i]=mtnV;
   }
   // suavização das áreas que não são serra (duas passadas de média 3x3)
   for(let pass=0;pass<1;pass++){
@@ -143,7 +159,7 @@ function genRelief(P,stamps,roads,pois){
 async function genWorld(seed,status,dominant){
   // bioma dominante: escolhido pelo jogador ou sorteado pela semente
   if(!DOM_NAMES[dominant])dominant=['plains','forest','mountain','snow','desert'][new RNG(seed+999).int(0,4)];
-  WORLD.dominant=dominant;WORLD.seed=seed;WORLD.cities=[];WORLD.chunkMeshes=[];WORLD.windmills=[];WORLD.bt=new Map();WORLD.bridges=[];WORLD.poiPlan=null;WORLD.dgSite=null;WORLD.noRail=new Set();WORLD.showcaseMode=new URLSearchParams(location.search).get('cenario')==='pois';
+  WORLD.dominant=dominant;WORLD.seed=seed;WORLD.cities=[];WORLD.chunkMeshes=[];WORLD.windmills=[];WORLD.bt=new Map();WORLD.bridges=[];WORLD.poiPlan=null;WORLD.rivers=null;WORLD.dgSite=null;WORLD.noRail=new Set();WORLD.showcaseMode=new URLSearchParams(location.search).get('cenario')==='pois';
   Col.map.clear();Col.all.length=0;for(const a of CRITTERS)scene.remove(a.g);CRITTERS.length=0;
   const rng=new RNG(seed);
   const nz=new Noise(seed),nt=new Noise(seed+11),nm=new Noise(seed+23),nr=new Noise(seed+37),nd=new Noise(seed+51),nj=new Noise(seed+77);TNOISE=new Noise(seed+303);
@@ -155,7 +171,8 @@ async function genWorld(seed,status,dominant){
   const shape=rng.int(0,4),sAng=rng.range(0,6.283),bayA=rng.range(0,6.283);   // forma do mapa varia por semente
   WORLD.shapeName=SHAPES[shape];
   status('Esculpindo montanhas, rios e lagos...');await tick();
-  const RP={seed,dominant,shape,sAng,bayA};genRelief(RP,null);
+  const RP={seed,dominant,shape,sAng,bayA,drawn:reserveOn()&&!WORLD.showcaseMode&&RIVER.on};   // drawn: rios desenhados (fase 5)
+  genRelief(RP,null);
   // nº de cidades proporcional à terra do mapa (terra ÷ 48 mil, entre 6 e 8); ?cid=N força um número (estudo)
   let landN=0;for(let i=0;i<W*W;i+=9)if(H[i]>=SEA+1)landN++;
   const NC=tileTestOn()?2:Math.max(4,Math.min(16,+(new URLSearchParams(location.search).get('cid'))||Math.max(6,Math.min(8,Math.round(landN*9/48000)))));   // mapa de teste: duas cidades

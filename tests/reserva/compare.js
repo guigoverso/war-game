@@ -4,7 +4,7 @@ const ROOT=require('path').resolve(__dirname,'../..'),seeds=process.argv.slice(2
 const srv=http.createServer((req,res)=>{const u=decodeURIComponent(req.url.split('?')[0]),f=path.join(ROOT,u==='/'?'index.html':u);
   fs.readFile(f,(e,d)=>{if(e){res.writeHead(404);return res.end()}res.writeHead(200,{'Content-Type':path.extname(f)==='.js'?'text/javascript':path.extname(f)==='.html'?'text/html':'application/octet-stream'});res.end(d)})});
 (async()=>{await new Promise(r=>srv.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+srv.address().port;const b=await chromium.launch();
-for(const seed of seeds){const p=await b.newPage();await p.goto(base+'/index.html?auto=1&mute=1&seed='+seed+(process.env.RES?'&reserva=1':''));
+for(const seed of seeds){const p=await b.newPage();await p.goto(base+'/index.html?auto=1&mute=1&seed='+seed+(process.env.RES?'&reserva=1':'')+(process.env.XQ||''));
 await p.waitForFunction(()=>typeof G!=='undefined'&&G.running&&Array.isArray(WORLD.pois),null,{timeout:180000});
 const r=await p.evaluate(()=>{let cliffs=0;
  for(const c of WORLD.cities){const R=c.half+22;for(let z=-R;z<R;z++)for(let x=-R;x<R;x++){const i=(c.cz+z)*W+c.cx+x,h=H[i];

@@ -134,7 +134,7 @@ Motivo: é só um bônus na pontuação de local; pequeno.
 
 **Passos.** (1) Calcular no rascunho a distância até a água para cada candidato (chanfro como em `cityFootFlatten`). (2) Para cada cidade, sorteio com semente: com probabilidade `RESERVE.waterBias` ela prefere ficar a `waterNear` blocos de uma margem (bônus na pontuação de `pickSites`, ou limite de distância); senão, indiferente. (3) Margem da cidade: pegada afastada `beach` da água, sem rio atravessando; opcional: cais simples (fase posterior). **Pronto quando**: cerca de `waterBias` das cidades têm água a menos de `waterNear` blocos, sem aumentar paredões; ajustável por modificador.
 
-## Fase 5: rios desenhados (tamanho G) — **NOVA SESSÃO**
+## Fase 5: rios desenhados (tamanho G) — **IMPLEMENTADA (sem teste na tela; ver ESTADO.md)**
 Motivo: troca a geração de rios; afeta relevo, biomas e pontes.
 
 **Objetivo.** Rios como caminho que nasce no alto e desce até o mar (e lagos em depressões), em vez de curva de nível do ruído `nr` (`rv` em `genWorld`).
