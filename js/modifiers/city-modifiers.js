@@ -61,3 +61,5 @@ function cityCostOf(c) {
   return {gold: 1}
  //return CITY_UP_COST[cityLvl(c)] || null 
 }
+// WILD_SHADE: brilho do chão de acampamentos de bandidos e baús escondidos (1 = cor natural do bioma; menor = mancha mais escura). A mancha fica mesmo quando o acampamento some. Padrão: 0.92
+const WILD_SHADE = 0.92;

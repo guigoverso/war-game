@@ -550,6 +550,7 @@ function genDormant(rng, big, tiny, nearCity) {
     const y = wfCrowded(x, z, r, big, loose) ? null : spotOK(x, z, r + 1, [], 0, F.siteRange + (loose ? 20 : 6));
     if (y === null || nearCity(x, z) || tiny.some(q => Math.hypot(q.x - x, q.z - z) < q.r + r + 3)) return false;
     big.push({ x, z, r, poi: true });
+    if (reserveOn()) reserveFlatDisc(x, z, Math.min(r, RESERVE.dormFlat), y);   // modo reserva: o dormente assenta num chão plano (fogueira em encosta ficava torta)
     D.push({ i: D.length, x, z, y, kind, r, ring, road: kind === 'cairn' ? ax : undefined });
     return true;
   };

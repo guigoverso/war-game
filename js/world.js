@@ -64,7 +64,7 @@ function cityName(rng,biome,used){
 const DOM_NAMES={plains:'Planícies',forest:'Florestas',mountain:'Montanhas',snow:'Neve',desert:'Deserto'};
 // Relevo, rios e biomas (H e B). P = {seed,dominant,shape,sAng,bayA}; stamps = reservas (cidades) aplicadas depois da suavização e antes dos biomas
 // (js/reserve.js); roads = corredores de estrada (fase 2). Sem stamps o resultado é o mesmo do gerador antigo. Não consome o RNG do mundo: tudo sai da semente.
-function genRelief(P,stamps,roads){
+function genRelief(P,stamps,roads,pois){
   const {seed,dominant,shape,sAng,bayA}=P;
   const nz=new Noise(seed),nt=new Noise(seed+11),nm=new Noise(seed+23),nr=new Noise(seed+37),nd=new Noise(seed+51),nj=new Noise(seed+77);
   const wn=new Noise(seed+131);
@@ -108,6 +108,7 @@ function genRelief(P,stamps,roads){
   }
   for(let i=0;i<W*W;i++)H[i]=Math.max(SEA-3,Math.round(HF[i]));
   if(stamps)for(const c of stamps)c.foot?cityFootFlatten(c,RESERVE.apron):citySquareFlatten(c);   // reservas: pegada e faixa plana + rampa (js/reserve.js)
+  if(pois)reservePoisRelief(pois);   // POIs grandes reservados (fase 3, js/reserve.js)
   if(roads)reserveRoadsRelief(roads);   // corredores de estrada e pontes (js/reserve.js)
   // biomas por percentil: garante variedade em qualquer semente
   const TT=new Float32Array(W*W),MM=new Float32Array(W*W),ts=[],ms=[];
@@ -142,7 +143,7 @@ function genRelief(P,stamps,roads){
 async function genWorld(seed,status,dominant){
   // bioma dominante: escolhido pelo jogador ou sorteado pela semente
   if(!DOM_NAMES[dominant])dominant=['plains','forest','mountain','snow','desert'][new RNG(seed+999).int(0,4)];
-  WORLD.dominant=dominant;WORLD.seed=seed;WORLD.cities=[];WORLD.chunkMeshes=[];WORLD.windmills=[];WORLD.bt=new Map();WORLD.bridges=[];WORLD.noRail=new Set();WORLD.showcaseMode=new URLSearchParams(location.search).get('cenario')==='pois';
+  WORLD.dominant=dominant;WORLD.seed=seed;WORLD.cities=[];WORLD.chunkMeshes=[];WORLD.windmills=[];WORLD.bt=new Map();WORLD.bridges=[];WORLD.poiPlan=null;WORLD.dgSite=null;WORLD.noRail=new Set();WORLD.showcaseMode=new URLSearchParams(location.search).get('cenario')==='pois';
   Col.map.clear();Col.all.length=0;for(const a of CRITTERS)scene.remove(a.g);CRITTERS.length=0;
   const rng=new RNG(seed);
   const nz=new Noise(seed),nt=new Noise(seed+11),nm=new Noise(seed+23),nr=new Noise(seed+37),nd=new Noise(seed+51),nj=new Noise(seed+77);TNOISE=new Noise(seed+303);
@@ -249,7 +250,8 @@ async function genWorld(seed,status,dominant){
   WORLD.links=edges.map(e=>[e[0],e[1]]);
   if(RES){   // reserva (js/reserve.js): rotas e pontes sobre o terreno já aplainado, corredor reservado, terreno final em volta
     const t1=performance.now(),plan=reservePlanRoads(cities,edges);await tick();
-    genRelief(RP,cities,plan);for(const c of cities)cityFootGates(c);
+    WORLD.poiPlan=reservePois(cities,plan);   // POIs grandes: lugares no rascunho, plataforma no terreno final (fase 3)
+    genRelief(RP,cities,plan,WORLD.poiPlan);for(const c of cities)cityFootGates(c);
     reservePaintRoads(plan);WORLD.reserve.msRoads=Math.round(performance.now()-t1);
   }else for(const e of edges){carveRoad(cities[e[0]],cities[e[1]],cities);await tick()}
   // litoral: conta água nas redondezas de cada cidade (anel de 4 a 45 blocos além da muralha). É o que decide quem pode ser o porto.
@@ -607,7 +609,7 @@ function tileColor(x,z,i){
     case T_SOIL:c=0x5a3b22;break;
     case T_WHEAT:c=(x+z)%2?0xd8b64a:0xcfa93c;break;
     case T_CAVE:c=0x55555a;break;
-    case T_WILD:c=shadec(natCol(h,b),0.8);break;
+    case T_WILD:c=shadec(natCol(h,b),WILD_SHADE);break;   // chão de acampamento e baú escondido: levemente mais escuro (modifiers/city-modifiers.js)
     default:c=natVar(x,z,h,b,r);
   }
   return shadec(c,v);

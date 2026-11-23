@@ -177,3 +177,44 @@ function reserveGateLinks(cities){
   }
   if(WORLD.reserve)WORLD.reserve.gateLinksLate=n;
 }
+
+// ---------- POIs grandes por reserva (feature 7, fase 3) ----------
+// Depois das estradas planejadas e antes do terreno final: roda a escolha de lugares de genWorldPois em modo `dry` sobre o rascunho (as células das
+// estradas planejadas valem T_ROAD/T_BRIDGE só durante a escolha) e devolve a lista de POIs. Os tipos de RESERVE.poiTypes viram plataforma + rampa
+// no terreno final (genRelief); os outros são aplainados depois (genWorldPois com WORLD.poiPlan). A região das dungeons também é decidida aqui.
+function reservePois(cities,roadPlan){
+  if(!RESERVE.poiOn||WORLD.showcaseMode)return null;
+  const t0=performance.now(),marked=[];
+  for(const [k,o] of roadPlan.own){marked.push(k);T[k]=o.t==='b'?T_BRIDGE:T_ROAD}
+  const taken=cities.map(c=>({x:c.cx,z:c.cz,r:c.half+8}));
+  WORLD.dgSite=dgSite(cities);if(WORLD.dgSite)taken.push({x:WORLD.dgSite[0]+DG.S/2,z:WORLD.dgSite[1]+DG.S/2,r:DG.S*0.75});
+  const list=genWorldPois(cities,taken,true);
+  for(const k of marked)T[k]=T_NAT;
+  WORLD.reserve=Object.assign(WORLD.reserve||{},{poiPlanned:list.length,poiReserved:list.filter(p=>poiReserved(p.type)).length,msPois:Math.round(performance.now()-t0)});
+  return list;
+}
+// dentro de genRelief (depois das cidades, antes dos corredores de estrada): plataforma plana de raio r e rampa suave em volta (circular). A rampa limita a
+// diferença para o relevo original a RESERVE.poiSlope blocos de altura por bloco de distância (aterro e corte); onde o relevo já é mais suave que isso nada muda. Não mexe no chão das cidades.
+function reservePoisRelief(list){
+  const S=RESERVE.poiSlope,R=RESERVE.poiRamp,cs=WORLD.cities||[];
+  for(const p of list){
+    if(!poiReserved(p.type))continue;
+    const r=Math.round(POI_DEFS[p.type].r*RESERVE.poiDisc),y=p.y,E=r+R;   // plataforma redonda: raio r*poiDisc (os cantos do quadrado do prédio ainda cabem)
+    for(let dz=-E;dz<=E;dz++)for(let dx=-E;dx<=E;dx++){
+      const x=p.cx+dx,z=p.cz+dz;if(x<2||z<2||x>=W-2||z>=W-2)continue;
+      const d=Math.max(Math.hypot(dx,dz)-r,0),i=z*W+x;
+      if(d>R)continue;
+      if(d>0&&cs.some(c=>Math.abs(c.cx-x)<=c.half+RESERVE.apron+8&&Math.abs(c.cz-z)<=c.half+RESERVE.apron+8))continue;
+      const k=d*S;H[i]=d===0?y:Math.round(clamp(H[i],y-k,y+k));
+    }
+  }
+}
+// Disco plano de raio r (só o enfeite do dormente: fogueira, jardim, poço, marco) com rampa circular suave em volta; o resto do lugar reservado
+// (RESERVE.dormFlat < raio do dormente) fica com o relevo natural. Mesma regra de inclinação dos POIs grandes (RESERVE.poiSlope).
+function reserveFlatDisc(x,z,r,y,ramp){   // ramp: alcance da rampa (padrão RESERVE.dormRamp)
+  const E=r+(ramp||RESERVE.dormRamp);
+  for(let dz=-E;dz<=E;dz++)for(let dx=-E;dx<=E;dx++){
+    const px=x+dx,pz=z+dz,d=Math.hypot(dx,dz);if(px<2||pz<2||px>=W-2||pz>=W-2||d>E)continue;
+    const k=Math.max(0,d-r)*RESERVE.poiSlope,i=pz*W+px;H[i]=d<=r?y:Math.round(clamp(H[i],y-k,y+k));
+  }
+}

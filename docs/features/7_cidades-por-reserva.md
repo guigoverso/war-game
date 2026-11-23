@@ -118,7 +118,7 @@ Motivo: depende do diagnóstico das pontes e de dados do usuário; é um bloco i
 
 **Como testar.** `cliff.js` (degraus no tabuleiro e pontas), `shot.js` mirando cada ponte (usar coordenadas absolutas com id -1), `plan.js`. **Pronto quando**: nenhuma ponte tem degrau, buraco ou ponta no ar nas 6 sementes; estradas sem trechos alternando; cada cidade tem estrada até um portão aberto; caravanas continuam andando (`caravans.js` usa `T_ROAD`; ponte não é tomada por caravana, por enquanto).
 
-## Fase 3: POIs grandes reservados (tamanho M) — **NOVA SESSÃO**
+## Fase 3: POIs grandes reservados (tamanho M) — **IMPLEMENTADA (sem teste na tela; ver ESTADO.md)**
 Motivo: código de POIs é outro bloco (`poi.js`, `pois.js`, `warfront.js`) e merece contexto limpo.
 
 **Objetivo.** POIs de tamanho fixo e grande (ver `POI_DEFS` em `js/pois.js`) entram na reserva e o terreno final se molda a eles; acampamentos, dungeons, torres e missões seguem escolhendo depois.

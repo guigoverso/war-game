@@ -24,5 +24,20 @@ const RESERVE = {
   // gateLinkMax: distância máxima (blocos) de um portão aberto sem estrada até a estrada mais próxima para ligar os dois (sem ponte); mais longe, o portão fica sem estrada. Padrão: 40
   gateLinkMax: 40,
   // waterBias / waterNear: preferência por margem de água (fase 4; ainda não usados). Padrões: 0.7 e 12
-  waterBias: 0.7, waterNear: 12
+  waterBias: 0.7, waterNear: 12,
+  // poiOn: liga a reserva dos POIs grandes (fase 3). Padrão: true
+  poiOn: true,
+  // poiTypes: POIs permanentes grandes e de tamanho fixo que entram na reserva (o chão final nasce com a plataforma e a rampa deles);
+  // os outros (caçadores, torre, ruínas, pedágio de ponte) continuam sendo aplainados depois, como antes. Padrão: os de raio 14 ou mais
+  // poiSlope: inclinação máxima da rampa em volta do POI reservado (blocos de altura por bloco de distância; menor = mais suave); poiRamp: alcance máximo da rampa (blocos). Padrões: 0.5 e 30
+  poiSlope: 0.5, poiRamp: 30,
+  // dormFlat: raio (blocos) do disco plano sob o enfeite dormente (fogueira, jardim, poço, marco); dormRamp: alcance da rampa circular em volta. Padrões: 7 e 10
+  dormFlat: 7, dormRamp: 10,
+  // poiDisc: a plataforma dos POIs grandes é um disco de raio (raio do POI × poiDisc); 1.41 cobre os cantos do quadrado, menor deixa a plataforma menor. Padrão: 1.3
+  poiDisc: 1.3,
+  // poiRampLate: alcance da rampa dos POIs não reservados (caçadores, torre, ruínas), aplainados depois das estradas: curta para não mexer nelas. Padrão: 4
+  poiRampLate: 4,
+  poiTypes: ['farm', 'mine', 'sawmill', 'sanctuary', 'post', 'fort', 'tavern']
 };
+// o POI deste tipo entra na reserva?
+const poiReserved = type => RESERVE.poiOn && RESERVE.poiTypes.includes(type);

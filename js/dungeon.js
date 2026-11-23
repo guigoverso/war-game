@@ -12,18 +12,21 @@ const PORTALS=[];   // objetos visuais dos portais (a lista de dados fica em STA
 const REWARD_NAMES={resource:'Recursos',weapon:'Arma lendária',relic:'Relíquia'};
 
 // ---------- geração (roda dentro de genPOIs, antes da malha do terreno) ----------
-function genDungeons(rng,cities,taken){
-  DG.ok=false;DG.wings=[];
-  const S=DG.S,M=12;
-  // acha o quadrado de 100x100 com menos terra (preferindo as bordas do mapa), longe das cidades. A região fica EMBAIXO do mapa:
-  // como o terreno é um mapa de alturas, as colunas dessa área precisam ser rebaixadas; por isso ela deve ficar sob o mar (onde ninguém vê)
-  let best=null,bs=1e9;
+// acha o quadrado de 100x100 com menos terra (preferindo as bordas do mapa), longe das cidades. A região fica EMBAIXO do mapa:
+// como o terreno é um mapa de alturas, as colunas dessa área precisam ser rebaixadas; por isso ela deve ficar sob o mar (onde ninguém vê)
+function dgSite(cities){
+  const S=DG.S,M=12;let best=null,bs=1e9;
   for(let z0=4;z0<=W-S-4;z0+=12)for(let x0=4;x0<=W-S-4;x0+=12){
     if(cities.some(c=>Math.max(Math.abs(c.cx-(x0+S/2)),Math.abs(c.cz-(z0+S/2)))<S/2+c.half+M+4))continue;
     let land=0;for(let dz=0;dz<S;dz+=5)for(let dx=0;dx<S;dx+=5)if(H[(z0+dz)*W+x0+dx]>=SEA)land++;
     const edge=Math.min(x0,z0,W-S-x0,W-S-z0),sc=land*1000+edge;
     if(sc<bs){bs=sc;best=[x0,z0]}
   }
+  return best;
+}
+function genDungeons(rng,cities,taken){
+  DG.ok=false;DG.wings=[];
+  const S=DG.S,best=WORLD.dgSite||dgSite(cities);   // WORLD.dgSite: o modo reserva já escolheu a região no rascunho (reservePois, js/reserve.js)
   if(!best)return;
   DG.rx=best[0];DG.rz=best[1];DG.Y=SEA-250;DG.ok=true;   // a região fica muito abaixo do mapa (fora da vista, escondida pela névoa); só se chega por portal
   taken.push({x:DG.rx+S/2,z:DG.rz+S/2,r:S*0.75});

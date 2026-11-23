@@ -643,12 +643,14 @@ function poiInitOwner(p,rng){
   let nc=null,bd=1e9;for(const k of WORLD.cities){const d=Math.hypot(k.cx-p.cx,k.cz-p.cz);if(d<bd){bd=d;nc=k}}
   return nc&&nc.fid!==undefined&&rng.chance(0.5)?nc.fid:'bandit';
 }
-function genWorldPois(cities,taken){
+// dry (modo reserva, js/reserve.js reservePois): só escolhe os lugares no terreno rascunho (nada é aplainado nem construído) e devolve a lista
+// de POIs planejados; depois, com WORLD.poiPlan, esta função só instancia a lista (os reservados já têm o chão pronto; os outros são aplainados aqui).
+function genWorldPois(cities,taken,dry){
   if(WORLD.showcaseMode){poiShowcaseGen();return}
   const rng=new RNG((WORLD.seed*131+7)>>>0);WORLD.pois=[];let id=300;const tc={},bc={},G=POI_GEN;let cap=true;
   const add=(type,x,z,y,extra)=>{
     const d=POI_DEFS[type],p=Object.assign({id:id++,type,cx:x,cz:z,y,biome:B[z*W+x],owner:'bandit'},extra||{});
-    p.owner=poiInitOwner(p,rng);flattenArea(x,z,d.r,y,POI_BIG[type]?4:3);taken.push({x,z,r:d.r,poi:true});poiBuild(p);WORLD.pois.push(p);tc[type]=(tc[type]||0)+1;bc[p.biome+':'+type]=(bc[p.biome+':'+type]||0)+1;return p;
+    p.owner=poiInitOwner(p,rng);if(!dry)flattenArea(x,z,d.r,y,POI_BIG[type]?4:3);taken.push({x,z,r:d.r,poi:true});if(!dry)poiBuild(p);WORLD.pois.push(p);tc[type]=(tc[type]||0)+1;bc[p.biome+':'+type]=(bc[p.biome+':'+type]||0)+1;return p;
   };
   const nearestCity=(x,z)=>{let nc=null,bd=1e9;for(const k of cities){const d=Math.hypot(k.cx-x,k.cz-z);if(d<bd){bd=d;nc=k}}return nc};
   const wpick=o=>{let s=0;for(const e of o)s+=e[1];let r=rng.next()*s;for(const e of o){r-=e[1];if(r<0)return e[0]}return o[o.length-1][0]};
@@ -678,6 +680,7 @@ function genWorldPois(cities,taken){
     }
     return null;
   };
+  const select=()=>{
   const roadPools=[];
   const fst=G.first[WORLD.dominant];   // 0) o tipo principal do bioma dominante, no anel de cidades sorteadas
   if(fst)for(let k=0;k<fst[1];k++)for(let t=0;t<250;t++){
@@ -742,6 +745,19 @@ function genWorldPois(cities,taken){
   cap=true;
   // ruínas soltas pelo mapa
   for(let k=0,n=rng.int(2,3);k<n;k++){const s=findSpot(rng,POI_DEFS.ruins.r+1,POI_DEFS.ruins.r+POI_GAP,4,taken,3000);if(s)add('ruins',s.x,s.z,s.y)}
+  };
+  if(dry){select();const l=WORLD.pois;WORLD.pois=[];return l}
+  if(WORLD.poiPlan){   // modo reserva: instancia os lugares já escolhidos (reservePois)
+    for(const p of WORLD.poiPlan){
+      const d=POI_DEFS[p.type],big=POI_BIG[p.type]?2:1;p.biome=B[p.cz*W+p.cx];
+      if(!poiReserved(p.type)){   // não reservado: confere o lugar no terreno final e aplaina agora, como antes
+        if(spotOK(p.cx,p.cz,d.r+big,[],0,30,POI_BIG[p.type]?0.15:0)===null){WORLD.reserve.poiDropped=(WORLD.reserve.poiDropped||0)+1;continue}
+        reserveFlatDisc(p.cx,p.cz,Math.round(d.r*RESERVE.poiDisc),p.y,RESERVE.poiRampLate);   // disco como os reservados, com rampa curta (estradas e cidades já existem)
+      }
+      taken.push({x:p.cx,z:p.cz,r:d.r,poi:true});poiBuild(p);WORLD.pois.push(p);
+    }
+    id=300+WORLD.poiPlan.length;
+  }else select();
   // pontes com pedágio (independentes das regras acima): só as mais longas, no máximo POI_GEN.bridgeToll; as outras pontes ficam sem POI
   const cand=WORLD.bridges.filter(br=>br.len>=POI_GEN.bridgeMin).sort((p,q)=>q.len-p.len);
   for(const br of cand){
