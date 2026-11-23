@@ -6,7 +6,7 @@ const srv=http.createServer((req,res)=>{const u=decodeURIComponent(req.url.split
   fs.readFile(f,(e,d)=>{if(e){res.writeHead(404);return res.end()}res.writeHead(200,{'Content-Type':MIME[path.extname(f)]||'application/octet-stream'});res.end(d)})});
 (async()=>{await new Promise(r=>srv.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+srv.address().port;
 const b=await chromium.launch(),p=await b.newPage({viewport:{width:1280,height:800}});
-await p.goto(base+'/index.html?auto=1&mute=1&seed='+seed);
+await p.goto(base+'/index.html?auto=1&mute=1&seed='+seed+(process.env.RES?'&reserva=1':''));
 await p.waitForFunction(()=>typeof G!=='undefined'&&G.running&&Array.isArray(WORLD.pois),null,{timeout:180000});
 await p.evaluate(()=>{try{closePanel()}catch(e){}leaveOffice()});await p.waitForTimeout(500);
 await p.evaluate(([id,dx,dz,tx,tz])=>{const c0=0;const c=id<0?{cx:0,cz:0}:WORLD.cities[id],x=c.cx+dx,z=c.cz+dz;P.x=x;P.z=z;P.y=tH(x,z)+6;P.vx=P.vz=P.vy=0;P.camY=P.y;

@@ -12,7 +12,7 @@ const srv=http.createServer((req,res)=>{const u=decodeURIComponent(req.url.split
   for(const seed of process.argv.slice(3)){
     const page=await browser.newPage({viewport:{width:1280,height:800}}),errs=[];
     page.on('pageerror',e=>errs.push(e.message));page.on('console',m=>{if(m.type()==='error'||m.type()==='warning')errs.push(m.text())});
-    await page.goto(base+'/index.html?auto=1&mute=1&seed='+seed);
+    await page.goto(base+'/index.html?auto=1&mute=1&seed='+seed+(process.env.RES?'&reserva=1':''));
     await page.waitForFunction(()=>typeof G!=='undefined'&&G.running&&typeof WORLD!=='undefined'&&Array.isArray(WORLD.pois),null,{timeout:180000});
     const info=await page.evaluate(()=>WORLD.cities.map(c=>{
       let n=0,wet=0;const N=2*c.half+1;

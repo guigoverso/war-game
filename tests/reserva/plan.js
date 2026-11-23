@@ -8,7 +8,7 @@ const srv=http.createServer((req,res)=>{const u=decodeURIComponent(req.url.split
 (async()=>{
   await new Promise(r=>srv.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+srv.address().port;
   const browser=await chromium.launch(),page=await browser.newPage();
-  await page.goto(base+'/index.html?auto=1&mute=1&seed='+seed);
+  await page.goto(base+'/index.html?auto=1&mute=1&seed='+seed+(process.env.RES?'&reserva=1':''));
   await page.waitForFunction(()=>typeof G!=='undefined'&&G.running&&typeof WORLD!=='undefined'&&Array.isArray(WORLD.pois),null,{timeout:180000});
   for(const id of ids){
     const url=await page.evaluate(id=>{

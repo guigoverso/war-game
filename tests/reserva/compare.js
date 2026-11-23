@@ -14,6 +14,7 @@ const r=await p.evaluate(()=>{let cliffs=0;
  let gap=0,nb=0;for(const br of WORLD.bridges){nb++;for(const t of [br.tiles[0],br.tiles[br.tiles.length-1]]){const k=t.z*W+t.x;
   for(const [dx,dz] of[[3,0],[-3,0],[0,3],[0,-3]]){const k2=(t.z+dz)*W+t.x+dx;if(T[k2]===0&&H[k2]>=SEA+1&&Math.abs(H[k2]-H[k])>=3)gap++}}}
  let buried=0;for(const c of WORLD.cities)for(const t of c.towers){let mx=-99;for(let dz=-2;dz<=2;dz++)for(let dx=-2;dx<=2;dx++)mx=Math.max(mx,H[(Math.floor(t.z)+dz)*W+Math.floor(t.x)+dx]);if(mx>c.y+1)buried++}
- return{mtn:WORLD.cities.map(c=>c.mtn?Object.keys(c.mtn).filter(k=>c.mtn[k]).join(""):"-").join(","),buried,towers:WORLD.cities.reduce((a,c)=>a+c.towers.length,0),sq:WORLD.cities.filter(c=>!c.foot).length,res:WORLD.reserve||null,cliffs,bridges:nb,bridgeEndGaps:gap,cities:WORLD.cities.length}});
+ let seaGates=0,gates=0;for(const c of WORLD.cities)for(const g of c.gates){gates++;let k=0;for(;k<8;k++){const [x,z]=cityGatePos(c,g.dir,k+1);if(H[Math.floor(z)*W+Math.floor(x)]<SEA+1)break}if(k<8)seaGates++}
+ return{gates,seaGates,mtn:WORLD.cities.map(c=>c.mtn?Object.keys(c.mtn).filter(k=>c.mtn[k]).join(""):"-").join(","),buried,towers:WORLD.cities.reduce((a,c)=>a+c.towers.length,0),sq:WORLD.cities.filter(c=>!c.foot).length,res:WORLD.reserve||null,cliffs,bridges:nb,bridgeEndGaps:gap,cities:WORLD.cities.length}});
 console.log(seed,JSON.stringify(r));await p.close()}
 await b.close();srv.close()})();
