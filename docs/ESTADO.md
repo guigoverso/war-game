@@ -38,7 +38,7 @@ Bilhete de passagem entre sessões e PCs: **leia no início, atualize no fim** (
 - **Do jogo atual, ainda sem jogar na tela:** POIs, frente da guerra (edição da rota, mapa), F5d, caravanas, rebelião, reuniões, eventos, evolução (`LVL`, `CITY_UP_COST`), raids fáceis demais, pontes. Detalhes em `docs/fase-6-guerra.md`.
 
 ## Próximo passo
-Duas sessões novas em paralelo na `mapa-mundi-update`, com o prompt "Leia docs/ESTADO.md, docs/features/8_tiles-e-vilas.md e docs/features/9_plano-implementacao-tiles.md e comece a sessão 4.0" (documentar como as cidades são feitas hoje, só leitura) e "... sessão 4A" (base do tile de 384, temas e descritor). Depois 4B/4C (cidade enorme e vila, em série), 4D e 4F em paralelo, 4E, 4G. A etapa 3 está codificada (falta testar na tela com `docs/etapa-3-testes.md`).
+**Sessão 4.0 FEITA (2026-11-23, só leitura):** `docs/features/10_como-as-cidades-sao-feitas-hoje.md` (genWorld, reserva, pegada, `buildCity`, estradas, população, riscos de escala para 4B/4C). Próxima: sessão nova na `mapa-mundi-update` com o prompt "Leia docs/ESTADO.md, docs/features/8_tiles-e-vilas.md e docs/features/9_plano-implementacao-tiles.md e comece a sessão 4A" (base do tile de 384, temas e descritor). Depois 4B/4C (cidade enorme e vila, em série), 4D e 4F em paralelo, 4E, 4G. A etapa 3 está codificada (falta testar na tela com `docs/etapa-3-testes.md`).
 Roteiro rápido: `index.html?cenario=batalha&mute=1` (batalha 30 x 10; `?pos=portao`, `?pos=centro`, `?inim=N`, `?alia=N`), `?auto=1&mute=1&seed=11` (criativo), `?cenario=pois&auto=1&mute=1`. Recarregue com Ctrl+F5.
 
 ## Entre PCs
