@@ -1,10 +1,10 @@
 'use strict';
 // Impressão digital do mundo gerado (H, T, B, cidades, POIs) para provar que uma refatoração não mudou a geração.
-// Uso (de dentro de tests/): node mundo-hash.js [raiz do projeto] [query...]   ex.: node mundo-hash.js .. "seed=11" "seed=5&reserva=1"
+// Uso (de dentro de tests/): node mundo-hash.js [raiz do projeto] [query...]   ex.: node mundo-hash.js .. "seed=11" "seed=5&reserva=0"
 const http=require('http'),fs=require('fs'),path=require('path'),crypto=require('crypto');
 const {chromium}=require('playwright');
 const ROOT=path.resolve(process.argv[2]||path.join(__dirname,'..'));
-const QS=process.argv.slice(3).length?process.argv.slice(3):['seed=11','seed=5&reserva=1'];
+const QS=process.argv.slice(3).length?process.argv.slice(3):['seed=11','seed=5&reserva=0'];
 const MIME={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8'};
 (async()=>{
   const srv=http.createServer((req,res)=>{const f=path.join(ROOT,decodeURIComponent(req.url.split('?')[0])==='/'?'index.html':decodeURIComponent(req.url.split('?')[0]));

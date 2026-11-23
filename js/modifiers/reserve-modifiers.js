@@ -1,7 +1,7 @@
 'use strict';
 // ---------- Modificadores da reserva (reservar primeiro, esculpir depois; feature 7) ----------
-// Ligado só com ?reserva=1 (o gerador antigo continua o padrão até o protótipo ser aprovado).
-const reserveOn = () => new URLSearchParams(location.search).get('reserva') === '1' && !tileTestOn();
+// Ligado por padrão (desde 2026-11-23); ?reserva=0 volta ao gerador antigo (para comparar). Desligado em ?cenario=batalha.
+const reserveOn = () => new URLSearchParams(location.search).get('reserva') !== '0' && !tileTestOn();
 const RESERVE = {
   // maxInvented: fração da área reservada (pegada + faixa plana) que era água no terreno rascunho; acima disso a cidade é corrigida. Padrão: 0.15
   maxInvented: 0.15,

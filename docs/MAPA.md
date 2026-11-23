@@ -16,6 +16,8 @@ Pastas só organizam; a **ordem de carga** é a do `index.html` (não mudou). Os
 
 **`genWorld(seed,status,dominant,opts)` em etapas** (`world.js`; `opts.size` = lado do mapa). Cada etapa recebe o contexto `X` de `worldInit` e pode ser chamada sozinha: `worldInit` (zera, tamanho, aloca) → `worldReliefStage` (forma e `genRelief`) → `worldCitiesStage` (locais, reserva, facções, terreno sob as cidades) → `worldRoadsStage` (estradas e pontes) → `worldBuildStage` (litoral, tipos, `buildCity`) → `worldNatureStage` (POIs, árvores) → `worldMeshStage` (malha, minimapa). `genRelief` também é composto: `reliefTerrain` (altura, costa), `reliefRivers`, reservas, `reliefBiomes`. A geração é idêntica à de antes (`tests/mundo-hash.js` compara H/T/B/cidades/POIs).
 
+**Reserva é o padrão** (`reserveOn()` em `reserve-modifiers.js`): `?reserva=0` volta ao gerador antigo; nas referências abaixo a "só com `?reserva=1`" vale "por padrão" (scripts de `tests/reserva` com `RES=1` continuam valendo).
+
 **Testes novos:** `node tests/macro/run.js` (macro em Node: `tests/macro/carregar.js` carrega scripts num `vm`; hoje confere economia determinística), `cd tests && node mundo-hash.js <raiz> seed=11 "seed=5&reserva=1"` (impressão digital do mundo; rode na raiz antiga e na nova para comparar).
 
 ## Ordem de carga (`index.html`, fim do arquivo)
