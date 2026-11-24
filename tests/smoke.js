@@ -254,10 +254,12 @@ const T={
       if(!p.bed)return type+' sem cama';if(!(p.svcSpec||[]).some(s=>s.kind==='inn'))return type+' sem serviço inn';
       poiSetOwner(p,'player');if(!p.civ)return type+' sem moradores ao virar seu (poiCivSync)';
       P.coins=5000;svcInn(p);if(G.panel!=='svc')return type+': svcInn não abriu';
-      const btns=[...document.querySelectorAll('#svcbody button')];if(btns.length<5)return type+': loja com só '+btns.length+' botões';
-      btns[0].click();if(!(poiX().room&&poiX().room.poi===p.id))return type+': quarto não reservado';
+      let btns=[...document.querySelectorAll('#svcbody button')];if(btns.length!==2)return type+': o menu Comprar/Vender não veio primeiro ('+btns.length+' botões)';btns[0].click();btns=[...document.querySelectorAll('#svcbody button')];if(btns.length<6)return type+': loja sem abas/itens ('+btns.length+')';btns[2].click();btns=[...document.querySelectorAll('#svcbody button')];
+      btns[3].click();if(!(poiX().room&&poiX().room.poi===p.id))return type+': quarto não reservado';
       SVC=null;closePanel();poiX().room=null;
     }
+    {const L=WORLD.pois.find(q=>q.type==='lodge');L.owner='bandit';P.x=L.firePos.x;P.z=L.firePos.z+2.5;P.y=tH(P.x,P.z)+1;G.target=null;poiScan([]);
+      if(!G.target||G.target.type!=='fire')return 'fogueira do alojamento sem [E] (dono bandido)';if(innCash(L)!==POI_REST.lodge.cash)return 'caixa do comerciante errado'}
     const r=WORLD.pois.find(q=>q.type==='ruinvil');if(!r)return 'sem vila em escombros';
     poiSetOwner(r,'player');if(r.civ)return 'vila em escombros ganhou moradores';
     return '';

@@ -5,9 +5,11 @@
 // ------ Pousada e alojamento de trabalhadores (poigame.js, svcInn e cama) ------
 // Título da tela do pousadeiro (pousada) ou do cozinheiro (alojamento).
 const txtRestTitle = type => type === 'lodge' ? '🍲 CANTINA' : '🛏 POUSADA';
-// Frase do topo da tela: acréscimo (%) sobre a loja da cidade e moedas do jogador.
-const txtRestIntro = (type, pct, coins) => (type === 'lodge' ? '— Sopa quente e um beliche, patrão. ' : '— Entre, descanse! ')
-  + 'Preços ' + pct + '% acima da cidade. O quarto custa a cura completa. Moedas: <b>◉ ' + coins + '</b>';
+// Frase do topo da tela: acréscimo (%) sobre a loja da cidade, moedas do jogador e ouro que o comerciante ainda tem para comprar de você (left de max).
+const txtRestIntro = (type, pct, coins, left, max) => (type === 'lodge' ? '— Sopa quente e um beliche, patrão. ' : '— Entre, descanse! ')
+  + 'Preços ' + pct + '% acima da cidade. O quarto custa a cura completa. Moedas: <b>◉ ' + coins + '</b> • Ouro dele para comprar de você: <b>◉ ' + left + ' / ' + max + '</b>';
+// Abas da tela de compra da pousada e do alojamento [chave, rótulo] (poigame.js, svcInn).
+const REST_TABS = [['food', '🍲 Comida'], ['heal', '🩹 Remédios'], ['room', '🛏 Quarto']];
 // Botão de alugar o quarto e botão com o quarto já reservado (nesta rodada).
 const txtRestRoomRent = cost => '🛏 Alugar quarto ◉' + cost;
 const txtRestRoomHeld = type => type === 'lodge' ? '🛏 Beliche reservado (durma no barracão)' : '🛏 Quarto reservado (a cama fica na casa)';

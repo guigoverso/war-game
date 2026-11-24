@@ -467,24 +467,79 @@ function postSellTab(p,c,body){
 function svcInn(p){
   const c=poiPriceCity(p),K=POI_REST[p.type]||POI_REST.inn,mark=1+K.markup;
   const price=(base,kind)=>Math.max(1,Math.round(base*priceMulOf(priceExplain({city:c,kind}).concat([{txt:POI_DEFS[p.type].n,mul:mark}]))));
+  G.innMode='menu';G.innTab='food';G.innSel=null;
   svcOpen(txtRestTitle(p.type),(txt,body)=>{
+    const mode=G.innMode,left=innCash(p);
+    txt.innerHTML=txtRestIntro(p.type,Math.round(K.markup*100),P.coins,left,K.cash);
+    const back=()=>{const b=UI.button('← Voltar','alt',()=>{G.innMode='menu';G.innSel=null;svcRender()});b.style.marginTop='10px';body.appendChild(b)};
+    if(mode==='menu'){   // regra dos comerciantes: antes de tudo, Comprar ou Vender (como na Loja)
+      body.appendChild(UI.button('🛍 Comprar','gold',()=>{G.innMode='buy';svcRender()}));
+      body.appendChild(UI.button('🎒 Vender itens','gold',()=>{G.innMode='sell';G.innSel=null;svcRender()}));
+      return;
+    }
+    if(mode==='sell'){innSellTab(p,c,body);back();return}
     const X=poiX(),r=X.room,has=r&&r.poi===p.id&&r.round===STATE.round,debt=Ledger.anyDebt();
-    const cost=Math.max(1,Math.round(clinicCost(P.maxhp,c)*K.room));
-    txt.innerHTML=txtRestIntro(p.type,Math.round(K.markup*100),P.coins);
-    const room=UI.button(has?txtRestRoomHeld(p.type):txtRestRoomRent(cost),'gold',()=>{
-      if(!Ledger.spend({gold:cost}))return;
-      X.room={poi:p.id,round:STATE.round};sfx('coin',0);svcRender();
-    });
-    room.disabled=has||debt||P.coins<cost;body.appendChild(room);
-    for(const [shop,kind] of[['tavern','tavern'],['clinic','heal']])Object.values(DATA.items).filter(d=>d.shop===shop&&!d.rod).forEach(d=>{
-      const pr=price(d.price,kind),b=UI.button(d.icon+' '+d.name+' ◉'+pr,'gold',()=>{
-        if(invRoomFor(d.id)<1)toast('Bolsa cheia! Descarte algo antes de comprar.',2000);
-        else if(Ledger.spend({gold:pr})){invGive([[d.id,1]]);sfx('coin',0)}
-        svcRender();
+    const bar=document.createElement('div');bar.style.marginBottom='6px';   // abas por categoria, como as do armeiro
+    for(const [k,label] of REST_TABS)bar.appendChild(UI.button(label,G.innTab===k?'gold':'alt',()=>{G.innTab=k;svcRender()}));
+    body.appendChild(bar);
+    if(G.innTab==='room'){
+      const cost=Math.max(1,Math.round(clinicCost(P.maxhp,c)*K.room));
+      const room=UI.button(has?txtRestRoomHeld(p.type):txtRestRoomRent(cost),'gold',()=>{
+        if(!Ledger.spend({gold:cost}))return;
+        X.room={poi:p.id,round:STATE.round};sfx('coin',0);svcRender();
       });
-      b.disabled=debt||P.coins<pr;b.title=d.desc;body.appendChild(b);
-    });
+      room.disabled=has||debt||P.coins<cost;body.appendChild(room);
+    }else{
+      const shop=G.innTab==='heal'?'clinic':'tavern',kind=G.innTab==='heal'?'heal':'tavern';
+      Object.values(DATA.items).filter(d=>d.shop===shop&&!d.rod).forEach(d=>{
+        const pr=price(d.price,kind),b=UI.button(d.icon+' '+d.name+' ◉'+pr,'gold',()=>{
+          if(invRoomFor(d.id)<1)toast('Bolsa cheia! Descarte algo antes de comprar.',2000);
+          else if(Ledger.spend({gold:pr})){invGive([[d.id,1]]);sfx('coin',0)}
+          svcRender();
+        });
+        b.disabled=debt||P.coins<pr;b.title=d.desc;body.appendChild(b);
+      });
+    }
+    back();
   });
+}
+// ouro que o comerciante da pousada ainda tem para comprar de você nesta rodada (POI_REST.cash; renova a cada rodada)
+function innCash(p){
+  const X=poiX();if(!X.innCash)X.innCash={};
+  let e=X.innCash[p.id];if(!e||e.r!==STATE.round)e=X.innCash[p.id]={r:STATE.round,left:(POI_REST[p.type]||POI_REST.inn).cash};
+  return e.left;
+}
+// aba Vender: a mochila aparece, clique no item para ver o preço (o da loja da cidade de referência); ele só paga até o ouro que tem
+function innSellTab(p,c,body){
+  const inv=STATE.inv,wrap=document.createElement('div');wrap.style.cssText='display:flex;gap:18px;flex-wrap:wrap';
+  const lf=document.createElement('div'),right=document.createElement('div');right.style.cssText='min-width:240px;max-width:300px';
+  wrap.append(lf,right);body.appendChild(wrap);
+  UI.slotGrid(lf,{cols:5,slots:inv.slots.slice(0,inv.size),
+    render:(s,i)=>{const d=s&&itemDef(s.id);return{label:d?d.icon:'',count:s?s.n:0,
+      title:d?d.name+(s.n>1?' ×'+s.n:'')+(d.noSell?' (não vendável)':' — ◉'+sellUnitPrice(s.id,c)+' cada'):'Vazio',
+      cls:(G.innSel===i?'sel':'')+(s?' '+itemSlotCls(s.id):'')}},
+    onClick:(s,i)=>{G.innSel=i;svcRender()}});
+  const s=G.innSel!==null&&G.innSel!==undefined?inv.slots[G.innSel]:null;
+  if(!s){right.innerHTML='<p class="st">'+TXT_POST_SELL_HINT+'</p>';return}
+  const d=itemDef(s.id),n=s.n,pr=sellUnitPrice(s.id,c);
+  right.innerHTML='<div style="font-size:30px">'+d.icon+'</div><b>'+d.name+'</b> ×'+n+'<p class="st">'+d.desc+'<br>'
+    +(d.noSell?TXT_POST_NO_SELL:txtPostSellPrice(pr,d.value))+'</p>';
+  if(d.noSell)return;
+  const sell=q=>{
+    let sold=0,earned=0,broke=false;
+    for(let i=0;i<q;i++){
+      if(d.weapon!==undefined&&weaponsOwnedCount()<=1){toast('Você precisa ficar com pelo menos uma arma.',2200);break}
+      if(innCash(p)<pr){broke=true;break}
+      if(invRemove(s.id,1)<1)break;
+      poiX().innCash[p.id].left-=pr;Ledger.add('gold',pr);sold++;earned+=pr;
+    }
+    if(s.id==='reliquia'&&sold>0&&typeof msRelicSold==='function')msRelicSold();
+    if(sold>0){sfx('coin',0);toast('Vendido: '+sold+'× '+d.name+'  +◉'+earned+(broke?'  •  '+TXT_POST_BROKE:''),2200)}
+    else if(broke)toast(TXT_POST_BROKE_FULL,2200);
+    svcRender();
+  };
+  right.appendChild(UI.button('Vender 1','gold',()=>sell(1)));
+  if(n>1)right.appendChild(UI.button('Vender tudo ('+n+')','alt',()=>sell(n)));
 }
 // taverneiro: comida e quarto
 function svcTavern(p){
@@ -511,10 +566,10 @@ function poiScan(lines){
       ||(p.binoc&&Math.hypot(P.x-p.binoc.x,P.z-p.binoc.z)<1.8&&Math.abs(P.y-p.binoc.y)<3);   // base da torre ou binóculo no tripé
     if(own&&atVigil){G.target={type:'poivigil',p};lines.push(TXT_VIGIL_HINT)}
     if(svc&&p.tavern&&Math.hypot(P.x-p.tavern.x,P.z-p.tavern.z)<3.2&&Math.abs(P.y-p.y)<2.6){G.target={type:'poibar',p};lines.push('[E] Taverneiro: comida e quarto')}
-    if(svc&&p.firePos&&Math.hypot(P.x-p.firePos.x,P.z-p.firePos.z)<3.4&&Math.abs(P.y-p.y)<2.6){G.target={type:'fire'};lines.push('[E] Fogueira: cozinhar')}   // fogueira do alojamento: a mesma do acampamento (game.js: 'fire')
     if(own&&p.stove&&Math.hypot(P.x-p.stove.x,P.z-p.stove.z)<3.0&&Math.abs(P.y-p.y)<2.6){G.target={type:'stove',p};lines.push('[E] Fogão: cozinhar')}   // igual ao da taverna da cidade (game.js: openCooking), só na taverna sua
     if(svc&&p.bed&&Math.hypot(P.x-p.bed.x,P.z-p.bed.z)<2.4&&Math.abs(P.y-p.bed.y)<2.6){G.target={type:'poibed',p};const r=poiX().room;lines.push(r&&r.poi===p.id&&r.round===STATE.round?'[E] Dormir (noite vira manhã; dia vira noite)':txtBedLocked(p.type))}
   }
+  for(const p of WORLD.pois||[])if(p.firePos&&poiLive(p)&&Math.hypot(P.x-p.firePos.x,P.z-p.firePos.z)<3.4&&Math.abs(P.y-p.y)<3){G.target={type:'fire'};lines.push('[E] Fogueira: cozinhar')}   // fogueira do POI (alojamento): a do acampamento de bandidos, sempre funcional, de qualquer dono
   let best=null;   // o serviço mais perto de você (o ferreiro e a bigorna ficam próximos)
   const cand=(p,x,z,tg,txt,r)=>{const d=Math.hypot(P.x-x,P.z-z);if(d<r&&Math.abs(P.y-p.y)<2.6&&(!best||d<best.d))best={d,tg,txt}};
   for(const p of WORLD.pois||[]){

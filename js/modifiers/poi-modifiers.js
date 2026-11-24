@@ -4,8 +4,8 @@
 // Este arquivo carrega cedo: funções daqui só podem usar globais de outros arquivos DENTRO do corpo (na hora da chamada).
 
 // Pousada e alojamento de trabalhadores (poigame.js, svcInn): room = quarto como fração do preço de curar toda a vida (a taverna cobra 1,1);
-// markup = acréscimo sobre os preços da loja da cidade de referência. Padrão: pousada room 1.0 e markup 0.10; alojamento (rústico) room 0.8 e markup 0.05
-const POI_REST = { inn: { room: 1.0, markup: 0.10 }, lodge: { room: 0.8, markup: 0.05 } };
+// markup = acréscimo sobre os preços da loja da cidade de referência; cash = ouro que o comerciante tem para COMPRAR de você por rodada (100). Padrão: pousada room 1.0 e markup 0.10; alojamento (rústico) room 0.8 e markup 0.05
+const POI_REST = { inn: { room: 1.0, markup: 0.10, cash: 100 }, lodge: { room: 0.8, markup: 0.05, cash: 100 } };
 
 // Vila em escombros (pois.js, ruinvil): r = raio do POI em blocos (padrão 40, tamanho de vila); cell = lado da célula de uma casa (14);
 // empty = chance de a célula ficar sem casa (0.25); square = raio da praça central sem casas (7); debris = entulho, mato e estacas por bloco² (0.05)
