@@ -103,11 +103,13 @@ function cityHugeShape(rng) {
 // services: prédios de serviço que a vila tem (o resto some): loja e quartel; o armazém, a loja de itens e a prefeitura entram do mesmo jeito que na cidade,
 //   só que menores (ver city.js). soldiers: [mín, máx] de soldados fora de guerra (3, 6). civ: [mín, máx] de moradores (8, 14).
 // wall: tipo de cerca da vila ('fence'; sem muro de pedra nem torres de verdade).
+// Serviços da vila (decisão do usuário, 2026-11-24): obrigatórios = prefeitura (sempre; vira quadro de avisos se não couber) e `services` (cura: 'clinic', num canto da praça); opcionais, com a chance de existir:
+// `optionalServices` (prédios de canto: 'shop' = armeiro 60%, 'barracks' = quartel 50%) e `optionalBuildings` (procurados entre as casas: 'store' = loja 60%, 'tavern' = taverna 40%); `warehouse` false = vila NÃO tem armazém (vila não é suprida).
 const CITY_VILLAGE = {
   half: [50, 58], margin: 12, minHalf: 28, plazaOff: 0.12, devMul: 1.5, nudge: 16,
   shapes: { quadrado: 6, circulo: 3, oval: 1, ele: 1, flor: 0.3 },
   edge: { base: 0.95, noise: 0.35, min: 0.85 }, plaza: [5, 6], road: 1, branches: [14, 22], density: 80,
-  services: ['shop', 'barracks'], soldiers: [3, 6], civ: [8, 14], wall: 'fence'
+  services: ['clinic'], optionalServices: { shop: 0.6, barracks: 0.5 }, optionalBuildings: { store: 0.6, tavern: 0.4 }, warehouse: false, soldiers: [3, 6], civ: [8, 14], wall: 'fence'
 };
 // Configuração da cidade grande de c: CITY_HUGE (cidade enorme), CITY_VILLAGE (vila) ou null (cidade do mapa antigo).
 const cityBig = c => c.huge ? CITY_HUGE : c.vila ? CITY_VILLAGE : null;

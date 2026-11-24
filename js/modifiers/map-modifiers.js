@@ -43,17 +43,24 @@ const TILE_THEMED_PCT = { def: 70, min: 0, max: 100 };
 // Composição de POIs por tema (tabela aprovada da feature 8): principal, tema (min a max entre as opções) e ambiente (min a max entre as opções);
 // baús escondidos em todo tile. As opções são ids de POI (ou 'qualquer' = qualquer POI, com peso pelo terreno). Só dados: o gerador (4E) lê.
 const TILE_CHESTS = [6, 10];
+// L4 (POIs lego; só com legoOn): densidade e vida do tile. themeExtra = POIs de tema a MAIS que o `theme` da tabela ([9, 12]; os extras entram como P pequeno quando o tipo tem esse tamanho);
+// pChance = chance de um POI do tema (sem tamanho fixo na tabela) nascer pequeno (0.5); shore = [mín, máx] de folga entre a borda da vila de pesca e a água (4 e 16);
+// poiGap = folga entre as bordas de dois POIs lego (18; POI_GAP, 30, vale para os antigos); microGap = folga entre a borda de um micro-POI e cidades/POIs/outros micros (7: menor que AMB_GAP); microEdge = distância mínima do micro à borda do tile (24).
+// Cada tema tem em TILE_COMPOSE a coluna `vida: [mín, máx, ids de micro-POI de LEGO_MICRO.list]`; microPlace diz onde nasce cada micro ('road' beira da estrada, 'far' longe dela, 'free' qualquer).
+const TILE_LEGO = { themeExtra: [9, 12], pChance: 0.5, shore: [4, 16], microGap: 7, poiGap: 18, microEdge: 24 };
+const TILE_MICRO_PLACE = { carroca: 'road', acampamento: 'road', barricada: 'road', estande: 'far', altar: 'far', torre: 'far', monolito: 'far', ermitao: 'far',
+  minerio: 'free', toras: 'free', armadilha: 'far', tumba: 'far', estatua: 'free', campo_batalha: 'free', trincheira: 'free', vala_comum: 'far', palicada: 'free' };
 const TILE_COMPOSE = {
-  cidade:   { main: 'cidade', theme: [4, 5, ['qualquer']], ambient: [3, 5, ['acampamento', 'bando', 'gruta']] },
-  vila:     { main: 'vila', theme: [4, 5, ['pousada', 'taverna', 'fazenda_pequena', 'santuario', 'entreposto']], ambient: [3, 5, ['acampamento', 'bando', 'gruta', 'torre_vigia']] },
-  fazenda:  { main: 'fazenda', theme: [4, 5, ['fazenda_pequena', 'plantacao', 'pousada', 'taverna', 'vila_ou_descanso']], ambient: [6, 8, ['acampamento', 'bando', 'torre_vigia', 'ruinas_rara']] },
-  mina:     { main: 'mina', theme: [4, 5, ['mina_pequena', 'alojamento', 'pousada', 'entreposto', 'vila_ou_descanso']], ambient: [6, 8, ['gruta', 'acampamento', 'bando']] },
-  serraria: { main: 'serraria', theme: [4, 5, ['serraria_pequena', 'alojamento', 'pousada', 'cacadores', 'vila_ou_descanso']], ambient: [6, 8, ['bando', 'acampamento', 'torre_vigia']] },
-  animais:  { main: 'cacadores', theme: [4, 5, ['cacadores_pequeno', 'alojamento', 'pousada', 'santuario']], ambient: [6, 8, ['bando', 'gruta', 'acampamento']] },
-  ponte:    { main: 'ponte', theme: [4, 5, ['pousada', 'taverna', 'entreposto', 'pesca', 'torre_vigia']], ambient: [6, 8, ['acampamento', 'bando']] },
-  fortaleza:{ main: 'forte', theme: [4, 5, ['acampamento_fortificado', 'atalaia', 'trincheira', 'pousada', 'vila_apoio']], ambient: [6, 8, ['acampamento', 'bando', 'gruta']] },
-  ruinas:   { main: 'ruinas', theme: [4, 5, ['ruinas_menor', 'reliquia', 'santuario']], ambient: [6, 8, ['guardioes', 'bando', 'gruta', 'acampamento']] },
-  passagem: { main: null, theme: [0, 2, ['fazenda', 'santuario', 'pousada_abandonada']], ambient: [8, 12, ['caverna', 'acampamento', 'bando', 'matilha']] }
+  cidade:   { main: 'cidade', theme: [4, 5, ['qualquer']], ambient: [3, 5, ['acampamento', 'bando', 'gruta']], vida: [14, 18, ['carroca', 'estatua', 'monolito', 'estande', 'acampamento', 'tumba', 'barricada']] },
+  vila:     { main: 'vila', theme: [4, 5, ['pousada', 'taverna', 'fazenda_pequena', 'santuario', 'entreposto']], ambient: [3, 5, ['acampamento', 'bando', 'gruta', 'torre_vigia']], vida: [14, 18, ['carroca', 'estande', 'ermitao', 'armadilha', 'acampamento', 'toras', 'altar']] },
+  fazenda:  { main: 'fazenda', theme: [4, 5, ['fazenda_pequena', 'plantacao', 'pousada', 'taverna', 'vila_ou_descanso']], ambient: [6, 8, ['acampamento', 'bando', 'torre_vigia', 'ruinas_rara']], vida: [15, 19, ['carroca', 'armadilha', 'ermitao', 'acampamento', 'monolito', 'estatua', 'trincheira']] },
+  mina:     { main: 'mina', theme: [4, 5, ['mina_pequena', 'alojamento', 'pousada', 'entreposto', 'vila_ou_descanso']], ambient: [6, 8, ['gruta', 'acampamento', 'bando']], vida: [15, 19, ['minerio', 'minerio', 'carroca', 'acampamento', 'tumba', 'torre', 'vala_comum']] },
+  serraria: { main: 'serraria', theme: [4, 5, ['serraria_pequena', 'alojamento', 'pousada', 'cacadores', 'vila_ou_descanso']], ambient: [6, 8, ['bando', 'acampamento', 'torre_vigia']], vida: [15, 19, ['toras', 'toras', 'ermitao', 'armadilha', 'carroca', 'acampamento', 'estande']] },
+  animais:  { main: 'cacadores', theme: [4, 5, ['cacadores_pequeno', 'alojamento', 'pousada', 'santuario']], ambient: [6, 8, ['bando', 'gruta', 'acampamento']], vida: [16, 20, ['armadilha', 'estande', 'ermitao', 'toras', 'acampamento', 'monolito', 'altar']] },
+  ponte:    { main: 'ponte', theme: [4, 5, ['pousada', 'taverna', 'entreposto', 'pesca', 'torre_vigia']], ambient: [6, 8, ['acampamento', 'bando']], vida: [15, 19, ['carroca', 'barricada', 'campo_batalha', 'acampamento', 'estatua', 'trincheira', 'tumba']] },
+  fortaleza:{ main: 'forte', theme: [4, 5, ['acampamento_fortificado', 'atalaia', 'trincheira', 'pousada', 'vila_apoio']], ambient: [6, 8, ['acampamento', 'bando', 'gruta']], vida: [16, 20, ['campo_batalha', 'barricada', 'trincheira', 'vala_comum', 'palicada', 'carroca', 'tumba']] },
+  ruinas:   { main: 'ruinas', theme: [4, 5, ['ruinas_menor', 'reliquia', 'santuario']], ambient: [6, 8, ['guardioes', 'bando', 'gruta', 'acampamento']], vida: [16, 20, ['torre', 'tumba', 'estatua', 'monolito', 'altar', 'vala_comum', 'campo_batalha']] },
+  passagem: { main: null, theme: [0, 2, ['fazenda', 'santuario', 'pousada_abandonada']], ambient: [8, 12, ['caverna', 'acampamento', 'bando', 'matilha']], vida: [17, 21, ['carroca', 'acampamento', 'estande', 'altar', 'torre', 'monolito', 'ermitao', 'armadilha', 'tumba', 'estatua', 'barricada']] }
 };
 // Tipos de batalha no tile (rodada 8): conquista (a facção ataca o POI principal), defesa (a facção está no principal e repele) e choque (dois batalhões).
 const TILE_BATTLES = ['conquista', 'defesa', 'choque'];
@@ -94,16 +101,17 @@ const TILE_MAIN = {
 // Como cada id da tabela TILE_COMPOSE vira POI. type = id de POI_DEFS; place = onde nasce: 'road' (perto da estrada), 'far' (longe das estradas),
 // 'main' (colado ao POI principal), 'free' (qualquer lugar); ambient: acampamento/gruta/bando (áreas, não POIs de POI_DEFS). owner: dono inicial ('none' = ruínas).
 // pend: o POI ainda não existe e entra o substituto de `type` (vila de trabalhadores, plantação, pesca) e a tabela do tile marca "pendente".
+// lego (L4, só com legoOn): o que muda no id com lego ligado: type (outro tipo), size ('P' pequeno, 'M' médio; sem size o tipo sorteia pelo TILE_LEGO.pChance), place ('shore' = margem de água), pend:false (já existe).
 // caravan: só onde passa estrada de caravana (tileCaravanRoad). 'vila_ou_descanso' sorteia entre as opções de `pick` (40% vila de trabalhadores, 60% descanso).
 const TILE_POI_MAP = {
-  fazenda: { type: 'farm', place: 'road' }, fazenda_pequena: { type: 'farm', place: 'road' }, plantacao: { type: 'farm', place: 'road', pend: true },
-  mina_pequena: { type: 'mine', place: 'road' }, serraria_pequena: { type: 'sawmill', place: 'road' }, cacadores: { type: 'hunters', place: 'far' },
-  cacadores_pequeno: { type: 'hunters', place: 'far' }, pousada: { type: 'inn', place: 'road' }, pousada_abandonada: { type: 'inn', place: 'far' },
+  fazenda: { type: 'farm', place: 'road' }, fazenda_pequena: { type: 'farm', place: 'road', lego: { size: 'P' } }, plantacao: { type: 'farm', place: 'road', pend: true, lego: { type: 'plantation', pend: false } },
+  mina_pequena: { type: 'mine', place: 'road', lego: { size: 'P' } }, serraria_pequena: { type: 'sawmill', place: 'road', lego: { size: 'P' } }, cacadores: { type: 'hunters', place: 'far' },
+  cacadores_pequeno: { type: 'hunters', place: 'far', lego: { size: 'P' } }, pousada: { type: 'inn', place: 'road' }, pousada_abandonada: { type: 'inn', place: 'far' },
   taverna: { type: 'tavern', place: 'road' }, entreposto: { type: 'post', place: 'road', caravan: true }, santuario: { type: 'sanctuary', place: 'far' },
-  alojamento: { type: 'lodge', place: 'road' }, torre_vigia: { type: 'tower', place: 'free' }, pesca: { type: 'tower', place: 'free', pend: true },
-  ruinas_menor: { type: 'ruins', place: 'free' }, ruinas_rara: { type: 'ruins', place: 'far' }, reliquia: { type: 'ruins', place: 'far' }, guardioes: { type: 'ruins', place: 'far' },
+  alojamento: { type: 'lodge', place: 'road' }, torre_vigia: { type: 'tower', place: 'free' }, pesca: { type: 'tower', place: 'free', pend: true, lego: { type: 'fishery', place: 'shore', pend: false } },
+  ruinas_menor: { type: 'ruins', place: 'free', lego: { size: 'P' } }, ruinas_rara: { type: 'ruins', place: 'far' }, reliquia: { type: 'ruins', place: 'far' }, guardioes: { type: 'ruins', place: 'far' },
   acampamento_fortificado: { type: 'fortcamp', place: 'free' }, atalaia: { type: 'lookout', place: 'free' }, trincheira: { type: 'trench', place: 'free' },
-  vila_apoio: { type: 'lodge', place: 'road', pend: true }, vila_trabalhadores: { type: 'lodge', place: 'road', pend: true },
+  vila_apoio: { type: 'lodge', place: 'road', pend: true, lego: { type: 'workers', size: 'P', pend: false } }, vila_trabalhadores: { type: 'lodge', place: 'road', pend: true, lego: { type: 'workers', size: 'M', pend: false } },
   vila_ou_descanso: { pick: [['vila_trabalhadores', 40], ['pousada', 30], ['alojamento', 30]] },
   acampamento: { ambient: 'camp' }, gruta: { ambient: 'cave' }, caverna: { ambient: 'cave' }, bando: { ambient: 'pack' }, matilha: { ambient: 'pack' }
 };

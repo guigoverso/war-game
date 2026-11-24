@@ -18,9 +18,9 @@ const MEASURE = () => {
   out.zones = tw.zones.map(z => z.id); out.aberturas = win.openings.length; out.roadOk = win.openings.filter(o => o.road).length;
   out.main = pois.find(p => p.main) ? pois.find(p => p.main).type : (tc.principal ? tc.principal.type : null);
   const gap = (a, b, ra, rb) => Math.hypot(a.cx - b.cx, a.cz - b.cz) - ra - rb;
-  for (let i = 0; i < pois.length; i++) for (let j = i + 1; j < pois.length; j++) { const g = gap(pois[i], pois[j], POI_DEFS[pois[i].type].r, POI_DEFS[pois[j].type].r); if (g < TILE_PLACE.laxGap - 1) out.bad.push('POIs colados ' + pois[i].type + '/' + pois[j].type + ' ' + g.toFixed(0)) }
+  for (let i = 0; i < pois.length; i++) for (let j = i + 1; j < pois.length; j++) { const g = gap(pois[i], pois[j], poiR(pois[i]), poiR(pois[j])); if (g < TILE_PLACE.laxGap - 1) out.bad.push('POIs colados ' + pois[i].type + '/' + pois[j].type + ' ' + g.toFixed(0)) }
   for (const p of pois) {   // POI sobre água, sobre estrada ou na borda
-    const r = POI_DEFS[p.type].r; let wet = 0, road = 0;
+    const r = poiR(p); let wet = 0, road = 0;
     for (let dz = -r; dz <= r; dz += 3) for (let dx = -r; dx <= r; dx += 3) { const i = (p.cz + dz) * W + p.cx + dx; if (i < 0 || i >= W * W) continue; if (H[i] < SEA && p.type !== 'bridge') wet++; if (T[i] === T_ROAD && p.type !== 'bridge') road++ }
     if (wet > 12) out.bad.push(p.type + ' com muita água (' + wet + ')');
     if (Math.min(p.cx, p.cz, W - 1 - p.cx, W - 1 - p.cz) < TILE_PLACE.edge - 1 && p.type !== 'bridge') out.bad.push(p.type + ' na borda');
@@ -29,8 +29,8 @@ const MEASURE = () => {
     const Hc = c.half, N = 2 * Hc + 1;
     for (const p of pois) { const x = p.cx - c.cx + Hc, z = p.cz - c.cz + Hc; if (x >= 0 && z >= 0 && x < N && z < N && c.foot[z * N + x]) out.bad.push(p.type + ' dentro da pegada') }
   }
-  for (const a of win.openings) for (const p of pois) if (Math.hypot(a.x - p.cx, a.z - p.cz) < POI_DEFS[p.type].r + TILE_PLACE.openClear - 1 && p.type !== 'bridge') out.bad.push(p.type + ' em cima da abertura ' + a.dir);
-  for (const z of tw.zones) for (const p of pois) if (z.kind !== 'anel' && Math.hypot(z.x - p.cx, z.z - p.cz) < z.r + POI_DEFS[p.type].r) out.bad.push(p.type + ' dentro da zona ' + z.id);
+  for (const a of win.openings) for (const p of pois) if (Math.hypot(a.x - p.cx, a.z - p.cz) < poiR(p) + TILE_PLACE.openClear - 1 && p.type !== 'bridge') out.bad.push(p.type + ' em cima da abertura ' + a.dir);
+  for (const z of tw.zones) for (const p of pois) if (z.kind !== 'anel' && Math.hypot(z.x - p.cx, z.z - p.cz) < z.r + poiR(p)) out.bad.push(p.type + ' dentro da zona ' + z.id);
   out.html = tileScenarioHtml(); out.mainDist = c && c.half > 1 ? null : (tc.principal && win.openings.length ? Math.min(...win.openings.map(o => Math.hypot(o.x - tc.principal.x, o.z - tc.principal.z))) : null);
   return out;
 };

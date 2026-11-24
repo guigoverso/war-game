@@ -847,8 +847,10 @@ function buildCity(c,rng){  const Hc=c.half,hg=!!c.huge,vl=!!c.vila,tBuild=perfo
   const kinds=rng.shuffle(['shop','clinic','chapel','barracks']);   // vila: só os de CITY_VILLAGE.services
   const corners=[[1,1],[-1,1],[1,-1],[-1,-1]];
   const specials={};
+  const vlOpt=vl?new Set(Object.keys(CITY_VILLAGE.optionalBuildings).filter(k=>rng.chance(CITY_VILLAGE.optionalBuildings[k]))):null;   // vila: loja e taverna opcionais (sorteio)
+  const vlKinds=vl?CITY_VILLAGE.services.concat(rng.shuffle(Object.keys(CITY_VILLAGE.optionalServices).filter(k=>rng.chance(CITY_VILLAGE.optionalServices[k])))):null;   // vila: cura sempre; armeiro e quartel opcionais
   corners.forEach((cn,idx)=>{
-    const sx=cn[0],sz=cn[1],kind=vl?CITY_VILLAGE.services[idx]:kinds[idx];
+    const sx=cn[0],sz=cn[1],kind=vl?vlKinds[idx]:kinds[idx];
     if(!kind)return;   // vila: sem o 3º e o 4º prédio de serviço
     const dims={shop:[9,7],clinic:[8,7],chapel:[7,8],barracks:[9,7]}[kind];
     const w=dims[0],d=dims[1];
@@ -978,7 +980,8 @@ function buildCity(c,rng){  const Hc=c.half,hg=!!c.huge,vl=!!c.vila,tBuild=perfo
   // a loja (compra e venda de itens) e a taverna (cozinha) também são procuradas antes das casas comuns
   for(const sp of['store','warehouse','tavern','works']){
     if(sp==='works'&&!c.ctype)continue;
-    if(vl&&sp==='tavern')continue;   // vila: sem taverna (os POIs de descanso fazem esse papel)   // (só o edifício do tipo: precisa do tipo decidido)
+    if(vl&&sp==='warehouse'&&!CITY_VILLAGE.warehouse)continue;   // vila: sem armazém (não é suprida)
+    if(vl&&(sp==='store'||sp==='tavern')&&!vlOpt.has(sp))continue;   // vila: loja e taverna só se sorteadas
     // a taverna é maior (mesas, balcão e fogão): tenta os tamanhos maiores primeiro
     const sizes=sp==='tavern'?[[12,9],[9,12],[11,8],[8,11],[10,8],[8,10]]:sp==='works'?WORKS[c.ctype].sz:[[8,6],[6,8],[7,6],[6,7]];
     for(const so of[true,false])for(const [hw,hd] of sizes){   // 1ª volta: serviços afastados; 2ª: sem afastar, se não couber
@@ -1081,7 +1084,7 @@ function buildCity(c,rng){  const Hc=c.half,hg=!!c.huge,vl=!!c.vila,tBuild=perfo
     }
   }
   // reserva: se o armazém não coube num prédio, vira uma pilha de caixotes e um baú grande na praça
-  if(!c.warehouse){
+  if(!c.warehouse&&!(vl&&!CITY_VILLAGE.warehouse)){
     for(const [bx,bz] of[[-(P-1),0],[P-1,0],[0,-(P-1)],[0,P-1],[-(S+4),P-2],[S+4,-(P-2)]]){
       if(Col.near(c.cx+bx-2.2,c.cz+bz-2.2,c.cx+bx+2.2,c.cz+bz+2.2).length)continue;
       Bc(c,bx-1.4,0,bz-0.9,bx+1.4,1.0,bz+0.9,0x7a5632,true);Bc(c,bx-1.5,1.0,bz-1.0,bx+1.5,1.25,bz+1.0,0x4a2f1a,false,{j:0.02});Bc(c,bx-0.2,0.8,bz-1.05,bx+0.2,1.2,bz+1.05,0xe0b030,false,{j:0});
@@ -1089,7 +1092,7 @@ function buildCity(c,rng){  const Hc=c.half,hg=!!c.huge,vl=!!c.vila,tBuild=perfo
       c.warehouse={x:c.cx+bx,z:c.cz+bz+2.4};break;
     }
   }  // reserva: se a loja não coube num prédio, vira uma barraca de mercador na praça
-  if(!c.store){
+  if(!c.store&&!(vl&&!vlOpt.has('store'))){
     for(const [bx,bz] of[[P-1,0],[-(P-1),0],[0,P-1],[0,-(P-1)],[S+4,P-2],[-(S+4),-(P-2)]]){
       if(Col.near(c.cx+bx-2.2,c.cz+bz-2.2,c.cx+bx+2.2,c.cz+bz+2.2).length)continue;
       const ca=0x8a3a2a;

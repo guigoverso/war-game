@@ -630,6 +630,7 @@ function genDecor(rng,dn,cities){
     if(WORLD.camps.some(k=>Math.hypot(px-k.cx,pz-k.cz)<13.5))continue;   // acampamentos ficam sem árvores, pedras e plantas ao redor
     if(WORLD.pois&&WORLD.pois.some(k=>Math.hypot(px-k.cx,pz-k.cz)<poiR(k)+5))continue;   // POIs também (a margem deixa as copas das árvores de fora)
     if(tileZoneNear(px,pz))continue;   // zonas de guerra do tile (4E, tilecompose.js): clareiras sem árvores
+    if((WORLD.micros||[]).some(k=>Math.hypot(px-k.x,pz-k.z)<k.r+3))continue;   // micro-POIs do tile (L4, tilecompose.js) também
     if(wfReserved().some(k=>Math.hypot(px-k.x,pz-k.z)<POI_DEFS.fortcamp.r+5))continue;   // e os terrenos de guerra e dormentes reservados (warfront.js)
     if(!clearAround(px,pz))continue;
     const b=B[i],cl=dens.fbm(px/22,pz/22,2);

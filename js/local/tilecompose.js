@@ -65,12 +65,15 @@ function tcPick(S, q) {
   return null;
 }
 // Define o pedido de lugar de um POI de POI_DEFS: raio, desnível aceito, grande?, regra de tipo (poiRuleOK) e folga (POI_GAP).
-function tcQuery(type, place) {
-  const def = POI_DEFS[type];
-  return { type, def, place, range: POI_RANGE[type] || 6, big: POI_BIG[type] ? 2 : 1, wet: POI_BIG[type] ? 0.15 : 0, gap: POI_GAP, rule: place === 'road' ? 'road' : 'interior' };
+// L4: com lego ligado o POI de um tipo com receita nasce em um tamanho (size 'M' médio, o padrão, ou 'P' pequeno) e o raio é o da receita (legoRadius).
+function tcQuery(type, place, size) {
+  size = size || (legoOn() && LEGO_RECIPES[type] ? 'M' : null);
+  const def = size ? Object.assign({}, POI_DEFS[type], { r: legoRadius(type, size) }) : POI_DEFS[type];
+  return { type, def, place, size, range: POI_RANGE[type] || 6, big: POI_BIG[type] ? 2 : 1, wet: POI_BIG[type] ? 0.15 : 0, gap: size ? TILE_LEGO.poiGap : POI_GAP, rule: place === 'road' ? 'road' : 'interior' };
 }
 // ---- L1b: frente para a estrada e trilha ----
 // O POI do tile ganha a frente virada para a estrada (p.legoFace, 0 a 3) e uma trilha do portão até a estrada: só os tipos de LEGO_FACE_TYPES e, com lego ligado, fazenda/mina/serraria.
+// (o tipo de estrada com receita só gira com lego ligado)
 const tcFaced = type => LEGO_FACE_TYPES.includes(type) || (LEGO_FACE_RECIPES.includes(type) && legoOn());
 const TC_DIR = [[0, 1], [-1, 0], [0, -1], [1, 0]], TC_LETTER = ['S', 'W', 'N', 'E'];   // frente k: sul, oeste, norte, leste (como legoRotToward)
 // Estrada mais próxima de (x,z) (pontos de S.roadCells; sem estrada ainda, as aberturas do tile, de onde elas virão); null se não há nenhuma.
@@ -110,9 +113,11 @@ function tcTrail(S, p) {
 // Constrói um POI no lugar (aplaina, constrói, registra). POI de guerra (fortcamp, trincheira...) se adapta ao chão em vez de aplainá-lo (p.adapt, poiBuild).
 function tcAdd(S, type, x, z, y, extra) {
   const d = POI_DEFS[type], p = Object.assign({ id: S.ids++, type, cx: x, cz: z, y, biome: B[z * W + x], owner: tcOwner(type, extra && extra.main), tile: true, cityId: 0 }, extra || {});
-  if (d.war) p.adapt = true; else flattenArea(x, z, d.r, y, extra && extra.main ? TILE_PLACE.mainRamp : POI_BIG[type] ? 4 : 3);
+  const sz = p.legoSize || (legoOn() && LEGO_RECIPES[type] ? 'M' : null); if (sz) { p.legoSize = sz; p.r = legoRadius(type, sz) }   // L4: tamanho e raio da receita
+  const r = poiR(p);
+  if (d.war) p.adapt = true; else flattenArea(x, z, r, y, extra && extra.main ? TILE_PLACE.mainRamp : POI_BIG[type] ? 4 : 3);
   if (tcFaced(type) && tcNearRoad(S, x, z)) p.legoFace = tcFaceFor(S, x, z);   // a frente olha para a estrada mais próxima (o principal nasce antes das estradas: olha para a abertura mais próxima, de onde elas virão)
-  S.taken.push({ x, z, r: d.r, poi: true }); poiBuild(p); WORLD.pois.push(p); S.counts[type] = (S.counts[type] || 0) + 1;
+  S.taken.push({ x, z, r, poi: true }); poiBuild(p); WORLD.pois.push(p); S.counts[type] = (S.counts[type] || 0) + 1;
   if (p.legoFace !== undefined && !(extra && extra.main)) tcTrail(S, p);   // trilha do portão até a estrada
   return p;
 }
@@ -215,7 +220,8 @@ function tcZones(S) {
 
 // 4) Sorteio de um id da tabela (TILE_POI_MAP): 'vila_ou_descanso' escolhe pelo peso; 'qualquer' pesa o tipo pelo terreno do tile (TILE_ANY_*).
 function tcResolve(S, id) {
-  const sp = TILE_POI_MAP[id];
+  let sp = TILE_POI_MAP[id];
+  if (sp && sp.lego && legoOn()) sp = Object.assign({}, sp, sp.lego);   // L4: o que muda com lego ligado (outro tipo, tamanho, margem de água)
   if (id === 'qualquer') return { any: true };
   if (sp && sp.pick) { const tot = sp.pick.reduce((s, e) => s + e[1], 0); let r = S.rng.next() * tot; for (const e of sp.pick) { r -= e[1]; if (r < 0) return tcResolve(S, e[0]) } return tcResolve(S, sp.pick[0][0]) }
   return sp ? Object.assign({ id }, sp) : null;
@@ -227,19 +233,44 @@ function tcAnyType(S) {
   return w[0][0];
 }
 function tcTheme(S) {
-  const K = TILE_COMPOSE[S.win.tema], [mn, mx, opts] = K.theme, n = S.rng.int(mn, mx);
+  const K = TILE_COMPOSE[S.win.tema], [mn, mx, opts] = K.theme, n0 = S.rng.int(mn, mx), lg = legoOn(), n = n0 + (lg ? S.rng.int(TILE_LEGO.themeExtra[0], TILE_LEGO.themeExtra[1]) : 0);
   for (let k = 0; k < n; k++) for (let tr = 0; tr < 4; tr++) {   // se a opção sorteada não cabe, tenta outra (até 4 vezes)
     const r = tcResolve(S, S.rng.pick(opts));
     if (!r || r.ambient || (r.caravan && !tileCaravanRoad(S.win))) continue;
     const type = r.any ? tcAnyType(S) : r.type, place = r.any ? TILE_TYPE_PLACE[type] || 'free' : r.place;
     let s = null;
+    const size = lg && LEGO_RECIPES[type] ? r.size || (k >= n0 || S.rng.chance(TILE_LEGO.pChance) ? 'P' : 'M') : null;   // L4: os extras e metade dos demais nascem pequenos
+    const mk = () => { const q = tcQuery(type, place, size); if (place === 'shore') q.pred = (x, z) => tcShore(x, z, q.def.r); return q };
     if (place === 'road' && TILE_PLACE.offRoadTypes.includes(type) && S.rng.chance(TILE_PLACE.offRoad)) {   // L1b: longe da estrada, só se a trilha for possível
-      const q = tcQuery(type, place), rr = q.def.r; q.off = true; q.pred = (x, z) => !!tcTrailPlan(S, x, z, rr, tcFaceFor(S, x, z));
+      const q = mk(), rr = q.def.r; q.off = true; q.pred = (x, z) => !!tcTrailPlan(S, x, z, rr, tcFaceFor(S, x, z));
       s = tcPick(S, q); if (s) s.off = true;   // (sem lugar: volta para a beira da estrada, abaixo)
     }
-    if (!s) s = tcPick(S, tcQuery(type, place));
+    if (!s) s = tcPick(S, mk());
     if (!s) { if (tr === 3) S.falhas.push(r.id || type); continue }
-    const po = tcAdd(S, type, s.x, s.z, s.y, {}); if (s.off) po.offRoad = true; if (r.pend) S.pend.push(r.id);
+    const po = tcAdd(S, type, s.x, s.z, s.y, size ? { legoSize: size } : {}); if (s.off) po.offRoad = true; if (r.pend) S.pend.push(r.id);
+    break;
+  }
+}
+// Margem de água (vila de pesca): há água (abaixo do nível do mar) entre TILE_LEGO.shore de folga além da borda do POI de raio r, em algum dos 16 rumos, e o chão do POI é seco.
+function tcShore(x, z, r) {
+  const [a, b] = TILE_LEGO.shore;
+  for (let k = 0; k < 16; k++) for (let d = r + a; d <= r + b; d += 3) {
+    const px = Math.round(x + Math.cos(k * 0.3927) * d), pz = Math.round(z + Math.sin(k * 0.3927) * d);
+    if (px >= 0 && pz >= 0 && px < W && pz < W && H[pz * W + px] < SEA) return true;
+  }
+  return false;
+}
+// 4b) Vida (L4, só com lego): micro-POIs do tema (TILE_COMPOSE[tema].vida), só cenário, sem dono nem anexação. Entram em WORLD.micros (poimicro.js) e reservam o lugar em S.taken.
+function tcLife(S) {
+  WORLD.micros = [];
+  const v = TILE_COMPOSE[S.win.tema].vida; if (!v || !legoOn()) return;
+  const L = TILE_LEGO, rng = S.rng, n = rng.int(v[0], v[1]);
+  for (let k = 0; k < n; k++) for (let tr = 0; tr < 6; tr++) {
+    const id = rng.pick(v[2]), m = LEGO_MICRO.list.find(e => e.id === id); if (!m) break;
+    const s = tcPick(S, { type: 'micro', def: { r: m.r }, place: TILE_MICRO_PLACE[id] || 'free', range: 5, gap: L.microGap, cityGap: L.microGap, edge: L.microEdge, big: 1 });
+    if (!s) { if (tr === 5) S.falhas.push('micro ' + id); continue }
+    S.taken.push({ x: s.x, z: s.z, r: m.r });
+    const d = { i: WORLD.micros.length, x: s.x, z: s.z, y: s.y, kind: id, r: m.r }; WORLD.micros.push(d); dormBuild(d);
     break;
   }
 }
@@ -292,14 +323,14 @@ function tileCompose(cities) {
   tcTheme(S);
   const sn = WORLD.snap;   // o mapa (makeMapCanvas) usa a cópia de antes dos extras: estradas e nivelamento dos POIs entram nela (como em genPOIs)
   if (sn) for (let k = 0; k < W * W; k++) if (H[k] !== h0[k] || T[k] !== tt0[k]) { sn.H[k] = H[k]; sn.T[k] = T[k]; sn.B[k] = B[k] }
-  tcAmbient(S);
+  tcAmbient(S); tcLife(S);
   WORLD.areas = cities.concat(WORLD.camps, WORLD.caves, WORLD.packs);
   tileWarAssemble(win.battle);
   poiApply();
   const pois = WORLD.pois.filter(p => !p.war);
   WORLD.tileCompose = {
     tema, arq: win.mainPlan ? win.mainPlan.arq : null, caiu: win.mainPlan ? !!win.mainPlan.caiu : false, principal: S.main ? { type: S.main.type, x: S.main.x, z: S.main.z } : null,
-    counts: S.counts, pois: pois.length, camps: WORLD.camps.length, caves: WORLD.caves.length, packs: WORLD.packs.length, chests: S.chests,
+    counts: S.counts, pois: pois.length, camps: WORLD.camps.length, caves: WORLD.caves.length, packs: WORLD.packs.length, chests: S.chests, micros: (WORLD.micros || []).length,
     zones: S.zones.map(z => z.kind + (z.dir ? ':' + z.dir : '')), falhas: S.falhas, pend: S.pend, ms: Math.round(performance.now() - t0), city: !!city
   };
 }

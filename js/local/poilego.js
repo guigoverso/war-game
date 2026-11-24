@@ -260,6 +260,8 @@ function legoPieceFor(rng, type, slot) {
   for (const id of o) { r -= tab[id]; if (r < 0) return id }
   return o[o.length - 1];
 }
+// Raio (blocos) de um POI lego do tipo e tamanho dados (metade do lado da receita + 1); é o p.r que legoBuild grava. Usado pelo tile para reservar o lugar antes de construir.
+const legoRadius = (type, size) => LEGO_RECIPES[type][size].half + 1;
 // Monta o POI lego p (fazenda, mina ou serraria) em c; chamada por POI_BUILD.<tipo> com legoOn. p.legoFace (0 a 3) = para onde o portão aponta (estrada); sem ele, sorteio.
 // Guarda p.r e p.recipe; com p.recipe já posto (poiBuild), refaz esse mesmo POI.
 function legoBuild(c, rng, p) {

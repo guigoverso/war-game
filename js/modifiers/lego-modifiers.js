@@ -15,9 +15,8 @@ const legoShowOn = () => new URLSearchParams(location.search).get('cenario') ===
 const LEGO_FACE_TYPES = ['tavern', 'post', 'inn', 'lodge'];
 // L3.5: types = todos os tipos (um link por tipo na galeria cenarios-pois.html: ?cenario=lego&tipo=<tipo>); base = o que a vista sem `tipo` mostra (só os 3 primeiros: a grade
 // de 14 tipos x 2 tamanhos x 46 blocos não cabe no mapa). Receitas e peças dos 11 tipos novos: lego-poi-modifiers.js e poilego2.js.
-// Tipos lego que, com lego ligado, também giram para a estrada e ganham trilha no tile (fazenda, mina, serraria). Os 8 do L3.5 que não são de estrada (caçadores, santuário, ruínas, forte,
-// torre, plantação, pesca, vila) ficam sem isso até a L4. Padrão: os três.
-const LEGO_FACE_RECIPES = ['farm', 'mine', 'sawmill'];
+// Tipos lego que, com lego ligado, também giram para a estrada e ganham trilha no tile (fazenda, mina, serraria) e, no L4, plantação e vila de trabalhadores (de estrada). Padrão: os cinco.
+const LEGO_FACE_RECIPES = ['farm', 'mine', 'sawmill', 'plantation', 'workers'];
 const LEGO_SHOW = { n: 4, gap: 46, types: ['farm', 'mine', 'sawmill', 'hunters', 'sanctuary', 'ruins', 'fort', 'tower', 'inn', 'lodge', 'post', 'plantation', 'fishery', 'workers'],
   base: ['farm', 'mine', 'sawmill'], sizes: ['M', 'P'], area: [245, 215] };
 // Cenário lego: área limpa (meia-largura em x e em z, em blocos, a partir do centro do mapa) onde não nascem cidades (cada uma tem até 45 de meio-lado, então a muralha fica
