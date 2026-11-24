@@ -20,7 +20,7 @@ const POIX={
   binoc:{range:300},   // alcance da vigia (blocos); ela marca o ponto não descoberto mais perto da torre
   civDelay:1,   // moradores aparecem N rodadas depois da conquista (conquistou na rodada N, aparecem na N+1)
   guards:{fort:4,fortcamp:4,bridge:3,tower:2,def:2},   // soldados que moram no POI (a ponte tem só soldados)
-  civ:{farm:3,mine:3,sawmill:3,hunters:2,sanctuary:5,post:2,fort:3,tavern:0,tower:0,bridge:0,fortcamp:0,trench:0},   // civis que andam pelo POI (fora os de serviço e os da taverna)
+  civ:{farm:3,mine:3,sawmill:3,hunters:2,sanctuary:5,post:2,fort:3,inn:1,lodge:3,tavern:0,tower:0,bridge:0,fortcamp:0,trench:0},   // civis que andam pelo POI (fora os de serviço e os da taverna)
   anvil:[3,3,7,5,12,18],   // sucata para reparar 100% da durabilidade de cada arma no ferreiro (proporcional ao que falta, no mínimo 1)
   smith:{goldPct:0.6},     // pagando com sucata, o ferreiro ainda cobra esta fração do preço em ◉ (a sucata cobre o resto)
   vest:{base:180,leather:5,pct:0.35,goldPct:0.6}   // reparo do colete no Quartel (allies.js): 35% do preço de um colete novo em ◉; com couro (5 para 100%) cobra 60% disso em ◉
@@ -131,7 +131,7 @@ function poiFacList(p){   // facções com cidades e fora de guerra com você, d
   }
   return out.sort((a,b)=>a.dist-b.dist).slice(0,4);
 }
-const POI_PRICE={fort:4500,mine:4000,bridge:4000,farm:3500,sawmill:3500,hunters:3500,sanctuary:3500,post:4500,tavern:3500,tower:3200,fortcamp:3000,trench:3000,hospital:3000,depot:3000,lookout:3000,barricade:3000};   // mínimo de ◉3000
+const POI_PRICE={fort:4500,mine:4000,bridge:4000,farm:3500,sawmill:3500,hunters:3500,sanctuary:3500,post:4500,tavern:3500,inn:3000,lodge:3000,ruinvil:3000,tower:3200,fortcamp:3000,trench:3000,hospital:3000,depot:3000,lookout:3000,barricade:3000};   // mínimo de ◉3000
 const poiSellPrice=(p,dist)=>Math.round((POI_PRICE[p.type]||3000)*(1+Math.max(0,200-dist)/400)/100)*100;   // quem está perto paga até +50%
 const poiDone=(x,p,msg)=>{   // anexar, doar ou vender: só um POI por rodada (os outros cartões somem e voltam na rodada seguinte)
   const X=poiX();delete X.clr[p.id];G.poiFocus=null;X.decided=STATE.round;
@@ -293,7 +293,7 @@ function poiMedSync(p){
   if(friendly)for(let i=0;i<H.guards;i++){const a=i*6.283/H.guards+0.7,q=freeSpot(p.cx+Math.cos(a)*5,p.cz+9+Math.sin(a)*1.5,0.3,1.8,0.45);spawnNpc(p.civ,{role:'guard',x:q[0],z:q[1],y:p.y,yaw:a,stationary:true})}   // soldados do dono (de bandidos: a guarnição normal)
 }
 function poiCivSync(p){
-  if(!POI_READY||p.type==='ruins')return;
+  if(!POI_READY||p.type==='ruins'||p.type==='ruinvil')return;   // ruínas e vila em escombros: nunca ganham moradores (não se reconstroem)
   if(p.type==='hospital')return poiMedSync(p);
   const o=p.owner,friendly=o==='player'||typeof o==='number',fid=o==='player'?0:o,X=poiX(),sn=X.since&&X.since[p.id];
   const ready=friendly&&poiLive(p)&&!(sn!==undefined&&STATE.round<sn+POIX.civDelay);
@@ -462,6 +462,30 @@ function postSellTab(p,c,body){
   right.appendChild(UI.button('Vender 1','gold',()=>sell(1)));
   if(n>1)right.appendChild(UI.button('Vender tudo ('+n+')','alt',()=>sell(n)));
 }
+// pousadeiro (pousada) e cozinheiro (alojamento): comida, remédios e quarto; preços com o acréscimo de POI_REST (poi-modifiers.js).
+// A produção do tile entra na loja na etapa 8 (o tile ainda não tem economia).
+function svcInn(p){
+  const c=poiPriceCity(p),K=POI_REST[p.type]||POI_REST.inn,mark=1+K.markup;
+  const price=(base,kind)=>Math.max(1,Math.round(base*priceMulOf(priceExplain({city:c,kind}).concat([{txt:POI_DEFS[p.type].n,mul:mark}]))));
+  svcOpen(txtRestTitle(p.type),(txt,body)=>{
+    const X=poiX(),r=X.room,has=r&&r.poi===p.id&&r.round===STATE.round,debt=Ledger.anyDebt();
+    const cost=Math.max(1,Math.round(clinicCost(P.maxhp,c)*K.room));
+    txt.innerHTML=txtRestIntro(p.type,Math.round(K.markup*100),P.coins);
+    const room=UI.button(has?txtRestRoomHeld(p.type):txtRestRoomRent(cost),'gold',()=>{
+      if(!Ledger.spend({gold:cost}))return;
+      X.room={poi:p.id,round:STATE.round};sfx('coin',0);svcRender();
+    });
+    room.disabled=has||debt||P.coins<cost;body.appendChild(room);
+    for(const [shop,kind] of[['tavern','tavern'],['clinic','heal']])Object.values(DATA.items).filter(d=>d.shop===shop&&!d.rod).forEach(d=>{
+      const pr=price(d.price,kind),b=UI.button(d.icon+' '+d.name+' ◉'+pr,'gold',()=>{
+        if(invRoomFor(d.id)<1)toast('Bolsa cheia! Descarte algo antes de comprar.',2000);
+        else if(Ledger.spend({gold:pr})){invGive([[d.id,1]]);sfx('coin',0)}
+        svcRender();
+      });
+      b.disabled=debt||P.coins<pr;b.title=d.desc;body.appendChild(b);
+    });
+  });
+}
 // taverneiro: comida e quarto
 function svcTavern(p){
   const c=poiPriceCity(p);
@@ -488,7 +512,7 @@ function poiScan(lines){
     if(own&&atVigil){G.target={type:'poivigil',p};lines.push(TXT_VIGIL_HINT)}
     if(svc&&p.tavern&&Math.hypot(P.x-p.tavern.x,P.z-p.tavern.z)<3.2&&Math.abs(P.y-p.y)<2.6){G.target={type:'poibar',p};lines.push('[E] Taverneiro: comida e quarto')}
     if(own&&p.stove&&Math.hypot(P.x-p.stove.x,P.z-p.stove.z)<3.0&&Math.abs(P.y-p.y)<2.6){G.target={type:'stove',p};lines.push('[E] Fogão: cozinhar')}   // igual ao da taverna da cidade (game.js: openCooking), só na taverna sua
-    if(svc&&p.bed&&Math.hypot(P.x-p.bed.x,P.z-p.bed.z)<2.4&&Math.abs(P.y-p.bed.y)<2.6){G.target={type:'poibed',p};const r=poiX().room;lines.push(r&&r.poi===p.id&&r.round===STATE.round?'[E] Dormir (noite vira manhã; dia vira noite)':'🔒 Cama: reserve o quarto com o taverneiro')}
+    if(svc&&p.bed&&Math.hypot(P.x-p.bed.x,P.z-p.bed.z)<2.4&&Math.abs(P.y-p.bed.y)<2.6){G.target={type:'poibed',p};const r=poiX().room;lines.push(r&&r.poi===p.id&&r.round===STATE.round?'[E] Dormir (noite vira manhã; dia vira noite)':txtBedLocked(p.type))}
   }
   let best=null;   // o serviço mais perto de você (o ferreiro e a bigorna ficam próximos)
   const cand=(p,x,z,tg,txt,r)=>{const d=Math.hypot(P.x-x,P.z-z);if(d<r&&Math.abs(P.y-p.y)<2.6&&(!best||d<best.d))best={d,tg,txt}};
@@ -500,10 +524,10 @@ function poiScan(lines){
 function poiAct(t){
   const p=t.p,X=poiX();
   if(t.type==='poibar')return svcTavern(p);
-  if(t.type==='poisvc')return t.s.kind==='smith'?svcSmith(p):t.s.kind==='merc'?svcMerc(p):svcPost(p);
+  if(t.type==='poisvc')return t.s.kind==='smith'?svcSmith(p):t.s.kind==='merc'?svcMerc(p):t.s.kind==='inn'?svcInn(p):svcPost(p);
   if(t.type==='poivigil')return poiVigil(p);
   if(t.type==='poibed'){
-    if(!(X.room&&X.room.poi===p.id&&X.room.round===STATE.round))return toast('Reserve o quarto com o taverneiro primeiro.',2500);
+    if(!(X.room&&X.room.poi===p.id&&X.room.round===STATE.round))return toast(txtBedNeedRoom(p.type),2500);
     X.room=null;const night=DN.t<0.25||DN.t>0.75;
     if(night){if(DN.t>0.75)DN.days++;DN.t=0.3}else DN.t=0.85;   // noite vira manhã (7h12); dia vira noite (20h24)
     P.hp=P.maxhp;toast(night?'😴 Você dormiu até de manhã. Vida recuperada.':'😴 Você descansou até anoitecer. Vida recuperada.',4000);

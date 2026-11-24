@@ -2,6 +2,19 @@
 // ---------- Textos: POIs (entreposto e torre de vigia) ----------
 // Cada texto tem um comentário acima: onde aparece e para que serve. Só o texto muda aqui; a lógica apenas o chama.
 
+// ------ Pousada e alojamento de trabalhadores (poigame.js, svcInn e cama) ------
+// Título da tela do pousadeiro (pousada) ou do cozinheiro (alojamento).
+const txtRestTitle = type => type === 'lodge' ? '🍲 CANTINA' : '🛏 POUSADA';
+// Frase do topo da tela: acréscimo (%) sobre a loja da cidade e moedas do jogador.
+const txtRestIntro = (type, pct, coins) => (type === 'lodge' ? '— Sopa quente e um beliche, patrão. ' : '— Entre, descanse! ')
+  + 'Preços ' + pct + '% acima da cidade. O quarto custa a cura completa. Moedas: <b>◉ ' + coins + '</b>';
+// Botão de alugar o quarto e botão com o quarto já reservado (nesta rodada).
+const txtRestRoomRent = cost => '🛏 Alugar quarto ◉' + cost;
+const txtRestRoomHeld = type => type === 'lodge' ? '🛏 Beliche reservado (durma no barracão)' : '🛏 Quarto reservado (a cama fica na casa)';
+// Dica ao chegar na cama sem quarto reservado, e aviso ao tentar dormir sem ele (taverna, pousada e alojamento).
+const txtBedLocked = type => type === 'tavern' ? '🔒 Cama: reserve o quarto com o taverneiro' : type === 'lodge' ? '🔒 Beliche: reserve com o cozinheiro' : '🔒 Cama: reserve o quarto com o pousadeiro';
+const txtBedNeedRoom = type => type === 'tavern' ? 'Reserve o quarto com o taverneiro primeiro.' : type === 'lodge' ? 'Reserve o beliche com o cozinheiro primeiro.' : 'Reserve o quarto com o pousadeiro primeiro.';
+
 // ------ Entreposto (loja do POI) ------
 // Sufixo do botão de material do lojista: quantidade restante nesta rodada.
 const txtPostStock=n=>' (restam '+n+')';

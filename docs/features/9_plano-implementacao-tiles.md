@@ -31,7 +31,7 @@ Pegada de lado 243 a 297 (40% a 60% do tile), `CITY_FOOT`, ruas em blocos, muro 
 ### 4C. Vila (M) — **FEITA em 2026-11-23** (resumo em `docs/ESTADO.md`), depois da 4B
 Vila de até 10% do tile (lado até ~121): sem ruas, estradas ligando as casas; só cercas; menos soldados; prédios de serviço reduzidos. Reaproveita o gerador da cidade com parâmetros de vila. **Acréscimo (rodada 9):** **vilas de formatos variados** (restante da 1B). **3 a 6 soldados.**
 
-### 4D. POIs novos e adaptados (M) — **SESSÃO NOVA**, pode ir em paralelo com 4B/4C
+### 4D. POIs novos e adaptados (M) — **FEITA em 2026-11-23** (resumo em `docs/ESTADO.md`), pode ir em paralelo com 4B/4C
 Arquivos diferentes (`pois.js`, `poigame.js`). Pousada (camas `poibed` + lojinha), alojamento de trabalhadores com cantina, vila em escombros (ruínas anexáveis, não reconstruíveis), versão rara da vila de trabalhadores, variações visuais por tema. Torre de vigia sem a mecânica nova (fica para a etapa 8). Atualizar `POI_DEFS`/`POI_TYPES`.
 
 ### 4E. Composição do tile (G) — **SESSÃO NOVA**, depois de 4A e 4D (4B/4C para os temas de cidade e vila)

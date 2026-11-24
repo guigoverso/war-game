@@ -248,6 +248,20 @@ const T={
     const title=document.getElementById('svctitle').textContent;SVC=null;closePanel();
     return ok?(title?'':'painel sem título'):'o painel de serviço não abriu (G.panel='+G.panel+')';
   },
+  rest:()=>{   // 4D: pousada e alojamento (cama, serviço 'inn', quarto e compra) e vila em escombros (anexável, sem moradores)
+    for(const type of ['inn','lodge']){
+      const p=WORLD.pois.find(q=>q.type===type);if(!p)return 'sem POI '+type;
+      if(!p.bed)return type+' sem cama';if(!(p.svcSpec||[]).some(s=>s.kind==='inn'))return type+' sem serviço inn';
+      poiSetOwner(p,'player');if(!p.civ)return type+' sem moradores ao virar seu (poiCivSync)';
+      P.coins=5000;svcInn(p);if(G.panel!=='svc')return type+': svcInn não abriu';
+      const btns=[...document.querySelectorAll('#svcbody button')];if(btns.length<5)return type+': loja com só '+btns.length+' botões';
+      btns[0].click();if(!(poiX().room&&poiX().room.poi===p.id))return type+': quarto não reservado';
+      SVC=null;closePanel();poiX().room=null;
+    }
+    const r=WORLD.pois.find(q=>q.type==='ruinvil');if(!r)return 'sem vila em escombros';
+    poiSetOwner(r,'player');if(r.civ)return 'vila em escombros ganhou moradores';
+    return '';
+  },
   hunters:()=>{   // caçadores: baú de carne (1 a 3, uma vez só) e nível do jogador
     const p=WORLD.pois.find(q=>q.type==='hunters');if(!p)return 'sem POI de caçadores';
     if(!p.chestPos)return 'sem posição do baú';
@@ -455,6 +469,7 @@ const T={
     await check(g,'pois: POIs gerados',T.pois);
     for(const [type,fn] of [['tavern','svcSmith'],['tavern','svcMerc'],['tavern','svcTavern'],['post','svcPost']])
       await check(g,'pois: '+fn+' abre sem erro',T.svc,[type,fn]);
+    await check(g,'pois: pousada, alojamento e vila em escombros',T.rest);
     await check(g,'quartel: reparo do colete (ouro e couro)',T.vest);
     await check(g,'pois: entreposto (lojista, renda, bloqueio em guerra)',T.post);
     await check(g,'pois: entreposto (estoque limitado)',T.postStock);

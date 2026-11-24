@@ -3,6 +3,10 @@
 // Todo modificador tem um comentário acima: para que serve e o valor padrão. Altere o valor e recarregue o jogo.
 // Este arquivo carrega cedo: funções daqui só podem usar globais de outros arquivos DENTRO do corpo (na hora da chamada).
 
+// Pousada e alojamento de trabalhadores (poigame.js, svcInn): room = quarto como fração do preço de curar toda a vida (a taverna cobra 1,1);
+// markup = acréscimo sobre os preços da loja da cidade de referência. Padrão: pousada room 1.0 e markup 0.10; alojamento (rústico) room 0.8 e markup 0.05
+const POI_REST = { inn: { room: 1.0, markup: 0.10 }, lodge: { room: 0.8, markup: 0.05 } };
+
 // POI livre sem decisão (poigame.js, gancho 'leaderEnd')
 // Peso de os BANDIDOS retomarem um POI livre que o jogador ignorou, ao encerrar o turno do Líder. Padrão: 0.5
 // (peso, não chance: a chance real é BANDIT/(BANDIT+FACTION). 0 = bandidos nunca retomam.)

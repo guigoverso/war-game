@@ -8,12 +8,13 @@ const POI_DEFS={
   sanctuary:{n:'Santuário',ic:'⛪',r:14},post:{n:'Entreposto comercial',ic:'🏪',r:16},
   bridge:{n:'Ponte',ic:'🌉',r:9},fort:{n:'Forte',ic:'🏰',r:15},tower:{n:'Torre de vigia',ic:'🗼',r:8},tavern:{n:'Taverna',ic:'🍺',r:17},
   ruins:{n:'Ruínas antigas',ic:'🏛',r:9},
+  inn:{n:'Pousada',ic:'🛏',r:13},lodge:{n:'Alojamento',ic:'🏕',r:14},ruinvil:{n:'Vila em escombros',ic:'🏚',r:16},   // 4D: descanso com lojinha (pousada, alojamento) e vila arrasada anexável (sem moradores)
   fortcamp:{n:'Acampamento fortificado',ic:'⛺',r:12,war:true},trench:{n:'Trincheira',ic:'🪖',r:11,war:true},
   hospital:{n:'Hospital de campanha',ic:'🏥',r:10,war:true},depot:{n:'Depósito de suprimentos',ic:'📦',r:10,war:true},
   lookout:{n:'Atalaia de madeira',ic:'🔭',r:6,war:true},barricade:{n:'Barricada de estrada',ic:'🚧',r:7,war:true}
 };
 const POI_WAR_TYPES=['fortcamp','trench','hospital','depot','lookout','barricade'];   // os 6 POIs de guerra (só visuais; a frente os escolhe em warfront.js; a barricada só vai em estrada)
-const POI_TYPES=['farm','mine','sawmill','hunters','sanctuary','bridge','fort','tower','tavern','post','ruins'];
+const POI_TYPES=['farm','mine','sawmill','hunters','sanctuary','bridge','fort','tower','tavern','post','ruins','inn','lodge','ruinvil'];
 Hooks.on('resetState',()=>{STATE.pois={}});
 
 // ---------- dono e bandeira ----------
@@ -102,6 +103,24 @@ function poiSign(c,x,z,col){pBc(c,x-0.07,0,z-0.07,x+0.07,1.9,z+0.07,0x4a3320,fal
 function poiRack(c,x,z,alongX){for(let k=0;k<4;k++){const o=0.3+k*0.4;if(alongX){pBc(c,x+o,0.6,z,x+o+0.06,2.0,z+0.06,0xc0c8d0,false,{j:0});pBc(c,x+o-0.1,0.6,z,x+o+0.16,0.75,z+0.06,0x6b4a2a,false,{j:0})}else{pBc(c,x,0.6,z+o,x+0.06,2.0,z+o+0.06,0xc0c8d0,false,{j:0});pBc(c,x,0.6,z+o-0.1,x+0.06,0.75,z+o+0.16,0x6b4a2a,false,{j:0})}}pBc(c,alongX?x:x-0.05,0,alongX?z-0.05:z,alongX?x+1.8:x+0.15,0.6,alongX?z+0.15:z+1.8,0x5a3d22,true,{j:0.02})}
 function poiHut(c,x0,z0,w,d,D,o,rng){const f=poiHouse(c,x0,z0,w,d,D,o,rng);furnishHouse(c,f,rng,D);return f}   // casa com mobília
 const poiLampAt=(c,x,z)=>{pBc(c,x-0.1,0,z-0.1,x+0.1,3.0,z+0.1,0x2a2a2a,true,{j:0});pBc(c,x-0.3,3.0,z-0.3,x+0.3,3.5,z+0.3,0xffe9a0,false,{j:0});pBc(c,x-0.4,3.5,z-0.4,x+0.4,3.65,z+0.4,0x2a2a2a,false,{j:0})};
+
+// Enfeite de fora da pousada e do alojamento por tema do tile (p.theme; sem ele, pelo bioma): feira na fazenda, minério na mina, toras na serraria.
+function poiRestTheme(c,rng,p){
+  const th=p.theme||({[BIO_PLAINS]:'farm',[BIO_FOREST]:'sawmill',[BIO_ROCK]:'mine'}[p.biome])||'none',x=p.type==='inn'?-12:10,z=p.type==='inn'?-1:-4;
+  if(th==='farm'){   // banca de feira com toldo listrado e frutas, fardos de feno
+    for(const [dx,dz] of[[0,0],[4,0],[0,3.5],[4,3.5]])pBc(c,x+dx-0.1,0,z+dz-0.1,x+dx+0.1,2.5,z+dz+0.1,0x5a3d22,true,{j:0.02});
+    pBc(c,x,0,z+1,x+4,1.0,z+2.4,0x7a5632,true,{j:0.03});for(let i=0;i<5;i++)pBc(c,x-0.4+i*1.0,2.4,z-0.2,x+0.6+i*1.0,2.6,z+3.9,i%2?0xc03a3a:0xf0ece0,false,{j:0.03});
+    for(let k=0;k<7;k++)pBc(c,x+0.3+k*0.5,1.0,z+1.2+(k%2)*0.5,x+0.7+k*0.5,1.3,z+1.6+(k%2)*0.5,rng.pick([0xc83a2a,0xe08a2a,0xe0c030,0x5ab03a]),false,{j:0.05});
+    hay(c,x+6,z+2);hay(c,x+7.4,z+3.4)}
+  else if(th==='mine'){   // vagonete com minério, pilha de pedras e picaretas encostadas
+    poiCart(c,x,z,true,0x6a6a72);
+    for(let k=0;k<5;k++)pBc(c,x+4+k*0.6,0,z+k*0.5,x+5.4+k*0.6,0.6+0.2*k,z+1.4+k*0.5,rng.pick([0x7a6a5a,0x5a5a6a,0x8a5a3a,0xc8a030]),true,{j:0.08});
+    poiRack(c,x,z+4,true)}
+  else if(th==='sawmill'){   // pilha de toras, toco com machado
+    for(let r2=0;r2<3;r2++)for(let k=0;k<4-r2;k++)pBc(c,x+k*1.1+r2*0.55,r2*0.65,z,x+k*1.1+r2*0.55+1,r2*0.65+0.65,z+3.4,r2%2?0x8a5a2a:0x6a4220,true,{j:0.05});
+    pBc(c,x+1,0,z+5,x+2,0.5,z+6,0x6b4a2a,true,{j:0.05});pBc(c,x+1.4,0.5,z+5.2,x+1.6,1.2,z+5.4,0xb0b0b8,false,{j:0})}
+  else poiBench(c,x,z,true);
+}
 
 // ---------- construtores (frente = +z) ----------
 const POI_BUILD={
@@ -338,6 +357,61 @@ poiPath(c,0,R+1,0,4);poiBrazier(c,-3.4,R+1.6);poiBrazier(c,3.4,R+1.6);
     const seat=p.keepers.find(k=>k.role==='patron');   // o mercenário ocupa o lugar de um freguês sentado à mesa (só na taverna do jogador; nas outras o freguês fica)
     if(seat){seat.merc=true;p.svcSpec.push({kind:'merc',label:'Mercenário: recrutar soldado',x:seat.x,z:seat.z,seat:true})}
     poiFlag(c,p,-11,6,9);
+  },
+  inn(c,rng,p){   // pousada: casa de um andar com balcão, duas camas e placa; o enfeite de fora muda com o tema do tile (poiRestTheme)
+    poiHouse(c,-6,-8,12,8,'S',{h:4,wall:0xd8b888,roof:0x8a3a2a,chimney:true,timber:true,shut:0x4a3a2a},rng);
+    pBc(c,-5.2,0,-5.4,-1.6,1.05,-4.7,0x7a5632,true,{j:0.03});pBc(c,-5.3,1.05,-5.5,-1.5,1.15,-4.6,0x9a6a3a,false,{j:0.02});   // balcão (o pousadeiro fica atrás)
+    for(const [bx,sw] of[[0.6,0xc03a3a],[2.6,0x3a6ac0]]){pBc(c,bx,0,-6.9,bx+1.5,0.5,-4.5,0x6b4a2a,true,{j:0.02});pBc(c,bx+0.1,0.5,-6.8,bx+1.4,0.75,-5.2,sw,false,{j:0.02});pBc(c,bx+0.1,0.5,-5.2,bx+1.4,0.7,-4.6,0xf0ece0,false,{j:0})}   // camas
+    pBc(c,-0.4,0,-7.0,0.2,0.7,-6.4,0x7a4a22,true,{j:0.02});pBc(c,-0.2,0.7,-6.9,0,0.95,-6.5,0xfff0b0,false,{j:0});   // criado-mudo com vela
+    p.bed={x:c.cx+1.35,z:c.cz-5.6,y:c.y+0.1};   // a cama: [E] Dormir (com o quarto reservado)
+    poiRestTheme(c,rng,p);
+    poiPath(c,0,0,0,9);poiLampAt(c,2.8,1.5);poiLampAt(c,-2.8,1.5);poiSign(c,3.6,3.5,0x6a3a2a);poiWell(c,-8,4);
+    for(const [tx,tz] of[[-10,-6],[9,-4],[9,8]])tinyTree(c,tx,tz,rng);
+    p.keepers=[];p.svcSpec=[{kind:'inn',role:'merchant',label:'Pousadeiro: comida, remédios e quarto',x:c.cx-3.4,z:c.cz-6.2,yaw:0}];
+    poiFlag(c,p,6.5,2,6);
+  },
+  lodge(c,rng,p){   // alojamento: barracão aberto com beliches, tendas e cozinha de campo (fogueira com panela, mesa, barris); rústico
+    for(const [x,z] of[[-9,-9],[2,-9],[-9,-1],[2,-1],[-3.5,-1],[-3.5,-9]])pBc(c,x-0.18,0,z-0.18,x+0.18,3.4,z+0.18,0x5a3d22,true,{j:0.02});   // pilares
+    pBc(c,-9,0,-9.2,2,3.4,-8.8,0x7a5632,true,{j:0.03});   // parede do fundo
+    for(const s of[-9,2])pBc(c,s-0.1,0,-9,s+0.1,1.2,-1,0x7a5632,true,{j:0.04});   // muretas laterais
+    roofOn(c,-9.8,-9.8,2.8,-0.2,3.4,'gable',0x6a5a3a,{trim:0x4a3320});
+    for(const bx of[-8.2,-5.2,-2.4]){   // beliches: dois leitos empilhados com cobertas
+      pBc(c,bx,0,-8.6,bx+1.5,0.5,-6.4,0x6b4a2a,true,{j:0.02});pBc(c,bx+0.1,0.5,-8.5,bx+1.4,0.7,-6.5,rng.pick([0x8a3a3a,0x3a5a8a,0x5a7a3a]),false,{j:0.03});
+      pBc(c,bx,1.5,-8.6,bx+1.5,1.75,-6.4,0x6b4a2a,true,{j:0.02});pBc(c,bx+0.1,1.75,-8.5,bx+1.4,1.95,-6.5,rng.pick([0x8a3a3a,0x3a5a8a,0x5a7a3a]),false,{j:0.03});
+      for(const [px,pz] of[[bx,-8.6],[bx+1.4,-8.6],[bx,-6.5],[bx+1.4,-6.5]])pBc(c,px,0,pz,px+0.12,1.5,pz+0.12,0x5a3d22,true,{j:0})}
+    p.bed={x:c.cx-4.5,z:c.cz-5.4,y:c.y+0.1};
+    const tent=(tx,tz,col)=>{for(let i=0;i<5;i++){const w=1.8-i*0.34;pBc(c,tx-w,i*0.5,tz-1.4,tx+w,i*0.5+0.5,tz+1.4,shadec(col,i%2?1.07:0.95),i<3,{j:0.06})}pBc(c,tx-0.5,0,tz+1.35,tx+0.5,1.5,tz+1.45,0x1f1710,false,{j:0})};
+    tent(8,-7,0x8a7a4a);tent(-12,4,0x6a7a4a);tent(11.5,-1.5,0x9a8a5a);
+    // cozinha de campo: anel de pedras, brasa, tripé com panela, mesa de preparo, bancos, barris e lenha
+    for(let a=0;a<8;a++){const sx=6+Math.cos(a*0.785)*1.3,sz=3+Math.sin(a*0.785)*1.3;pBc(c,sx-0.3,0,sz-0.3,sx+0.3,0.4,sz+0.3,rng.pick(poiStone),true,{j:0.06})}
+    pBc(c,5.4,0,2.4,6.6,0.25,3.6,0xff7a1a,false,{j:0.08});pBc(c,5.7,0.25,2.7,6.3,0.55,3.3,0xffd84a,false,{j:0.08});
+    for(const [dx,dz] of[[-1.2,-1.2],[1.2,-1.2],[0,1.4]])pBc(c,6+dx*0.7-0.06,0,3+dz*0.7-0.06,6+dx*0.25+0.06,2.6,3+dz*0.25+0.06,0x4a3320,false,{j:0});
+    pBc(c,5.5,1.5,2.5,6.5,2.2,3.5,0x2a2a2e,true,{j:0.04});pBc(c,5.6,2.2,2.6,6.4,2.35,3.4,0x8a6a3a,false,{j:0});   // panela com caldo
+    pBc(c,2,0,5.2,6,0.95,6.4,0x7a5632,true,{j:0.03});for(let k=0;k<5;k++)pBc(c,2.3+k*0.75,0.95,5.4+(k%2)*0.4,2.8+k*0.75,1.2,5.8+(k%2)*0.4,rng.pick([0xc83a2a,0xe08a2a,0x5ab03a,0xd8d0b0]),false,{j:0.06});
+    poiBench(c,2,7.6,true);poiBench(c,5,7.6,true);barrel(c,8.5,5.2);barrel(c,9.7,5.6);crate(c,9.2,3.4,1.1,1.1);
+    for(let k=0;k<3;k++)pBc(c,-1+k*0.3,0,3+k*0.7,0.8+k*0.3,0.5+0.3*k,3.6+k*0.7,0x6b4a2a,true,{j:0.06});   // lenha
+    poiRestTheme(c,rng,p);
+    poiPath(c,0,0,0,8);poiLampAt(c,-2.5,3);poiSign(c,-3.5,1.2,0x6a4a2a);
+    for(const [tx,tz] of[[-10,-12],[12,6],[-8,9]])tinyTree(c,tx,tz,rng);
+    p.keepers=[];p.svcSpec=[{kind:'inn',role:'merchant',label:'Cozinheiro: cantina e cama',x:c.cx+3.8,z:c.cz+3.6,yaw:Math.PI*0.5}];
+    poiFlag(c,p,-4,2,6);
+  },
+  ruinvil(c,rng,p){   // vila arrasada: fundações de casas com paredes meio caídas, vigas queimadas, poço quebrado, entulho e mato; sem moradores nem serviços (não se reconstrói)
+    for(const [x0,z0,w,d] of[[-10,-9,7,6],[0,-10,6,7],[8,-7,6,6],[-11,0,6,7],[4,2,7,6],[-3,8,6,5]]){
+      pBc(c,x0,0,z0,x0+w,0.12,z0+d,0x6a5a46,false,{j:0.04});   // soleira de pedra
+      for(const [ax,az,bx,bz] of[[x0,z0,x0+w,z0+0.7],[x0,z0+d-0.7,x0+w,z0+d],[x0,z0,x0+0.7,z0+d],[x0+w-0.7,z0,x0+w,z0+d]]){
+        const n=Math.max(1,Math.round(Math.hypot(bx-ax,bz-az)/1.6));
+        for(let k=0;k<n;k++){const h=rng.chance(0.35)?0:rng.range(0.6,2.8);if(h>0.05)pBc(c,ax+(bx-ax)*k/n,0,az+(bz-az)*k/n,ax+(bx-ax)*(k+1)/n,h,az+(bz-az)*(k+1)/n,rng.pick([0x9a8a70,0xa89878,0x8a7a62]),true,{j:0.07})}}
+      for(let k=0;k<3;k++){const bx=x0+rng.range(0.5,w-2),bz=z0+rng.range(0.5,d-1);pBc(c,bx,0,bz,bx+rng.range(2,3.5),0.35,bz+0.35,0x2a1e16,false,{j:0.05})}   // vigas queimadas
+      if(rng.chance(0.5))pBc(c,x0+w*0.5,0,z0+d*0.4,x0+w*0.5+0.7,rng.range(2.5,4),z0+d*0.4+0.7,0x3a2e26,true,{j:0.04});   // chaminé de pé
+    }
+    pBc(c,-2.5,0,3,0.5,0.55,6,0x8a8a90,true,{j:0.08});pBc(c,-1.6,0.5,3.6,-0.4,0.62,5.4,0x14243a,false,{j:0});   // poço quebrado, seco
+    for(let k=0;k<10;k++){const x=rng.range(-13,13),z=rng.range(-12,11),s=rng.range(0.4,1);pBc(c,x,0,z,x+s,s*0.7,z+s,rng.pick(poiStone),false,{j:0.1})}   // entulho
+    for(let k=0;k<12;k++){const x=rng.range(-14,14),z=rng.range(-13,12);pBc(c,x,0,z,x+0.3,rng.range(0.3,0.9),z+0.3,rng.pick([0x3a7a2a,0x5a6a2a]),false,{j:0.1})}   // mato
+    for(let k=0;k<4;k++){const x=rng.range(-12,12),z=rng.range(-11,10);poiPole(c,x,z,rng.range(1.5,3),0x2a2018)}   // estacas queimadas
+    poiFence(c,10,6,13,6);poiFence(c,13,6,13,10);   // restos de cerca
+    p.keepers=[];p.svcSpec=[];
+    poiFlag(c,p,0,-1,6);
   },
   post(c,rng,p){   // entreposto comercial: galpão de mercado com balcão e prateleiras, banca de feira, carroças carregadas, pilhas de caixas e barris, poço e cavalos
     pBc(c,-9,0,-10,9,0.1,-0.5,0x8a6a3a,false,{j:0.03});   // piso de tábuas
