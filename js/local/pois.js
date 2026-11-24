@@ -8,7 +8,7 @@ const POI_DEFS={
   sanctuary:{n:'Santuário',ic:'⛪',r:14},post:{n:'Entreposto comercial',ic:'🏪',r:16},
   bridge:{n:'Ponte',ic:'🌉',r:9},fort:{n:'Forte',ic:'🏰',r:15},tower:{n:'Torre de vigia',ic:'🗼',r:8},tavern:{n:'Taverna',ic:'🍺',r:17},
   ruins:{n:'Ruínas antigas',ic:'🏛',r:9},
-  inn:{n:'Pousada',ic:'🛏',r:13},lodge:{n:'Alojamento',ic:'🏕',r:14},ruinvil:{n:'Vila em escombros',ic:'🏚',r:16},   // 4D: descanso com lojinha (pousada, alojamento) e vila arrasada anexável (sem moradores)
+  inn:{n:'Pousada',ic:'🛏',r:13},lodge:{n:'Alojamento',ic:'🏕',r:14},ruinvil:{n:'Vila em escombros',ic:'🏚',r:POI_RUINVIL.r},   // 4D: descanso com lojinha (pousada, alojamento) e vila arrasada anexável (sem moradores)
   fortcamp:{n:'Acampamento fortificado',ic:'⛺',r:12,war:true},trench:{n:'Trincheira',ic:'🪖',r:11,war:true},
   hospital:{n:'Hospital de campanha',ic:'🏥',r:10,war:true},depot:{n:'Depósito de suprimentos',ic:'📦',r:10,war:true},
   lookout:{n:'Atalaia de madeira',ic:'🔭',r:6,war:true},barricade:{n:'Barricada de estrada',ic:'🚧',r:7,war:true}
@@ -393,25 +393,31 @@ poiPath(c,0,R+1,0,4);poiBrazier(c,-3.4,R+1.6);poiBrazier(c,3.4,R+1.6);
     poiRestTheme(c,rng,p);
     poiPath(c,0,0,0,8);poiLampAt(c,-2.5,3);poiSign(c,-3.5,1.2,0x6a4a2a);
     for(const [tx,tz] of[[-10,-12],[12,6],[-8,9]])tinyTree(c,tx,tz,rng);
-    p.keepers=[];p.svcSpec=[{kind:'inn',role:'merchant',label:'Cozinheiro: cantina e cama',x:c.cx+3.8,z:c.cz+3.6,yaw:Math.PI*0.5}];
+    p.keepers=[];p.svcSpec=[{kind:'inn',role:'merchant',label:'Cozinheiro: cantina e cama',x:c.cx+1.8,z:c.cz+3.8,yaw:Math.PI*0.5}];
     poiFlag(c,p,-4,2,6);
   },
-  ruinvil(c,rng,p){   // vila arrasada: fundações de casas com paredes meio caídas, vigas queimadas, poço quebrado, entulho e mato; sem moradores nem serviços (não se reconstrói)
-    for(const [x0,z0,w,d] of[[-10,-9,7,6],[0,-10,6,7],[8,-7,6,6],[-11,0,6,7],[4,2,7,6],[-3,8,6,5]]){
+  ruinvil(c,rng,p){   // vila arrasada do tamanho de uma vila (raio POI_RUINVIL.r): casas em grade com paredes meio caídas, praça com poço seco, caminhos, entulho e mato; sem moradores nem serviços (não se reconstrói)
+    const R=POI_DEFS.ruinvil.r,Q=POI_RUINVIL,cell=Q.cell;
+    for(let gz=-R;gz<R;gz+=cell)for(let gx=-R;gx<R;gx+=cell){   // uma casa por célula da grade (algumas faltam: viram só mato)
+      const w=rng.int(5,8),d=rng.int(5,7),x0=gx+rng.range(1,cell-w-1),z0=gz+rng.range(1,cell-d-1);
+      if(Math.hypot(x0+w/2,z0+d/2)>R-w||Math.hypot(x0+w/2,z0+d/2)<Q.square||rng.chance(Q.empty))continue;
       pBc(c,x0,0,z0,x0+w,0.12,z0+d,0x6a5a46,false,{j:0.04});   // soleira de pedra
       for(const [ax,az,bx,bz] of[[x0,z0,x0+w,z0+0.7],[x0,z0+d-0.7,x0+w,z0+d],[x0,z0,x0+0.7,z0+d],[x0+w-0.7,z0,x0+w,z0+d]]){
         const n=Math.max(1,Math.round(Math.hypot(bx-ax,bz-az)/1.6));
         for(let k=0;k<n;k++){const h=rng.chance(0.35)?0:rng.range(0.6,2.8);if(h>0.05)pBc(c,ax+(bx-ax)*k/n,0,az+(bz-az)*k/n,ax+(bx-ax)*(k+1)/n,h,az+(bz-az)*(k+1)/n,rng.pick([0x9a8a70,0xa89878,0x8a7a62]),true,{j:0.07})}}
       for(let k=0;k<3;k++){const bx=x0+rng.range(0.5,w-2),bz=z0+rng.range(0.5,d-1);pBc(c,bx,0,bz,bx+rng.range(2,3.5),0.35,bz+0.35,0x2a1e16,false,{j:0.05})}   // vigas queimadas
       if(rng.chance(0.5))pBc(c,x0+w*0.5,0,z0+d*0.4,x0+w*0.5+0.7,rng.range(2.5,4),z0+d*0.4+0.7,0x3a2e26,true,{j:0.04});   // chaminé de pé
+      if(rng.chance(0.4))poiFence(c,x0-1,z0+d+1.5,x0+w*0.6,z0+d+1.5);   // resto de cerca do quintal
     }
-    pBc(c,-2.5,0,3,0.5,0.55,6,0x8a8a90,true,{j:0.08});pBc(c,-1.6,0.5,3.6,-0.4,0.62,5.4,0x14243a,false,{j:0});   // poço quebrado, seco
-    for(let k=0;k<10;k++){const x=rng.range(-13,13),z=rng.range(-12,11),s=rng.range(0.4,1);pBc(c,x,0,z,x+s,s*0.7,z+s,rng.pick(poiStone),false,{j:0.1})}   // entulho
-    for(let k=0;k<12;k++){const x=rng.range(-14,14),z=rng.range(-13,12);pBc(c,x,0,z,x+0.3,rng.range(0.3,0.9),z+0.3,rng.pick([0x3a7a2a,0x5a6a2a]),false,{j:0.1})}   // mato
-    for(let k=0;k<4;k++){const x=rng.range(-12,12),z=rng.range(-11,10);poiPole(c,x,z,rng.range(1.5,3),0x2a2018)}   // estacas queimadas
-    poiFence(c,10,6,13,6);poiFence(c,13,6,13,10);   // restos de cerca
+    poiPath(c,-R+6,0,R-6,0,0x7a6a50);poiPath(c,0,-R+6,0,R-6,0x7a6a50);   // caminhos de terra em cruz, até a praça
+    pBc(c,-2.5,0,-2.5,2.5,0.55,2.5,0x8a8a90,true,{j:0.08});pBc(c,-1.6,0.5,-1.6,1.6,0.62,1.6,0x14243a,false,{j:0});   // poço quebrado, seco, no centro
+    for(let k=0,n=Math.round(R*R*Q.debris);k<n;k++){
+      const a=rng.range(0,6.283),r=Math.sqrt(rng.next())*(R-3),x=Math.cos(a)*r,z=Math.sin(a)*r,t=rng.next();
+      if(t<0.4){const q=rng.range(0.4,1);pBc(c,x,0,z,x+q,q*0.7,z+q,rng.pick(poiStone),false,{j:0.1})}   // entulho
+      else if(t<0.8)pBc(c,x,0,z,x+0.3,rng.range(0.3,0.9),z+0.3,rng.pick([0x3a7a2a,0x5a6a2a]),false,{j:0.1});   // mato
+      else poiPole(c,x,z,rng.range(1.5,3),0x2a2018)}   // estacas queimadas
     p.keepers=[];p.svcSpec=[];
-    poiFlag(c,p,0,-1,6);
+    poiFlag(c,p,4,4,6);
   },
   post(c,rng,p){   // entreposto comercial: galpão de mercado com balcão e prateleiras, banca de feira, carroças carregadas, pilhas de caixas e barris, poço e cavalos
     pBc(c,-9,0,-10,9,0.1,-0.5,0x8a6a3a,false,{j:0.03});   // piso de tábuas
@@ -861,7 +867,7 @@ function genWorldPois(cities,taken,dry){
 // Em ?cenario=pois o mundo inteiro nasce plano (sem relevo, água nem árvores) e os 17 POIs (11 permanentes e 6 de guerra) são construídos no centro ANTES da malha do terreno, cada um com uma placa
 // com o nome e o dono (por isso a trincheira pode ser escavada de verdade). As cidades ficam fora da área.
 function poiShowcaseGen(){
-  const types=POI_TYPES.concat(POI_WAR_TYPES),dk=Object.keys(WAR_DORMANT),cols=5,gx=44,gz=44,rows=Math.ceil((types.length+dk.length)/cols);
+  const types=POI_TYPES.concat(POI_WAR_TYPES).filter(t=>t!=='ruinvil'),dk=Object.keys(WAR_DORMANT),cols=5,gx=44,gz=44,rows=Math.ceil((types.length+dk.length)/cols);
   const x0=W/2-(cols-1)*gx/2,z0=W/2-(rows-1)*gz/2,Y=SEA+6;WORLD.pois=[];let id=900;
   const owners=['bandit',(WORLD.factions&&WORLD.factions[0])?WORLD.factions[0].id:'bandit','player'];
   types.forEach((type,i)=>{
@@ -870,6 +876,9 @@ function poiShowcaseGen(){
     poiBuild(p);WORLD.pois.push(p);
     const lbl=d.n+' — '+poiOwnerName(p.owner);makeSign(lbl,Math.max(4,lbl.length*0.36+0.8),0.9,0x2a2a3a,0xf0e6c0,x,Y+4.4,z+d.r+1.2,'S');
   });
+  {const d=POI_DEFS.ruinvil,x=Math.round(x0+(cols-1)*gx+gx/2+d.r+4),z=Math.round(W/2),   // a vila em escombros é grande: fica à direita da grade, não nela
+      p={id:id++,type:'ruinvil',cx:x,cz:z,y:Y,biome:BIO_PLAINS,owner:'bandit',show:true,axis:'z'};
+    poiBuild(p);WORLD.pois.push(p);const lbl=d.n+' — '+poiOwnerName(p.owner);makeSign(lbl,Math.max(4,lbl.length*0.36+0.8),0.9,0x2a2a3a,0xf0e6c0,x,Y+4.4,z+d.r+1.2,'S')}
   WORLD.dormant=[];   // decorações dormentes (frente da guerra), depois dos POIs: na vitrine não viram POI de guerra
   dk.forEach((kind,j)=>{
     const i=types.length+j,x=Math.round(x0+(i%cols)*gx),z=Math.round(z0+Math.floor(i/cols)*gz),d={i:j,x,z,y:Y,kind,r:WAR_DORMANT[kind].r};

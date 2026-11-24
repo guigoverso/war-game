@@ -7,6 +7,10 @@
 // markup = acréscimo sobre os preços da loja da cidade de referência. Padrão: pousada room 1.0 e markup 0.10; alojamento (rústico) room 0.8 e markup 0.05
 const POI_REST = { inn: { room: 1.0, markup: 0.10 }, lodge: { room: 0.8, markup: 0.05 } };
 
+// Vila em escombros (pois.js, ruinvil): r = raio do POI em blocos (padrão 40, tamanho de vila); cell = lado da célula de uma casa (14);
+// empty = chance de a célula ficar sem casa (0.25); square = raio da praça central sem casas (7); debris = entulho, mato e estacas por bloco² (0.05)
+const POI_RUINVIL = { r: 40, cell: 14, empty: 0.25, square: 7, debris: 0.05 };
+
 // POI livre sem decisão (poigame.js, gancho 'leaderEnd')
 // Peso de os BANDIDOS retomarem um POI livre que o jogador ignorou, ao encerrar o turno do Líder. Padrão: 0.5
 // (peso, não chance: a chance real é BANDIT/(BANDIT+FACTION). 0 = bandidos nunca retomam.)
