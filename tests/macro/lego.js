@@ -1,7 +1,7 @@
 'use strict';
 // Teste em Node dos esqueletos lego (js/modifiers/lego-modifiers.js; L2: fazenda, mina e serraria, tamanhos M e P). Uso (de dentro de tests/): node macro/lego.js
 // Confere por receita: vagas dentro da área, sem sobreposição entre vagas, faixa do portão livre, cada vaga com ao menos uma peça que cabe, uma âncora por esqueleto, lane livre,
-// 4 esqueletos ou mais por tipo/tamanho (as 4 variações do cenário ?cenario=lego) e peças das tabelas existentes.
+// corredor do portão com 3 blocos ou mais entre as peças sólidas, 4 esqueletos ou mais por tipo/tamanho (as 4 variações do cenário ?cenario=lego) e peças das tabelas existentes.
 const {erros,run}=require('./carregar')();
 let falhas=0;const ok=(c,n,w)=>{if(!c)falhas++;console.log((c?'OK    ':'FALHA ')+n+(w?' — '+w:''))};
 ok(erros.length===0,'camada macro carrega (inclui lego-modifiers.js)',erros.join(' | '));
@@ -22,6 +22,7 @@ const r=run(`(()=>{const out=[],info=[];
       for(const s of S)if(s.k==='apoio'&&legoFaceScore(S,s,H,legoFaceFor(S,s,H))>1)out.push(id+': apoio sem nenhuma frente livre ('+s.x+','+s.z+')');   // a porta de um apoio nunca dá em parede nem em cerca
       const lane=sk.lane||0;for(const s of S)if(s.k!=='patio'&&s.k!=='casa'&&lane>s.x&&lane<s.x+s.w&&s.z+s.d>0&&s.z<H-1)out.push(id+': faixa x='+lane+' cruza a vaga '+s.k+' ('+s.x+'..'+(s.x+s.w)+')');
       for(const s of S)if(s.z+s.d>=H-1&&s.x<rc.gate&&s.x+s.w>-rc.gate)out.push(id+': vaga '+s.k+' bloqueia o portão');
+      {const sol=S.filter(s=>s.k!=='patio'&&s.z+s.d>0&&s.z<H-1&&!(s.x<lane&&lane<s.x+s.w)),L=Math.max(-H,...sol.filter(s=>s.x+s.w<=lane).map(s=>s.x+s.w)),R=Math.min(H,...sol.filter(s=>s.x>=lane).map(s=>s.x));if(!sk.lane&&R-L<3)out.push(id+': corredor do portão estreito ('+(R-L)+' blocos entre '+L+' e '+R+'; a nav bloqueia 0,35 de cada lado das paredes)')}   // a faixa do portão até a porta precisa ter 3 blocos ou mais entre as peças sólidas (2 já fechou o caminho na nav)
     }
     info.push(tag+':'+rc.skeletons.length+' (raio '+legoR(type,size)+')');
   }

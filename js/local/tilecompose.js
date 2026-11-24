@@ -71,7 +71,7 @@ function tcQuery(type, place) {
 }
 // ---- L1b: frente para a estrada e trilha ----
 // O POI do tile ganha a frente virada para a estrada (p.legoFace, 0 a 3) e uma trilha do portão até a estrada: só os tipos de LEGO_FACE_TYPES e, com lego ligado, fazenda/mina/serraria.
-const tcFaced = type => LEGO_FACE_TYPES.includes(type) || (!!LEGO_RECIPES[type] && legoOn());
+const tcFaced = type => LEGO_FACE_TYPES.includes(type) || (LEGO_FACE_RECIPES.includes(type) && legoOn());
 const TC_DIR = [[0, 1], [-1, 0], [0, -1], [1, 0]], TC_LETTER = ['S', 'W', 'N', 'E'];   // frente k: sul, oeste, norte, leste (como legoRotToward)
 // Estrada mais próxima de (x,z) (pontos de S.roadCells; sem estrada ainda, as aberturas do tile, de onde elas virão); null se não há nenhuma.
 function tcNearRoad(S, x, z) {

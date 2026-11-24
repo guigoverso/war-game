@@ -9,11 +9,17 @@
 const legoOn = () => { const q = new URLSearchParams(location.search); return q.get('lego') === '1' || q.get('cenario') === 'lego' };
 // Verdadeiro só em ?cenario=lego: mundo super plano com os POIs lego em grade (poiLegoShowGen).
 const legoShowOn = () => new URLSearchParams(location.search).get('cenario') === 'lego';
-// Cenário lego: variações por tipo e tamanho (4), colunas e espaçamento da grade em blocos (46), tipos na ordem das fileiras e tamanhos de cada tipo (M médio, P pequeno).
+// Cenário lego: variações por tipo e tamanho (4), colunas e espaçamento mínimo da grade em blocos (46; cresce para caber o maior POI da vista), tipos na ordem das fileiras e tamanhos de cada tipo (M médio, P pequeno).
 // Tipos de POI que o compositor do tile (tilecompose.js) vira com a frente para a estrada mais próxima e liga a ela por uma trilha (L1b). Os antigos (taverna, entreposto, pousada,
 // alojamento) giram o desenho inteiro pelo gancho BC_XF (poilego.js, legoOldBuild); fazenda, mina e serraria só quando lego está ligado (legoOn). Padrão: os quatro antigos
 const LEGO_FACE_TYPES = ['tavern', 'post', 'inn', 'lodge'];
-const LEGO_SHOW = { n: 4, gap: 46, types: ['farm', 'mine', 'sawmill'], sizes: ['M', 'P'], area: [245, 215] };
+// L3.5: types = todos os tipos (um link por tipo na galeria cenarios-pois.html: ?cenario=lego&tipo=<tipo>); base = o que a vista sem `tipo` mostra (só os 3 primeiros: a grade
+// de 14 tipos x 2 tamanhos x 46 blocos não cabe no mapa). Receitas e peças dos 11 tipos novos: lego-poi-modifiers.js e poilego2.js.
+// Tipos lego que, com lego ligado, também giram para a estrada e ganham trilha no tile (fazenda, mina, serraria). Os 8 do L3.5 que não são de estrada (caçadores, santuário, ruínas, forte,
+// torre, plantação, pesca, vila) ficam sem isso até a L4. Padrão: os três.
+const LEGO_FACE_RECIPES = ['farm', 'mine', 'sawmill'];
+const LEGO_SHOW = { n: 4, gap: 46, types: ['farm', 'mine', 'sawmill', 'hunters', 'sanctuary', 'ruins', 'fort', 'tower', 'inn', 'lodge', 'post', 'plantation', 'fishery', 'workers'],
+  base: ['farm', 'mine', 'sawmill'], sizes: ['M', 'P'], area: [245, 215] };
 // Cenário lego: área limpa (meia-largura em x e em z, em blocos, a partir do centro do mapa) onde não nascem cidades (cada uma tem até 45 de meio-lado, então a muralha fica
 // longe da grade e do bloco de micro-POIs). Em ?cenario=lego também não nascem acampamentos, grutas, baús, bandos nem terrenos de guerra: só o que é da feature. Padrão: LEGO_SHOW.area.
 // Micro-POIs (L3; poimicro.js): só cenário. No cenário lego ficam em bloco ao lado da grade, depois dos 4 dormentes que já existiam: x = distância do centro à 1ª coluna (110),
@@ -25,6 +31,12 @@ const LEGO_MICRO = { x: 110, gap: 28, cols: 4, list: [
   { id: 'armadilha', n: 'Armadilha de caça', r: 5 }, { id: 'tumba', n: 'Tumba', r: 6 }, { id: 'estatua', n: 'Estátua quebrada', r: 5 },
   { id: 'campo_batalha', n: 'Campo de batalha esquecido', r: 7 }, { id: 'barricada', n: 'Barricada derrubada', r: 7 }, { id: 'trincheira', n: 'Trincheira abandonada', r: 7 },
   { id: 'vala_comum', n: 'Vala comum', r: 7 }, { id: 'palicada', n: 'Paliçada tombada', r: 8 }] };
+// Vista do cenário lego pela URL (galeria cenarios-pois.html): ?tipo=<tipo de LEGO_SHOW.types> mostra só as variações desse tipo; ?micro=1 só os micro-POIs; sem nenhum, os tipos de LEGO_SHOW.base e os micros.
+// Devolve {types: tipos da grade, micro: mostra o bloco de micro-POIs, solo: o bloco de micros fica sozinho (centrado)}.
+function legoShowView() {
+  const q = new URLSearchParams(location.search), t = q.get('tipo'), only = q.get('micro') === '1';
+  return { types: only ? [] : LEGO_SHOW.types.includes(t) ? [t] : LEGO_SHOW.base, micro: only || !LEGO_SHOW.types.includes(t), solo: only };
+}
 // Sem piso próprio: o POI usa o chão do cenário (como os outros POIs). Com ?cenario=lego, ?piso=planicie|floresta|deserto|neve|montanha força o bioma de todos os POIs (padrão: planicie).
 // Chance de o POI ter cerca em volta, por tamanho: cresce com o POI (P pequeno 25%, M médio 50%, G grande 75%).
 const LEGO_FENCE = { P: 0.25, M: 0.5, G: 0.75 };
@@ -160,7 +172,7 @@ const LEGO_PICK = {
 // Tamanho mínimo (w, d) de cada peça.
 const LEGO_MIN = {
   casa: [9, 7], celeiro: [8, 7], silos: [6, 4], galinheiro: [6, 5], curral: [8, 6], pomar: [8, 7], trigo: [6, 6], horta: [6, 6], milho: [6, 6],
-  boca: [8, 6], oficina: [5, 5], guincho: [5, 5], deposito: [5, 5], minerio: [5, 5], carvao: [5, 5], entulho: [5, 5],
+  boca: [7, 7], oficina: [5, 5], guincho: [5, 5], deposito: [5, 5], minerio: [5, 5], carvao: [5, 5], entulho: [5, 5],
   serra: [9, 6], escritorio: [5, 5], tabuas: [5, 5], toras: [5, 5], canal: [8, 4], nada: [0, 0]
 };
 // Enfeites do pátio por tipo de POI (peso). Sorteia `decorN` itens em posições diferentes do retângulo do pátio (poço e carroça só em célula grande).
@@ -183,11 +195,11 @@ function legoFaceScore(slots, s, H, f) {
   const q = f === 'S' ? [s.x + s.w / 2, s.z + s.d + 1.5] : f === 'N' ? [s.x + s.w / 2, s.z - 1.5] : f === 'E' ? [s.x + s.w + 1.5, s.z + s.d / 2] : [s.x - 1.5, s.z + s.d / 2];
   if (Math.abs(q[0]) > H || q[1] < -H || q[1] > H - 1) return 9;
   const t = slots.find(o => o !== s && q[0] >= o.x && q[0] <= o.x + o.w && q[1] >= o.z && q[1] <= o.z + o.d);
-  return !t || t.k === 'campo' ? 1 : t.k === 'patio' ? 0 : 9;
+  return !t ? 0.5 : t.k === 'campo' ? 1 : t.k === 'patio' ? 0 : 9;   // pátio 0, chão livre 0.5, campo 1 (as peças de campo podem ter colisão), parede 9
 }
-// Frente de uma vaga de apoio: a do esqueleto, se a porta não for tampada; senão a melhor das outras (S, E, W, N; prefere a que dá num pátio).
+// Frente de uma vaga de apoio: a do esqueleto se dá num pátio; senão a melhor das quatro (S, E, W, N; só troca se for melhor: pátio, depois chão livre, depois campo).
 function legoFaceFor(slots, s, H) {
-  let best = s.face || 'S', bs = legoFaceScore(slots, s, H, best); if (bs <= 1) return best;
+  let best = s.face || 'S', bs = legoFaceScore(slots, s, H, best); if (bs === 0) return best;
   for (const f of ['S', 'E', 'W', 'N']) { const v = legoFaceScore(slots, s, H, f); if (v < bs) { bs = v; best = f } }
   return best;
 }

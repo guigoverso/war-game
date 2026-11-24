@@ -8,6 +8,7 @@ const POI_DEFS={
   sanctuary:{n:'Santuário',ic:'⛪',r:14},post:{n:'Entreposto comercial',ic:'🏪',r:16},
   bridge:{n:'Ponte',ic:'🌉',r:9},fort:{n:'Forte',ic:'🏰',r:15},tower:{n:'Torre de vigia',ic:'🗼',r:8},tavern:{n:'Taverna',ic:'🍺',r:17},
   ruins:{n:'Ruínas antigas',ic:'🏛',r:9},
+  plantation:{n:'Plantação',ic:'🌽',r:18},fishery:{n:'Vila de pesca',ic:'🎣',r:14},workers:{n:'Vila de trabalhadores',ic:'🏘',r:23},   // L3.5: só existem como receita lego (poilego.js); ainda fora de POI_TYPES (o tile 4E os usa na L4)
   inn:{n:'Pousada',ic:'🛏',r:13},lodge:{n:'Alojamento',ic:'🏕',r:14},ruinvil:{n:'Vila em escombros',ic:'🏚',r:POI_RUINVIL.r},   // 4D: descanso com lojinha (pousada, alojamento) e vila arrasada anexável (sem moradores)
   fortcamp:{n:'Acampamento fortificado',ic:'⛺',r:12,war:true},trench:{n:'Trincheira',ic:'🪖',r:11,war:true},
   hospital:{n:'Hospital de campanha',ic:'🏥',r:10,war:true},depot:{n:'Depósito de suprimentos',ic:'📦',r:10,war:true},
@@ -109,8 +110,8 @@ function poiTent(c,tx,tz,col){for(let i=0;i<5;i++){const w=1.8-i*0.34;pBc(c,tx-w
 const poiLampAt=(c,x,z)=>{pBc(c,x-0.1,0,z-0.1,x+0.1,3.0,z+0.1,0x2a2a2a,true,{j:0});pBc(c,x-0.3,3.0,z-0.3,x+0.3,3.5,z+0.3,0xffe9a0,false,{j:0});pBc(c,x-0.4,3.5,z-0.4,x+0.4,3.65,z+0.4,0x2a2a2a,false,{j:0})};
 
 // Enfeite de fora da pousada e do alojamento por tema do tile (p.theme; sem ele, pelo bioma): feira na fazenda, minério na mina, toras na serraria.
-function poiRestTheme(c,rng,p){
-  const th=p.theme||({[BIO_PLAINS]:'farm',[BIO_FOREST]:'sawmill',[BIO_ROCK]:'mine'}[p.biome])||'none',x=p.type==='inn'?-12:10,z=p.type==='inn'?-1:-4;
+function poiRestTheme(c,rng,p,ox,oz){   // ox, oz: canto do enfeite (a peça `tema` do lego); sem eles, o lugar fixo do desenho antigo
+  const th=p.theme||({[BIO_PLAINS]:'farm',[BIO_FOREST]:'sawmill',[BIO_ROCK]:'mine'}[p.biome])||'none',x=ox!==undefined?ox:p.type==='inn'?-12:10,z=oz!==undefined?oz:p.type==='inn'?-1:-4;
   if(th==='farm'){   // banca de feira com toldo listrado e frutas, fardos de feno
     for(const [dx,dz] of[[0,0],[4,0],[0,3.5],[4,3.5]])pBc(c,x+dx-0.1,0,z+dz-0.1,x+dx+0.1,2.5,z+dz+0.1,0x5a3d22,true,{j:0.02});
     pBc(c,x,0,z+1,x+4,1.0,z+2.4,0x7a5632,true,{j:0.03});for(let i=0;i<5;i++)pBc(c,x-0.4+i*1.0,2.4,z-0.2,x+0.6+i*1.0,2.6,z+3.9,i%2?0xc03a3a:0xf0ece0,false,{j:0.03});
@@ -128,7 +129,8 @@ function poiRestTheme(c,rng,p){
 
 // ---------- construtores (frente = +z) ----------
 const POI_BUILD={
-  hunters(c,rng,p){   // acampamento de caçadores: tendas de pele, fogueira com tripé, varais de couro, troféus, lenha e armadilhas
+  hunters(c,rng,p){   // acampamento de caçadores: tendas de pele, fogueira com tripé, varais de couro, troféus, lenha e armadilhas (com legoOn: montado por peças, poilego.js)
+    if(legoOn()){legoBuild(c,rng,p);return}
     const tent=(tx,tz,col)=>poiTent(c,tx,tz,col);
     tent(-6,-5,0x8a6a3a);tent(5.5,-6,0xa08a5a);tent(-8.5,0.5,0x6a7a4a);
     p.sceneObjs.push(...buildCampFire(c,rng));   // a mesma fogueira do acampamento de bandidos (poi.js)
@@ -143,7 +145,8 @@ const POI_BUILD={
     p.chestPos={x:c.cx+6.5,y:c.y,z:c.cz+2.8};   // onde nasce o baú da conquista (poigame.js)
     poiFlag(c,p,6,9,6);
   },
-  sanctuary(c,rng,p){   // santuário: capela de pedra com vitrais, torre do sino, altar e bancos, poço, canteiros de flores e braseiros no caminho
+  sanctuary(c,rng,p){   // santuário: capela de pedra com vitrais, torre do sino, altar e bancos, poço, canteiros de flores e braseiros no caminho (com legoOn: por peças)
+    if(legoOn()){legoBuild(c,rng,p);return}
     const st=[0xd8d0c0,0xcfc7b6,0xe0d8c8];
     pBc(c,-6,0,-9,6,0.12,3.5,0x9a9aa0,false,{j:0.03});   // laje de pedra
     for(const [x0,z0,x1,z1] of[[-5,-8,5,-7.6],[-5,-8,-4.6,2],[4.6,-8,5,2],[-5,1.6,-1.2,2],[1.2,1.6,5,2]])pBc(c,x0,0,z0,x1,4.6,z1,rng.pick(st),true,{j:0.03});   // paredes (a frente tem a porta)
@@ -224,7 +227,8 @@ const POI_BUILD={
     poiPath(c,0,0.5,0,5);poiLampAt(c,3.4,1.2);poiFence(c,-14,7,10,7);
     poiFlag(c,p,9,2,6);
   },
-  fort(c,rng,p){   // muralha de pedra com ameias e tochas, torres, portão com grade, pátio com poço, quartel, estábulo, treino e tendas
+  fort(c,rng,p){   // muralha de pedra com ameias e tochas, torres, portão com grade, pátio com poço, quartel, estábulo, treino e tendas (com legoOn: por peças)
+    if(legoOn()){legoBuild(c,rng,p);return}
     const R=12;
     // muralha: núcleo de pedra com embasamento, fiadas e juntas alternadas nas duas faces, contrafortes e seteiras por fora, mata-cães no alto, ameias só na face de fora e passadiço livre
     const seams=(x0,z0,x1,z1)=>{
@@ -271,7 +275,8 @@ const POI_BUILD={
 poiPath(c,0,R+1,0,4);poiBrazier(c,-3.4,R+1.6);poiBrazier(c,3.4,R+1.6);
     poiFlag(c,p,0,-R+0.7,10);
   },
-  tower(c,rng,p){   // torre de vigia de pedra com escada externa (degraus de 1 bloco), plataforma com parapeito, braseiro e teto de madeira; porta ao norte
+  tower(c,rng,p){   // torre de vigia de pedra com escada externa (degraus de 1 bloco), plataforma com parapeito, braseiro e teto de madeira; porta ao norte (com legoOn: por peças)
+    if(legoOn()){legoBuild(c,rng,p);return}
     const b=3.3,E=1.4;
     poiWall(c,-b,b-1,b,b,9,0x7a7a82);poiWall(c,-b,-b,-b+1,b,9,0x7a7a82);poiWall(c,b-1,-b,b,b,9,0x7a7a82);
     poiWall(c,-b,-b,-0.9,-b+1,9,0x7a7a82);poiWall(c,0.9,-b,b,-b+1,9,0x7a7a82);pBc(c,-0.9,2.8,-b,0.9,9,-b+1,0x7a7a82,true,{j:0.04});   // porta ao norte
@@ -366,7 +371,8 @@ poiPath(c,0,R+1,0,4);poiBrazier(c,-3.4,R+1.6);poiBrazier(c,3.4,R+1.6);
     if(seat){seat.merc=true;p.svcSpec.push({kind:'merc',label:'Mercenário: recrutar soldado',x:seat.x,z:seat.z,seat:true})}
     poiFlag(c,p,-11,6,9);
   },
-  inn(c,rng,p){   // pousada: casa de um andar com balcão, duas camas e placa; o enfeite de fora muda com o tema do tile (poiRestTheme)
+  inn(c,rng,p){   // pousada: casa de um andar com balcão, duas camas e placa; o enfeite de fora muda com o tema do tile (poiRestTheme) (com legoOn: por peças)
+    if(legoOn()){legoBuild(c,rng,p);return}
     poiHouse(c,-6,-8,12,8,'S',{h:4,wall:0xd8b888,roof:0x8a3a2a,chimney:true,timber:true,shut:0x4a3a2a},rng);
     pBc(c,-5.2,0,-5.4,-1.6,1.05,-4.7,0x7a5632,true,{j:0.03});pBc(c,-5.3,1.05,-5.5,-1.5,1.15,-4.6,0x9a6a3a,false,{j:0.02});   // balcão (o pousadeiro fica atrás)
     for(const [bx,sw] of[[0.6,0xc03a3a],[2.6,0x3a6ac0]]){pBc(c,bx,0,-6.9,bx+1.5,0.5,-4.5,0x6b4a2a,true,{j:0.02});pBc(c,bx+0.1,0.5,-6.8,bx+1.4,0.75,-5.2,sw,false,{j:0.02});pBc(c,bx+0.1,0.5,-5.2,bx+1.4,0.7,-4.6,0xf0ece0,false,{j:0})}   // camas
@@ -378,7 +384,8 @@ poiPath(c,0,R+1,0,4);poiBrazier(c,-3.4,R+1.6);poiBrazier(c,3.4,R+1.6);
     p.keepers=[];p.svcSpec=[{kind:'inn',role:'merchant',label:'Pousadeiro: comida, remédios e quarto',x:c.cx-1.2,z:c.cz-5.3,yaw:0,r:3.2}];
     poiFlag(c,p,6.5,2,6);
   },
-  lodge(c,rng,p){   // alojamento: barracão aberto com beliches, tendas e cozinha de campo (fogueira com panela, mesa, barris); rústico
+  lodge(c,rng,p){   // alojamento: barracão aberto com beliches, tendas e cozinha de campo (fogueira com panela, mesa, barris); rústico (com legoOn: por peças)
+    if(legoOn()){legoBuild(c,rng,p);return}
     for(const [x,z] of[[-9,-9],[2,-9],[-9,-1],[2,-1],[-3.5,-1],[-3.5,-9]])pBc(c,x-0.18,0,z-0.18,x+0.18,3.4,z+0.18,0x5a3d22,true,{j:0.02});   // pilares
     pBc(c,-9,0,-9.2,2,3.4,-8.8,0x7a5632,true,{j:0.03});   // parede do fundo
     for(const s of[-9,2])pBc(c,s-0.1,0,-9,s+0.1,1.2,-1,0x7a5632,true,{j:0.04});   // muretas laterais
@@ -425,7 +432,8 @@ poiPath(c,0,R+1,0,4);poiBrazier(c,-3.4,R+1.6);poiBrazier(c,3.4,R+1.6);
     p.keepers=[];p.svcSpec=[];
     poiFlag(c,p,4,4,6);
   },
-  post(c,rng,p){   // entreposto comercial: galpão de mercado com balcão e prateleiras, banca de feira, carroças carregadas, pilhas de caixas e barris, poço e cavalos
+  post(c,rng,p){   // entreposto comercial: galpão de mercado com balcão e prateleiras, banca de feira, carroças carregadas, pilhas de caixas e barris, poço e cavalos (com legoOn: por peças)
+    if(legoOn()){legoBuild(c,rng,p);return}
     pBc(c,-9,0,-10,9,0.1,-0.5,0x8a6a3a,false,{j:0.03});   // piso de tábuas
     for(const [x,z] of[[-9,-10],[9,-10],[-9,-0.5],[9,-0.5],[-3,-0.5],[3,-0.5]])pBc(c,x-0.18,0,z-0.18,x+0.18,3.9,z+0.18,0x5a3d22,true,{j:0.02});   // pilares
     pBc(c,-9.2,3.5,-0.7,9.2,3.9,-0.3,0x4a3320,false,{j:0.02});   // viga da frente
@@ -457,7 +465,8 @@ poiPath(c,0,R+1,0,4);poiBrazier(c,-3.4,R+1.6);poiBrazier(c,3.4,R+1.6);
     p.keepers=[];p.svcSpec=[{kind:'shop',role:'merchant',label:'Lojista: comprar suprimentos',x:c.cx,z:c.cz-5.0,yaw:0}];   // o lojista nasce em poiCivSync (só com dono amigo)
     poiFlag(c,p,10.5,-1.5,7);
   },
-  ruins(c,rng,p){   // muros quebrados, arco, colunas (algumas caídas), degraus até o altar com braseiros, entulho, mato e um baú
+  ruins(c,rng,p){   // muros quebrados, arco, colunas (algumas caídas), degraus até o altar com braseiros, entulho, mato e um baú (com legoOn: por peças)
+    if(legoOn()){legoBuild(c,rng,p);return}
     for(let k=0;k<5;k++){const x=-7+k*3.4,h=rng.range(0.8,3.8);pBc(c,x,0,-6,x+2.4,h,-5,rng.pick(poiStone),true,{j:0.07});if(h>2)pBc(c,x+0.4,h,-6,x+1.6,h+0.6,-5,0x7a7a82,false,{j:0.1});if(rng.chance(0.5))pBc(c,x+0.2,h*0.5,-5.05,x+0.6,h*0.5+1.2,-4.95,0x3a7a2a,false,{j:0.1})}   // musgo
     pBc(c,-7,0,-6,-6,rng.range(1.5,3.5),3,0x8a8a90,true,{j:0.07});pBc(c,6,0,-6,7,rng.range(1,2.5),2,0x8a8a90,true,{j:0.07});
     pBc(c,-1.2,0,-6.2,-0.2,4.2,-4.8,0xa8a498,true,{j:0.04});pBc(c,2.2,0,-6.2,3.2,3.0,-4.8,0xa8a498,true,{j:0.04});pBc(c,-1.2,4.2,-6.3,1.6,4.8,-4.7,0xa8a498,false,{j:0.04});   // arco partido
@@ -471,6 +480,7 @@ poiPath(c,0,R+1,0,4);poiBrazier(c,-3.4,R+1.6);poiBrazier(c,3.4,R+1.6);
     for(let k=0;k<7;k++){const x=rng.range(-8,8),z=rng.range(-6,7);pBc(c,x,0,z,x+0.3,rng.range(0.3,0.7),z+0.3,0x3a7a2a,false,{j:0.1})}   // mato
     p.chest=addChest(c.cx,c.y+2.05,c.cz-2.4,0,rng.int(40,120),null);p.chest.onOpen=()=>poiRuinLoot(p);   // 30% de chance de artefato (POIX.ruinRelic)
   },
+  plantation(c,rng,p){legoBuild(c,rng,p)},fishery(c,rng,p){legoBuild(c,rng,p)},workers(c,rng,p){legoBuild(c,rng,p)},   // L3.5: não têm desenho antigo, só a receita lego
   farm(c,rng,p){   // (com legoOn: montada por peças, poilego.js)
     if(legoOn()){legoBuild(c,rng,p);return}
     // fazenda: uma única casa, campos de plantação (trigo e horta) e cercados de animais (vacas, ovelhas, porcos e galinhas), com poço, silos e carroça

@@ -198,12 +198,13 @@ for (const id of Object.keys(MICRO_PIECES)) MICRO_BUILD[id] = (c, rng, d) => {
 // ---------- cenário ?cenario=lego: bloco de micro-POIs ao lado da grade (chamado por poiLegoShowGen, poilego.js) ----------
 // Lista completa: os 4 que já existiam (decorações dormentes da guerra: fogueira, jardim, poço, marco) e os novos (LEGO_MICRO.list), em colunas de LEGO_MICRO.cols.
 // Os dormentes entram em WORLD.dormant (a fogueira dormente cozinha: dormScan); os novos em WORLD.micros. Cada um leva uma placa.
-function poiMicroShowGen(Y) {
+function poiMicroShowGen(Y, solo) {   // solo: bloco centrado no mapa (vista ?micro=1). Devolve o z (30 blocos ao sul do bloco) onde o jogador nasce
   const S = LEGO_MICRO, dk = Object.keys(WAR_DORMANT), all = dk.map(k => ({ kind: k, old: true, r: WAR_DORMANT[k].r, n: WAR_DORMANT[k].n })).concat(S.list.map(m => ({ kind: m.id, r: m.r, n: m.n }))),
-    rows = Math.ceil(all.length / S.cols), x0 = W / 2 + S.x, z0 = W / 2 - (rows - 1) * S.gap / 2; WORLD.dormant = []; WORLD.micros = [];
+    rows = Math.ceil(all.length / S.cols), x0 = solo ? W / 2 - (S.cols - 1) * S.gap / 2 : W / 2 + S.x, z0 = W / 2 - (rows - 1) * S.gap / 2;
   all.forEach((m, i) => {
     const x = Math.round(x0 + (i % S.cols) * S.gap), z = Math.round(z0 + Math.floor(i / S.cols) * S.gap), d = { i: m.old ? WORLD.dormant.length : WORLD.micros.length, x, z, y: Y, kind: m.kind, r: m.r };
     (m.old ? WORLD.dormant : WORLD.micros).push(d); dormBuild(d);
     const lbl = poiMicroLabel(m); makeSign(lbl, Math.max(4, lbl.length * 0.36 + 0.8), 0.9, 0x2a2a3a, 0xf0e6c0, x, Y + 4.4, z + m.r + 1.2, 'S');
   });
+  return z0 + (rows - 1) * S.gap + 30;
 }

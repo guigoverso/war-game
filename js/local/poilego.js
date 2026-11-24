@@ -13,9 +13,9 @@ const legoXf = (k, mir) => (x, z) => { if (mir) x = -x; for (let i = 0; i < k; i
 const legoRotToward = (dx, dz) => { const v = [[0, 1], [-1, 0], [0, -1], [1, 0]]; let b = 0, bd = -9; v.forEach((q, i) => { const d = q[0] * dx + q[1] * dz; if (d > bd) { bd = d; b = i } }); return b };
 // ---------- âncoras funcionais (serviços, cama, vigia...; L1a) ----------
 // O jogo lê as âncoras de um POI em COORDENADAS DO MAPA (poigame.js): pontos {x,z[,y][,yaw]} em p.bed, p.tavern, p.stove, p.vigilPos, p.chestPos e listas em p.beds, p.medWalk, p.keepers, p.svcSpec.
-// yaw: direção da frente = (-sen yaw, -cos yaw). Uma peça declara a âncora no quadro do esqueleto (relativa ao centro, y relativo ao chão do POI) com legoAnchor(A, tipo, valor);
+// binoc: binóculo da torre; chestAt: onde nasce o baú das ruínas (criado por legoBuild com addChest, não fica em p). yaw: direção da frente = (-sen yaw, -cos yaw). Uma peça declara a âncora no quadro do esqueleto (relativa ao centro, y relativo ao chão do POI) com legoAnchor(A, tipo, valor);
 // legoBuild a converte (giro/espelho) e grava em p. POIs antigos (L1b: frente para a estrada) usam poiAnchorsXf, que gira as âncoras já gravadas em coordenadas do mapa.
-const LEGO_ANCH_PT = ['bed', 'tavern', 'stove', 'vigilPos', 'chestPos', 'firePos'], LEGO_ANCH_LIST = ['beds', 'medWalk', 'keepers', 'svcSpec'];
+const LEGO_ANCH_PT = ['bed', 'tavern', 'stove', 'vigilPos', 'chestPos', 'firePos', 'binoc', 'chestAt'], LEGO_ANCH_LIST = ['beds', 'medWalk', 'keepers', 'svcSpec'];
 function legoAnchor(A, kind, v) { const a = A.anch = A.anch || {}; if (LEGO_ANCH_LIST.includes(kind)) (a[kind] = a[kind] || []).push(v); else a[kind] = v }
 // Cópia das âncoras o com cada ponto levado por fn(x,z) -> [x,z], cada yaw por fv(dx,dz) (vetor) e y somado a dy.
 function poiAnchorsMap(o, fn, fv, dy) {
@@ -39,6 +39,8 @@ function legoReach(p, x, z) {
       if (dx && dz && !(ok(cx + dx, cz) && ok(cx, cz + dz))) continue; seen.add(k); st.push([nx, nz]) } }
   return false;
 }
+// Escava o terreno no retângulo (x0,z0,x1,z1) do quadro de desenho atual (poiDig só vale na geração, antes da malha), levando o retângulo pelo giro do POI (BC_XF).
+function legoDig(c, x0, z0, x1, z1, d) { const q = BC_XF ? BC_XF(x0, z0, x1, z1) : [x0, z0, x1, z1]; poiDig(c, q[0], q[1], q[2], q[3], d) }
 // Pilha de feno que passa por Bc (a hay de city.js também passa, mas esta tem o sorteio de altura fixo).
 function legoHay(c, x, z) { pBc(c, x, 0, z, x + 1.3, 1.3, z + 1.3, 0xd8b84a, true, { j: 0.1 }); for (const k of [0.3, 0.9]) pBc(c, x - 0.04, 0, z + k, x + 1.34, 1.3, z + k + 0.07, 0x6a5a2a, false, { j: 0 }) }
 // Árvore pequena de pomar (tronco com colisão, copa em dois blocos; algumas com frutos).
@@ -127,22 +129,29 @@ const LEGO_PIECES = {
   horta(c, rng, R) { legoCrop(c, rng, R, 1.3, 0.8, 0.9, LEGO_PAL.crops.horta, 0.5, 0.3) },
   milho(c, rng, R) { legoCrop(c, rng, R, 1.8, 0.8, 1.2, LEGO_PAL.crops.milho, 2.0, 0.6) },
 
-  // Mina: boca em morro de pedra (escalonado, sem escavar o terreno: gira com o POI) com portal de madeira e trilhos até um vagonete. Âncora (A.house).
+  // Mina: galpão de madeira sobre uma rampa escavada (5 degraus de 1 bloco desde a porta do galpão, o terreno desce de verdade: legoDig) com trilhos e um vagonete lá embaixo, como a mina antiga. Âncora (A.house).
+  // Tudo em blocos inteiros (o terreno é uma grade de 1x1): a rampa tem 4 de largura (u = ua..ua+4) e o degrau k (1 a 5) é o bloco v = top-k-1..top-k (top = a frente do galpão), com a profundidade k; o degrau 0 fica sob o galpão.
   boca(c, rng, R, face, A) {
-    const L = legoLoc(R, face), w = Math.min(L.W, 12), d = Math.min(L.D, 9), u0 = (L.W - w) / 2, mv = d - 3, uc = u0 + w / 2, P = LEGO_PAL, base = rng.pick(P.rock);
+    const L = legoLoc(R, face), D = L.D, ua = Math.round(L.W / 2) - 2, uc = ua + 2, sv0 = D - 5, top = D, n = 5, v0 = top - n - 1, P = LEGO_PAL;
     legoDraw(L, () => {
-      const tiers = [[0, 0, mv, 3.4], [1.2, 0.5, mv - 1.2, 5.0], [2.6, 1.0, mv - 2.4, 6.2]];   // degraus do morro: [recuo lateral, v do fundo, v da frente, topo]
-      tiers.forEach((t, k) => { const a = u0 + t[0], b = u0 + w - t[0]; if (b - a < 3 || t[2] - t[1] < 0.8) return;
-        pBc(c, a, k ? tiers[k - 1][3] : 0, t[1], b, t[3], t[2], shadec(base, 1 - k * 0.06 + rng.range(-0.04, 0.04)), true, { j: 0.08 }) });
-      pBc(c, uc - 1.3, 0, mv, uc + 1.3, 2.7, mv + 0.08, 0x0c0c10, false, { j: 0 });   // boca escura
-      for (const s of [-1, 1]) pBc(c, uc + s * 1.5 - 0.2, 0, mv, uc + s * 1.5 + 0.2, 3.0, mv + 0.45, 0x5a3d22, false, { j: 0.02 });
-      pBc(c, uc - 1.8, 2.9, mv, uc + 1.8, 3.4, mv + 0.45, 0x4a3320, false, { j: 0.02 });
-      for (const s of [-1, 1]) { pBc(c, uc + s * 2.1 - 0.06, 2.2, mv + 0.2, uc + s * 2.1 + 0.06, 2.9, mv + 0.32, 0x2a2a2a, false, { j: 0 }); pBc(c, uc + s * 2.1 - 0.2, 2.8, mv + 0.1, uc + s * 2.1 + 0.2, 3.3, mv + 0.4, 0xffe9a0, false, { j: 0 }) }   // lanternas
-      for (const s of [-0.8, 0.8]) pBc(c, uc + s - 0.06, 0.02, mv, uc + s + 0.06, 0.16, d, 0x9a9aa2, false, { j: 0 });   // trilhos
-      for (let v = mv + 0.2; v < d; v += 0.7) pBc(c, uc - 1.2, 0, v, uc + 1.2, 0.06, v + 0.3, 0x4a3320, false, { j: 0 });
-      poiCart(c, uc - 0.75, mv + 0.3, false, rng.pick(P.ore));   // vagonete com minério na boca
+      for (let k = 1; k <= n; k++) legoDig(c, ua, top - k - 1, ua + 4, top - k, k);
+      for (let k = 0; k <= n; k++) { const vA = top - k - 1, vB = top - k, y = -k;   // trilhos, dormentes, piso e paredes escuras de cada degrau
+        for (const s of [-0.8, 0.8]) pBc(c, uc + s - 0.06, y + 0.02, vA, uc + s + 0.06, y + 0.16, vB, 0x9a9aa2, false, { j: 0 });
+        for (let v = vA; v < vB; v += 0.5) pBc(c, uc - 1.2, y, v, uc + 1.2, y + 0.06, v + 0.25, 0x4a3320, false, { j: 0 });
+        if (k) { pBc(c, ua, y, vA, ua + 4, y + 0.05, vB, k % 2 ? 0x7a7a82 : 0x6a6a72, false, { j: 0.05 }); pBc(c, ua, y, vA, ua + 0.06, 0, vB, 0x0c0c10, false, { j: 0 }); pBc(c, ua + 3.94, y, vA, ua + 4, 0, vB, 0x0c0c10, false, { j: 0 }) } }
+      pBc(c, ua, -n, v0, ua + 4, 0, v0 + 0.06, 0x0c0c10, false, { j: 0 });
+      pBc(c, uc - 0.8, -n + 0.2, v0 + 0.05, uc + 0.8, -n + 0.9, v0 + 0.95, 0x5a5a62, true, { j: 0.03 }); pBc(c, uc - 0.7, -n + 0.9, v0 + 0.1, uc + 0.7, -n + 1.2, v0 + 0.9, 0x2a2a2a, false, { j: 0.05 });   // vagonete descendo, com minério
+      for (let k = 0; k < 4; k++) pBc(c, uc - 0.5 + k * 0.25, -n + 1.2, v0 + 0.15 + (k % 2) * 0.35, uc - 0.3 + k * 0.25, -n + 1.5, v0 + 0.4 + (k % 2) * 0.35, rng.pick(P.ore), false, { j: 0.05 });
+      pBc(c, uc - 0.05, -n, v0 + 1.0, uc + 0.05, 0.9, v0 + 1.1, 0x6a5a3a, false, { j: 0 });   // corda
+      for (const u of [ua - 1, ua + 5]) for (const v of [sv0, sv0 + 2.5, D - 0.2]) pBc(c, u - 0.18, 0, v - 0.18, u + 0.18, 3.6, v + 0.18, 0x5a3d22, true, { j: 0.02 });   // galpão: pilares, muretas, viga e telhado
+      for (const u of [ua - 1, ua + 5]) { pBc(c, u - 0.1, 0, sv0, u + 0.1, 1.3, D, 0x7a5632, true, { j: 0.04 }); pBc(c, u - 0.1, 2.4, sv0, u + 0.1, 3.6, D, 0x6b4a2a, false, { j: 0.04 }) }
+      pBc(c, ua - 1, 3.3, sv0 - 0.1, ua + 5, 3.6, D + 0.1, 0x4a3320, false, { j: 0.02 });
+      roofOn(c, ua - 1.2, sv0 - 0.4, ua + 5.2, D + 0.4, 3.6, 'gable', 0x6a4a2a, { trim: 0x4a3320 });
+      for (const u of [ua - 0.4, ua + 4.4]) { pBc(c, u - 0.06, 2.3, D - 0.6, u + 0.06, 3.0, D - 0.5, 0x2a2a2a, false, { j: 0 }); pBc(c, u - 0.2, 2.8, D - 0.7, u + 0.2, 3.3, D - 0.3, 0xffe9a0, false, { j: 0 }) }   // lanternas
+      const fv = Math.max(0.2, v0 - 0.5); poiFence(c, ua - 0.5, fv, ua - 0.5, sv0 - 0.2); poiFence(c, ua + 4.5, fv, ua + 4.5, sv0 - 0.2); poiFence(c, ua - 0.5, fv, ua + 4.5, fv);   // cerca em volta do trecho a céu aberto
     });
-    const hp = L.map(uc, mv / 2), dr = L.map(uc, d + 0.6); A.house = { x: hp[0], z: hp[1], door: dr };
+    const hm = L.map(uc, (sv0 + D) / 2);
+    A.house = { x: hm[0], z: hm[1], door: L.map(uc, D + 0.6) };
   },
   // Oficina da mina: galpão de madeira com ferramentas e caixas na porta.
   oficina(c, rng, R, face) {
@@ -237,6 +246,7 @@ function legoYard(c, rng, R, type, nr, keep) {
     if (t === 'poco') poiWell(c, x, z); else if (t === 'carroca') poiCart(c, x - 1.3, z - 0.75, true, rng.pick([0xd8b84a, 0x6a8a3a, 0xc8a050, 0x6a6a72]));
     else if (t === 'feno') { legoHay(c, x - 0.65, z - 0.65); if (w > 3) legoHay(c, x + 0.8, z - 0.3) } else if (t === 'lampiao') poiLampAt(c, x, z);
     else if (t === 'barril') { barrel(c, x - 0.45, z - 0.45); if (w > 3) barrel(c, x + 0.7, z - 0.2) } else if (t === 'caixa') { crate(c, x - 0.6, z - 0.6, 1.2, 1.1); if (w > 3) crate(c, x + 0.8, z - 0.3, 0.9, 0.9) }
+    else if (t === 'braseiro') poiBrazier(c, x, z); else if (t === 'pedra') { const s = 0.5 + rng.next() * 0.6; pBc(c, x - s, 0, z - s, x + s, s * 0.8, z + s, rng.pick(LEGO_PAL.rock), true, { j: 0.1 }) }
     else if (t === 'rack') poiRack(c, x - 0.9, z - 0.2, true); else if (t === 'toco') { pBc(c, x - 0.5, 0, z - 0.5, x + 0.5, 0.5, z + 0.5, 0x6b4a2a, true, { j: 0.05 }); pBc(c, x - 0.1, 0.5, z - 0.1, x + 0.1, 1.2, z + 0.1, 0xb0b0b8, false, { j: 0 }) }
     else if (t === 'tora') pBc(c, x - 1.2, 0, z - 0.4, x + 1.2, 0.7, z + 0.4, rng.pick(LEGO_PAL.log), true, { j: 0.05 }); else poiBench(c, x - 0.9, z - 0.25, true);
   }
@@ -256,7 +266,7 @@ function legoBuild(c, rng, p) {
   const R0 = p.recipe && p.recipe.lego ? p.recipe : null, size = R0 ? R0.size : p.legoSize || 'M', rc = LEGO_RECIPES[p.type][size], H = rc.half, n = rc.skeletons.length;
   const r1 = rng.int(0, n - 1), r2 = rng.int(0, 3), r3 = rng.chance(0.5);   // os três sorteios sempre acontecem (mesma sequência da rng com ou sem receita pronta)
   const ski = R0 ? Math.max(0, rc.skeletons.findIndex(s => s.id === R0.skeleton)) : p.legoSk !== undefined ? p.legoSk % n : r1, sk = rc.skeletons[ski];
-  const rot = R0 ? R0.rot : p.legoFace !== undefined ? p.legoFace : r2, mir = R0 ? R0.mir : r3, f = legoXf(rot, mir), A = {}, used = [];
+  const rot = R0 ? R0.rot : p.legoFace !== undefined ? p.legoFace : r2, mir = R0 ? R0.mir : r3, f = legoXf(rot, mir), A = { p, objs: [] }, used = [];   // A.objs: malhas diretas (fogueira) que vão para p.sceneObjs
   p.r = H + 1;
   BC_XF = (x0, z0, x1, z1) => { const a = f(x0, z0), b = f(x1, z1); return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])] };
   try {
@@ -269,21 +279,24 @@ function legoBuild(c, rng, p) {
       const id = legoPieceFor(rng, p.type, s); if (!id) continue;
       if (id !== 'nada') LEGO_PIECES[id](c, rng, s, s.k === 'apoio' ? legoFaceFor(sk.slots, s, H) : s.face || 'S', A); used.push(id);
     }
-    const g = rc.gate;   // cerca em volta (LEGO_FENCE por tamanho) com o portão ao sul
-    if (rng.chance(LEGO_FENCE[size])) { poiFence(c, -H, -H, H, -H); poiFence(c, -H, -H, -H, H - 1); poiFence(c, H, -H, H, H - 1); poiFence(c, -H, H - 1, -g, H - 1); poiFence(c, g, H - 1, H, H - 1) }
+    const g = rc.gate, fz = rc.fence === undefined ? LEGO_FENCE[size] : rc.fence;   // limite em volta com o portão ao sul: muralha (fence 'wall'), cerca (chance) ou nada
+    if (fz === 'wall') legoWall(c, H, g);
+    else if (rng.chance(fz)) { poiFence(c, -H, -H, H, -H); poiFence(c, -H, -H, -H, H - 1); poiFence(c, H, -H, H, H - 1); poiFence(c, -H, H - 1, -g, H - 1); poiFence(c, g, H - 1, H, H - 1) }
     const lane = sk.lane || 0, dr = A.house ? A.house.door : [0, 0];   // caminho: do portão até a porta da âncora (reta na faixa livre e depois de lado)
-    poiPath(c, lane, H, lane, dr[1]); if (Math.abs(dr[0] - lane) > 0.5) poiPath(c, lane, dr[1], dr[0], dr[1]);
+    if (rc.path !== false) { poiPath(c, lane, H, lane, dr[1]); if (Math.abs(dr[0] - lane) > 0.5) poiPath(c, lane, dr[1], dr[0], dr[1]) }
   } finally { BC_XF = null }
-  const fp = f(rc.flag[0], rc.flag[1]); poiFlag(c, p, fp[0], fp[1], 6);   // bandeira do dono (mesh direto: fora da transformação, com o ponto já girado)
+  if (!rc.noflag) { const fp = f(rc.flag[0], rc.flag[1]); poiFlag(c, p, fp[0], fp[1], 6) }   // bandeira do dono (mesh direto: fora da transformação, com o ponto já girado); ruínas não têm
+  p.sceneObjs.push(...A.objs);
   const hp = A.house ? f(A.house.x, A.house.z) : [0, 0], gp = f(0, H);
   const dp = f(A.house ? A.house.door[0] : 0, A.house ? A.house.door[1] : H);
   if (A.anch) Object.assign(p, poiAnchorsMap(A.anch, (x, z) => { const q = f(x, z); return [p.cx + q[0], p.cz + q[1]] }, f, c.y));   // âncoras funcionais das peças, em coordenadas do mapa
+  if (p.chestAt) { const q = p.chestAt; delete p.chestAt; if (!p.chest) { p.chest = addChest(q.x, q.y, q.z, 0, rng.int(40, 120), null); p.chest.onOpen = () => poiRuinLoot(p) } }   // baú das ruínas (30% de relíquia)
   p.recipe = { id: p.type, lego: true, size, skeleton: sk.id, seed: (WORLD.seed * 53 + p.id * 97 + 3) >>> 0, rot, mir, pieces: used, anchors: { house: { x: hp[0], z: hp[1] }, gate: { x: gp[0], z: gp[1] }, door: { x: dp[0], z: dp[1] } } };
 }
 
 // ---------- POIs antigos virados para a estrada (L1b: taverna, entreposto, pousada, alojamento) ----------
 // Verdadeiro se o POI antigo p deve ser desenhado girado (p.legoFace posto pelo compositor do tile, tilecompose.js; só os tipos de LEGO_FACE_TYPES).
-const legoFaceOn = p => p.legoFace !== undefined && LEGO_FACE_TYPES.includes(p.type);
+const legoFaceOn = p => p.legoFace !== undefined && LEGO_FACE_TYPES.includes(p.type) && !(legoOn() && LEGO_RECIPES[p.type]);   // (com lego ligado, o tipo que tem receita gira nativamente: legoBuild)
 // Monta o POI antigo girado k = p.legoFace vezes 90° (o construtor desenha no quadro de sempre, frente = +z, e o gancho BC_XF gira tudo que passa por Bc) e gira as âncoras gravadas
 // em coordenadas do mapa (poiAnchorsXf). p.faceGate = o portão (frente), relativo ao centro, já girado: onde a trilha da estrada chega.
 function legoOldBuild(c, rng, p) {
@@ -299,17 +312,19 @@ const legoGateRel = p => p.recipe && p.recipe.anchors ? p.recipe.anchors.gate : 
 // ---------- cenário ?cenario=lego: mundo super plano com os POIs lego em grade (chamado por poiShowcaseGen, pois.js) ----------
 // Uma fileira por tipo e tamanho (LEGO_SHOW), com LEGO_SHOW.n variações lado a lado: a variação i usa o esqueleto i (giro, espelho, peças e enfeites vêm da semente). Cada POI leva uma placa.
 function poiLegoShowGen() {
-  const S = LEGO_SHOW, rows = S.types.length * S.sizes.length, x0 = W / 2 - (S.n - 1) * S.gap / 2, z0 = W / 2 - (rows - 1) * S.gap / 2, Y = SEA + 6, row = { r: 0 };
+  const S = LEGO_SHOW, V = legoShowView(), rows = V.types.length * S.sizes.length, Y = SEA + 6, row = { r: 0 };
+  const gap = Math.max(S.gap, ...V.types.map(t => 2 * legoR(t, 'M') + 8)), x0 = W / 2 - (S.n - 1) * gap / 2, z0 = W / 2 - (rows - 1) * gap / 2;   // espaçamento: cabe o maior POI da vista (vila de trabalhadores: raio 23)
   const owners = ['bandit', (WORLD.factions && WORLD.factions[0]) ? WORLD.factions[0].id : 'bandit', 'player']; WORLD.pois = []; let id = 900;
-  for (const type of S.types) for (const size of S.sizes) {
+  for (const type of V.types) for (const size of S.sizes) {
     for (let i = 0; i < S.n; i++) {
-      const x = Math.round(x0 + i * S.gap), z = Math.round(z0 + row.r * S.gap), p = { id: id++, type, cx: x, cz: z, y: Y, biome: legoShowBiome(), owner: owners[i % 3], show: true, axis: 'z', legoSize: size, legoSk: i };
+      const x = Math.round(x0 + i * gap), z = Math.round(z0 + row.r * gap), p = { id: id++, type, cx: x, cz: z, y: Y, biome: legoShowBiome(), owner: owners[i % 3], show: true, axis: 'z', legoSize: size, legoSk: i };
       poiBuild(p); WORLD.pois.push(p);
       const lbl = poiLegoLabel(p, i); makeSign(lbl, Math.max(4, lbl.length * 0.36 + 0.8), 0.9, 0x2a2a3a, 0xf0e6c0, x, Y + 4.4, z + p.r + 1.2, 'S');
     }
     row.r++;
   }
-  poiMicroShowGen(Y);   // micro-POIs (os 4 dormentes que já existiam e os novos, poimicro.js) em bloco ao lado da grade
-  WORLD.showcase = { x: W / 2, z: z0 + (rows - 1) * S.gap + 30, y: Y };
+  WORLD.dormant = []; WORLD.micros = []; let zs = rows ? z0 + (rows - 1) * gap + 30 : 0;
+  if (V.micro) zs = Math.max(zs, poiMicroShowGen(Y, V.solo));   // micro-POIs (os 4 dormentes que já existiam e os novos, poimicro.js): ao lado da grade, ou sozinhos e centrados
+  WORLD.showcase = { x: W / 2, z: zs, y: Y };
   poiApply();
 }
