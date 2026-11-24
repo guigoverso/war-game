@@ -63,7 +63,7 @@ const TILE_BATTLES = ['conquista', 'defesa', 'choque'];
 const tileCityKind = tema => {
   if (!mapTileOn()) return null;
   if (new URLSearchParams(location.search).get('cidade') === '1') return 'antiga';
-  return tema === 'cidade' ? 'enorme' : null;
+  return tema === 'cidade' ? 'enorme' : tema === 'vila' ? 'vila' : null;
 };
 // Tile sem POIs (só a 4E os põe): todo tile do cenário, menos ?cidade=1 (cidade antiga com os POIs do gerador antigo).
 const tileBare = () => mapTileOn() && new URLSearchParams(location.search).get('cidade') !== '1';

@@ -23,7 +23,7 @@ function reserveCities(cities,cand,seed,minCities){
   for(;round<RESERVE.maxRounds;round++){
     const bad=cities.filter(c=>!reserveOK(c));if(!bad.length)break;
     for(const c of bad){
-      const mh=c.huge?CITY_HUGE.minHalf:RESERVE.minHalf;
+      const mh=cityBig(c)?cityBig(c).minHalf:RESERVE.minHalf;
       while(!reserveOK(c)&&(c.half0||c.half)>mh){   // encolhe de 4 em 4 (cidade enorme: até CITY_HUGE.minHalf)
         c.half0=Math.max(mh,(c.half0||c.half)-4);cityFootPlan(c,seed);
       }

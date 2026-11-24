@@ -28,7 +28,7 @@ Pegada de lado 243 a 297 (40% a 60% do tile), `CITY_FOOT`, ruas em blocos, muro 
 
 **Acréscimo (rodada 9):** a 1B foi feita até o multinível; **entram aqui** as cidades que **não sejam uma vila grande esticada** (formatos, blocos, praças próprias). Cidade com 10 soldados fora de guerra.
 
-### 4C. Vila (M) — **SESSÃO NOVA**, depois da 4B
+### 4C. Vila (M) — **FEITA em 2026-11-23** (resumo em `docs/ESTADO.md`), depois da 4B
 Vila de até 10% do tile (lado até ~121): sem ruas, estradas ligando as casas; só cercas; menos soldados; prédios de serviço reduzidos. Reaproveita o gerador da cidade com parâmetros de vila. **Acréscimo (rodada 9):** **vilas de formatos variados** (restante da 1B). **3 a 6 soldados.**
 
 ### 4D. POIs novos e adaptados (M) — **SESSÃO NOVA**, pode ir em paralelo com 4B/4C

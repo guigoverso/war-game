@@ -622,7 +622,7 @@ function cityMiniPlazaDecor(c,q,rng){
 function cityStride(la,lb){return la.length*lb.length>4e6?[Math.ceil(la.length/2000),Math.ceil(lb.length/2000)]:[1,1]}
 // n lotes hw x hd sorteados em torno de blocos da pegada (fcs); quem chama confere se o lote serve (tryHouse)
 function cityLotSample(rng,fcs,hw,hd,n){const o=[];for(let i=0;i<n;i++){const q=rng.pick(fcs);o.push([q[0]-(hw>>1),q[1]-(hd>>1),hw,hd])}return o}
-function buildCity(c,rng){  const Hc=c.half,hg=!!c.huge,tBuild=performance.now();   // hg: cidade enorme (4B): ruas em blocos, várias praças, população própria
+function buildCity(c,rng){  const Hc=c.half,hg=!!c.huge,vl=!!c.vila,tBuild=performance.now();   // hg: cidade enorme (4B): ruas em blocos, várias praças, população própria; vl: vila (4C): caminhos de terra, cerca, poucos serviços (CITY_VILLAGE)
   BX_LIFT=c.lv?c:null;   // multiníveis: toda caixa e colisão nova sobe o nível do terreno naquele ponto (Bx, addCol)
   const ps=PAL[c.biome===BIO_ROCK?1:c.biome];
   c.ctype=(WORLD.ctype&&WORLD.ctype[c.id])||null;   // tipo da cidade (ver cityTypePlan, econ.js)
@@ -633,7 +633,7 @@ function buildCity(c,rng){  const Hc=c.half,hg=!!c.huge,tBuild=performance.now()
   if(cha||mix){c.pal.walls=ps.walls.slice();c.pal.roofs=ps.roofs.slice()}
   const propMax=(cha?90:ord?24:70)*(hg?3:1),treeN=(cha?140:ord?30:110)*(hg?4:1);
   c.flagMat=new THREE.MeshLambertMaterial({color:0xffffff});facSetFlag(c);   // bandeira da facção dona da cidade
-  const S=hg?CITY_HUGE.avenue:ord?2:cha?1:rng.int(1,3),P=hg?rng.int(9,12):rng.int(8,11);
+  const S=hg?CITY_HUGE.avenue:vl?CITY_VILLAGE.road:ord?2:cha?1:rng.int(1,3),P=hg?rng.int(9,12):vl?rng.int(CITY_VILLAGE.plaza[0],CITY_VILLAGE.plaza[1]):rng.int(8,11);
   c.S=S;c.P=P;
   // áreas reservadas aos prédios especiais (cantos da praça): nenhuma rua nova pode atravessá-las
   const spRects=[];for(const sx of[-1,1])for(const sz of[-1,1])spRects.push({x0:sx>0?S+1:-(S+11),x1:sx>0?S+11:-(S+1),z0:sz>0?P+1:-(P+10),z1:sz>0?P+10:-(P+1)});
@@ -641,7 +641,7 @@ function buildCity(c,rng){  const Hc=c.half,hg=!!c.huge,tBuild=performance.now()
   const streets=[{x0:-Hc,x1:Hc,z0:-S,z1:S},{x0:-S,x1:S,z0:-Hc,z1:Hc}];
   // estilo: ordenada (grade/anel regulares), mista, caótica (ruas orgânicas com desvios e becos)
   const plazas=[];   // praças extras da cidade enorme
-  let layout=hg?'blocos':ord?rng.pick(['grid','grid','ring']):cha?rng.pick(['organic','organic','organic','cross']):rng.pick(['organic','organic','organic','cross','cross','double']);
+  let layout=hg?'blocos':vl?'organic':ord?rng.pick(['grid','grid','ring']):cha?rng.pick(['organic','organic','organic','cross']):rng.pick(['organic','organic','organic','cross','cross','double']);
   const stepO=rng.int(16,18),offs=[];
   for(let o=P+12;o<=Hc-4;o+=ord?stepO:rng.int(13,17))offs.push(o);
   if(layout==='ring'&&Hc-5<P+13)layout='grid';
@@ -674,7 +674,7 @@ function buildCity(c,rng){  const Hc=c.half,hg=!!c.huge,tBuild=performance.now()
     };
     arm(true);arm(false);
     const arms=streets.slice();
-    for(let k=0,n=rng.int(12,18);k<n;k++){
+    for(let k=0,n=vl?rng.int(CITY_VILLAGE.branches[0],CITY_VILLAGE.branches[1]):rng.int(12,18);k<n;k++){
       const s=rng.pick(arms),horiz=(s.x1-s.x0)>=(s.z1-s.z0),L=rng.int(8,20),sg=rng.chance(0.5)?1:-1;
       const a=horiz?rng.int(s.x0+1,s.x1-1):rng.int(s.z0+1,s.z1-1);
       if(Math.abs(a)<P+5)continue;
@@ -839,11 +839,12 @@ function buildCity(c,rng){  const Hc=c.half,hg=!!c.huge,tBuild=performance.now()
     }
     return null;
   };
-  const kinds=rng.shuffle(['shop','clinic','chapel','barracks']);
+  const kinds=rng.shuffle(['shop','clinic','chapel','barracks']);   // vila: só os de CITY_VILLAGE.services
   const corners=[[1,1],[-1,1],[1,-1],[-1,-1]];
   const specials={};
   corners.forEach((cn,idx)=>{
-    const sx=cn[0],sz=cn[1],kind=kinds[idx];
+    const sx=cn[0],sz=cn[1],kind=vl?CITY_VILLAGE.services[idx]:kinds[idx];
+    if(!kind)return;   // vila: sem o 3º e o 4º prédio de serviço
     const dims={shop:[9,7],clinic:[8,7],chapel:[7,8],barracks:[9,7]}[kind];
     const w=dims[0],d=dims[1];
     const lot=c.foot?spreadLot(w,d):null;   // com pegada: o prédio vai para um lote longe da praça; sem lote, fica no canto dela
@@ -918,7 +919,7 @@ function buildCity(c,rng){  const Hc=c.half,hg=!!c.huge,tBuild=performance.now()
   });
 
   // casas: ordenada = fileiras regulares; caótica = tamanhos, alturas, telhados e ruínas variados; mista = intermediário
-  const target=c.foot?Math.round(fcs.length/(hg?CITY_HUGE.density:CITY_FOOT.density)):Math.round(Hc*Hc/(cha?65:mix?62:60)),cityRoofT=c.biome===BIO_DESERT?'flat':'gable';
+  const target=c.foot?Math.round(fcs.length/(hg?CITY_HUGE.density:vl?CITY_VILLAGE.density:CITY_FOOT.density)):Math.round(Hc*Hc/(cha?65:mix?62:60)),cityRoofT=c.biome===BIO_DESERT?'flat':'gable';
   c.rej={};const rej=k=>{c.rej[k]=(c.rej[k]||0)+1;return false};
   const tryHouse=(r,sp)=>{
     const hallTurn=sp==='hall',sk=(sp&&sp!=='hall')?sp:null;   // sp: 'hall' (prefeitura), 'store' (loja), 'tavern' (taverna) ou falso (casa comum)
@@ -971,7 +972,8 @@ function buildCity(c,rng){  const Hc=c.half,hg=!!c.huge,tBuild=performance.now()
   }
   // a loja (compra e venda de itens) e a taverna (cozinha) também são procuradas antes das casas comuns
   for(const sp of['store','warehouse','tavern','works']){
-    if(sp==='works'&&!c.ctype)continue;   // (só o edifício do tipo: precisa do tipo decidido)
+    if(sp==='works'&&!c.ctype)continue;
+    if(vl&&sp==='tavern')continue;   // vila: sem taverna (os POIs de descanso fazem esse papel)   // (só o edifício do tipo: precisa do tipo decidido)
     // a taverna é maior (mesas, balcão e fogão): tenta os tamanhos maiores primeiro
     const sizes=sp==='tavern'?[[12,9],[9,12],[11,8],[8,11],[10,8],[8,10]]:sp==='works'?WORKS[c.ctype].sz:[[8,6],[6,8],[7,6],[6,7]];
     for(const so of[true,false])for(const [hw,hd] of sizes){   // 1ª volta: serviços afastados; 2ª: sem afastar, se não couber
@@ -1113,10 +1115,11 @@ function buildCity(c,rng){  const Hc=c.half,hg=!!c.huge,tBuild=performance.now()
   // cercas, muros e torres: o muro vive numa malha própria (cityWallBuild) para poder ser refeito quando a cidade evolui
   // rank 1-2: sem muralha | rank 3-4: cerca | rank 5-6: muralha de pedra/paliçada com torres | capital: nasce sem muro (nível 1)
   let wt;
-  if(c.rank>=5)wt=c.biome===BIO_DESERT?'stone':c.biome===BIO_FOREST?'palisade':rng.pick(['stone','palisade']);
+  if(vl)wt=CITY_VILLAGE.wall;   // vila: só cerca
+  else if(c.rank>=5)wt=c.biome===BIO_DESERT?'stone':c.biome===BIO_FOREST?'palisade':rng.pick(['stone','palisade']);
   else if(c.rank>=3)wt='fence';
   else wt='none';
-  cityWallBuild(c,c.home?1:wt==='stone'?5:wt==='palisade'?4:wt==='fence'?2:1,rng,c.home?'none':wt);
+  cityWallBuild(c,c.home&&!vl?1:wt==='stone'?5:wt==='palisade'?4:wt==='fence'?2:1,rng,c.home&&!vl?'none':wt);
   // mastros com a bandeira da facção ladeando cada entrada (norte, sul, leste e oeste); as bandeiras apontam para o centro da entrada
   for(const [ax,e,d] of[['z',-GE.N-1,'N'],['z',GE.S+1,'S'],['x',-GE.W-1,'W'],['x',GE.E+1,'E']].filter(q=>GO[q[2]]))
     for(const [s,dir] of[[-S-1.4,1]]){   // um só mastro por entrada
@@ -1182,6 +1185,7 @@ function buildCity(c,rng){  const Hc=c.half,hg=!!c.huge,tBuild=performance.now()
       if(Col.near(c.cx+x-0.3,c.cz+z-0.3,c.cx+x+1.3,c.cz+z+1.3).length===0)c.walk.push({x:c.cx+x+0.5,z:c.cz+z+0.5});
     }
   }
+  if(vl)for(let z=-Hc;z<=Hc;z++)for(let x=-Hc;x<=Hc;x++)if(getT(c.cx+x,c.cz+z)===T_STREET)setTL(c,x,z,T_ROAD);   // vila: os caminhos entre as casas são de terra, não de pedra
   c.specials=specials;c.plazaCount=plazas.length;c.buildMs=Math.round(performance.now()-tBuild);
   c.gateSpots=[['N',S+1,-GE.N+1],['S',-S,GE.S-1],['E',GE.E-1,S+1],['W',-GE.W+1,-S]].filter(q=>GO[q[0]]).map(q=>q.slice(1)).map(p=>({x:c.cx+p[0]+0.5,z:c.cz+p[1]+0.5}));
 }

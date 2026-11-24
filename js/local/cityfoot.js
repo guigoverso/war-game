@@ -13,7 +13,7 @@ function cityIn(c,x,z){
 // o bloco local (x,z) serve para cidade? terra, perto da altura de referência e longe da água
 function cityFootCell(c,x,z,ref,R){
   const wx=c.cx+x,wz=c.cz+z;if(wx<4||wz<4||wx>=W-4||wz>=W-4)return false;
-  const h=H[wz*W+wx];if(h<SEA+1||Math.abs(h-ref)>CITY_FOOT.maxDev*R.dev*(c.huge?CITY_HUGE.devMul:1))return false;
+  const h=H[wz*W+wx];if(h<SEA+1||Math.abs(h-ref)>CITY_FOOT.maxDev*R.dev*(cityBig(c)?cityBig(c).devMul:1))return false;
   const b=R.beach;
   for(const [dx,dz] of[[b,0],[-b,0],[0,b],[0,-b],[b,b],[-b,-b],[b,-b],[-b,b]]){
     const xx=wx+dx,zz=wz+dz;if(xx<0||zz<0||xx>=W||zz>=W||H[zz*W+xx]<SEA+1)return false;
@@ -57,11 +57,11 @@ function cityFootPlan(c,seed){
   c.foot=null;c.fdist=null;
   if(tileTestOn()||WORLD.showcaseMode)return false;
   c.half0=c.half0||c.half;c.half=c.half0;   // half0 = tamanho sorteado (a caixa cresce quando a praça sai do centro)
-  const F=CITY_FOOT,x0=c.cx,z0=c.cz,hg=!!c.huge,st=hg?8:3,nudge=hg?CITY_HUGE.nudge:F.nudge,nstep=hg?8:F.nudgeStep;let best=null,Hc=c.half;
+  const F=CITY_FOOT,x0=c.cx,z0=c.cz,HX=cityBig(c),hg=!!HX,st=hg?(c.huge?8:4):3,nudge=hg?HX.nudge:F.nudge,nstep=hg?8:F.nudgeStep;let best=null,Hc=c.half;
   for(const R of F.relax){
     for(let oz=-nudge;oz<=nudge;oz+=nstep)for(let ox=-nudge;ox<=nudge;ox+=nstep){
       c.cx=x0+ox;c.cz=z0+oz;
-      if(hg){const m=CITY_HUGE.margin+Hc;if(c.cx<m||c.cz<m||c.cx>W-1-m||c.cz>W-1-m)continue}   // cidade enorme: a caixa inteira cabe no tile
+      if(hg){const m=HX.margin+Hc;if(c.cx<m||c.cz<m||c.cx>W-1-m||c.cz>W-1-m)continue}   // cidade enorme: a caixa inteira cabe no tile
       else if(c.cx<80||c.cz<80||c.cx>W-80||c.cz>W-80)continue;
       const ref=cityFootCore(c,R);if(ref===null)continue;
       let n=0;for(let z=-Hc;z<=Hc;z+=st)for(let x=-Hc;x<=Hc;x+=st)if(cityFootCell(c,x,z,ref,R))n++;
@@ -83,8 +83,8 @@ function cityFootPlan(c,seed){
     for(const rot of rots)for(const [dx,dz] of dirs){
       let px=sh.plaza[0],pz=sh.plaza[1];   // praça no sistema do formato; o giro de 'ele' gira o ponto também
       if(c.shape==='ele')for(let k=0;k<rot;k++)[px,pz]=[pz,-px];
-      const off=Math.round(c.half0*CITY_HUGE.plazaOff*(dx||dz?1:0));
-      const hs=Math.round(c.half0/(1+Math.max(Math.abs(px),Math.abs(pz))+(dx||dz?CITY_HUGE.plazaOff:0)));
+      const off=Math.round(c.half0*HX.plazaOff*(dx||dz?1:0));
+      const hs=Math.round(c.half0/(1+Math.max(Math.abs(px),Math.abs(pz))+(dx||dz?HX.plazaOff:0)));
       opts.push({rot,hs,o:[-Math.round(px*hs)+dx*off,-Math.round(pz*hs)+dz*off]});
     }
     const score=q=>{c.shapeRot=q.rot;c.shapeR=q.hs;c.shapeO=q.o;let n=0;
@@ -110,7 +110,7 @@ function cityFootPlan(c,seed){
   c.half=hg?c.half0:c.half0+Math.max(Math.abs(ox),Math.abs(oz));Hc=c.half;
   const N=2*Hc+1,idx=(x,z)=>(z+Hc)*N+x+Hc;
   const core=(x,z)=>Math.abs(x)<=F.coreX&&Math.abs(z)<=F.coreZ;
-  const allow=new Uint8Array(N*N),EG=hg?CITY_HUGE.edge:{base:F.shapeBase,noise:F.shapeNoise,min:F.shapeMin};   // contorno: recorte por ruído (a cidade enorme usa pouco, para o formato aparecer)
+  const allow=new Uint8Array(N*N),EG=hg?HX.edge:{base:F.shapeBase,noise:F.shapeNoise,min:F.shapeMin};   // contorno: recorte por ruído (a cidade enorme usa pouco, para o formato aparecer)
   for(let z=-Hc;z<=Hc;z++)for(let x=-Hc;x<=Hc;x++){
     const q=hg?cityShapeQ(c,x,z):Math.pow(Math.pow(Math.abs(x-ox),4)+Math.pow(Math.abs(z-oz),4),0.25)/c.half0;
     const lim=clamp(EG.base+EG.noise*(nz.fbm(x/16+40,z/16+40,2)-0.5),EG.min,1);

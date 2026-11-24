@@ -275,10 +275,10 @@ async function worldCitiesStage(X,status){
   const used=new Set();
   const cities=sites.map((s,i)=>{
     const bio=B[s.z*W+s.x];
-    const huge=X.win&&X.win.cityKind==='enorme';   // tile de cidade (4B): cidade enorme, com formato próprio (cityHugeShape, city-modifiers.js)
-    const hr=huge?new RNG((seed*37+i*101+13)>>>0):null;if(hr)for(let k=0;k<4;k++)hr.next();
-    const shp=huge?cityHugeShape(hr):null;
-    return{id:i,wantWater:!!s.ww,cx:s.x,cz:s.z,half:tileTestOn()?(i===0?TILE_TEST.home.half:TILE_TEST.big.half):huge?cityHugeHalf(hr,W,shp):rng.int(36,45),huge,shape:shp,biome:bio,owner:'enemy',state:'idle',home:false,rank:0,
+    const huge=X.win&&X.win.cityKind==='enorme',vila=X.win&&X.win.cityKind==='vila';   // tile de cidade (4B) ou de vila (4C): formato próprio (city-modifiers.js)
+    const hr=huge||vila?new RNG((seed*37+i*101+13)>>>0):null;if(hr)for(let k=0;k<4;k++)hr.next();
+    const shp=huge?cityHugeShape(hr):vila?cityVillageShape(hr):null;
+    return{id:i,wantWater:!!s.ww,cx:s.x,cz:s.z,half:tileTestOn()?(i===0?TILE_TEST.home.half:TILE_TEST.big.half):huge?cityHugeHalf(hr,W,shp):vila?cityVillageHalf(hr,W):rng.int(36,45),huge,vila:!!vila,shape:shp,biome:bio,owner:'enemy',state:'idle',home:false,rank:0,
       enemies:[],npcs:[],walk:[],spawns:[],towers:[],gates:[],flags:[],props:[],aliveEnemies:0,totalEnemies:0};
   });
   if(RES){   // reserva: verifica no rascunho, depois gera o terreno final em volta das pegadas (passada 2)

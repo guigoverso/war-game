@@ -90,6 +90,40 @@ function cityHugeShape(rng) {
   return k[0];
 }
 
+// VILA (etapa 4C; tile temático 'vila', ?cenario=tile&tema=vila; docs/features/8_tiles-e-vilas.md). A vila ocupa no máximo 10% do tile (caixa de lado até ~121).
+// Reaproveita buildCity (c.vila): sem ruas, só caminhos de terra estreitos ligando as casas, cerca em vez de muro, poucos serviços e poucos soldados.
+// Padrões entre parênteses.
+// half: [mín, máx] do raio da caixa em blocos (lado = 2*half+1; 58 dá lado 117, 5,4% do tile em área? não: 117² / 384² = 9,3%) ([44, 58]).
+// margin: folga entre a caixa e a borda do tile (12). minHalf: raio mínimo ao encolher por falta de chão (28). plazaOff: deslocamento da praça (0.12).
+// devMul: multiplica o desnível aceito pela pegada (1.5). nudge: quanto o centro pode andar (16). edge: recorte do contorno (como em CITY_HUGE.edge).
+// shapes: pesos dos formatos da pegada (os de CITY_SHAPES em cityfoot.js; losango e cruz ficam de fora porque ficam finos demais em ~100 blocos).
+// plaza: meia-largura da praça, [mín, máx] (5, 6). road: meia-largura dos caminhos de terra entre as casas (1).
+// branches: [mín, máx] de caminhos extras saindo dos eixos (10, 16). density: blocos de pegada por casa (190).
+// services: prédios de serviço que a vila tem (o resto some): loja e quartel; o armazém, a loja de itens e a prefeitura entram do mesmo jeito que na cidade,
+//   só que menores (ver city.js). soldiers: [mín, máx] de soldados fora de guerra (3, 6). civ: [mín, máx] de moradores (8, 14).
+// wall: tipo de cerca da vila ('fence'; sem muro de pedra nem torres de verdade).
+const CITY_VILLAGE = {
+  half: [44, 58], margin: 12, minHalf: 28, plazaOff: 0.12, devMul: 1.5, nudge: 16,
+  shapes: { quadrado: 3, circulo: 2, oval: 2, ele: 2, flor: 1.5 },
+  edge: { base: 0.95, noise: 0.35, min: 0.85 }, plaza: [5, 6], road: 1, branches: [10, 16], density: 190,
+  services: ['shop', 'barracks'], soldiers: [3, 6], civ: [8, 14], wall: 'fence'
+};
+// Configuração da cidade grande de c: CITY_HUGE (cidade enorme), CITY_VILLAGE (vila) ou null (cidade do mapa antigo).
+const cityBig = c => c.huge ? CITY_HUGE : c.vila ? CITY_VILLAGE : null;
+// Formato da vila (pesos de CITY_VILLAGE.shapes; ?forma_cidade=<nome> força um) e raio da caixa (CITY_VILLAGE.half).
+function cityVillageShape(rng) {
+  const f = new URLSearchParams(location.search).get('forma_cidade');
+  if (f && CITY_VILLAGE.shapes[f] !== undefined) return f;
+  const k = Object.keys(CITY_VILLAGE.shapes), tot = k.reduce((a, s) => a + CITY_VILLAGE.shapes[s], 0);
+  let r = rng.next() * tot;
+  for (const s of k) { r -= CITY_VILLAGE.shapes[s]; if (r <= 0) return s }
+  return k[0];
+}
+const cityVillageHalf = (rng, size) => Math.min(Math.floor((size - 1) / 2) - CITY_VILLAGE.margin, rng.int(CITY_VILLAGE.half[0], CITY_VILLAGE.half[1]));
+// Soldados de uma cidade grande fora de guerra (cidade enorme: CITY_HUGE.soldiers; vila: sorteio em CITY_VILLAGE.soldiers).
+const cityGuardCount = (c, rng) => c.huge ? CITY_HUGE.soldiers : rng.int(CITY_VILLAGE.soldiers[0], CITY_VILLAGE.soldiers[1]);
+const cityCivCount = (c, rng) => c.huge ? rng.int(CITY_HUGE.civ[0], CITY_HUGE.civ[1]) : rng.int(CITY_VILLAGE.civ[0], CITY_VILLAGE.civ[1]);
+
 // Custo para evoluir uma cidade do jogador (econ.js canCityUp, book.js)
 // Custo para ir do nível n ao n+1, por nível ATUAL da cidade (n de 1 a 4; o nível 5 é o máximo e não tem custo).
 // Chaves aceitas: gold (ouro), food (comida), ore (minério), wood (madeira), leather (couro).

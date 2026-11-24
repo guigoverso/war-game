@@ -23,13 +23,14 @@ const LIMIT=4000;
     try{await page.waitForFunction(()=>typeof G!=='undefined'&&G.running&&typeof WORLD!=='undefined'&&WORLD.win,null,{timeout:30000})}catch(e){why='não carregou: '+errs.slice(0,3).join(' | ')}
     const ms=Date.now()-t0;await page.waitForTimeout(1500);
     const r=why?null:await page.evaluate(()=>{const w=WORLD.win,d=w.desc;return{W,size:w.size,tema:w.tema,dt:d.tema,empty:w.empty,cities:WORLD.cities.length,pois:(WORLD.pois||[]).length,
-      huge:!!(WORLD.cities[0]&&WORLD.cities[0].huge),saidas:d.saidas.length,aber:w.openings.length,bat:w.battle,terra:+d.terreno.terra.toFixed(2),fit:+d.adequacao.toFixed(2),nan:isNaN(P.x+P.z+P.y)}});
+      huge:!!(WORLD.cities[0]&&WORLD.cities[0].huge),vila:!!(WORLD.cities[0]&&WORLD.cities[0].vila),saidas:d.saidas.length,aber:w.openings.length,bat:w.battle,terra:+d.terreno.terra.toFixed(2),fit:+d.adequacao.toFixed(2),nan:isNaN(P.x+P.z+P.y)}});
     const q2=qs.replace(/&/g,' ');
     rep(!why&&!errs.length,q2+': carrega sem erros ('+ms+' ms)',why||errs.slice(0,2).join(' | '));
     if(!r)continue;
     rep(r.W===384&&r.size===384,q2+': lado 384',r.W+'');
     rep(r.dt===r.tema,q2+': tema '+r.tema+(r.empty?'':' (com cidade)'));
     if(qs==='tema=cidade')rep(!r.empty&&r.huge&&r.pois===0,q2+': cidade enorme, sem POIs (4B)',r.pois+' POIs, huge='+r.huge);
+    else if(r.tema==='vila'&&!qs.includes('cidade=1'))rep(!r.empty&&r.vila&&r.pois===0,q2+': vila (4C), sem POIs',r.pois+' POIs, vila='+r.vila);
     else if(!qs.includes('cidade=1'))rep(r.empty&&r.pois===0,q2+': tile vazio',r.pois+' POIs');
     rep(r.saidas===r.aber&&!r.nan,q2+': '+r.aber+' abertura(s), jogador posicionado');
     if(qs.includes('batalha'))rep(!!r.bat,q2+': descritor de batalha',JSON.stringify(r.bat));

@@ -1,6 +1,6 @@
 'use strict';
 // ---------- Teste da cidade enorme (sessão 4B; Node + Playwright, só para desenvolvimento) ----------
-// Abre ?cenario=tile&tema=cidade para vários formatos/sementes, imprime tempo de geração, tamanho da pegada, casas, serviços, população e nav,
+// (TEMA=vila para a vila da 4C.) Abre ?cenario=tile&tema=cidade para vários formatos/sementes, imprime tempo de geração, tamanho da pegada, casas, serviços, população e nav,
 // e salva o minimapa (WORLD.mapCanvas) em tests/cidade-enorme-out/. Uso: cd tests && node cidade-enorme.js [semente:forma ...]   (ex.: 11:cruz 5:ele; sem forma = sorteio)
 const http=require('http'),fs=require('fs'),path=require('path');
 const {chromium}=require('playwright');
@@ -8,7 +8,7 @@ const ROOT=path.resolve(__dirname,'..'),OUT=path.join(__dirname,'cidade-enorme-o
 const MIME={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css','.png':'image/png'};
 const serve=()=>new Promise(r=>{const s=http.createServer((q,res)=>{const f=path.join(ROOT,decodeURIComponent(q.url.split('?')[0]).replace(/^\/$/,'/index.html'));
   fs.readFile(f,(e,d)=>{if(e){res.writeHead(404);return res.end()}res.writeHead(200,{'Content-Type':MIME[path.extname(f)]||'application/octet-stream'});res.end(d)})});s.listen(0,'127.0.0.1',()=>r(s))});
-const args=process.argv.slice(2).length?process.argv.slice(2):['11:quadrado','11:circulo','11:cruz','11:ele','11:oval','11:flor','11:losango'];
+const args=process.argv.slice(2).length?process.argv.slice(2):(process.env.TEMA==='vila'?['11:quadrado','11:circulo','11:ele','11:oval','11:flor','5:','7:']:['11:quadrado','11:circulo','11:cruz','11:ele','11:oval','11:flor','11:losango']);
 (async()=>{
   fs.mkdirSync(OUT,{recursive:true});
   const srv=await serve(),base='http://127.0.0.1:'+srv.address().port,browser=await chromium.launch();
@@ -16,7 +16,7 @@ const args=process.argv.slice(2).length?process.argv.slice(2):['11:quadrado','11
     const [seed,forma,extra]=a.split(':'),page=await browser.newPage({viewport:{width:1280,height:800}}),errs=[];
     page.on('pageerror',e=>errs.push(e.message));page.on('console',m=>{if(m.type()==='error')errs.push(m.text())});
     const t0=Date.now();
-    await page.goto(base+'/index.html?cenario=tile&tema=cidade&auto=1&mute=1&seed='+seed+(forma?'&forma_cidade='+forma:'')+(extra?'&'+extra:''));
+    await page.goto(base+'/index.html?cenario=tile&tema='+(process.env.TEMA||'cidade')+'&auto=1&mute=1&seed='+seed+(forma?'&forma_cidade='+forma:'')+(extra?'&'+extra:''));
     let why='';
     try{await page.waitForFunction(()=>typeof G!=='undefined'&&G.running&&typeof WORLD!=='undefined'&&WORLD.win&&WORLD.cities.length&&WORLD.cities[0].buildMs!==undefined,null,{timeout:120000})}catch(e){why='não carregou: '+errs.slice(0,3).join(' | ')}
     const ms=Date.now()-t0;

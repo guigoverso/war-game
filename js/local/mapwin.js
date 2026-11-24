@@ -218,9 +218,9 @@ function tileAfter() {
 }
 // Cidade enorme do jogador (4B): CITY_HUGE.soldiers soldados seus patrulham a cidade, saindo do quartel (nas cidades de outra facção o populateCities põe os inimigos).
 function tileHugeGarrison() {
-  const c = WORLD.home; if (!c || !c.huge) return;
+  const c = WORLD.home; if (!c || !cityBig(c)) return;
   const b = c.barracks || { x: c.cx, z: c.cz };
-  for (let i = 0; i < CITY_HUGE.soldiers; i++) spawnAlly(b.x + (i % 5 - 2) * 1.5, b.z + 2 + Math.floor(i / 5) * 1.5, c);
+  for (let i = 0, n = cityGuardCount(c, new RNG(WORLD.seed * 13 + c.id * 101 + 9)); i < n; i++) spawnAlly(b.x + (i % 5 - 2) * 1.5, b.z + 2 + Math.floor(i / 5) * 1.5, c);
 }
 // Tile vazio: o jogador começa na abertura (olhando para dentro do tile) ou, sem aberturas, no centro.
 function tilePlaceFree(o) {
@@ -284,14 +284,14 @@ function tileScenarioHtml() {
     + '<img src="' + tileWorldImage() + '" style="width:252px;image-rendering:pixelated;border:1px solid #555"><p class="ldsm">' + TXT_TILE_MAPHELP + '</p>'
     + '<p class="ldsm"><b>' + TXT_TILE_NEIGHBORS + '</b> ' + (links || TXT_TILE_NONEIGHBOR) + '</p>'
     + '<p class="ldsm"><b>' + TXT_TILE_THEMES + '</b> ' + themes + '</p>'
-    + (win.cityKind === 'enorme' ? tileHugePanel(win) : '')
+    + (win.cityKind === 'enorme' || win.cityKind === 'vila' ? tileHugePanel(win) : '')
     + '<p class="ldsm"><b>' + TXT_TILE_SHIFT + '</b> ' + shift + '</p>'
     + '<button class="alt" data-tile="border">' + TXT_TILE_GOBORDER + '</button><br><button class="alt" data-scn="reload">↻ Recomeçar o cenário</button><hr style="border-color:#444">';
 }
 // Painel extra da cidade enorme (4B): resumo e atalhos de formato, relevo e muro, para ver as cidades em vários cenários sem mexer na URL.
 function tileHugePanel(win) {
   const q = new URLSearchParams(location.search), c = WORLD.home;
-  return '<p class="ldsm" style="margin:2px 0 4px">' + (c && c.huge ? txtTileCityInfo(c) : '') + (WORLD.tileFill ? '<br>' + txtTileFill(WORLD.tileFill) : '') + '</p>'
+  return '<p class="ldsm" style="margin:2px 0 4px">' + (c && cityBig(c) ? txtTileCityInfo(c) : '') + (WORLD.tileFill ? '<br>' + txtTileFill(WORLD.tileFill) : '') + '</p>'
     + tileParamRow(TXT_TILE_SHAPES, 'forma_cidade', TXT_TILE_SHAPE_NAME, c ? c.shape : '')
     + tileParamRow(TXT_TILE_RELIEFS, 'relevo', TXT_TILE_RELIEF_NAME, q.get('relevo') || 'natural')
     + tileParamRow(TXT_TILE_WALLS, 'muro', TXT_TILE_WALL_NAME, q.get('muro') || 'pedra');

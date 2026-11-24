@@ -74,8 +74,8 @@ const TXT_TILE_WALL_NAME = { pedra: 'Pedra', palicada: 'Paliçada', cerca: 'Cerc
 // Resumo da cidade enorme no painel do cenário: formato, caixa, área da pegada (e % do tile), casas, praças extras e tempo de construção. c = cidade (WORLD.home).
 const txtTileCityInfo = c => {
   let n = 0; if (c.foot) for (let i = 0; i < c.foot.length; i++) n += c.foot[i];
-  return 'Cidade enorme: formato <b>' + (TXT_TILE_SHAPE_NAME[c.shape] || c.shape) + '</b> • caixa ' + (2 * c.half + 1) + '×' + (2 * c.half + 1) + ' • pegada '
-    + n + ' blocos (' + Math.round(n * 100 / (W * W)) + '% do tile) • ' + (c.houses || []).length + ' prédios • ' + (c.streets || []).length + ' ruas • '
+  return (c.vila ? 'Vila' : 'Cidade enorme') + ': formato <b>' + (TXT_TILE_SHAPE_NAME[c.shape] || c.shape) + '</b> • caixa ' + (2 * c.half + 1) + '×' + (2 * c.half + 1) + ' • pegada '
+    + n + ' blocos (' + Math.round(n * 100 / (W * W)) + '% do tile) • ' + (c.houses || []).length + ' prédios • ' + (c.streets || []).length + (c.vila ? ' caminhos • ' : ' ruas • ')
     + (c.plazaCount || 0) + ' praça(s) extra(s) • construída em ' + (c.buildMs || 0) + ' ms';
 };
 
