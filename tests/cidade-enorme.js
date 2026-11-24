@@ -26,14 +26,14 @@ const args=process.argv.slice(2).length?process.argv.slice(2):['11:quadrado','11
       const st={};for(const k of['hall','store','tavern','warehouse','shop','clinic','chapel','barracks'])st[k]=c[k]?1:0;
       return{shape:c.shape,half:c.half,half0:c.half0,fill:+(n/(W*W)).toFixed(3),footArea:n,houses:(c.houses||[]).length,streets:(c.streets||[]).length,walk:c.walk.length,
         towers:c.towers.length,build:c.buildMs,reserve:WORLD.reserve,npcs:NPCS.length,enemies:ENEMIES.length,allies:ALLIES.length,cols:Col.all.length,svc:Object.values(st).join(''),rej:c.rej,
-        gedge:c.gedge,gland:c.gland,wall:c.wallType,nan:isNaN(P.x+P.z+P.y)}});
+        fill2:WORLD.tileFill,gedge:c.gedge,gland:c.gland,wall:c.wallType,nan:isNaN(P.x+P.z+P.y)}});
     r.perf=await page.evaluate(async()=>{   // nav e quadros (Chromium sem placa de vídeo: vale só para comparar com ?cidade=1)
       const t=performance.now();buildNav();const nav=Math.round(performance.now()-t);
       const t0=performance.now();let n=0;await new Promise(res=>{const f=()=>{if(++n>=90)res();else requestAnimationFrame(f)};requestAnimationFrame(f)});
       G.panel=null;const tu=performance.now();for(let i=0;i<120;i++)update(1/60);const upd=+((performance.now()-tu)/120).toFixed(2);   // custo médio de um update (NPCs, aliados, IA)
       return{navMs:nav,updMs:upd,fps:+(n/((performance.now()-t0)/1000)).toFixed(1),calls:renderer.info.render.calls}});
     if(process.env.FULL)console.log(a,'→',ms+' ms (total), build '+r.build+' ms',JSON.stringify(r));
-    else console.log(a.padEnd(26),ms+' ms | build '+r.build+' | caixa '+r.half+' | pegada '+(r.fill*100).toFixed(0)+'% | casas '+r.houses+' | torres '+r.towers+' | npcs '+r.npcs+' alia '+r.allies+' | serv '+r.svc+' | nav '+r.perf.navMs+' ms, update '+r.perf.updMs+' ms | '+r.perf.fps+' fps'+(r.nan?' | JOGADOR NAN':''));
+    else console.log(a.padEnd(26),ms+' ms | build '+r.build+' | caixa '+r.half+' | pegada '+(r.fill*100).toFixed(0)+'% | casas '+r.houses+' | torres '+r.towers+' | npcs '+r.npcs+' alia '+r.allies+' | serv '+r.svc+' | nav '+r.perf.navMs+' ms, update '+r.perf.updMs+' ms | '+r.perf.fps+' fps'+(r.nan?' | JOGADOR NAN':'')+(r.fill2?' | POIs '+r.fill2.total+' '+JSON.stringify(r.fill2.counts):''));
     if(errs.length)console.log('  ERROS:',errs.slice(0,4));
     const url=await page.evaluate(()=>{   // minimapa + a pegada da cidade em vermelho translúcido (contorno mais forte) e as praças em amarelo
       const src=WORLD.mapCanvas,cv=document.createElement('canvas');cv.width=src.width;cv.height=src.height;const g=cv.getContext('2d');g.drawImage(src,0,0);
@@ -43,6 +43,7 @@ const args=process.argv.slice(2).length?process.argv.slice(2):['11:quadrado','11
         const edge=[[1,0],[-1,0],[0,1],[0,-1]].some(d=>{const a=x+d[0],b=z+d[1];return a<-Hc||a>Hc||b<-Hc||b>Hc||!c.foot[(b+Hc)*N+a+Hc]});
         g.fillStyle=edge?'rgba(255,0,0,.95)':'rgba(255,0,0,.12)';g.fillRect((c.cx+x)*k,(c.cz+z)*k,k,k);
       }
+      g.lineWidth=1;for(const q of WORLD.pois||[]){const r=POI_DEFS[q.type].r;g.strokeStyle=r>=14?'#0ff':'#fff';g.strokeRect((q.cx-r)*k,(q.cz-r)*k,2*r*k,2*r*k)}   // POIs: ciano = grande (raio >= 14), branco = pequeno
       g.fillStyle='#ff0';g.fillRect((c.cx-2)*k,(c.cz-2)*k,5*k,5*k);
       return cv.toDataURL('image/png')});
     fs.writeFileSync(path.join(OUT,(forma||'sorteio')+'-'+seed+(extra?'-'+extra.replace(/[^a-z0-9]+/gi,'_'):'')+'.png'),Buffer.from(url.split(',')[1],'base64'));

@@ -110,6 +110,52 @@ function tileRoadStub(x0, z0, dx, dz) {
   }
 }
 
+// Teste de capacidade (?pois=max, TILE_POI_TEST): enche o que sobrou do tile com POIs de todos os tipos grandes e pequenos, em rodízio e sem regras de posição, só para contar
+// quantos cabem. Lugares testados do mais perto da cidade para o mais longe (empacota o anel primeiro). Guarda WORLD.tileFill = {total, counts, ms}.
+// ?gap=N troca a folga entre POIs só neste teste (30 = a do jogo normal).
+function tileFillGap() { const g = new URLSearchParams(location.search).get('gap'); return g === null ? {} : { poiGap: +g } }
+function tileFillPois(cities) {
+  const t0 = performance.now(), K = Object.assign({}, TILE_POI_TEST, tileFillGap()), rng = new RNG((WORLD.seed * 977 + 31) >>> 0), placed = [], counts = {}, dist = tileFootDist(cities);
+  const grid = [];
+  for (let z = 20; z < W - 20; z += K.step) for (let x = 20; x < W - 20; x += K.step) grid.push([x, z, dist[z * W + x] + rng.range(0, 6)]);
+  grid.sort((a, b) => a[2] - b[2]);
+  let types = K.types.filter(t => POI_DEFS[t]).sort((a, b) => POI_DEFS[b].r - POI_DEFS[a].r), id = 300;
+  const find = type => {
+    const d = POI_DEFS[type], big = POI_BIG[type] ? 2 : 1;
+    for (const [x, z] of grid) {
+      if (dist[z * W + x] < d.r + K.cityGap || placed.some(q => Math.hypot(q.x - x, q.z - z) < q.r + d.r + K.poiGap)) continue;
+      const y = spotOK(x, z, d.r + big, [], 0, K.range, POI_BIG[type] ? 0.15 : 0);
+      if (y !== null) return { x, z, y };
+    }
+    return null;
+  };
+  while (types.length) for (const type of types.slice()) {
+    const s = find(type), d = POI_DEFS[type];
+    if (!s) { types = types.filter(t => t !== type); continue }
+    const p = { id: id++, type, cx: s.x, cz: s.z, y: s.y, biome: B[s.z * W + s.x], owner: 'bandit' };
+    p.owner = poiInitOwner(p, rng); flattenArea(s.x, s.z, d.r, s.y, POI_BIG[type] ? 4 : 3); poiBuild(p);
+    WORLD.pois.push(p); placed.push({ x: s.x, z: s.z, r: d.r }); counts[type] = (counts[type] || 0) + 1;
+  }
+  poiApply();
+  WORLD.tileFill = { total: placed.length, counts, ms: Math.round(performance.now() - t0) };
+}
+// Distância (blocos, chanfro) de cada bloco do mapa até a pegada da cidade mais próxima; 0 dentro dela. Sem pegada, a caixa da cidade.
+function tileFootDist(cities) {
+  const d = new Float32Array(W * W).fill(1e5);
+  for (const c of cities) { const Hc = c.half, N = 2 * Hc + 1;
+    for (let z = -Hc; z <= Hc; z++) for (let x = -Hc; x <= Hc; x++) { const wx = c.cx + x, wz = c.cz + z;
+      if (wx >= 0 && wz >= 0 && wx < W && wz < W && (!c.foot || c.foot[(z + Hc) * N + x + Hc])) d[wz * W + wx] = 0 } }
+  for (let z = 0; z < W; z++) for (let x = 0; x < W; x++) { const i = z * W + x; let v = d[i];
+    if (x > 0) v = Math.min(v, d[i - 1] + 1);
+    if (z > 0) { v = Math.min(v, d[i - W] + 1); if (x > 0) v = Math.min(v, d[i - W - 1] + 1.414); if (x < W - 1) v = Math.min(v, d[i - W + 1] + 1.414) }
+    d[i] = v }
+  for (let z = W - 1; z >= 0; z--) for (let x = W - 1; x >= 0; x--) { const i = z * W + x; let v = d[i];
+    if (x < W - 1) v = Math.min(v, d[i + 1] + 1);
+    if (z < W - 1) { v = Math.min(v, d[i + W] + 1); if (x < W - 1) v = Math.min(v, d[i + W + 1] + 1.414); if (x > 0) v = Math.min(v, d[i + W - 1] + 1.414) }
+    d[i] = v }
+  return d;
+}
+
 // Borda fechada: WORLD.win.band marca cada célula como 0 (livre), 1 (faixa de árvores) ou 2 (parede de colisão, dentro da faixa). A largura da faixa varia com
 // ruído (borda orgânica). As aberturas das trilhas ficam livres (WORLD_FIELD.gapHalf de meia largura, gapDepth de profundidade).
 function tileBorderPlan() {
@@ -245,7 +291,7 @@ function tileScenarioHtml() {
 // Painel extra da cidade enorme (4B): resumo e atalhos de formato, relevo e muro, para ver as cidades em vários cenários sem mexer na URL.
 function tileHugePanel(win) {
   const q = new URLSearchParams(location.search), c = WORLD.home;
-  return '<p class="ldsm" style="margin:2px 0 4px">' + (c && c.huge ? txtTileCityInfo(c) : '') + '</p>'
+  return '<p class="ldsm" style="margin:2px 0 4px">' + (c && c.huge ? txtTileCityInfo(c) : '') + (WORLD.tileFill ? '<br>' + txtTileFill(WORLD.tileFill) : '') + '</p>'
     + tileParamRow(TXT_TILE_SHAPES, 'forma_cidade', TXT_TILE_SHAPE_NAME, c ? c.shape : '')
     + tileParamRow(TXT_TILE_RELIEFS, 'relevo', TXT_TILE_RELIEF_NAME, q.get('relevo') || 'natural')
     + tileParamRow(TXT_TILE_WALLS, 'muro', TXT_TILE_WALL_NAME, q.get('muro') || 'pedra');

@@ -78,3 +78,6 @@ const txtTileCityInfo = c => {
     + n + ' blocos (' + Math.round(n * 100 / (W * W)) + '% do tile) • ' + (c.houses || []).length + ' prédios • ' + (c.streets || []).length + ' ruas • '
     + (c.plazaCount || 0) + ' praça(s) extra(s) • construída em ' + (c.buildMs || 0) + ' ms';
 };
+
+// Resultado do teste de capacidade (?pois=max) no painel do cenário: total e quantos de cada tipo couberam. f = WORLD.tileFill.
+const txtTileFill = f => 'Teste de POIs: <b>' + f.total + '</b> couberam (' + Object.keys(f.counts).map(t => f.counts[t] + ' ' + POI_DEFS[t].n.toLowerCase()).join(', ') + ') em ' + f.ms + ' ms';

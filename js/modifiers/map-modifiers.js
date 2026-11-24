@@ -103,3 +103,12 @@ const mapTileSize = () => {
   const t = +new URLSearchParams(location.search).get('tam');
   return t ? Math.max(128, Math.min(768, Math.round(t / 32) * 32)) : TILE_SIZE;
 };
+
+// ---------- Teste de capacidade de POIs no tile (4B; ?pois=max) ----------
+// Só para ver QUANTOS POIs cabem fora da cidade: ignora as regras de posição (bioma, estrada, tema) e enche o tile de POIs até não caber mais (mapwin.js tileFillPois).
+// types: tipos tentados, em rodízio, dos maiores para os menores (ids de POI_DEFS; a ponte fica de fora). cityGap: folga (blocos) entre a borda do POI e a pegada da cidade
+// (a rampa da cidade tem 24). poiGap: folga entre dois POIs (o jogo normal usa 30). range: desnível máximo aceito no terreno. step: passo (blocos) da grade de lugares testados.
+// Padrões: os 10 tipos, 24, 4, 8 e 4.
+const TILE_POI_TEST = { types: ['farm', 'tavern', 'post', 'mine', 'fort', 'sawmill', 'sanctuary', 'hunters', 'tower', 'ruins'], cityGap: 24, poiGap: 4, range: 8, step: 4 };
+// Verdadeiro com ?pois=max no cenário de tile.
+const tileFillOn = () => mapTileOn() && new URLSearchParams(location.search).get('pois') === 'max';

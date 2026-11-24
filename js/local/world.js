@@ -365,6 +365,7 @@ async function worldNatureStage(X,status){
   WORLD.snap={H:H.slice(),T:T.slice(),B:B.slice()};
   if(X.win&&X.win.bare){WORLD.camps=[];WORLD.caves=[];WORLD.chests=[];WORLD.packs=[];WORLD.pois=[];WORLD.areas=cities.slice();FIRES.length=0}   // tile vazio (4A): sem POIs (a 4E os põe)
   else genPOIs(rng,cities);
+  if(X.win&&tileFillOn())tileFillPois(cities);   // teste de capacidade de POIs (?pois=max, mapwin.js)
   status('Plantando árvores, pedras e flores...');await tick();
   genDecor(rng,nd,cities);
   if(X.win)tileBorderBuild();   // árvores densas e parede de colisão na borda, menos nas aberturas (mapwin.js)
