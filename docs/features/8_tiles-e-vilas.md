@@ -121,8 +121,13 @@ Regra de posição: tema e comércio (pousada, taverna, entreposto) **perto da e
 ## Revisão na 4B (2026-11-23)
 - **[DECIDIDO]** Cidade enorme: pegada **25 a 35%** do tile (antes 40 a 60%) e caixa **até 45%** (`CITY_HUGE.areaFrac`/`boxMax`), para sobrar anel livre a POIs e a zona de cerco. Lado típico 200 a 230.
 
+## Revisão na 4E (2026-11-23)
+- **[DECIDIDO]** 'Principal no centro' do texto da composição passou a valer só para ~30% dos tiles: a posição vem dos arquétipos da rodada 8 (`tileMainPlan`). A cidade/vila usa o deslocamento máximo `(tile − 2·half)/2 − 14` (a folga de 14 é a `CITY_HUGE.margin`, no lugar dos 8 do texto) e fica a `half + 12` das aberturas; a folga de 70 da borda e 80 das aberturas vale para os POIs normais.
+- **[IMPLEMENTADO COM SUBSTITUTOS]** POIs que ainda não existem entram com o mais parecido e a tabela do tile marca `pend`: vila de trabalhadores e vila de apoio (-> alojamento), plantação (-> fazenda), pesca (-> torre de vigia). Tema ponte sem ponte no tile vira entreposto até o grafo (etapa 5). POI principal que não cabe (vila em escombros, forte) cai em ruínas/torre.
+- **[IMPLEMENTADO]** Zonas de guerra reservadas (abertura, anel, praça), montagem por batalha com POIs de TESTE (acampamento fortificado, trincheira, barricada), reposicionamento. Tipos e quantidade verdadeiros: etapa 10.
+
 ## Pendente
 - Ligação do tile com rodadas, economia por tile e simulação fora da tela: etapas 7 e 8.
 - Anexação, carne e couro do tile Animais, bônus extra do tile de vila: etapa 8.
-- POIs de guerra por zona (tipos, quantidade, custo, reposicionamento): etapa 10.
+- POIs de guerra por zona (tipos, quantidade, custo, reposicionamento): etapa 10. **REDEFINIR (usuário, 2026-11-24):** com batalhas num ponto de um mapa aberto, os POIs de guerra (resistência ao longo de um caminho de conquista) perdem o sentido, porque o jogador pode dar a volta e atacar o POI principal. Os da 4E (acampamento, trincheira, barricada nas zonas) são só de TESTE. Falta pensar como passar a sensação de batalha (caos, improviso, destruição); as zonas reservadas da 4E podem virar pontos de entrada/captura em vez de POIs.
 - Atualizar `5_mapa-mundi.md` com 384, cidades enormes, temas e passagem.

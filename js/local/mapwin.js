@@ -18,7 +18,8 @@ function mapWindowPick(seed, dominant) {
   if (q.has('wx') && q.has('wz')) {   // ?wx=&wz=: janela livre centrada num ponto do mundo (sem grade nem trilhas), para comparar terrenos que se sobrepõem
     const free = wfWindow(F, +q.get('wx'), +q.get('wz'), size, { tile: true, free: true, ti: -1, tj: -1, kind: q.get('tipo') === 'cidade' ? 'cidade' : 'natureza', neighbors: [], openings: [] });
     free.tema = tileThemeOk(q.get('tema')) ? q.get('tema') : 'passagem'; free.empty = tileEmptyOn(free.tema); free.cityKind = tileCityKind(free.tema); free.bare = tileBare(); free.battle = null;
-    free.desc = tileDescribe(F, free, { tema: free.tema });
+    mapTilePlan(free);
+    free.desc = tileDescribe(F, free, { tema: free.tema, principal: free.mainPlan });
     return free;
   }
   const t = wfPickTile(F, size, q.has('ti') ? +q.get('ti') : NaN, q.has('tj') ? +q.get('tj') : NaN), n = wfNode(F, t.i, t.j);
@@ -34,7 +35,21 @@ function mapTileDescribe(win, q) {
   const F = win.F, tema = tileThemeOk(q.get('tema')) ? q.get('tema') : tileThemeFor(F.seed, win.ti, win.tj, q.get('temas'));
   win.tema = tema; win.empty = tileEmptyOn(tema); win.cityKind = tileCityKind(tema); win.bare = tileBare();
   win.battle = tileBattle(win.openings, q.get('batalha'), q.get('entrada'), q.get('entrada2'), q.get('estac'));
-  win.desc = tileDescribe(F, win, { tema, batalha: win.battle });
+  mapTilePlan(win);
+  win.desc = tileDescribe(F, win, { tema, batalha: win.battle, principal: win.mainPlan });
+}
+// Forma e meia caixa da cidade enorme/vila do tile, sorteadas com as MESMAS retiradas do RNG da criação da cidade (worldCitiesStage, world.js, que chama esta função):
+// o lugar do principal (tileMainPlan) precisa saber o tamanho antes de a cidade existir. kind = 'enorme' | 'vila' (outro = null); i = índice da cidade (0).
+function mapTileCityDims(seed, size, kind, i) {
+  if (kind !== 'enorme' && kind !== 'vila') return null;
+  const hr = new RNG((seed * 37 + i * 101 + 13) >>> 0); for (let k = 0; k < 4; k++) hr.next();
+  const shape = kind === 'enorme' ? cityHugeShape(hr) : cityVillageShape(hr);
+  return { shape, half: kind === 'enorme' ? cityHugeHalf(hr, size, shape) : cityVillageHalf(hr, size) };
+}
+// Posição do POI principal do tile por arquétipo (macro/tile.js tileMainPlan); cidade e vila entram com a meia caixa. Guarda win.mainPlan (null na passagem).
+function mapTilePlan(win) {
+  const dims = mapTileCityDims(win.F.seed, win.size, win.cityKind, 0);
+  return win.mainPlan = tileMainPlan(win.F, win, win.tema, { half: dims ? dims.half : 0 });
 }
 
 // Relevo da janela: altura de cada bloco vem direto do campo (substitui reliefTerrain). Rios são vales do próprio campo.
@@ -64,6 +79,8 @@ function reliefFieldBiomes(P) {
 
 // Lugar da cidade do tile: o centro da janela se for terra; senão o candidato mais perto do centro (cand = {x,z,b,rough}).
 function mapTileSite(cand) {
+  const win = WORLD.win, pl = win && win.mainPlan && (win.cityKind === 'enorme' || win.cityKind === 'vila') ? win.mainPlan : null;   // 4E: o arquétipo desloca a cidade
+  if (pl && H[pl.z * W + pl.x] >= SEA + 1) return { x: pl.x, z: pl.z, b: B[pl.z * W + pl.x] };
   const c = W >> 1;
   if (H[c * W + c] >= SEA + 1) return { x: c, z: c, b: B[c * W + c] };
   let best = null, bd = 1e9;
@@ -145,6 +162,10 @@ function tileFootDist(cities) {
   for (const c of cities) { const Hc = c.half, N = 2 * Hc + 1;
     for (let z = -Hc; z <= Hc; z++) for (let x = -Hc; x <= Hc; x++) { const wx = c.cx + x, wz = c.cz + z;
       if (wx >= 0 && wz >= 0 && wx < W && wz < W && (!c.foot || c.foot[(z + Hc) * N + x + Hc])) d[wz * W + wx] = 0 } }
+  return tileChamfer(d);
+}
+// Distância de chanfro (duas passadas) a partir das células com 0 em d (Float32Array W*W, o resto 1e5); devolve o próprio d. Usada por tileFootDist e pela 4E (estradas).
+function tileChamfer(d) {
   for (let z = 0; z < W; z++) for (let x = 0; x < W; x++) { const i = z * W + x; let v = d[i];
     if (x > 0) v = Math.min(v, d[i - 1] + 1);
     if (z > 0) { v = Math.min(v, d[i - W] + 1); if (x > 0) v = Math.min(v, d[i - W - 1] + 1.414); if (x < W - 1) v = Math.min(v, d[i - W + 1] + 1.414) }
@@ -284,9 +305,24 @@ function tileScenarioHtml() {
     + '<img src="' + tileWorldImage() + '" style="width:252px;image-rendering:pixelated;border:1px solid #555"><p class="ldsm">' + TXT_TILE_MAPHELP + '</p>'
     + '<p class="ldsm"><b>' + TXT_TILE_NEIGHBORS + '</b> ' + (links || TXT_TILE_NONEIGHBOR) + '</p>'
     + '<p class="ldsm"><b>' + TXT_TILE_THEMES + '</b> ' + themes + '</p>'
+    + tileComposeHtml(win)
     + (win.cityKind === 'enorme' || win.cityKind === 'vila' ? tileHugePanel(win) : '')
     + '<p class="ldsm"><b>' + TXT_TILE_SHIFT + '</b> ' + shift + '</p>'
     + '<button class="alt" data-tile="border">' + TXT_TILE_GOBORDER + '</button><br><button class="alt" data-scn="reload">↻ Recomeçar o cenário</button><hr style="border-color:#444">';
+}
+// Painel da composição (4E): resumo de WORLD.tileCompose, POIs de guerra montados e atalhos de batalha (?batalha=conquista|defesa|choque; entradas = as duas primeiras aberturas).
+function tileComposeHtml(win) {
+  const tc = WORLD.tileCompose; if (!tc) return '';
+  return '<p class="ldsm" style="margin:2px 0 4px">' + txtTileCompose(tc) + '</p>' + (WORLD.tileWar && WORLD.tileWar.battle ? '<p class="ldsm">' + txtTileWar(WORLD.tileWar) + '</p>' : '') + tileBattleRow(win);
+}
+function tileBattleRow(win) {
+  const q0 = new URLSearchParams(location.search), cur = q0.get('batalha') || '', ops = win.openings;
+  if (!ops.length) return '';
+  return '<p class="ldsm"><b>' + TXT_TILE_BATTLE + '</b> ' + Object.keys(TXT_TILE_BATTLE_NAME).map(k => {
+    const q = new URLSearchParams(location.search); q.delete('pos');
+    if (k) { q.set('batalha', k); q.set('entrada', ops[0].dir); if (k === 'choque' && ops[1]) q.set('entrada2', ops[1].dir); else q.delete('entrada2') } else { q.delete('batalha'); q.delete('entrada'); q.delete('entrada2') }
+    return '<a style="margin:2px;padding:2px 6px;border:1px solid ' + (k === cur ? '#e0c040' : '#888') + ';border-radius:4px;display:inline-block;color:inherit" href="?' + q.toString() + '">' + TXT_TILE_BATTLE_NAME[k] + '</a>';
+  }).join('') + '</p>';
 }
 // Painel extra da cidade enorme (4B): resumo e atalhos de formato, relevo e muro, para ver as cidades em vários cenários sem mexer na URL.
 function tileHugePanel(win) {

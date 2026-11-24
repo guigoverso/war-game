@@ -275,10 +275,9 @@ async function worldCitiesStage(X,status){
   const used=new Set();
   const cities=sites.map((s,i)=>{
     const bio=B[s.z*W+s.x];
-    const huge=X.win&&X.win.cityKind==='enorme',vila=X.win&&X.win.cityKind==='vila';   // tile de cidade (4B) ou de vila (4C): formato próprio (city-modifiers.js)
-    const hr=huge||vila?new RNG((seed*37+i*101+13)>>>0):null;if(hr)for(let k=0;k<4;k++)hr.next();
-    const shp=huge?cityHugeShape(hr):vila?cityVillageShape(hr):null;
-    return{id:i,wantWater:!!s.ww,cx:s.x,cz:s.z,half:tileTestOn()?(i===0?TILE_TEST.home.half:TILE_TEST.big.half):huge?cityHugeHalf(hr,W,shp):vila?cityVillageHalf(hr,W):rng.int(36,45),huge,vila:!!vila,shape:shp,biome:bio,owner:'enemy',state:'idle',home:false,rank:0,
+    const dm=X.win&&X.win.tile?mapTileCityDims(seed,W,X.win.cityKind,i):null,huge=!!dm&&X.win.cityKind==='enorme',vila=!!dm&&X.win.cityKind==='vila';   // tile de cidade (4B) ou de vila (4C): formato e tamanho próprios (mapTileCityDims, mapwin.js; city-modifiers.js)
+    const shp=dm?dm.shape:null;
+    return{id:i,wantWater:!!s.ww,cx:s.x,cz:s.z,half:tileTestOn()?(i===0?TILE_TEST.home.half:TILE_TEST.big.half):huge||vila?dm.half:rng.int(36,45),huge,vila:!!vila,shape:shp,biome:bio,owner:'enemy',state:'idle',home:false,rank:0,
       enemies:[],npcs:[],walk:[],spawns:[],towers:[],gates:[],flags:[],props:[],aliveEnemies:0,totalEnemies:0};
   });
   if(RES){   // reserva: verifica no rascunho, depois gera o terreno final em volta das pegadas (passada 2)
@@ -363,7 +362,8 @@ async function worldNatureStage(X,status){
   status('Escondendo baús, grutas e acampamentos...');await tick();
   if(X.win){tileTrailLinks(cities);tileBorderPlan()}   // janela do campo do mundo: estrada das trilhas até as aberturas e plano da borda de árvores (mapwin.js)
   WORLD.snap={H:H.slice(),T:T.slice(),B:B.slice()};
-  if(X.win&&X.win.bare){WORLD.camps=[];WORLD.caves=[];WORLD.chests=[];WORLD.packs=[];WORLD.pois=[];WORLD.areas=cities.slice();FIRES.length=0}   // tile vazio (4A): sem POIs (a 4E os põe)
+  if(X.win&&X.win.bare&&tileComposeOn())tileCompose(cities);   // tile com composição (4E, js/tilecompose.js): principal, estradas, zonas de guerra, tema, ambiente e baús
+  else if(X.win&&X.win.bare){WORLD.camps=[];WORLD.caves=[];WORLD.chests=[];WORLD.packs=[];WORLD.pois=[];WORLD.areas=cities.slice();FIRES.length=0}   // tile vazio (4A; ?compor=0): sem POIs
   else genPOIs(rng,cities);
   if(X.win&&tileFillOn())tileFillPois(cities);   // teste de capacidade de POIs (?pois=max, mapwin.js)
   status('Plantando árvores, pedras e flores...');await tick();
@@ -628,6 +628,7 @@ function genDecor(rng,dn,cities){
     if(nearCity(px,pz,4,cities))continue;
     if(WORLD.camps.some(k=>Math.hypot(px-k.cx,pz-k.cz)<13.5))continue;   // acampamentos ficam sem árvores, pedras e plantas ao redor
     if(WORLD.pois&&WORLD.pois.some(k=>Math.hypot(px-k.cx,pz-k.cz)<POI_DEFS[k.type].r+5))continue;   // POIs também (a margem deixa as copas das árvores de fora)
+    if(tileZoneNear(px,pz))continue;   // zonas de guerra do tile (4E, tilecompose.js): clareiras sem árvores
     if(wfReserved().some(k=>Math.hypot(px-k.x,pz-k.z)<POI_DEFS.fortcamp.r+5))continue;   // e os terrenos de guerra e dormentes reservados (warfront.js)
     if(!clearAround(px,pz))continue;
     const b=B[i],cl=dens.fbm(px/22,pz/22,2);

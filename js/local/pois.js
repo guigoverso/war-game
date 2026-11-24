@@ -462,7 +462,9 @@ poiPath(c,0,R+1,0,4);poiBrazier(c,-3.4,R+1.6);poiBrazier(c,3.4,R+1.6);
     for(let k=0;k<7;k++){const x=rng.range(-8,8),z=rng.range(-6,7);pBc(c,x,0,z,x+0.3,rng.range(0.3,0.7),z+0.3,0x3a7a2a,false,{j:0.1})}   // mato
     p.chest=addChest(c.cx,c.y+2.05,c.cz-2.4,0,rng.int(40,120),null);p.chest.onOpen=()=>poiRuinLoot(p);   // 30% de chance de artefato (POIX.ruinRelic)
   },
-  farm(c,rng,p){   // fazenda: uma única casa, campos de plantação (trigo e horta) e cercados de animais (vacas, ovelhas, porcos e galinhas), com poço, silos e carroça
+  farm(c,rng,p){   // (com ?lego=1: montada por peças, poilego.js)
+    if(legoOn()){legoFarm(c,rng,p);return}
+    // fazenda: uma única casa, campos de plantação (trigo e horta) e cercados de animais (vacas, ovelhas, porcos e galinhas), com poço, silos e carroça
     poiHut(c,-12,-14,9,7,'S',{chimney:true,timber:true,shut:0x3a5a3a},rng);   // a casa
     poiPath(c,-7.5,-6,-7.5,3);poiLampAt(c,-5.6,-5.4);
     for(let i=0;i<5;i++){const z=-14+i*1.7;pBc(c,0,0,z,14,0.15,z+1.0,0x5a3d22,false,{j:0.02});   // campo de trigo
@@ -650,7 +652,7 @@ const dormBuildAll=()=>{for(const d of WORLD.dormant||[])dormBuild(d)};   // ide
 // ---------- construção numa malha própria ----------
 function poiBuild(p){
   const c=poiArea(p.cx,p.cz,p.y,p.biome),rng=new RNG((WORLD.seed*53+p.id*97+3)>>>0);p.sceneObjs=[];p.c=c;
-  if(p.runtime){c.noDig=true;c.adapt=true}   // POI criado em jogo (frente da guerra): a malha do terreno não muda, então a construção é que se adapta ao chão (poiAdaptBc)
+  if(p.runtime||p.adapt){c.noDig=true;c.adapt=true}   // POI criado em jogo (frente da guerra): a malha do terreno não muda, então a construção é que se adapta ao chão (poiAdaptBc)
   BX_CAP={batch:new BoxBatch(),cols:[]};
   try{
     if(p.pad){const r=POI_DEFS[p.type].r;pBc(c,-r,-4,-r,r,0,r,0x6a5a40,true,{j:0.02})}   // base de terra (mapa manual: o chão não é aplainado)

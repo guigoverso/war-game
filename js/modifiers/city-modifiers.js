@@ -93,7 +93,8 @@ function cityHugeShape(rng) {
 // VILA (etapa 4C; tile temático 'vila', ?cenario=tile&tema=vila; docs/features/8_tiles-e-vilas.md). A vila ocupa no máximo 10% do tile (caixa de lado até ~121).
 // Reaproveita buildCity (c.vila): sem ruas, só caminhos de terra estreitos ligando as casas, cerca em vez de muro, poucos serviços e poucos soldados.
 // Padrões entre parênteses.
-// half: [mín, máx] do raio da caixa em blocos (lado = 2*half+1; 36 a 45 = tamanho das cidades do mapa antigo, lado 73 a 91; a spec permite até 60, lado 121) ([36, 45]).
+// half: [mín, máx] do raio da caixa em blocos (lado = 2*half+1; a spec permite até 60, lado 121 = 10% do tile). Com 36 a 45 (tamanho da caixa das cidades do mapa antigo) a
+// pegada saía com 2300 a 4800 blocos (formatos e terreno cortam a caixa), a metade das cidades antigas (5300 a 8300, 18 a 40 casas); 50 a 58 chega a ~6000 a 9000 ([50, 58]).
 // margin: folga entre a caixa e a borda do tile (12). minHalf: raio mínimo ao encolher por falta de chão (28). plazaOff: deslocamento da praça (0.12).
 // devMul: multiplica o desnível aceito pela pegada (1.5). nudge: quanto o centro pode andar (16). edge: recorte do contorno (como em CITY_HUGE.edge).
 // shapes: pesos dos formatos da pegada (os de CITY_SHAPES em cityfoot.js; losango e cruz ficam de fora porque ficam finos demais em ~100 blocos).
@@ -103,9 +104,9 @@ function cityHugeShape(rng) {
 //   só que menores (ver city.js). soldiers: [mín, máx] de soldados fora de guerra (3, 6). civ: [mín, máx] de moradores (8, 14).
 // wall: tipo de cerca da vila ('fence'; sem muro de pedra nem torres de verdade).
 const CITY_VILLAGE = {
-  half: [36, 45], margin: 12, minHalf: 28, plazaOff: 0.12, devMul: 1.5, nudge: 16,
-  shapes: { quadrado: 3, circulo: 2, oval: 2, ele: 2, flor: 1.5 },
-  edge: { base: 0.95, noise: 0.35, min: 0.85 }, plaza: [5, 6], road: 1, branches: [14, 22], density: 120,
+  half: [50, 58], margin: 12, minHalf: 28, plazaOff: 0.12, devMul: 1.5, nudge: 16,
+  shapes: { quadrado: 6, circulo: 3, oval: 1, ele: 1, flor: 0.3 },
+  edge: { base: 0.95, noise: 0.35, min: 0.85 }, plaza: [5, 6], road: 1, branches: [14, 22], density: 80,
   services: ['shop', 'barracks'], soldiers: [3, 6], civ: [8, 14], wall: 'fence'
 };
 // Configuração da cidade grande de c: CITY_HUGE (cidade enorme), CITY_VILLAGE (vila) ou null (cidade do mapa antigo).

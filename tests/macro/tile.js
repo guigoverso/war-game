@@ -29,4 +29,31 @@ ok(d.ok1,'tipo de batalha inexistente = sem batalha');
 ok(d.x.batalha&&d.x.batalha.tipo==='defesa'&&d.x.batalha.entradaDefensor===null,'defesa: atacante entra pela abertura, defensor no principal');
 ok(d.ch&&d.ch.tipo==='choque'&&d.ch.estacionado==='defensor','choque aceita 2 entradas e batalhão estacionado');
 ok(run(`tileEntrance([],'L')`)===null,'sem aberturas, sem entrada');
+// ---------- 4E: posição do POI principal por arquétipo (tileMainPlan) ----------
+// Varre tiles de várias sementes: restrições (borda, aberturas, terra), 1 entrada = fundo, cidade enorme dentro do deslocamento máximo, determinismo, mistura de arquétipos.
+const mp=run(`(()=>{const out={n:0,bad:[],arq:{},um:0,umFundo:0,det:true,bigBad:0,big:0,semMain:0};
+  for(const sd of [3,11])for(const fmt of ['continentes','pangeia']){
+    const F=wfCreate(sd,{format:fmt});
+    for(let j=1;j<5;j++)for(let i=1;i<5;i++){
+      const n=wfNode(F,i,j),w=wfWindow(F,n.x,n.z,384,{tile:true,ti:i,tj:j,neighbors:[],openings:[]});w.openings=wfOpenings(F,w,i,j);
+      for(const tema of ['cidade','vila','fazenda','mina','serraria','animais','ponte','fortaleza','ruinas','passagem']){
+        const big=tema==='cidade'?100:tema==='vila'?55:0,p=tileMainPlan(F,w,tema,{half:big});
+        if(tema==='passagem'){if(p)out.bad.push('passagem com principal');else out.semMain++;continue}
+        out.n++;out.arq[p.arq]=(out.arq[p.arq]||0)+1;
+        const lo=big?big+TILE_MAIN.bigEdge:TILE_MAIN.margin;
+        if(!p.caiu&&(p.x<lo||p.z<lo||p.x>384-lo||p.z>384-lo))out.bad.push(sd+':'+i+','+j+' '+tema+' fora da faixa '+p.x+','+p.z);
+        if(!p.caiu&&w.openings.some(a=>Math.hypot(a.x-p.x,a.z-p.z)<(big?big+TILE_MAIN.bigOpen:TILE_MAIN.openGap)-0.5))out.bad.push(sd+':'+i+','+j+' '+tema+' perto de abertura');
+        if(big&&!p.caiu){out.big++;const m=(384-2*big)/2-TILE_MAIN.bigEdge;if(Math.abs(p.x-192)>m+1||Math.abs(p.z-192)>m+1)out.bigBad++}
+        if(w.openings.length===1&&!p.caiu){out.um++;if(p.arq==='fundo')out.umFundo++}
+        const q=tileMainPlan(F,w,tema,{half:big});if(q.x!==p.x||q.z!==p.z||q.arq!==p.arq)out.det=false;
+      }
+    }}
+  return out})()`);
+ok(mp.n>200,'tileMainPlan: '+mp.n+' tiles temáticos medidos');
+ok(mp.bad.length===0,'principal respeita borda, aberturas e terra',mp.bad.slice(0,3).join(' | '));
+ok(mp.bigBad===0,'cidade/vila dentro do deslocamento máximo ('+mp.big+' casos)');
+ok(mp.um>0&&mp.umFundo===mp.um,'tile de 1 entrada: principal no fundo ('+mp.umFundo+' de '+mp.um+')');
+ok(mp.det,'tileMainPlan é determinístico');
+ok(Object.keys(mp.arq).length>=5,'vários arquétipos aparecem',JSON.stringify(mp.arq));
+const cen=(mp.arq.central||0)/mp.n*100;ok(cen>=10&&cen<=45,'central em ~30% (a entrada única e a margem puxam para baixo): '+cen.toFixed(0)+'%');
 console.log(falhas?'\n'+falhas+' FALHA(S)':'\nTudo OK');process.exit(falhas?1:0);

@@ -81,3 +81,30 @@ const txtTileCityInfo = c => {
 
 // Resultado do teste de capacidade (?pois=max) no painel do cenário: total e quantos de cada tipo couberam. f = WORLD.tileFill.
 const txtTileFill = f => 'Teste de POIs: <b>' + f.total + '</b> couberam (' + Object.keys(f.counts).map(t => f.counts[t] + ' ' + POI_DEFS[t].n.toLowerCase()).join(', ') + ') em ' + f.ms + ' ms';
+
+// ---------- Composição do tile (4E): painel do cenário de tile ----------
+// Nome de cada arquétipo de posição do POI principal (tileMainPlan) e de cada zona de guerra, para o painel.
+const TXT_TILE_ARCH = { central: 'central', deslocado: 'deslocado', estrada: 'beira da estrada', fundo: 'no fundo', encosta: 'encosta', margem: 'margem' };
+const TXT_TILE_ZONE = { abertura: 'abertura', anel: 'anel', praca: 'praça de encontro' };
+// Resumo da composição no painel (aba Facções da pausa): principal e arquétipo, contagem de POIs por tipo, ambiente, zonas de guerra, falhas e tempo. tc = WORLD.tileCompose.
+const txtTileCompose = tc => {
+  const nome = tc.principal ? (POI_DEFS[tc.principal.type] ? POI_DEFS[tc.principal.type].n : tc.principal.type === 'vila' ? 'Vila' : 'Cidade') : 'nenhum (tile de passagem)';
+  const tipos = Object.keys(tc.counts).map(t => tc.counts[t] + ' ' + (POI_DEFS[t] ? POI_DEFS[t].n.toLowerCase() : t)).join(', ');
+  return 'Principal: <b>' + nome + '</b>' + (tc.arq ? ' • posição <b>' + (TXT_TILE_ARCH[tc.arq] || tc.arq) + '</b>' + (tc.caiu ? ' (caiu de outro arquétipo)' : '') : '')
+    + (tc.principal ? ' em (' + tc.principal.x + ', ' + tc.principal.z + ')' : '')
+    + '<br>POIs: <b>' + tc.pois + '</b>' + (tipos ? ' (' + tipos + ')' : '') + ' • acampamentos ' + tc.camps + ' • grutas ' + tc.caves + ' • bandos ' + tc.packs + ' • baús ' + tc.chests
+    + '<br>Zonas de guerra: ' + (tc.zones.length ? tc.zones.map(z => { const k = z.split(':'); return (TXT_TILE_ZONE[k[0]] || k[0]) + (k[1] ? ' ' + k[1] : '') }).join(', ') : 'nenhuma')
+    + (tc.pend.length ? '<br>Pendentes (POI ainda não existe, entrou um substituto): ' + tc.pend.join(', ') : '')
+    + (tc.falhas.length ? '<br>Sem lugar: ' + tc.falhas.join(', ') : '') + ' • composto em ' + tc.ms + ' ms';
+};
+// Linha de atalhos da batalha no painel: rótulo e nomes dos tipos (tileBattleRow, mapwin.js); '' = sem batalha.
+const TXT_TILE_BATTLE = 'Batalha no tile:';
+const TXT_TILE_BATTLE_NAME = { '': 'Nenhuma', conquista: 'Conquista', defesa: 'Defesa', choque: 'Choque' };
+// POIs de guerra montados pela batalha (WORLD.tileWar.pois), no painel: tipo, zona, lado e dono.
+const txtTileWar = tw => !tw.battle ? '' : 'POIs de guerra (' + tw.battle.tipo + '): ' + (tw.pois.length ? tw.pois.map(p => POI_DEFS[p.type].n + ' [' + (TXT_TILE_ZONE[p.zona.split(':')[0]] || p.zona) + ', ' + p.lado + ', ' + poiOwnerName(p.owner) + ']').join('; ') : 'nenhum (sem zona livre para esta batalha)');
+
+// ---------- Posição do jogador na pausa (aba Geral) ----------
+// Texto da posição (e do que vai para a área de transferência): X e Z no mapa local e Y = altura dos pés, com uma casa decimal. p = jogador (P).
+const txtPlayerPos = p => 'X ' + p.x.toFixed(1) + '  Y ' + p.y.toFixed(1) + '  Z ' + p.z.toFixed(1);
+// Rótulos do botão de copiar a posição: normal, depois de copiar (volta ao normal em 1,5 s) e se o navegador recusou.
+const TXT_POS_COPY = '📋 Copiar', TXT_POS_COPIED = '✔ Copiado', TXT_POS_FAIL = '✖ Falhou';

@@ -7,7 +7,8 @@ const PAL={
   3:{walls:[0x6b4a2e,0x7d5a38,0xd8dde2,0x55402a,0x8a8f96],roofs:[0xf2f6fa,0xdde6ee,0x4a5a6a,0xe8eef4],base:0x777777,trim:0x3d2a18},
 };
 const ovr=(a,b,m)=>a.x0-m<=b.x1&&a.x1+m>=b.x0&&a.z0-m<=b.z1&&a.z1+m>=b.z0;
-function Bc(c,x0,y0,z0,x1,y1,z1,color,col,o){if(c.adapt)return poiAdaptBc(c,x0,y0,z0,x1,y1,z1,color,col,o);Bx(c.cx+x0,c.y+y0,c.cz+z0,c.cx+x1,c.y+y1,c.cz+z1,color,col,o)}
+let BC_XF=null;   // transformação (gira/espelha) de tudo que um POI desenha por Bc; só poilego.js a liga, durante a montagem de um POI lego
+function Bc(c,x0,y0,z0,x1,y1,z1,color,col,o){if(BC_XF){const q=BC_XF(x0,z0,x1,z1);x0=q[0];z0=q[1];x1=q[2];z1=q[3]}if(c.adapt)return poiAdaptBc(c,x0,y0,z0,x1,y1,z1,color,col,o);Bx(c.cx+x0,c.y+y0,c.cz+z0,c.cx+x1,c.y+y1,c.cz+z1,color,col,o)}
 function setTL(c,lx,lz,t){setT(c.cx+lx,c.cz+lz,t)}
 function fillT(c,r,t,fn){for(let z=r.z0;z<=r.z1;z++)for(let x=r.x0;x<=r.x1;x++)if(!fn||fn(x,z))setTL(c,x,z,t)}
 

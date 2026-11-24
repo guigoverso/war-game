@@ -69,6 +69,81 @@ const tileCityKind = tema => {
 const tileBare = () => mapTileOn() && new URLSearchParams(location.search).get('cidade') !== '1';
 const tileEmptyOn = tema => mapTileOn() && !tileCityKind(tema);
 
+// ---------- Etapa 4E: composição do tile (js/macro/tile.js posição do principal; js/local/tilecompose.js preenchimento) ----------
+// ?compor=0 volta ao tile vazio (4A) para comparar. Padrão: ligado em todo tile do cenário (?cidade=1 e ?pois=max seguem sem composição).
+const tileComposeOn = () => mapTileOn() && new URLSearchParams(location.search).get('compor') !== '0' && new URLSearchParams(location.search).get('cidade') !== '1'
+  && new URLSearchParams(location.search).get('pois') !== 'max';
+// Onde fica o POI principal (arquétipos sorteados pela semente, rodada 8). margin: distância mínima do POI à borda do tile (70). openGap: distância mínima
+// a qualquer abertura, para sobrar espaço à defesa (80). bigEdge: folga da caixa da cidade/vila à borda; o deslocamento máximo é (tile - 2*half)/2 - bigEdge (14,
+// igual a CITY_HUGE.margin). bigOpen: a cidade/vila fica a `half + bigOpen` de qualquer abertura (12). shift: faixa do arquétipo "deslocado" como fração da
+// metade do tile (0.25 a 0.40). tries: sorteios por arquétipo antes de cair no seguinte. topFrac: "encosta" escolhe entre esta fração dos pontos mais altos (0.25).
+// shoreMin/shoreMax: "margem" fica com água (ou borda de floresta) entre estas distâncias (6 e 26). Pesos: arquétipo por tema (o que falta vale 0); tile de UMA
+// entrada sempre usa "fundo" (e "deslocado" se não houver como). Padrão: central 30%, deslocado 25, estrada 20, fundo 10; mina/fortaleza com encosta; ponte/serraria com margem.
+const TILE_MAIN = {
+  margin: 70, openGap: 80, bigEdge: 14, bigOpen: 12, shift: [0.25, 0.40], tries: 80, topFrac: 0.25, shoreMin: 6, shoreMax: 26,
+  weights: {
+    padrao: { central: 30, deslocado: 25, estrada: 20, fundo: 10 },
+    cidade: { central: 30, deslocado: 30, estrada: 25, fundo: 10 },
+    vila: { central: 30, deslocado: 30, estrada: 25, fundo: 10 },
+    mina: { central: 10, deslocado: 15, estrada: 10, fundo: 10, encosta: 55 },
+    fortaleza: { central: 15, deslocado: 15, estrada: 20, fundo: 10, encosta: 40 },
+    ponte: { central: 15, margem: 85 },
+    serraria: { central: 20, deslocado: 15, estrada: 10, margem: 55 }
+  }
+};
+// Como cada id da tabela TILE_COMPOSE vira POI. type = id de POI_DEFS; place = onde nasce: 'road' (perto da estrada), 'far' (longe das estradas),
+// 'main' (colado ao POI principal), 'free' (qualquer lugar); ambient: acampamento/gruta/bando (áreas, não POIs de POI_DEFS). owner: dono inicial ('none' = ruínas).
+// pend: o POI ainda não existe e entra o substituto de `type` (vila de trabalhadores, plantação, pesca) e a tabela do tile marca "pendente".
+// caravan: só onde passa estrada de caravana (tileCaravanRoad). 'vila_ou_descanso' sorteia entre as opções de `pick` (40% vila de trabalhadores, 60% descanso).
+const TILE_POI_MAP = {
+  fazenda: { type: 'farm', place: 'road' }, fazenda_pequena: { type: 'farm', place: 'road' }, plantacao: { type: 'farm', place: 'road', pend: true },
+  mina_pequena: { type: 'mine', place: 'road' }, serraria_pequena: { type: 'sawmill', place: 'road' }, cacadores: { type: 'hunters', place: 'far' },
+  cacadores_pequeno: { type: 'hunters', place: 'far' }, pousada: { type: 'inn', place: 'road' }, pousada_abandonada: { type: 'inn', place: 'far' },
+  taverna: { type: 'tavern', place: 'road' }, entreposto: { type: 'post', place: 'road', caravan: true }, santuario: { type: 'sanctuary', place: 'far' },
+  alojamento: { type: 'lodge', place: 'road' }, torre_vigia: { type: 'tower', place: 'free' }, pesca: { type: 'tower', place: 'free', pend: true },
+  ruinas_menor: { type: 'ruins', place: 'free' }, ruinas_rara: { type: 'ruins', place: 'far' }, reliquia: { type: 'ruins', place: 'far' }, guardioes: { type: 'ruins', place: 'far' },
+  acampamento_fortificado: { type: 'fortcamp', place: 'free' }, atalaia: { type: 'lookout', place: 'free' }, trincheira: { type: 'trench', place: 'free' },
+  vila_apoio: { type: 'lodge', place: 'road', pend: true }, vila_trabalhadores: { type: 'lodge', place: 'road', pend: true },
+  vila_ou_descanso: { pick: [['vila_trabalhadores', 40], ['pousada', 30], ['alojamento', 30]] },
+  acampamento: { ambient: 'camp' }, gruta: { ambient: 'cave' }, caverna: { ambient: 'cave' }, bando: { ambient: 'pack' }, matilha: { ambient: 'pack' }
+};
+// POI principal de cada tema (valor de TILE_COMPOSE[tema].main -> id de POI_DEFS). 'cidade' e 'vila' são o gerador de cidades (4B/4C).
+const TILE_MAIN_TYPE = { cacadores: 'hunters', forte: 'fort', fazenda: 'farm', mina: 'mine', serraria: 'sawmill', ponte: 'bridge', ruinas: 'ruinvil' };
+// Se o POI principal não cabe em lugar nenhum do tile (vila em escombros é enorme, raio 40), entra este menor no lugar (id de POI_DEFS). Padrão: ruínas antigas no lugar da vila em escombros; forte -> torre.
+const TILE_MAIN_FALLBACK = { ruinvil: 'ruins', fort: 'tower' };
+// Se o tema ponte não achar ponte no tile (o grafo da etapa 5 é que a cria), o principal vira este POI (padrão: entreposto, que já vive em estrada).
+const TILE_BRIDGE_FALLBACK = 'post';
+// Opções de 'qualquer' (cidade e vila: qualquer POI com peso pelo terreno) e o bônus de peso do que combina com o bioma do lugar (x3; vila e cidade iguais, rodada 9).
+// Biomas: 0 planície, 1 floresta, 2 deserto, 3 neve, 4 rocha.
+const TILE_ANY_TYPES = ['farm', 'mine', 'sawmill', 'hunters', 'sanctuary', 'fort', 'tower', 'tavern', 'post', 'ruins', 'inn', 'lodge'];
+const TILE_ANY_BONUS = 3;
+// Onde nasce cada tipo escolhido por 'qualquer' (mesmas classes de TILE_POI_MAP.place). Padrão: comércio, fazenda e pousada na estrada; caçadores, santuário e ruínas longe; alojamento também na estrada (pedido do usuário em 2026-11-24; antes ficava colado ao principal).
+const TILE_TYPE_PLACE = { farm: 'road', mine: 'free', sawmill: 'free', hunters: 'far', sanctuary: 'far', fort: 'free', tower: 'free', tavern: 'road', post: 'road', ruins: 'far', inn: 'road', lodge: 'road' };
+const TILE_ANY_FAVOR = { 0: ['farm', 'tavern', 'inn'], 1: ['sawmill', 'hunters', 'lodge'], 2: ['farm', 'post', 'ruins'], 3: ['mine', 'tower', 'sanctuary'], 4: ['mine', 'fort', 'tower'] };
+// Regras de lugar dos POIs do tile. edge: distância mínima do centro à borda (36). openClear: folga da BORDA do POI a uma abertura (8; o espaço de guerra é a zona). roadNear: [mín, máx] de folga entre a
+// borda do POI e a estrada para 'road' (4 e 38). farRoad: distância mínima da estrada para 'far' (52). mainNear: [mín, máx] de folga ao principal para 'main' (4 e 30).
+// tries: sorteios de lugar por POI (500). laxGap: folga entre POIs na 2ª tentativa, quando a 1ª não acha lugar (12; a 1ª usa POI_GAP e AMB_GAP).
+// cityGap: folga (blocos) entre a borda do POI e a pegada da cidade, rampa incluída (26). mainRamp: largura da rampa do terreno em volta do POI principal (10; a das
+// estradas que chegam a ele fica a no máximo ~1 bloco da plataforma, senão a estrada bate numa parede na encosta). roadFar: quanto o POI "de estrada" pode se
+// afastar além de roadNear na 2ª passada (40; não vira "qualquer lugar": sem estrada perto o POI não nasce). Padrão: 36, 8, [4,38], 52, [4,30], 500, 12, 26, 10, 40
+const TILE_PLACE = { edge: 36, openClear: 8, roadNear: [4, 38], farRoad: 52, mainNear: [4, 30], tries: 500, laxGap: 12, cityGap: 26, mainRamp: 10, roadFar: 40 };
+// Dono inicial: do POI principal e dos demais ('bandit', 'player', 'none'); ?dono=player|bandit troca o do principal (para testar o tile do jogador).
+const TILE_OWNER = { main: 'bandit', other: 'bandit' };
+// Entreposto só onde passa estrada de caravana: sem o grafo (etapa 5), vale "o tile tem ao menos duas aberturas" (a estrada atravessa o tile).
+const tileCaravanRoad = win => win.openings.length >= 2;
+// Zonas de guerra (rodada 8): clareiras reservadas na geração, vazias até haver batalha. openDist: distância da abertura ao centro da zona de abertura (40);
+// openR: raio dela (16); ringW: largura da faixa do anel em volta do principal, além do raio do POI (24); plazaR: raio da praça de encontro (18);
+// siteRange: desnível máximo aceito no chão de uma zona (8); trees: as zonas ficam sem árvores. test: POIs de teste montados por zona (a etapa 10 define os de verdade):
+// abertura -> acampamento fortificado, anel -> trincheira, praça -> barricada. Padrão: 40, 16, 24, 18, 8
+// sides: donos [atacante, defensor] dos POIs de teste de cada batalha ('main' = dono do POI principal): conquista = você ataca, defesa = você defende, choque = você contra bandidos.
+const TILE_WAR = { openDist: 40, openR: 16, ringW: 24, plazaR: 18, siteRange: 8, test: { abertura: 'fortcamp', anel: 'trench', praca: 'barricade' },
+  sides: { conquista: ['player', 'main'], defesa: ['bandit', 'player'], choque: ['player', 'bandit'] } };
+
+// Marcas no mapa e no minimapa do cenário de tile (só com ?cenario=tile composto): círculo CIANO no POI/cidade PRINCIPAL do tile; círculo AZUL nos POIs e cidades do jogador e
+// VERMELHO nos de outros donos (bandidos ou facções; ruínas sem dono e POIs livres ficam sem círculo). main/own: cores; r: raio em pixels do minimapa (principal 10, dono 7)
+// e no mapa grande (principal 15, dono 10), multiplicados pelo tamanho do mapa; w: espessura.
+const TILE_MARK = { main: '#00e5ff', player: '#2a7aff', enemy: '#ff2a2a', mini: { main: 10, own: 7, w: 2 }, big: { main: 15, own: 10, w: 3 } };
+
 // ---------- Etapa 3 do plano: campo do mundo e mapa local por janela (atrás de ?mundo=1 e de ?cenario=tile) ----------
 // O mundo é uma FUNÇÃO de posição (js/macro/worldfield.js); o mapa local é uma janela dessa função. Valores = ponto de partida, a calibrar.
 const WORLD_FIELD = {

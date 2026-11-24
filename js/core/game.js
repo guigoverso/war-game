@@ -266,6 +266,7 @@ function toggleMute(){G.muted=!G.muted;if(master)master.gain.value=G.muted?0:0.3
 function toggleInvis(){G.invis=!G.invis;if(G.invis){for(const e of ENEMIES)e.aggro=false}}
 function refreshCheats(){
   refreshPolicyCheats();
+  {const ps=$('posshow');if(ps)ps.textContent=txtPlayerPos(P)}   // coordenadas do jogador (aba Geral da pausa)
   {const ss=$('seedshow');if(ss&&typeof WORLD!=='undefined'&&WORLD.seed!==undefined)ss.textContent=WORLD.seed}
   $('cPolicyNext').textContent='Disparar evento na próxima rodada: '+(POL.forceNext?'SIM':'não');
   $('cSupplied').textContent='Cidades sempre supridas: '+(G.alwaysSupplied?'LIGADO':'desligado');
@@ -273,6 +274,10 @@ function refreshCheats(){
 $('cMute').onclick=toggleMute;
 $('seedcopy').onclick=()=>{const s=String(WORLD.seed),done=()=>toast('Semente '+s+' copiada!',1800);
   const fb=()=>{const ta=document.createElement('textarea');ta.value=s;ta.style.cssText='position:fixed;left:-999px';document.body.appendChild(ta);ta.select();try{document.execCommand('copy');done()}catch(e){toast('Não foi possível copiar. A semente é '+s,3000)}ta.remove()};
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(s).then(done,fb);else fb()};
+// copia a posição do jogador (sem toast: o botão mostra o resultado por um instante)
+$('poscopy').onclick=()=>{const s=txtPlayerPos(P),b=$('poscopy'),done=()=>{b.textContent=TXT_POS_COPIED;setTimeout(()=>{b.textContent=TXT_POS_COPY},1500)};
+  const fb=()=>{const ta=document.createElement('textarea');ta.value=s;ta.style.cssText='position:fixed;left:-999px';document.body.appendChild(ta);ta.select();try{document.execCommand('copy');done()}catch(e){b.textContent=TXT_POS_FAIL}ta.remove()};
   if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(s).then(done,fb);else fb()};
 $('cSave').onclick=()=>SaveUI.open('game');
 $('loadbtn').onclick=()=>SaveUI.open('load');
@@ -577,6 +582,7 @@ function drawMinimap(){
     mmc.strokeStyle='#fff';mmc.lineWidth=2;mmc.beginPath();mmc.rect(x-6,y-6,12,12);mmc.fill();mmc.stroke();
   }
   if(!G.dg)for(const p of WORLD.pois||[]){if(p.type==='ruins'||!poiVisible(p))continue;const x=(p.cx-P.x)*s,y=(p.cz-P.z)*s;mmc.fillStyle=poiCss(p.owner);mmc.strokeStyle=POI_BORDER;mmc.lineWidth=1.3;mmc.beginPath();mmc.rect(x-4.5,y-4.5,9,9);mmc.fill();mmc.stroke()}   // POIs (cor do dono)
+  if(!G.dg&&WORLD.tileCompose)tileMarkDraw(mmc,(wx,wz)=>[(wx-P.x)*s,(wz-P.z)*s],TILE_MARK.mini,1);   // círculos do principal (ciano) e dos donos (azul/vermelho) no cenário de tile (tilecompose.js)
   if(!G.dg)warFrontDrawMini(mmc,s);   // rota da frente da guerra (warfront.js; liga/desliga em WAR.front.minimap)
   {const ct=G.dg?null:cvbTarget();if(ct){let x=(ct.x-P.x)*s,y=(ct.z-P.z)*s;const L=Math.hypot(x,y),maxL=62;if(L>maxL){x*=maxL/L;y*=maxL/L}drawStar(mmc,x,y,7)}}   // caravana sendo saqueada
   if(!G.dg)for(const a of ALLIES)if(a.alive){mmc.fillStyle='#4aa0ff';mmc.fillRect((a.x-P.x)*s-2,(a.z-P.z)*s-2,4,4)}
@@ -647,6 +653,7 @@ function drawBigMap(cvArg,mk){   // cvArg: outro canvas (popup de missão); mk: 
     if(G.poiNames&&p.id!==G.poiFocus){g.font='bold '+Math.round(10*k)+'px monospace';g.fillStyle='#ffe9b0';g.strokeStyle='#000';g.lineWidth=3;g.strokeText(POI_DEFS[p.type].n,x,y-8*k);g.fillText(POI_DEFS[p.type].n,x,y-8*k);g.font='bold '+Math.round(14*k)+'px monospace'}}   // POIs no mapa grande, como as cidades (menores); o nome só aparece se o botão estiver ligado (e, sempre, ao passar o mouse)
   {const pf=(WORLD.pois||[]).find(q=>q.id===G.poiFocus);if(pf){const x=pf.cx*s,y=pf.cz*s;g.strokeStyle='#ffd23a';g.lineWidth=4*k;g.beginPath();g.arc(x,y,(16+3*Math.sin(Date.now()/250))*k,0,6.283);g.stroke();g.fillStyle='#ffe9a0';g.strokeStyle='#000';g.lineWidth=3;g.font='bold '+Math.round(13*k)+'px monospace';g.strokeText(POI_DEFS[pf.type].n,x,y-22*k);g.fillText(POI_DEFS[pf.type].n,x,y-22*k);g.font='bold '+Math.round(14*k)+'px monospace'}}   // POI do cartão "Terras livres" em destaque
   {const cf=WORLD.cities.find(q=>q.id===G.cityFocus);if(cf){const x=cf.cx*s,y=cf.cz*s;g.strokeStyle='#ffd23a';g.lineWidth=4*k;g.beginPath();g.arc(x,y,(20+3*Math.sin(Date.now()/250))*k,0,6.283);g.stroke()}}   // cidade escolhida na aba Guerra do livro (warbook.js)
+  if(WORLD.tileCompose)tileMarkDraw(g,(wx,wz)=>[wx*s,wz*s],TILE_MARK.big,k);   // idem, no mapa grande (tilecompose.js)
   drawGoldPortals(g,s,0,0,0,true);   // portais dourados no mapa grande
   {const ct=cvbTarget();if(ct){drawStar(g,ct.x*s,ct.z*s,10*k);g.fillStyle='#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText('Caravana',ct.x*s,ct.z*s-16*k);g.fillText('Caravana',ct.x*s,ct.z*s-16*k)}}
   drawRose(g,cv.width-64*k,64*k,30*k);

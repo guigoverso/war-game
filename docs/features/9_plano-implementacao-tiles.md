@@ -8,7 +8,7 @@ Especificação: `docs/features/8_tiles-e-vilas.md` (fonte da verdade). Este arq
 ## Princípios (iguais aos do plano 6)
 - Cada sessão termina com: `node tests/smoke.js` OK, teste na tela pelo usuário, `docs/MAPA.md` e `docs/ESTADO.md` atualizados, commit.
 - Números em `js/modifiers/map-modifiers.js` e textos em `js/texts/map-texts.js` (ou categorias novas `tile-`), como pede o `CLAUDE.md`. Notificação nova só com aprovação.
-- Nenhum tile depende do grafo (etapa 5): o **tema** do tile vem por parâmetro de URL (`?cenario=tile&tema=fazenda`) até o grafo existir. Na etapa 5 o grafo passa a escolher o tema.
+- Nenhum tile depende do grafo (etapa 5): o **tema** do tile vem por parâmetro de URL (`?cenario=tile&tema=fazenda`) até o grafo existir. Na etapa 5 o grafo passa a escolher o tema (por adequação ao terreno; ver `6_plano-mapa-mundi.md`, etapa 5).
 - Tamanho: **P** (uma sessão curta), **M** (uma sessão), **G** (várias).
 
 ## Sessões
@@ -34,17 +34,14 @@ Vila de até 10% do tile (lado até ~121): sem ruas, estradas ligando as casas; 
 ### 4D. POIs novos e adaptados (M) — **FEITA em 2026-11-23** (resumo em `docs/ESTADO.md`), pode ir em paralelo com 4B/4C
 Arquivos diferentes (`pois.js`, `poigame.js`). Pousada (camas `poibed` + lojinha), alojamento de trabalhadores com cantina, vila em escombros (ruínas anexáveis, não reconstruíveis), versão rara da vila de trabalhadores, variações visuais por tema. Torre de vigia sem a mecânica nova (fica para a etapa 8). Atualizar `POI_DEFS`/`POI_TYPES`.
 
-### 4E. Composição do tile (G) — **SESSÃO NOVA**, depois de 4A e 4D (4B/4C para os temas de cidade e vila)
+### 4E. Composição do tile (G) — **FEITA em 2026-11-23** (resumo em `docs/ESTADO.md` e `docs/MAPA.md`), depois de 4A e 4D (4B/4C para os temas de cidade e vila)
 Gerador que preenche o tile: principal no centro (marcado no mapa como as cidades), tema perto da estrada, ambiente longe, baús, entreposto só onde passa caravana, passagem com poucas construções. Usa a regra "reservar primeiro" e as folgas `POI_GAP`/`AMB_GAP`. **Acréscimos da rodada 8:** (1) **posição do POI principal** por arquétipo sorteado pela semente (central ~30%, deslocado, beira da estrada, fundo, encosta, margem), com restrições (≥ 70 da borda, ≥ ~80 das aberturas, estrada ligando principal e aberturas; tile de 1 entrada = principal no fundo; cidade enorme com deslocamento máximo `(384 − lado)/2 − 8`); (2) **zonas de guerra reservadas** (uma por abertura, um anel em volta do principal e uma praça de encontro no cruzamento mais próximo do centro), vazias até haver batalha; (3) **montagem dos POIs de guerra por batalha** a partir do descritor da 4A, deixando-os enquanto durar o conflito. Os tipos e a quantidade de POIs de guerra por zona ficam para a etapa 10: aqui entra só a infraestrutura (zonas, montagem com POIs de teste, reposicionamento). Teste: um cenário por tema, tabela de contagem de POIs e uma batalha de cada tipo (conquista, defesa, choque) em tiles de 1, 2 e 4 entradas.
 
 ### 4F. Estado e economia do tile (M) — **SESSÃO NOVA**, pode ir em paralelo com 4E
 Camada `macro` (sem Three.js): dono do tile = dono do POI principal, diferenças da semente, lista de POIs de guerra do tile `{tipo, zona, dono}`, produção resumida por rodada (comida/recurso nos de recurso; imposto `12 + 5 × rank` na vila), bônus que substitui o dos POIs de hoje. Teste em Node (`node tests/macro/run.js`). Se mexer no estado salvo: `SAVE_VERSION` e `migrateSave`. A anexação detalhada fica para a etapa 8.
 
-### 4G. Revisão e fechamento (P) — **SESSÃO NOVA**
-Roda o smoke, joga um tile de cada tema, confere o tempo de geração e atualiza `docs/MAPA.md`, `docs/ESTADO.md` e `docs/features/6_plano-mapa-mundi.md`.
-
 ## Ordem e paralelismo
-`4.0` (leitura) em paralelo com a especificação -> `4A` -> (`4B` -> `4C`) em paralelo com `4D` e `4F` -> `4E` -> `4G`.
+`4.0` (leitura) em paralelo com a especificação -> `4A` -> (`4B` -> `4C`) em paralelo com `4D` e `4F` -> `4E` -> **`4F`** -> **POIs lego (etapa 4B do plano 6, `11_pois-procedurais-lego.md`)** -> **`4G`** (a revisão passa para depois do lego, que muda a densidade e o tempo de geração). Em paralelo com o lego, o protótipo da batalha (etapa 4C do plano 6, `12_batalha-no-tile.md`).
 Só `4B` e `4C` mexem nos mesmos arquivos; as demais não se sobrepõem entre si.
 
 ## Sessão nova ou a atual?

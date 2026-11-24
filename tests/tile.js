@@ -1,6 +1,6 @@
 'use strict';
 // ---------- Teste do tile da etapa 4A (Node + Playwright; só para desenvolvimento) ----------
-// Abre ?cenario=tile com temas e batalhas e confere: carga sem erros, lado 384, tile vazio (o tema cidade traz a cidade enorme, 4B), descritor, aberturas livres e tempo de geração (limite 4 s).
+// Abre ?cenario=tile com temas e batalhas e confere: carga sem erros, lado 384, composição (4E: cidade enorme, vila e demais temas com principal e POIs; ?compor=0 = tile vazio da 4A), descritor, aberturas livres e tempo de geração (limite 4 s). A composição em detalhe: tile-compose.js.
 // Uso: cd tests && node tile.js [semente]
 const http=require('http'),fs=require('fs'),path=require('path');
 const {chromium}=require('playwright');
@@ -13,7 +13,7 @@ const LIMIT=4000;
 (async()=>{
   const srv=await serve(),base='http://127.0.0.1:'+srv.address().port,browser=await chromium.launch();
   const cases=[['tema=cidade'],['tema=fazenda'],['tema=mina'],['tema=serraria'],['tema=animais'],['tema=ponte'],['tema=fortaleza'],['tema=ruinas'],['tema=passagem'],['tema=vila'],
-    ['tema=fazenda&batalha=defesa&entrada=L'],['tema=mina&batalha=choque&entrada=N&entrada2=S&estac=defensor'],['tema=vila&batalha=conquista&entrada=O'],['temas=70'],['tema=vila&cidade=1']];
+    ['tema=fazenda&compor=0'],['tema=fazenda&batalha=defesa&entrada=L'],['tema=mina&batalha=choque&entrada=N&entrada2=S&estac=defensor'],['tema=vila&batalha=conquista&entrada=O'],['temas=70'],['tema=vila&cidade=1']];
   for(const [qs] of [cases[0]].concat(cases.slice(1))){
     const page=await browser.newPage({viewport:{width:1280,height:800}}),errs=[];
     page.on('pageerror',e=>errs.push(e.message));page.on('console',m=>{if(m.type()==='error')errs.push(m.text())});
@@ -29,9 +29,11 @@ const LIMIT=4000;
     if(!r)continue;
     rep(r.W===384&&r.size===384,q2+': lado 384',r.W+'');
     rep(r.dt===r.tema,q2+': tema '+r.tema+(r.empty?'':' (com cidade)'));
-    if(qs==='tema=cidade')rep(!r.empty&&r.huge&&r.pois===0,q2+': cidade enorme, sem POIs (4B)',r.pois+' POIs, huge='+r.huge);
-    else if(r.tema==='vila'&&!qs.includes('cidade=1'))rep(!r.empty&&r.vila&&r.pois===0,q2+': vila (4C), sem POIs',r.pois+' POIs, vila='+r.vila);
-    else if(!qs.includes('cidade=1'))rep(r.empty&&r.pois===0,q2+': tile vazio',r.pois+' POIs');
+    if(qs.includes('compor=0'))rep(r.empty&&r.pois===0,q2+': ?compor=0 = tile vazio (4A)',r.pois+' POIs');
+    else if(qs==='tema=cidade')rep(!r.empty&&r.huge&&r.pois>=2,q2+': cidade enorme com POIs (4B+4E)',r.pois+' POIs, huge='+r.huge);
+    else if(r.tema==='vila'&&!qs.includes('cidade=1'))rep(!r.empty&&r.vila&&r.pois>=2,q2+': vila com POIs (4C+4E)',r.pois+' POIs, vila='+r.vila);
+    else if(r.tema==='passagem'||qs.includes('cidade=1')||qs==='temas=70')rep(true,q2+': '+r.pois+' POIs');
+    else rep(r.empty&&r.pois>=2,q2+': tile sem cidade, com principal e POIs',r.pois+' POIs');
     rep(r.saidas===r.aber&&!r.nan,q2+': '+r.aber+' abertura(s), jogador posicionado');
     if(qs.includes('batalha'))rep(!!r.bat,q2+': descritor de batalha',JSON.stringify(r.bat));
     rep(ms<=LIMIT*3,q2+': tempo até rodar '+ms+' ms (inclui abrir o navegador; limite de geração 4 s)');
