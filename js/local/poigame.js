@@ -465,51 +465,47 @@ function postSellTab(p,c,body){
 // pousadeiro (pousada) e cozinheiro (alojamento): comida, remédios e quarto; preços com o acréscimo de POI_REST (poi-modifiers.js).
 // A produção do tile entra na loja na etapa 8 (o tile ainda não tem economia).
 function svcInn(p){
-  const c=poiPriceCity(p),K=POI_REST[p.type]||POI_REST.inn,mark=1+K.markup;
-  const price=(base,kind)=>Math.max(1,Math.round(base*priceMulOf(priceExplain({city:c,kind}).concat([{txt:POI_DEFS[p.type].n,mul:mark}]))));
+  const c=poiPriceCity(p),K=POI_REST[p.type]||POI_REST.inn,mark=1+K.markup,name=POI_DEFS[p.type].n;
+  const price=(base,kind)=>Math.max(1,Math.round(base*priceMulOf(priceExplain({city:c,kind}).concat([{txt:name,mul:mark}]))));
+  const tag=kind=>whyTag(priceMulOf(priceExplain({city:c,kind}).concat([{txt:name,mul:mark}])),'',   // "%" + "?": explica o preço (acréscimo do POI em data-xl/xm)
+    'data-why="price" data-c="'+c.id+'" data-k="'+kind+'" data-xl="'+name+'" data-xm="'+mark+'"',false);
   G.innMode='menu';G.innTab='food';G.innSel=null;
   svcOpen(txtRestTitle(p.type),(txt,body)=>{
-    const mode=G.innMode,left=innCash(p);
-    txt.innerHTML=txtRestIntro(p.type,Math.round(K.markup*100),P.coins,left,K.cash);
-    const back=()=>{const b=UI.button('← Voltar','alt',()=>{G.innMode='menu';G.innSel=null;svcRender()});b.style.marginTop='10px';body.appendChild(b)};
+    const mode=G.innMode,gold=innCash(p),back=()=>{G.innMode='menu';G.innSel=null;svcRender()};
     if(mode==='menu'){   // regra dos comerciantes: antes de tudo, Comprar ou Vender (como na Loja)
+      svcShopHeader(txt,gold);
+      body.insertAdjacentHTML('beforeend','<p>'+txtRestGreeting(p.type,Math.round(K.markup*100))+'</p>');
       body.appendChild(UI.button('🛍 Comprar','gold',()=>{G.innMode='buy';svcRender()}));
       body.appendChild(UI.button('🎒 Vender itens','gold',()=>{G.innMode='sell';G.innSel=null;svcRender()}));
       return;
     }
-    if(mode==='sell'){innSellTab(p,c,body);back();return}
-    const X=poiX(),r=X.room,has=r&&r.poi===p.id&&r.round===STATE.round,debt=Ledger.anyDebt();
-    const bar=document.createElement('div');bar.style.marginBottom='6px';   // abas por categoria, como as do armeiro
-    for(const [k,label] of REST_TABS)bar.appendChild(UI.button(label,G.innTab===k?'gold':'alt',()=>{G.innTab=k;svcRender()}));
-    body.appendChild(bar);
+    if(mode==='sell'){svcShopHeader(txt,gold);innSellTab(p,c,body);svcShopBack(body,back);return}
+    const X=poiX(),r=X.room,has=r&&r.poi===p.id&&r.round===STATE.round,debt=Ledger.anyDebt(),cards=[];
     if(G.innTab==='room'){
       const cost=Math.max(1,Math.round(clinicCost(P.maxhp,c)*K.room));
-      const room=UI.button(has?txtRestRoomHeld(p.type):txtRestRoomRent(cost),'gold',()=>{
-        if(!Ledger.spend({gold:cost}))return;
-        X.room={poi:p.id,round:STATE.round};sfx('coin',0);svcRender();
-      });
-      room.disabled=has||debt||P.coins<cost;body.appendChild(room);
+      cards.push({icon:'🛏',name:'Quarto',desc:txtRestRoomDesc(p.type),tag:tag('healhp'),label:has?txtRestRoomHeld(p.type):txtRestRoomRent(cost),disabled:has||debt||P.coins<cost,
+        onBuy:()=>{if(!Ledger.spend({gold:cost}))return;innCashAdd(p,cost);X.room={poi:p.id,round:STATE.round};sfx('coin',0);svcRender()}});
     }else{
       const shop=G.innTab==='heal'?'clinic':'tavern',kind=G.innTab==='heal'?'heal':'tavern';
-      Object.values(DATA.items).filter(d=>d.shop===shop&&!d.rod).forEach(d=>{
-        const pr=price(d.price,kind),b=UI.button(d.icon+' '+d.name+' ◉'+pr,'gold',()=>{
+      for(const d of Object.values(DATA.items).filter(d=>d.shop===shop&&!d.rod)){
+        const pr=price(d.price,kind);
+        cards.push({icon:d.icon,name:d.name,desc:d.desc,tag:tag(kind),label:'Comprar ◉'+pr,disabled:debt||P.coins<pr,onBuy:()=>{
           if(invRoomFor(d.id)<1)toast('Bolsa cheia! Descarte algo antes de comprar.',2000);
-          else if(Ledger.spend({gold:pr})){invGive([[d.id,1]]);sfx('coin',0)}
-          svcRender();
-        });
-        b.disabled=debt||P.coins<pr;b.title=d.desc;body.appendChild(b);
-      });
+          else if(Ledger.spend({gold:pr})){invGive([[d.id,1]]);innCashAdd(p,pr);sfx('coin',0)}
+          svcRender()}});
+      }
     }
-    back();
+    svcShopView(txt,body,{gold,tabs:REST_TABS,tab:G.innTab,onTab:k=>{G.innTab=k;svcRender()},cards,onBack:back});
   });
 }
-// ouro que o comerciante da pousada ainda tem para comprar de você nesta rodada (POI_REST.cash; renova a cada rodada)
+// ouro do comerciante da pousada: começa em POI_REST.cash a cada rodada, cai quando ele compra de você e sobe quando você compra dele
 function innCash(p){
   const X=poiX();if(!X.innCash)X.innCash={};
   let e=X.innCash[p.id];if(!e||e.r!==STATE.round)e=X.innCash[p.id]={r:STATE.round,left:(POI_REST[p.type]||POI_REST.inn).cash};
   return e.left;
 }
-// aba Vender: a mochila aparece, clique no item para ver o preço (o da loja da cidade de referência); ele só paga até o ouro que tem
+const innCashAdd=(p,n)=>{innCash(p);poiX().innCash[p.id].left+=n};
+// aba Vender: a mochila aparece, clique no item para ver o preço (o da loja da cidade de referência, com "?" explicando); ele só paga até o ouro que tem
 function innSellTab(p,c,body){
   const inv=STATE.inv,wrap=document.createElement('div');wrap.style.cssText='display:flex;gap:18px;flex-wrap:wrap';
   const lf=document.createElement('div'),right=document.createElement('div');right.style.cssText='min-width:240px;max-width:300px';
@@ -523,7 +519,7 @@ function innSellTab(p,c,body){
   if(!s){right.innerHTML='<p class="st">'+TXT_POST_SELL_HINT+'</p>';return}
   const d=itemDef(s.id),n=s.n,pr=sellUnitPrice(s.id,c);
   right.innerHTML='<div style="font-size:30px">'+d.icon+'</div><b>'+d.name+'</b> ×'+n+'<p class="st">'+d.desc+'<br>'
-    +(d.noSell?TXT_POST_NO_SELL:txtPostSellPrice(pr,d.value))+'</p>';
+    +(d.noSell?TXT_POST_NO_SELL:txtPostSellPrice(pr,d.value)+' '+whyTag(priceMulOf(sellEffects(s.id,c)),'','data-why="sell" data-c="'+c.id+'" data-i="'+s.id+'"',true))+'</p>';
   if(d.noSell)return;
   const sell=q=>{
     let sold=0,earned=0,broke=false;
@@ -531,7 +527,7 @@ function innSellTab(p,c,body){
       if(d.weapon!==undefined&&weaponsOwnedCount()<=1){toast('Você precisa ficar com pelo menos uma arma.',2200);break}
       if(innCash(p)<pr){broke=true;break}
       if(invRemove(s.id,1)<1)break;
-      poiX().innCash[p.id].left-=pr;Ledger.add('gold',pr);sold++;earned+=pr;
+      innCashAdd(p,-pr);Ledger.add('gold',pr);sold++;earned+=pr;
     }
     if(s.id==='reliquia'&&sold>0&&typeof msRelicSold==='function')msRelicSold();
     if(sold>0){sfx('coin',0);toast('Vendido: '+sold+'× '+d.name+'  +◉'+earned+(broke?'  •  '+TXT_POST_BROKE:''),2200)}

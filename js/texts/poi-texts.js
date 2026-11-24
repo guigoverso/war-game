@@ -5,9 +5,10 @@
 // ------ Pousada e alojamento de trabalhadores (poigame.js, svcInn e cama) ------
 // Título da tela do pousadeiro (pousada) ou do cozinheiro (alojamento).
 const txtRestTitle = type => type === 'lodge' ? '🍲 CANTINA' : '🛏 POUSADA';
-// Frase do topo da tela: acréscimo (%) sobre a loja da cidade, moedas do jogador e ouro que o comerciante ainda tem para comprar de você (left de max).
-const txtRestIntro = (type, pct, coins, left, max) => (type === 'lodge' ? '— Sopa quente e um beliche, patrão. ' : '— Entre, descanse! ')
-  + 'Preços ' + pct + '% acima da cidade. O quarto custa a cura completa. Moedas: <b>◉ ' + coins + '</b> • Ouro dele para comprar de você: <b>◉ ' + left + ' / ' + max + '</b>';
+// Saudação do menu inicial do comerciante da pousada ou do alojamento (poigame.js, svcInn): acréscimo (%) sobre a loja da cidade.
+const txtRestGreeting = (type, pct) => (type === 'lodge' ? '— Sopa quente e um beliche, patrão. ' : '— Entre, descanse! ') + 'Preços ' + pct + '% acima da cidade.';
+// Descrição da caixa do quarto na aba Quarto.
+const txtRestRoomDesc = type => type === 'lodge' ? 'Um beliche no barracão: a noite vira manhã (ou o dia vira noite) e a vida volta toda. Custa a cura completa.' : 'Cama na casa: a noite vira manhã (ou o dia vira noite) e a vida volta toda. Custa a cura completa.';
 // Abas da tela de compra da pousada e do alojamento [chave, rótulo] (poigame.js, svcInn).
 const REST_TABS = [['food', '🍲 Comida'], ['heal', '🩹 Remédios'], ['room', '🛏 Quarto']];
 // Botão de alugar o quarto e botão com o quarto já reservado (nesta rodada).
@@ -48,3 +49,9 @@ const TXT_VIGIL_USED='Esta torre já foi usada nesta rodada.';
 const TXT_VIGIL_WRONG_PHASE='A vigia é feita no turno do comandante.';
 // Toast: o jogador chegou perto de um "?" e ele sumiu.
 const TXT_VIGIL_ARRIVED='Você chegou ao ponto de interesse.';
+
+// ------ Tela de serviço padrão de comerciante (svcshop.js) ------
+// Linha grande do topo: moedas que o comerciante tem (sobem conforme o jogador compra).
+const txtShopMerchantGold = n => '◉ ' + n + ' moedas do comerciante';
+// Linha menor logo abaixo: moedas do jogador.
+const txtShopPlayerGold = n => 'Suas moedas: ◉ ' + n;
