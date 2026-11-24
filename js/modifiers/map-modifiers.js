@@ -125,8 +125,13 @@ const TILE_ANY_FAVOR = { 0: ['farm', 'tavern', 'inn'], 1: ['sawmill', 'hunters',
 // tries: sorteios de lugar por POI (500). laxGap: folga entre POIs na 2ª tentativa, quando a 1ª não acha lugar (12; a 1ª usa POI_GAP e AMB_GAP).
 // cityGap: folga (blocos) entre a borda do POI e a pegada da cidade, rampa incluída (26). mainRamp: largura da rampa do terreno em volta do POI principal (10; a das
 // estradas que chegam a ele fica a no máximo ~1 bloco da plataforma, senão a estrada bate numa parede na encosta). roadFar: quanto o POI "de estrada" pode se
-// afastar além de roadNear na 2ª passada (40; não vira "qualquer lugar": sem estrada perto o POI não nasce). Padrão: 36, 8, [4,38], 52, [4,30], 500, 12, 26, 10, 40
-const TILE_PLACE = { edge: 36, openClear: 8, roadNear: [4, 38], farRoad: 52, mainNear: [4, 30], tries: 500, laxGap: 12, cityGap: 26, mainRamp: 10, roadFar: 40 };
+// afastar além de roadNear na 2ª passada (40; não vira "qualquer lugar": sem estrada perto o POI não nasce).
+// L1b (frente e trilha): offRoad = chance de um POI de offRoadTypes nascer longe da estrada, ligado a ela por uma trilha (0.3; o entreposto nunca: só na estrada, onde passa caravana);
+// offNear = [mín, máx] de folga entre a borda do POI e a estrada nesse caso (mín 40 e máx 90 = alcance da trilha); trailGap = a trilha precisa de pelo menos esta distância do portão à
+// estrada para existir (6; mais perto o portão já encosta nela); trailTaken = raio, em blocos, que cada trecho da trilha reserva contra outros POIs (2).
+// Padrão: 36, 8, [4,38], 52, [4,30], 500, 12, 26, 10, 40, 0.3, ['tavern','inn','lodge'], [40,90], 6, 2
+const TILE_PLACE = { edge: 36, openClear: 8, roadNear: [4, 38], farRoad: 52, mainNear: [4, 30], tries: 500, laxGap: 12, cityGap: 26, mainRamp: 10, roadFar: 40,
+  offRoad: 0.3, offRoadTypes: ['tavern', 'inn', 'lodge'], offNear: [40, 90], trailGap: 6, trailTaken: 2 };
 // Dono inicial: do POI principal e dos demais ('bandit', 'player', 'none'); ?dono=player|bandit troca o do principal (para testar o tile do jogador).
 const TILE_OWNER = { main: 'bandit', other: 'bandit' };
 // Entreposto só onde passa estrada de caravana: sem o grafo (etapa 5), vale "o tile tem ao menos duas aberturas" (a estrada atravessa o tile).

@@ -10,18 +10,11 @@ const legoOn = () => { const q = new URLSearchParams(location.search); return q.
 // Verdadeiro só em ?cenario=lego: mundo super plano com os POIs lego em grade (poiLegoShowGen).
 const legoShowOn = () => new URLSearchParams(location.search).get('cenario') === 'lego';
 // Cenário lego: variações por tipo e tamanho (4), colunas e espaçamento da grade em blocos (46), tipos na ordem das fileiras e tamanhos de cada tipo (M médio, P pequeno).
+// Tipos de POI que o compositor do tile (tilecompose.js) vira com a frente para a estrada mais próxima e liga a ela por uma trilha (L1b). Os antigos (taverna, entreposto, pousada,
+// alojamento) giram o desenho inteiro pelo gancho BC_XF (poilego.js, legoOldBuild); fazenda, mina e serraria só quando lego está ligado (legoOn). Padrão: os quatro antigos
+const LEGO_FACE_TYPES = ['tavern', 'post', 'inn', 'lodge'];
 const LEGO_SHOW = { n: 4, gap: 46, types: ['farm', 'mine', 'sawmill'], sizes: ['M', 'P'] };
-// Piso do POI por bioma do tile (índice = BIO_*: planície, floresta, deserto, neve, montanha): base = cor da terra batida em toda a área, alt = cores das manchas (14 por POI).
-// Com ?cenario=lego, ?piso=planicie|floresta|deserto|neve|montanha força o bioma de todos os POIs (padrão: planicie).
-const LEGO_FLOOR = [
-  { base: 0x6a5a40, alt: [0x5e4f38, 0x74644a, 0x4a7a32] },   // planície: terra batida com tufos de grama
-  { base: 0x4e4630, alt: [0x3e3a28, 0x5e5238, 0x2e5a22] },   // floresta: terra escura com folhas e musgo
-  { base: 0xc8b078, alt: [0xb89c64, 0xd8c088, 0xa88a58] },   // deserto: areia compactada
-  { base: 0xdfe6ec, alt: [0xc8d2dc, 0xf0f4f8, 0x9aa4ae] },   // neve: neve pisada com gelo
-  { base: 0x7a7a80, alt: [0x6a6a72, 0x8a8a92, 0x5a5a62] }    // montanha: cascalho de pedra
-];
-// Chance de o POI ficar SEM piso próprio (o chão é o do próprio terreno, sem terra batida nem manchas), por bioma (mesmo índice de LEGO_FLOOR): planície e floresta 50%, o resto sempre com piso (0).
-const LEGO_FLOOR_BARE = [0.5, 0.5, 0, 0, 0];
+// Sem piso próprio: o POI usa o chão do cenário (como os outros POIs). Com ?cenario=lego, ?piso=planicie|floresta|deserto|neve|montanha força o bioma de todos os POIs (padrão: planicie).
 // Chance de o POI ter cerca em volta, por tamanho: cresce com o POI (P pequeno 25%, M médio 50%, G grande 75%).
 const LEGO_FENCE = { P: 0.25, M: 0.5, G: 0.75 };
 const LEGO_PISO_BIOMA = { planicie: 0, floresta: 1, deserto: 2, neve: 3, montanha: 4 };

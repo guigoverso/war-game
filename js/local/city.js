@@ -9,6 +9,8 @@ const PAL={
 const ovr=(a,b,m)=>a.x0-m<=b.x1&&a.x1+m>=b.x0&&a.z0-m<=b.z1&&a.z1+m>=b.z0;
 let BC_XF=null;   // transformação (gira/espelha) de tudo que um POI desenha por Bc; só poilego.js a liga, durante a montagem de um POI lego
 function Bc(c,x0,y0,z0,x1,y1,z1,color,col,o){if(BC_XF){const q=BC_XF(x0,z0,x1,z1);x0=q[0];z0=q[1];x1=q[2];z1=q[3]}if(c.adapt)return poiAdaptBc(c,x0,y0,z0,x1,y1,z1,color,col,o);Bx(c.cx+x0,c.y+y0,c.cz+z0,c.cx+x1,c.y+y1,c.cz+z1,color,col,o)}
+// Ponto local (x,z) levado pela transformação do POI (BC_XF), para o que escreve direto na cena (bandeira, árvore, fogueira); sem BC_XF devolve o próprio ponto.
+function bcPt(x,z){if(!BC_XF)return[x,z];const q=BC_XF(x,z,x,z);return[q[0],q[1]]}
 function setTL(c,lx,lz,t){if(BC_XF){const q=BC_XF(lx,lz,lx+1,lz+1);lx=q[0];lz=q[1]}setT(c.cx+lx,c.cz+lz,t)}   // (com BC_XF: a célula também gira)
 // Colisão (addCol) de um POI na caixa local x0..x1, z0..z1 (y absoluto); gira/espelha junto com o desenho quando há BC_XF (POI lego).
 function acL(c,x0,y0,z0,x1,y1,z1){if(BC_XF){const q=BC_XF(x0,z0,x1,z1);x0=q[0];z0=q[1];x1=q[2];z1=q[3]}addCol(c.cx+x0,y0,c.cz+z0,c.cx+x1,y1,c.cz+z1)}
@@ -76,7 +78,7 @@ function hay(c,x,z){
   for(const k of[0.3,0.9])Bc(c,x-0.04,0,z+k,x+1.34,1.3,z+k+0.07,0x6a5a2a,false,{j:0});                                     // cordas
 }
 function tinyTree(c,lx,lz,rng){
-  const th=rng.int(3,4),cx=c.cx+lx+0.5,cz=c.cz+lz+0.5,y=c.y+cityLv(c,lx,lz);
+  const th=rng.int(3,4),q=bcPt(lx+0.5,lz+0.5),cx=c.cx+q[0],cz=c.cz+q[1],y=c.y+cityLv(c,lx,lz);   // (q: com POI girado, a árvore gira junto)
   const lc=c.biome===BIO_SNOW?0x1f4a2e:c.biome===BIO_DESERT?0x6b8a2a:0x2a6a24;
   Bx(cx-0.35,y,cz-0.35,cx+0.35,y+th,cz+0.35,0x6b4a2a,true);
   Bx(cx-1.5,y+th-1,cz-1.5,cx+1.5,y+th+0.5,cz+1.5,leafCol(rng,lc),false,{j:0.1,b:true});

@@ -45,16 +45,16 @@ function tcFits(S, type, x, z, o) {
 // estrada por perto o POI "de estrada" (pousada, taverna, entreposto, fazenda) NÃO nasce (fica em `falhas`). Devolve {x,z,y} ou null.
 function tcPick(S, q) {
   const P = TILE_PLACE, rng = S.rng, r = q.def.r, tries = P.tries;
-  for (let pass = 0; pass < 2; pass++) for (let t = 0; t < tries; t++) {
+  for (let pass = 0; pass < (q.off ? 1 : 2); pass++) for (let t = 0; t < tries; t++) {   // q.off (L1b): POI longe da estrada, ligado por trilha (offNear); uma passada só
     let x, z, a = rng.range(0, 6.2832);
     const place = pass && q.place === 'main' ? 'free' : q.place;   // colado ao principal sem lugar: qualquer um; de estrada: continua perto da estrada (2ª passada alarga o alcance)
-    if (place === 'road' && S.roadCells.length) { const c = rng.pick(S.roadCells), k = r + rng.range(P.roadNear[0], P.roadNear[1]); x = c[0] + Math.cos(a) * k; z = c[1] + Math.sin(a) * k }
+    if (place === 'road' && S.roadCells.length) { const c = rng.pick(S.roadCells), nr = q.off ? P.offNear : P.roadNear, k = r + rng.range(nr[0], nr[1]); x = c[0] + Math.cos(a) * k; z = c[1] + Math.sin(a) * k }
     else if (place === 'main' && S.main) { const k = S.main.rOut + r + rng.range(P.mainNear[0], P.mainNear[1]); x = S.main.x + Math.cos(a) * k; z = S.main.z + Math.sin(a) * k }
     else { x = rng.range(P.edge, W - P.edge); z = rng.range(P.edge, W - P.edge) }
     x = Math.round(x); z = Math.round(z);
     if (x < 0 || z < 0 || x >= W || z >= W) continue;
     const dr = S.road ? S.road[z * W + x] : 1e5;
-    if (place === 'road' && S.roadCells.length && (dr - r < P.roadNear[0] || dr - r > P.roadNear[1] + (pass ? P.roadFar : 8))) continue;
+    if (place === 'road' && S.roadCells.length && (q.off ? dr - r < P.offNear[0] || dr - r > P.offNear[1] : dr - r < P.roadNear[0] || dr - r > P.roadNear[1] + (pass ? P.roadFar : 8))) continue;
     if (place === 'far' && S.roadCells.length && dr < P.farRoad) continue;
     const grow = (t > tries * 0.5 ? 4 : 0) + (t > tries * 0.8 ? 4 : 0);
     const o = Object.assign({}, q, { range: q.range + grow, gap: pass ? Math.min(q.gap, P.laxGap) : q.gap, wet: q.wet || 0 });
@@ -69,15 +69,51 @@ function tcQuery(type, place) {
   const def = POI_DEFS[type];
   return { type, def, place, range: POI_RANGE[type] || 6, big: POI_BIG[type] ? 2 : 1, wet: POI_BIG[type] ? 0.15 : 0, gap: POI_GAP, rule: place === 'road' ? 'road' : 'interior' };
 }
+// ---- L1b: frente para a estrada e trilha ----
+// O POI do tile ganha a frente virada para a estrada (p.legoFace, 0 a 3) e uma trilha do portão até a estrada: só os tipos de LEGO_FACE_TYPES e, com lego ligado, fazenda/mina/serraria.
+const tcFaced = type => LEGO_FACE_TYPES.includes(type) || (!!LEGO_RECIPES[type] && legoOn());
+const TC_DIR = [[0, 1], [-1, 0], [0, -1], [1, 0]], TC_LETTER = ['S', 'W', 'N', 'E'];   // frente k: sul, oeste, norte, leste (como legoRotToward)
+// Estrada mais próxima de (x,z) (pontos de S.roadCells; sem estrada ainda, as aberturas do tile, de onde elas virão); null se não há nenhuma.
+function tcNearRoad(S, x, z) {
+  const pts = S.roadCells.length ? S.roadCells : S.win.openings.map(o => [o.x, o.z]);
+  return pts.length ? pts.reduce((b, c) => Math.hypot(c[0] - x, c[1] - z) < Math.hypot(b[0] - x, b[1] - z) ? c : b) : null;
+}
+const tcFaceFor = (S, x, z) => { const q = tcNearRoad(S, x, z); return q ? legoRotToward(q[0] - x, q[1] - z) : 0 };
+// Obstáculos das trilhas: cidades, POIs e zonas de guerra (menos o anel do principal, que é só uma faixa de passagem).
+const tcObst = (S, self) => WORLD.cities.concat(S.taken.filter(t => t !== self && (t.poi || (t.zone && !t.ring && !t.trail))).map(t => ({ cx: t.x, cz: t.z, half: t.r, gates: [] })));
+// Plano da trilha de um POI de raio r em (x,z) com a frente k: {goal: [x,z] da estrada, from: portão} ou, se o portão já está a menos de trailGap da estrada, {goal: null}. Devolve null
+// se a trilha não é possível (a rota cruza água). Não pinta nada.
+function tcTrailPlan(S, x, z, r, k, self) {
+  if (!S.roadCells.length) return null;
+  const v = TC_DIR[k], gx = x + v[0] * (r + 3), gz = z + v[1] * (r + 3), goal = tcNearRoad(S, gx, gz);
+  if (Math.hypot(goal[0] - gx, goal[1] - gz) < TILE_PLACE.trailGap) return { goal: null };
+  const a = { cx: x, cz: z, half: r, gates: [] }, b = { cx: goal[0], cz: goal[1], half: -3, gates: [] };
+  const tiles = roadTiles(a, b, tcObst(S, self), { water: ROAD_WATER_OLD, dirA: TC_LETTER[k] });
+  return tiles.some(t => H[t.z * W + t.x] < SEA) ? null : { goal, from: [gx, gz] };
+}
+// Abre a trilha do portão do POI p (já construído, com p.legoFace) até a estrada e reserva o caminho contra outros POIs. p.trail = {ok, to, n}. Sem estrada (o principal nasce antes dela) não faz nada.
+function tcTrail(S, p) {
+  const r = poiR(p), k = p.legoFace, self = S.taken.find(t => t.poi && t.x === p.cx && t.z === p.cz), pl = tcTrailPlan(S, p.cx, p.cz, r, k, self);
+  if (!pl) { p.trail = { ok: false }; return }   // sem estrada ou rota por água
+  if (!pl.goal) { p.trail = { ok: true, near: true }; return }   // o portão já encosta na estrada
+  const a = { cx: p.cx, cz: p.cz, half: r, gates: [] }, b = { cx: pl.goal[0], cz: pl.goal[1], half: -3, gates: [] };
+  if (!carveRoad(a, b, tcObst(S, self), { water: ROAD_WATER_OLD, noBridge: true, pinEnds: true, dirA: TC_LETTER[k] })) { p.trail = { ok: false }; return }
+  const v = TC_DIR[k];
+  for (let d = r; d <= r + 3; d++) for (let w = -1; w <= 1; w++) {   // do portão até onde a trilha começa (r + 3): terra de estrada sobre o chão natural
+    const px = p.cx + v[0] * d + (v[0] ? 0 : w), pz = p.cz + v[1] * d + (v[1] ? 0 : w), i = pz * W + px;
+    if (T[i] === T_NAT) T[i] = T_ROAD;
+  }
+  p.trail = { ok: true, to: pl.goal, n: Math.round(Math.hypot(pl.goal[0] - p.cx, pl.goal[1] - p.cz)) };
+  for (let t = 0.1; t < 1; t += 0.1) S.taken.push({ x: Math.round(p.cx + (pl.goal[0] - p.cx) * t), z: Math.round(p.cz + (pl.goal[1] - p.cz) * t), r: TILE_PLACE.trailTaken, zone: true, trail: true });
+}
+
 // Constrói um POI no lugar (aplaina, constrói, registra). POI de guerra (fortcamp, trincheira...) se adapta ao chão em vez de aplainá-lo (p.adapt, poiBuild).
 function tcAdd(S, type, x, z, y, extra) {
   const d = POI_DEFS[type], p = Object.assign({ id: S.ids++, type, cx: x, cz: z, y, biome: B[z * W + x], owner: tcOwner(type, extra && extra.main), tile: true, cityId: 0 }, extra || {});
   if (d.war) p.adapt = true; else flattenArea(x, z, d.r, y, extra && extra.main ? TILE_PLACE.mainRamp : POI_BIG[type] ? 4 : 3);
-  if (LEGO_RECIPES[type] && legoOn()) {   // fazenda lego: o portão olha para a estrada mais próxima (o principal nasce antes das estradas: olha para a abertura mais próxima, de onde elas virão)
-    const pts = S.roadCells.length ? S.roadCells : S.win.openings.map(o => [o.x, o.z]);
-    if (pts.length) { const q = pts.reduce((b, c) => Math.hypot(c[0] - x, c[1] - z) < Math.hypot(b[0] - x, b[1] - z) ? c : b); p.legoFace = legoRotToward(q[0] - x, q[1] - z) }
-  }
+  if (tcFaced(type) && tcNearRoad(S, x, z)) p.legoFace = tcFaceFor(S, x, z);   // a frente olha para a estrada mais próxima (o principal nasce antes das estradas: olha para a abertura mais próxima, de onde elas virão)
   S.taken.push({ x, z, r: d.r, poi: true }); poiBuild(p); WORLD.pois.push(p); S.counts[type] = (S.counts[type] || 0) + 1;
+  if (p.legoFace !== undefined && !(extra && extra.main)) tcTrail(S, p);   // trilha do portão até a estrada
   return p;
 }
 
@@ -196,9 +232,14 @@ function tcTheme(S) {
     const r = tcResolve(S, S.rng.pick(opts));
     if (!r || r.ambient || (r.caravan && !tileCaravanRoad(S.win))) continue;
     const type = r.any ? tcAnyType(S) : r.type, place = r.any ? TILE_TYPE_PLACE[type] || 'free' : r.place;
-    const s = tcPick(S, tcQuery(type, place));
+    let s = null;
+    if (place === 'road' && TILE_PLACE.offRoadTypes.includes(type) && S.rng.chance(TILE_PLACE.offRoad)) {   // L1b: longe da estrada, só se a trilha for possível
+      const q = tcQuery(type, place), rr = q.def.r; q.off = true; q.pred = (x, z) => !!tcTrailPlan(S, x, z, rr, tcFaceFor(S, x, z));
+      s = tcPick(S, q); if (s) s.off = true;   // (sem lugar: volta para a beira da estrada, abaixo)
+    }
+    if (!s) s = tcPick(S, tcQuery(type, place));
     if (!s) { if (tr === 3) S.falhas.push(r.id || type); continue }
-    tcAdd(S, type, s.x, s.z, s.y, {}); if (r.pend) S.pend.push(r.id);
+    const po = tcAdd(S, type, s.x, s.z, s.y, {}); if (s.off) po.offRoad = true; if (r.pend) S.pend.push(r.id);
     break;
   }
 }

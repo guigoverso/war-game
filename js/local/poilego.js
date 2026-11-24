@@ -4,13 +4,41 @@
 // (portão ao sul, +z) e girado/espelhado de uma vez pelo gancho BC_XF de Bc (city.js; setTL e acL também o seguem): peças só usam funções que passam por Bc/pBc/acL
 // (poiFence, poiHut, poiWell, crate, barrel, hay...; NÃO usar tinyTree, que escreve direto). Dados em js/modifiers/lego-modifiers.js (LEGO_RECIPES, LEGO_PICK...).
 // Ligado por ?lego=1 ou ?cenario=lego (legoOn). Determinístico: só usa `rng`.
-// Contrato com o jogo: p.flagMat/bandeira (poiFlag), p.r (raio da instância), p.lego = {type, size, skeleton, rot, mir, pieces, house:{x,z}, gate:{x,z}} (coordenadas
-// relativas ao centro). Tamanho: p.legoSize ('M' médio, 'P' pequeno); esqueleto forçado: p.legoSk (índice); frente: p.legoFace (0 a 3, ver legoRotToward).
+// Contrato com o jogo: p.flagMat/bandeira (poiFlag), p.r (raio da instância), p.recipe = {id, lego:true, size, skeleton, seed, rot, mir, pieces, anchors:{house, gate, door}} (coordenadas
+// relativas ao centro; só a semente e os parâmetros, nunca as peças: com p.recipe já posto, poiBuild refaz o mesmo POI) e as âncoras funcionais (p.bed, p.svcSpec... ver legoAnchor). Tamanho: p.legoSize ('M' médio, 'P' pequeno); esqueleto forçado: p.legoSk (índice); frente: p.legoFace (0 a 3, ver legoRotToward).
 
 // Transformação do esqueleto para o POI: espelha em x (mir) e gira k vezes 90° ((x,z)->(-z,x); k=1 leva o sul para o oeste, 2 norte, 3 leste).
 const legoXf = (k, mir) => (x, z) => { if (mir) x = -x; for (let i = 0; i < k; i++) { const t = x; x = -z; z = t } return [x, z] };
 // Rotação (0 a 3) que leva o portão (sul) para a direção (dx,dz) (ex.: a da estrada mais próxima).
 const legoRotToward = (dx, dz) => { const v = [[0, 1], [-1, 0], [0, -1], [1, 0]]; let b = 0, bd = -9; v.forEach((q, i) => { const d = q[0] * dx + q[1] * dz; if (d > bd) { bd = d; b = i } }); return b };
+// ---------- âncoras funcionais (serviços, cama, vigia...; L1a) ----------
+// O jogo lê as âncoras de um POI em COORDENADAS DO MAPA (poigame.js): pontos {x,z[,y][,yaw]} em p.bed, p.tavern, p.stove, p.vigilPos, p.chestPos e listas em p.beds, p.medWalk, p.keepers, p.svcSpec.
+// yaw: direção da frente = (-sen yaw, -cos yaw). Uma peça declara a âncora no quadro do esqueleto (relativa ao centro, y relativo ao chão do POI) com legoAnchor(A, tipo, valor);
+// legoBuild a converte (giro/espelho) e grava em p. POIs antigos (L1b: frente para a estrada) usam poiAnchorsXf, que gira as âncoras já gravadas em coordenadas do mapa.
+const LEGO_ANCH_PT = ['bed', 'tavern', 'stove', 'vigilPos', 'chestPos', 'firePos'], LEGO_ANCH_LIST = ['beds', 'medWalk', 'keepers', 'svcSpec'];
+function legoAnchor(A, kind, v) { const a = A.anch = A.anch || {}; if (LEGO_ANCH_LIST.includes(kind)) (a[kind] = a[kind] || []).push(v); else a[kind] = v }
+// Cópia das âncoras o com cada ponto levado por fn(x,z) -> [x,z], cada yaw por fv(dx,dz) (vetor) e y somado a dy.
+function poiAnchorsMap(o, fn, fv, dy) {
+  const pt = q => { const r = fn(q.x, q.z), n = Object.assign({}, q, { x: r[0], z: r[1] }); if (q.y !== undefined) n.y = q.y + dy;
+    if (q.yaw !== undefined) { const v = fv(-Math.sin(q.yaw), -Math.cos(q.yaw)); n.yaw = Math.atan2(-v[0], -v[1]) } return n };
+  const out = {}; for (const k of LEGO_ANCH_PT) if (o[k]) out[k] = pt(o[k]); for (const k of LEGO_ANCH_LIST) if (o[k]) out[k] = o[k].map(pt); return out;
+}
+// Gira (k vezes 90°) e espelha (mir) as âncoras de p que já estão em coordenadas do mapa, em torno do centro do POI (o desenho girou por BC_XF com a mesma legoXf(k, mir)).
+function poiAnchorsXf(p, k, mir) {
+  const f = legoXf(k, mir), o = {}; for (const n of LEGO_ANCH_PT.concat(LEGO_ANCH_LIST)) if (p[n]) o[n] = p[n];
+  Object.assign(p, poiAnchorsMap(o, (x, z) => { const q = f(x - p.cx, z - p.cz); return [p.cx + q[0], p.cz + q[1]] }, f, 0));
+}
+// A âncora (x,z em coordenadas do mapa) é alcançável a pé a partir de fora do portão? Preenche a grade de navegação (NAV.blocked) dentro do raio do POI + 3, começando 2 blocos
+// para fora do portão (p.recipe.anchors.gate) e aceitando uma célula livre a até 2 blocos da âncora. Só vale depois de buildNav().
+function legoReach(p, x, z) {
+  const g = p.recipe.anchors.gate, L = Math.hypot(g.x, g.z) || 1, R = Math.ceil(p.r + 3), sx = Math.floor(p.cx + g.x + g.x / L * 2), sz = Math.floor(p.cz + g.z + g.z / L * 2), seen = new Set(), st = [[sx, sz]];
+  const ok = (cx, cz) => Math.abs(cx - p.cx) <= R && Math.abs(cz - p.cz) <= R && navFree(cx + 0.5, cz + 0.5);
+  if (!ok(sx, sz)) return false; seen.add(sx + ',' + sz);
+  while (st.length) { const [cx, cz] = st.pop(); if (Math.hypot(cx + 0.5 - x, cz + 0.5 - z) <= 2) return true;
+    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) { const nx = cx + dx, nz = cz + dz, k = nx + ',' + nz; if ((!dx && !dz) || seen.has(k) || !ok(nx, nz)) continue;
+      if (dx && dz && !(ok(cx + dx, cz) && ok(cx, cz + dz))) continue; seen.add(k); st.push([nx, nz]) } }
+  return false;
+}
 // Pilha de feno que passa por Bc (a hay de city.js também passa, mas esta tem o sorteio de altura fixo).
 function legoHay(c, x, z) { pBc(c, x, 0, z, x + 1.3, 1.3, z + 1.3, 0xd8b84a, true, { j: 0.1 }); for (const k of [0.3, 0.9]) pBc(c, x - 0.04, 0, z + k, x + 1.34, 1.3, z + k + 0.07, 0x6a5a2a, false, { j: 0 }) }
 // Árvore pequena de pomar (tronco com colisão, copa em dois blocos; algumas com frutos).
@@ -223,17 +251,15 @@ function legoPieceFor(rng, type, slot) {
   return o[o.length - 1];
 }
 // Monta o POI lego p (fazenda, mina ou serraria) em c; chamada por POI_BUILD.<tipo> com legoOn. p.legoFace (0 a 3) = para onde o portão aponta (estrada); sem ele, sorteio.
-// Guarda p.r e p.lego.
+// Guarda p.r e p.recipe; com p.recipe já posto (poiBuild), refaz esse mesmo POI.
 function legoBuild(c, rng, p) {
-  const size = p.legoSize || 'M', rc = LEGO_RECIPES[p.type][size], H = rc.half, n = rc.skeletons.length, ski = p.legoSk !== undefined ? p.legoSk % n : rng.int(0, n - 1), sk = rc.skeletons[ski];
-  const rot = p.legoFace !== undefined ? p.legoFace : rng.int(0, 3), mir = rng.chance(0.5), f = legoXf(rot, mir), A = {}, used = [];
+  const R0 = p.recipe && p.recipe.lego ? p.recipe : null, size = R0 ? R0.size : p.legoSize || 'M', rc = LEGO_RECIPES[p.type][size], H = rc.half, n = rc.skeletons.length;
+  const r1 = rng.int(0, n - 1), r2 = rng.int(0, 3), r3 = rng.chance(0.5);   // os três sorteios sempre acontecem (mesma sequência da rng com ou sem receita pronta)
+  const ski = R0 ? Math.max(0, rc.skeletons.findIndex(s => s.id === R0.skeleton)) : p.legoSk !== undefined ? p.legoSk % n : r1, sk = rc.skeletons[ski];
+  const rot = R0 ? R0.rot : p.legoFace !== undefined ? p.legoFace : r2, mir = R0 ? R0.mir : r3, f = legoXf(rot, mir), A = {}, used = [];
   p.r = H + 1;
   BC_XF = (x0, z0, x1, z1) => { const a = f(x0, z0), b = f(x1, z1); return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])] };
   try {
-    const fl = LEGO_FLOOR[p.biome] || LEGO_FLOOR[0], bare = rng.chance(LEGO_FLOOR_BARE[p.biome] || 0);   // bare: sem piso, vale o chão do terreno
-    if (!bare) pBc(c, -H, 0, -H, H, 0.05, H - 1, fl.base, false, { j: 0.03 });   // piso do bioma em toda a área (os campos e prédios assentam sobre ela)
-    for (let k = 0; !bare && k < 14; k++) { const x = rng.range(-H, H - 2), z = rng.range(-H, H - 3), w = rng.range(1.5, 3.5), d = rng.range(1.2, 3);   // manchas (0.07: acima do piso, sem piscar)
-      pBc(c, x, 0, z, Math.min(H, x + w), 0.07, Math.min(H - 1, z + d), rng.pick(fl.alt), false, { j: 0.05 }) }
     for (const s of sk.slots.slice().sort((a, b) => (b.k === 'casa') - (a.k === 'casa'))) {   // a âncora primeiro
       if (s.p !== undefined && rng.next() > s.p) continue;
       if (s.k === 'patio') {   // enfeites longe do caminho do portão até a porta da âncora (a âncora já foi desenhada)
@@ -250,8 +276,25 @@ function legoBuild(c, rng, p) {
   } finally { BC_XF = null }
   const fp = f(rc.flag[0], rc.flag[1]); poiFlag(c, p, fp[0], fp[1], 6);   // bandeira do dono (mesh direto: fora da transformação, com o ponto já girado)
   const hp = A.house ? f(A.house.x, A.house.z) : [0, 0], gp = f(0, H);
-  p.lego = { type: p.type, size, skeleton: sk.id, rot, mir, pieces: used, house: { x: hp[0], z: hp[1] }, gate: { x: gp[0], z: gp[1] } };
+  const dp = f(A.house ? A.house.door[0] : 0, A.house ? A.house.door[1] : H);
+  if (A.anch) Object.assign(p, poiAnchorsMap(A.anch, (x, z) => { const q = f(x, z); return [p.cx + q[0], p.cz + q[1]] }, f, c.y));   // âncoras funcionais das peças, em coordenadas do mapa
+  p.recipe = { id: p.type, lego: true, size, skeleton: sk.id, seed: (WORLD.seed * 53 + p.id * 97 + 3) >>> 0, rot, mir, pieces: used, anchors: { house: { x: hp[0], z: hp[1] }, gate: { x: gp[0], z: gp[1] }, door: { x: dp[0], z: dp[1] } } };
 }
+
+// ---------- POIs antigos virados para a estrada (L1b: taverna, entreposto, pousada, alojamento) ----------
+// Verdadeiro se o POI antigo p deve ser desenhado girado (p.legoFace posto pelo compositor do tile, tilecompose.js; só os tipos de LEGO_FACE_TYPES).
+const legoFaceOn = p => p.legoFace !== undefined && LEGO_FACE_TYPES.includes(p.type);
+// Monta o POI antigo girado k = p.legoFace vezes 90° (o construtor desenha no quadro de sempre, frente = +z, e o gancho BC_XF gira tudo que passa por Bc) e gira as âncoras gravadas
+// em coordenadas do mapa (poiAnchorsXf). p.faceGate = o portão (frente), relativo ao centro, já girado: onde a trilha da estrada chega.
+function legoOldBuild(c, rng, p) {
+  const k = p.legoFace, f = legoXf(k, 0);
+  BC_XF = (x0, z0, x1, z1) => { const a = f(x0, z0), b = f(x1, z1); return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])] };
+  try { POI_BUILD[p.type](c, rng, p) } finally { BC_XF = null }
+  poiAnchorsXf(p, k, 0);
+  const g = f(0, poiR(p)); p.faceGate = { x: g[0], z: g[1] };
+}
+// Portão (frente) do POI p, relativo ao centro: o da receita (lego) ou o do POI antigo girado; null se o POI não foi girado.
+const legoGateRel = p => p.recipe && p.recipe.anchors ? p.recipe.anchors.gate : p.faceGate || null;
 
 // ---------- cenário ?cenario=lego: mundo super plano com os POIs lego em grade (chamado por poiShowcaseGen, pois.js) ----------
 // Uma fileira por tipo e tamanho (LEGO_SHOW), com LEGO_SHOW.n variações lado a lado: a variação i usa o esqueleto i (giro, espelho, peças e enfeites vêm da semente). Cada POI leva uma placa.

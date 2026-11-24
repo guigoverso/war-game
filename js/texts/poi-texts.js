@@ -56,4 +56,4 @@ const txtShopMerchantGold = n => '◉ ' + n + ' moedas do comerciante';
 // Linha menor logo abaixo: moedas do jogador.
 const txtShopPlayerGold = n => 'Suas moedas: ◉ ' + n;
 // Placa de cada POI do cenário ?cenario=lego (poiLegoShowGen, poilego.js): nome, tamanho, número da variação e esqueleto sorteado.
-const poiLegoLabel = (p, i) => POI_DEFS[p.type].n + ' ' + LEGO_SIZE_NAME[p.lego.size] + ' ' + (i + 1) + ' — ' + p.lego.skeleton;
+const poiLegoLabel = (p, i) => POI_DEFS[p.type].n + ' ' + LEGO_SIZE_NAME[p.recipe.size] + ' ' + (i + 1) + ' — ' + p.recipe.skeleton;

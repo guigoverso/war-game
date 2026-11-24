@@ -43,11 +43,11 @@ function poiHouse(c,x0,z0,w,d,D,o,rng){
 function poiPole(c,x,z,h,col){pBc(c,x-0.1,0,z-0.1,x+0.1,h,z+0.1,col||0x4a3320,true,{j:0})}
 // bandeira do dono: mastro + pano (a cor é trocada em poiPaint)
 function poiFlag(c,p,x,z,h){
-  const by=poiBaseY(c,x,z);
+  const by=poiBaseY(c,x,z),q=bcPt(x,z);   // q: ponto do mastro com o giro do POI (o pano é um mesh direto)
   poiPole(c,x,z,h,0x3a3a3a);pBc(c,x-0.18,h,z-0.18,x+0.18,h+0.3,z+0.18,0xe0b030,false,{j:0});
   p.flagMat=new THREE.MeshLambertMaterial({color:poiColor(p.owner)});
-  const m=new THREE.Mesh(GEO_BOX,p.flagMat);m.scale.set(1.7,1.05,0.08);m.position.set(c.cx+x+0.95,by+h-0.65,c.cz+z);scene.add(m);p.sceneObjs.push(m);
-  const t=new THREE.Mesh(GEO_BOX,p.flagMat);t.scale.set(0.6,0.4,0.08);t.position.set(c.cx+x+2.1,by+h-0.5,c.cz+z);scene.add(t);p.sceneObjs.push(t);
+  const m=new THREE.Mesh(GEO_BOX,p.flagMat);m.scale.set(1.7,1.05,0.08);m.position.set(c.cx+q[0]+0.95,by+h-0.65,c.cz+q[1]);scene.add(m);p.sceneObjs.push(m);
+  const t=new THREE.Mesh(GEO_BOX,p.flagMat);t.scale.set(0.6,0.4,0.08);t.position.set(c.cx+q[0]+2.1,by+h-0.5,c.cz+q[1]);scene.add(t);p.sceneObjs.push(t);
 }
 const poiStone=[0x8a8a90,0x7a7a82,0x9a9aa0];
 function poiWall(c,x0,z0,x1,z1,h,col,o){pBc(c,x0,0,z0,x1,h,z1,col||0x8a8a90,true,o||{j:0.04})}
@@ -389,7 +389,8 @@ poiPath(c,0,R+1,0,4);poiBrazier(c,-3.4,R+1.6);poiBrazier(c,3.4,R+1.6);
     const tent=(tx,tz,col)=>{for(let i=0;i<5;i++){const w=1.8-i*0.34;pBc(c,tx-w,i*0.5,tz-1.4,tx+w,i*0.5+0.5,tz+1.4,shadec(col,i%2?1.07:0.95),i<3,{j:0.06})}pBc(c,tx-0.5,0,tz+1.35,tx+0.5,1.5,tz+1.45,0x1f1710,false,{j:0})};
     tent(8,-7,0x8a7a4a);tent(-12,4,0x6a7a4a);tent(11.5,-1.5,0x9a8a5a);
     // cozinha de campo: a fogueira do acampamento de bandidos (buildCampFire, poi.js; [E] cozinha), mesa de preparo, bancos, barris e lenha
-    p.sceneObjs.push(...buildCampFire(Object.assign({},c,{cx:c.cx+6,cz:c.cz+3}),rng));p.firePos={x:c.cx+6,z:c.cz+3};
+    {const fq=bcPt(6,3),xf=BC_XF;BC_XF=null;try{p.sceneObjs.push(...buildCampFire(Object.assign({},c,{cx:c.cx+fq[0],cz:c.cz+fq[1]}),rng))}finally{BC_XF=xf}}   // (a fogueira vai ao ponto já girado e se desenha sem giro: é simétrica)
+    p.firePos={x:c.cx+6,z:c.cz+3};   // âncora no quadro do esqueleto: poiAnchorsXf gira com o POI
     pBc(c,2,0,5.2,6,0.95,6.4,0x7a5632,true,{j:0.03});for(let k=0;k<5;k++)pBc(c,2.3+k*0.75,0.95,5.4+(k%2)*0.4,2.8+k*0.75,1.2,5.8+(k%2)*0.4,rng.pick([0xc83a2a,0xe08a2a,0x5ab03a,0xd8d0b0]),false,{j:0.06});
     poiBench(c,2,7.6,true);poiBench(c,5,7.6,true);barrel(c,8.5,5.2);barrel(c,9.7,5.6);crate(c,9.2,3.4,1.1,1.1);
     for(let k=0;k<3;k++)pBc(c,-1+k*0.3,0,3+k*0.7,0.8+k*0.3,0.5+0.3*k,3.6+k*0.7,0x6b4a2a,true,{j:0.06});   // lenha
@@ -662,7 +663,7 @@ function poiBuild(p){
   BX_CAP={batch:new BoxBatch(),cols:[]};
   try{
     if(p.pad){const r=poiR(p);pBc(c,-r,-4,-r,r,0,r,0x6a5a40,true,{j:0.02})}   // base de terra (mapa manual: o chão não é aplainado)
-    POI_BUILD[p.type](c,rng,p);
+    if(p.recipe&&p.recipe.lego)legoBuild(c,rng,p);else if(legoFaceOn(p))legoOldBuild(c,rng,p);else POI_BUILD[p.type](c,rng,p);   // com p.recipe (L1a) o POI é refeito pela receita
   }finally{const cap=BX_CAP;BX_CAP=null;const m=cap.batch.toMesh(MAT_TERRAIN);if(m){m.userData.cx=p.cx;m.userData.cz=p.cz;scene.add(m);p.mesh=m;p.sceneObjs.push(m)}p.cols=cap.cols}
   poiPaint(p);
 }
