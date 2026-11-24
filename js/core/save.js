@@ -57,7 +57,8 @@ function migrateSave(d){
   if(d.v<20){d.v=20}   // v20: POIs permanentes (state.pois: dono de cada POI que mudou); ausente = donos de origem
   if(d.v<21){d.v=21}   // v21: state.poiX (POIs limpos à espera de decisão, adiamentos, vigia e quarto da taverna); ausente = nada
   if(d.v<22){d.v=22}   // v22: state.war (fadiga, campanhas, operações e ataques pendentes da guerra); ausente = sem guerra
-  // if(d.v<23){ ...ajustes...; d.v=23 }
+  if(d.v<23){d.v=23}   // v23: state.tiles (por tile: dono, diferenças da semente, POIs de guerra, estoque); ausente = nada
+  // if(d.v<24){ ...ajustes...; d.v=24 }
   return d;
 }
 
@@ -95,6 +96,7 @@ function applySave(d){
   STATE.portals=s.portals||[];STATE.portalSeq=s.portalSeq||0;STATE.portalDay=s.portalDay;STATE.legend=s.legend||{};STATE.burnt=s.burnt||{};STATE.raidDay=s.raidDay||0;STATE.raidLast=s.raidLast===undefined?-9:s.raidLast;
   if(!(s.portals&&s.portals.length)&&s.portalDay===undefined)STATE.portalDay=undefined;   // salvamento antigo: os portais nascem na hora
   if(s.pol)STATE.pol=s.pol;normalizePol();   // políticas: carta pendente, efeitos ativos, fila do turno do Comandante, recargas
+  STATE.tiles=s.tiles||{};   // estado dos tiles (macro/tilestate.js)
   if(s.frel)STATE.frel=s.frel;if(s.flog)STATE.flog=s.flog;
   if(s.fev)STATE.fev=s.fev;if(s.meet)STATE.meet=s.meet;if(s.gev)STATE.gev=s.gev;   // eventos entre facções NPC e reuniões   // eventos entre facções NPC (facevents.js)
   STATE.deadFacs=s.deadFacs||[];if(s.reb)STATE.reb=s.reb;rebApply();   // facções novas e cidades trocadas (rebellion.js)

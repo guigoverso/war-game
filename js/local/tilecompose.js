@@ -296,7 +296,7 @@ function tileWarClear() {
 function tileWarAssemble(battle) {
   const tw = WORLD.tileWar; if (!tw) return [];
   tileWarClear();
-  if (!battle) return [];
+  if (!battle) { tcWarSave([], null); return [] }
   const Z = tw.zones, byDir = d => Z.find(z => z.kind === 'abertura' && z.dir === d), ring = Z.find(z => z.kind === 'anel'), plaza = Z.find(z => z.kind === 'praca');
   tw.battle = battle;   // (tcRingAngle lê a batalha)
   const sides = TILE_WAR.sides[battle.tipo] || ['player', 'bandit'], mainOwner = tcMainOwner();
@@ -325,7 +325,13 @@ function tileWarAssemble(battle) {
     if (typeof poiGarrisonSync === 'function') poiGarrisonSync(p);
     tw.pois.push(p);
   }
-  return tw.pois.map(p => ({ tipo: p.type, zona: p.zona, dono: p.owner, lado: p.lado }));
+  const lista = tw.pois.map(p => ({ tipo: p.type, zona: p.zona, dono: p.owner, lado: p.lado }));
+  tcWarSave(lista, battle);
+  return lista;
+}
+// Guarda a lista de POIs de guerra no estado do tile (4F, macro/tilestate.js); janela livre (sem ti/tj) não guarda.
+function tcWarSave(lista, battle) {
+  const w = WORLD.win; if (w && w.tile && w.ti >= 0) tileWarSet(tileKey(w.ti, w.tj), lista, battle);
 }
 // Ângulo (do centro do principal) do lado do anel para o POI do defensor: o lado que olha para a abertura do atacante (onde a investida chega); sem batalha, para o centro do tile.
 function tcRingAngle(z) {
