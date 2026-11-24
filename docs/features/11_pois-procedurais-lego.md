@@ -76,7 +76,7 @@ Um **micro-POI** é uma peça sozinha ou 2 a 3 peças (ex.: poço + carroça + 2
 
 ## 7. Passos [PROPOSTA]
 Cada um, uma sessão; todos na `mapa-mundi-update`.
-- **L0 — Inventário (P):** ler `POI_BUILD` e listar as peças reaproveitáveis, âncoras e tamanhos dos 14 POIs; levantar quais `p.*` cada serviço lê. Saída: tabela de peças e contrato (seção 3) confirmados. Só leitura e documento.
+- **L0 — Inventário (P) — FEITO em 2026-11-24, resultado na seção 7c:** ler `POI_BUILD` e listar as peças reaproveitáveis, âncoras e tamanhos dos 14 POIs; levantar quais `p.*` cada serviço lê. Saída: tabela de peças e contrato (seção 3) confirmados. Só leitura e documento.
 - **L1 — Motor (M):** `js/local/poilego.js`: tipos `Peça` e `Receita`, colocação por regras (seção 4), âncoras -> `p`, `poiBuild` aceita `p.recipe`. Pronto quando: uma receita de teste monta um POI qualquer no `?cenario=pois` e a galeria mostra 8 sementes diferentes da mesma receita.
 - **L1 — anotação do usuário (2026-11-24): POIs de estrada, frente e trilha.** Entra no L1 (rotação nativa das receitas) e vale para **taverna, entreposto, pousada e alojamento** (e as fazendas, que já têm o portão para a estrada):
   1. **Frente virada para a estrada:** a frente (portão/porta principal) olha para a estrada mais próxima (`legoRotToward`, `p.legoFace`, já usado pela fazenda lego em `tcAdd`). Para os POIs antigos (pousada, alojamento, taverna, entreposto) o gancho `BC_XF` gira o desenho, **mas as âncoras** (`p.bed`/`p.beds`, `p.svcSpec`, `p.keepers`, `p.tavern`, `p.stove`, `p.vigilPos`) têm de girar junto (função única `poiAnchorsXf(p,k,mir)`) e só valem peças que desenham por `pBc`.
@@ -88,11 +88,85 @@ Cada um, uma sessão; todos na `mapa-mundi-update`.
 - **L3 — Micro-POIs (M):** 10 a 12 peças/receitas micro (lista na seção 5) e a coluna **vida** da composição.
 - **L4 — Encaixe no tile (M):** `tilecompose.js` lê classe e vida; sobe a densidade; galeria e teste de 25 POIs/tile; medir tempo.
 - **L5 — Resto e revisão (M):** migrar os demais (pousada, taverna, entreposto, forte, caçadores, santuário), vila de trabalhadores, plantação, pesca; remover os substitutos `pend`.
+**Sessões (decidido em 2026-11-24).** Regra: sessão nova com contexto limpo quando o passo é grande, só precisa do que está no repositório e nos docs, ou quando o contexto anterior já está pesado; mesma sessão quando o passo é curto e usa o que acabou de ser lido.
+| Passo | Sessão | Por quê |
+|---|---|---|
+| L0 inventário | **Mesma** (esta, ainda leve) ou nova, tanto faz | Só leitura; a saída é uma tabela no próprio doc, então o L1 não depende da memória do L0. |
+| L1 motor (+ anotação estrada/frente/trilha) | **Nova** (contexto limpo) | O maior passo: lê o doc inteiro, `poilego.js`, `pois.js`, `tilecompose.js`. Se ficar pesado, dividir em L1a (motor e âncoras) e L1b (frente, trilha e `offRoad`), cada um em sessão nova. |
+| L2 migrar fazenda, mina, serraria | **Nova** | Só precisa do motor pronto e testado do L1; contexto do L1 seria ruído. |
+| L3 micro-POIs | **Nova** | Independente do L2 nos assuntos, mas edita `poilego.js` e modificadores: rodar depois do L2, não em paralelo. |
+| L4 encaixe no tile | **Nova** | Lê `tilecompose.js` e mede tempo; precisa de L2 e L3 prontos. |
+| L5 resto e revisão | **Nova** (uma por grupo, se for grande) | Muitas migrações; fechar cada grupo com smoke. |
+| 4G revisão | **Nova** (já decidido) | Fechamento com olhar limpo. |
+Cada sessão termina com `/encerrar-sessao` (ESTADO.md, commit e push), que é a ponte entre elas.
 Dependências: L1 antes de tudo; L2/L3 podem andar juntas depois; a 4F (estado do tile) não depende deste plano, mas `WORLD.tileWar` e a lista de POIs precisam sobreviver (a receita guarda só a **semente**, não as peças).
 - 4G. Revisão e fechamento (P) — **SESSÃO NOVA, depois dos POIs lego (decidido em 2026-11-24)**
 Roda o smoke, joga um tile de cada tema, confere o tempo de geração e atualiza `docs/MAPA.md`, `docs/ESTADO.md` e `docs/features/6_plano-mapa-mundi.md`.
 
+## 7c. L0 — Inventário (FEITO 2026-11-24; só leitura de `pois.js`, `poigame.js`, `city.js`, `poilego.js`)
+**20 construtores** em `POI_BUILD` (14 permanentes + 6 de guerra) e **4 decorações dormentes** em `DORM_BUILD` (`pois.js:612`: fogueira, jardim, poço, marco). As dormentes **já são micro-POIs** (só cenário, sem dono, 1 função de ~5 linhas, raios em `WAR_DORMANT`): servem de modelo para o L3.
+
+**Peças soltas reaproveitáveis (todas já desenham por `pBc`, logo giram/espelham pelo gancho `BC_XF`):**
+| Peça | Onde | Tamanho | Observação |
+|---|---|---|---|
+| `poiHouse` / `poiHut` (casa; com mobília) | `pois.js:37`, `:104` | G (parametrizada: x0,z0,w,d,porta,estilo) | Já se ajusta ao retângulo; é a base de casa/galpão/quartel/alojamento. |
+| `poiFence`, `poiWall`, `poiCrenels`, `poiBarrierRow` | `:58`, `:51`, `:52`, `:604` | linear | Limite. Só alinhadas aos eixos (ok com giro de 90°). |
+| `poiWell`, `poiCart`, `poiBench`, `poiBrazier`, `poiRack`, `poiSign`, `poiAnimal`, `poiPath` | `:85` a `:103` | P | Enfeites; `poiCart` e `poiAnimal` aparecem em 4+ POIs. |
+| `crate`, `barrel`, `hay`, `tinyTree` | `city.js:53` a `:76` | P | **`hay` e `tinyTree` escrevem direto e não giram** (já achado no protótipo: `legoHay`/`legoTree`). |
+| `tent` | **local** em `hunters` (`:128`) e `lodge` (`:383`), duplicada | M | Extrair para peça única. |
+| `buildCampFire` | `poi.js:96` | P | Regra do CLAUDE.md: fogueira de POI = esta, sempre funcional. |
+| campos, curral, pomar, celeiro, silos | `poilego.js` (`LEGO_PIECES`) | M a G | Só a fazenda; já peças. |
+| `poiFlag` | `:43` | P | Malha direta (`scene.add`): recebe ponto já girado; guarda `p.flagMat`. |
+| `poiDig`, `poiLand` | `:77`, `:81` | terreno | Escavam/nivelam só na geração (rampa da mina, trincheira, ponte). |
+| prédios da cidade: `makeBuilding`, `furnishHouse` | `city.js:204`, `:165` | G | A taverna usa o **térreo da taverna das cidades** (`c.tavern`, `c.stove`, `c.keepers` gravados em `city.js:412-413`): é uma peça-âncora monolítica, difícil de montar em partes. |
+
+**Papéis por POI (4b) e o que cada um grava em `p` (as âncoras do contrato):**
+| POI | Raio | Âncora | Apoio / terreno de trabalho | Grava em `p` |
+|---|---|---|---|---|
+| farm | 18 | casa | celeiro, curral, campos, poço, carroça (lego: já em peças) | `flagMat`, `lego` |
+| mine | 15 | galpão sobre rampa (`poiDig`) | guincho, oficina, trilhos, minério | `flagMat` (`keepers=[]`, `svcSpec=[]`) |
+| sawmill | 14 | galpão aberto + serra | roda d'água, toras, carroça, escritório | `flagMat` |
+| hunters | 13 | fogueira + tendas | varais, troféus, armadilhas | `flagMat` |
+| sanctuary | 14 | capela | torre do sino, canteiros, poço, bancos | `flagMat` (`keepers=[]`, `svcSpec=[]`) |
+| fort | 15 | muralha + quartel | torres, estábulo, treino, tendas | `flagMat` |
+| tower | 8 | torre | braseiro | `flagMat`, **`vigilPos`** |
+| tavern | 17 | taverna 2 andares | ferreiro, mesas, quartos | `flagMat`, **`tavern`, `stove`, `keepers`, `bed`, `svcSpec`** (ferreiro, mercenário) |
+| inn | 13 | casa 1 andar | enfeite por tema (`poiRestTheme`) | `flagMat`, **`bed`, `svcSpec`** (pousadeiro) |
+| lodge | 14 | barracão com beliches | tendas, cozinha de campo | `flagMat`, **`bed`, `svcSpec`** (cozinheiro) |
+| post | 16 | galpão de mercado | banca, carroças, cavalos | `flagMat`, **`svcSpec`** (lojista) |
+| ruins, ruinvil | 9 / `POI_RUINVIL.r` | muros e altar / casas em grade | entulho, mato, baú | `flagMat` (sem moradores) |
+| bridge | 9 | pórtico com cancelas | guarita | `flagMat`, lê **`axis`** |
+| fortcamp, trench, lookout, depot | 12, 11, 6, 10 | (guerra) | paliçada, abrigo, torre, galpão | `flagMat` |
+| barricade | 7 | chicana | frisa, arame | `flagMat`, lê **`axis`** |
+| hospital | 10 | tenda | macas, lampiões, carroça | `flagMat`, **`beds`, `medWalk`** |
+
+**Quem lê o quê (contrato real, confirmado):**
+- `p.svcSpec` / `p.keepers`: `poiCivSync` (`poigame.js:295-313`: nascem lojista, ferreiro, taverneiro, mercenário) e o alvo `[E]` (`:572`). `p.bed`: `[E] Dormir` (`:566`). `p.tavern`, `p.stove`: balcão e fogão (`:564-565`). `p.vigilPos`: vigia (`:561`). `p.beds`, `p.medWalk`: `poiMedSync` (`:284-293`). `p.road`: entreposto (`:224`).
+- `p.cols`, `p.sceneObjs`, `p.mesh`: só `poiBuild` e o desmonte da guerra (`warfront.js:736-739`).
+- `p.axis`: `bridge` e `barricade` (guerra e caravanas).
+
+**Descobertas que mudam o L1 (não estavam no plano):**
+1. **Coordenadas misturadas.** `svcSpec`, `bed`, `beds`, `medWalk`, `vigilPos`, `tavern`, `stove` são em **coordenadas do mapa** (`c.cx + x`), com `y` próprio em `bed`/`beds`; já `poiFlag(c,p,x,z,h)` e as peças recebem coordenadas **relativas**. A função `poiAnchorsXf(p,k,mir)` da anotação do L1 precisa converter só as absolutas (relativas ao centro, subtrair `c.cx`/`c.cz`, girar, somar de volta) e levar `yaw` junto (`svcSpec.yaw`, `keepers[].yaw`).
+2. **Raio por tipo, não por POI.** `POI_DEFS[p.type].r` é lido por `poiCivSync` (anel de moradores e guardas, `:302`), por `ambClash` (`pois.js:668`), pela geração e pela composição. Com tamanhos pequeno/médio do mesmo tipo (L2), o raio tem de virar **`p.r` por instância** (`POI_DEFS` só como padrão). Sem isso moradores nascem fora do POI pequeno ou dentro de paredes.
+3. **Moradores por tipo:** `POIX.civ` e `POIX.guards` (`poigame.js:22-23`) são por tipo; não dependem de peças, então a receita não precisa mexer neles (só no raio acima).
+4. **Taverna e hospital são os dois POIs de âncora pesada** (balcão, fogão, quartos; 6 macas). Fazenda, mina e serraria (alvo do L2) não têm serviço: são os mais seguros para provar o motor, como decidido. Pousada, alojamento e entreposto têm 1 serviço e 1 cama: viram receitas simples de "âncora única".
+5. **Bandeira:** posição fixa por POI hoje (`poiFlag` com coordenadas escritas à mão); na receita deve ser âncora da peça âncora (ou do portão).
+6. **Mina, trincheira, ponte, hospital** usam `poiDig`/`poiLand` (alteram terreno na geração). Em receita, isso é uma peça "terraço/escavação" que roda **antes** de desenhar; compatível com os níveis ±2 decididos, mas só vale em POIs não adaptados (`c.noDig`/`c.adapt` dos POIs de guerra em runtime).
+7. **Sem teste de nav por âncora hoje.** O doc propõe "toda âncora funcional alcançável"; ainda não existe nenhum helper para isso (não verifiquei `buildNav`; fica para o L1).
+
+**Contrato confirmado (substitui a tabela da seção 3 como referência do L1):** a receita monta `p.sceneObjs/mesh/cols` (via `poiBuild`, sem mudança), `p.flagMat` (uma bandeira), e as âncoras funcionais em **coordenadas do mapa**; `p.r` (novo) por instância; `p.lego` vira `p.recipe = {id, seed, rot, mir, pieces, anchors}` (só semente e parâmetros, nunca as peças).
+
 ## 8. Perguntas para decidir
+**[DECIDIDO] 2026-11-24** (todas conforme a recomendação):
+- Protótipo da fazenda convenceu: seguir para o L1.
+- 1: micro-POIs são **só cenário** (opção A): sem dono, anexação nem mapa.
+- 2: **12 a 14 POIs de verdade + 10 a 15 micro** por tile (meta de até 25 POIs em ≤ 4 s).
+- 3: o L2 começa pelas receitas de **recurso** (fazenda, mina, serraria).
+- 4: POIs de guerra viram receitas **depois da etapa 10**.
+- 5: terraços de **níveis simples ±2** em POIs médios e grandes; pequenos e micro em um nível só.
+- 6: tema x terreno (`tileFit`) fica para a **etapa 5**.
+- L1 (estrada): `TILE_PLACE.offRoad` = **30%** (taverna, pousada, alojamento); alcance máximo da trilha **90 blocos**; **entreposto sempre na estrada**.
+Texto original das perguntas, para referência:
 1. **[ABERTO] Micro-POIs viram POIs do jogo?** Opção A: só cenário (decoração, baú, bandidos), sem dono nem anexação. Opção B: entram em `WORLD.pois` (têm dono, aparecem no mapa, são anexáveis). Recomendo **A**: evita explodir mapa, guerra e preço de POIs; o conteúdo vem de baús, bandos e encontros.
 2. **[ABERTO] Quantos POIs por tile?** Hoje 5 a 12 (+ ambiente). Meta proposta: 12 a 14 "de verdade" (spec) **mais** 10 a 15 micro. Confirma?
 3. **[ABERTO] Prioridade das receitas:** começar pelos de recurso (fazenda, mina, serraria) ou pelos que faltam (plantação, vila de trabalhadores, pesca)? Recomendo os de recurso (L2), porque dão a maior variação visível e provam o motor.

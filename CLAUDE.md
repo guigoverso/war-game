@@ -53,6 +53,8 @@ Cada rodada (a partir da 1; a 0 é preparação) tem o **turno do Líder** (deci
 - **Notificações (toast, aviso na tela, relatório da rodada):** nenhuma notificação nova entra sem aprovação do usuário. Antes de criar, diga qual é o **gatilho** e qual é a **mensagem** e espere a aprovação; sem ela, a ação fica silenciosa.
 - Quando o usuário perguntar se algo é possível ("tem como...?", "dá para...?"), responda com uma **previsão** (viabilidade, como ficaria, custo e riscos) e **não implemente** até ele pedir.
 
+- **Ordem de implementação em passos:** sempre que montar uma ordem/plano com vários passos (docs de feature, etapas), diga **para cada passo se roda na mesma sessão ou em uma sessão nova com contexto limpo, e por quê** (tabela "Sessões" no doc do plano). Nova: passo grande, que só precisa do repositório e dos docs, ou quando o contexto já está pesado. Mesma: passo curto que usa o que acabou de ser lido. Passos que editam os mesmos arquivos não rodam em paralelo. Exemplo: `docs/features/11_pois-procedurais-lego.md`, seção 7.
+
 ## Git
 - Branch de trabalho atual: **`factions-update`**. Não faça push em outra branch sem o usuário pedir. Não crie pull request sem pedido.
 - Commits em português, descrevendo o "o quê" e o "porquê" em poucas linhas.
