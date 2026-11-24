@@ -93,7 +93,7 @@ function cityHugeShape(rng) {
 // VILA (etapa 4C; tile temático 'vila', ?cenario=tile&tema=vila; docs/features/8_tiles-e-vilas.md). A vila ocupa no máximo 10% do tile (caixa de lado até ~121).
 // Reaproveita buildCity (c.vila): sem ruas, só caminhos de terra estreitos ligando as casas, cerca em vez de muro, poucos serviços e poucos soldados.
 // Padrões entre parênteses.
-// half: [mín, máx] do raio da caixa em blocos (lado = 2*half+1; 58 dá lado 117, 5,4% do tile em área? não: 117² / 384² = 9,3%) ([54, 60]).
+// half: [mín, máx] do raio da caixa em blocos (lado = 2*half+1; 60 dá lado 121: 9,9% da área do tile, o máximo da spec) ([54, 60]).
 // margin: folga entre a caixa e a borda do tile (12). minHalf: raio mínimo ao encolher por falta de chão (28). plazaOff: deslocamento da praça (0.12).
 // devMul: multiplica o desnível aceito pela pegada (1.5). nudge: quanto o centro pode andar (16). edge: recorte do contorno (como em CITY_HUGE.edge).
 // shapes: pesos dos formatos da pegada (os de CITY_SHAPES em cityfoot.js; losango e cruz ficam de fora porque ficam finos demais em ~100 blocos).
