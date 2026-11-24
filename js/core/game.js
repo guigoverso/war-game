@@ -821,7 +821,7 @@ document.addEventListener('click',e=>{
   const k=bt.dataset.loc,t=k[0],id=+k.slice(1);let x,z,y;
   if(t==='w'){const c=WORLD.cities.find(q=>q.id===id);if(!c||!c.works)return;x=c.works.x;z=c.works.z;y=tH(x,z)+0.3}
   else if(t==='c'){const c=WORLD.cities.find(q=>q.id===id);if(!c)return;x=c.cx+c.S+2.5;z=c.cz+c.P-2;y=tH(x,z)+0.3}
-  else if(t==='o'){const o=WORLD.pois.find(q=>q.id===id);if(!o)return;x=o.cx;z=o.cz+POI_DEFS[o.type].r+4;y=tH(x,z)+0.3}
+  else if(t==='o'){const o=WORLD.pois.find(q=>q.id===id);if(!o)return;x=o.cx;z=o.cz+poiR(o)+4;y=tH(x,z)+0.3}
   else if(t==='p'){const p=STATE.portals[id];if(!p)return;x=p.x+4;z=p.z;y=tH(x,z)+0.3}
   else{const a=(t==='k'?WORLD.camps:WORLD.caves).find(q=>q.id===id);if(!a)return;x=a.cx+6;z=a.cz;y=tH(x,z)+0.3}
   if(G.office)leaveOffice();   // no turno do Líder o jogador está no escritório: sai primeiro (o mundo só aparece fora dele)

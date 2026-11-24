@@ -9,7 +9,7 @@
 // Alvo e origem usam o centro (cx, cz) da cidade ou do POI.
 const wfDist = (a, b) => Math.hypot(a.cx - b.cx, a.cz - b.cz);
 // Raio de bloqueio de um obstáculo (cidade: half; POI: raio do tipo).
-const wfRad = o => o.half !== undefined ? o.half : POI_DEFS[o.type].r;
+const wfRad = o => o.half !== undefined ? o.half : poiR(o);
 
 // Obstáculos da rota: cidades e POIs de TERCEIROS (fora da guerra). Bandidos, livres, seus e do inimigo não bloqueiam.
 function wfBlockers(fid, origin, target) {
@@ -620,7 +620,7 @@ function wfFill(plan) {
   const F = WAR.front, fid = plan.fid, len = plan.len, rw = POI_DEFS.fortcamp.r;
   const rng = new RNG((WORLD.seed * 71 + fid * 13 + 7) >>> 0), out = [];
   const tr = plan.target, nodes = [{ s: 0, r: plan.origin.half, o: 'player' }];
-  plan.chain.forEach((p, i) => nodes.push({ s: plan.ts[i] * len, r: POI_DEFS[p.type].r, o: p.owner, poi: true }));
+  plan.chain.forEach((p, i) => nodes.push({ s: plan.ts[i] * len, r: poiR(p), o: p.owner, poi: true }));
   nodes.push({ s: len, r: wfRad(tr), o: fid, poi: plan.kind === 'poi' });
   // fronteira: entre o último nó seu e o primeiro do inimigo
   const lastP = Math.max(...nodes.filter(n => n.o === 'player').map(n => n.s));
@@ -683,7 +683,7 @@ function wfRingSpot(plan, out, sd, F) {
   const cum = [0], pa = plan.path;
   for (let k = 1; k < pa.length; k++) cum.push(cum[k - 1] + Math.hypot(pa[k].x - pa[k - 1].x, pa[k].z - pa[k - 1].z));
   const clash = (x, z, r) => out.concat(plan.chain.map(p => ({ cx: p.cx, cz: p.cz, type: p.type })))
-    .some(u => Math.hypot(u.cx - x, u.cz - z) < POI_DEFS[u.type].r + r + F.gap);
+    .some(u => Math.hypot(u.cx - x, u.cz - z) < poiR(u) + r + F.gap);
   let best = null, bd = 1e9;
   for (const d of WORLD.dormant || []) {
     if (d.off || d.ring !== sd.c.id || clash(d.x, d.z, d.r)) continue;

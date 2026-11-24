@@ -205,7 +205,7 @@ function reservePoisRelief(list){
   const S=RESERVE.poiSlope,R=RESERVE.poiRamp,cs=WORLD.cities||[];
   for(const p of list){
     if(!poiReserved(p.type))continue;
-    const r=Math.round(POI_DEFS[p.type].r*RESERVE.poiDisc),y=p.y,E=r+R;   // plataforma redonda: raio r*poiDisc (os cantos do quadrado do prédio ainda cabem)
+    const r=Math.round(poiR(p)*RESERVE.poiDisc),y=p.y,E=r+R;   // plataforma redonda: raio r*poiDisc (os cantos do quadrado do prédio ainda cabem)
     for(let dz=-E;dz<=E;dz++)for(let dx=-E;dx<=E;dx++){
       const x=p.cx+dx,z=p.cz+dz;if(x<2||z<2||x>=W-2||z>=W-2)continue;
       const d=Math.max(Math.hypot(dx,dz)-r,0),i=z*W+x;

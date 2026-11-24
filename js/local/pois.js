@@ -13,6 +13,8 @@ const POI_DEFS={
   hospital:{n:'Hospital de campanha',ic:'🏥',r:10,war:true},depot:{n:'Depósito de suprimentos',ic:'📦',r:10,war:true},
   lookout:{n:'Atalaia de madeira',ic:'🔭',r:6,war:true},barricade:{n:'Barricada de estrada',ic:'🚧',r:7,war:true}
 };
+// Raio do POI: p.r (por instância; POIs lego pequenos) ou o padrão do tipo (POI_DEFS).
+const poiR=p=>p.r||POI_DEFS[p.type].r;
 const POI_WAR_TYPES=['fortcamp','trench','hospital','depot','lookout','barricade'];   // os 6 POIs de guerra (só visuais; a frente os escolhe em warfront.js; a barricada só vai em estrada)
 const POI_TYPES=['farm','mine','sawmill','hunters','sanctuary','bridge','fort','tower','tavern','post','ruins','inn','lodge','ruinvil'];
 Hooks.on('resetState',()=>{STATE.pois={}});
@@ -166,7 +168,9 @@ const POI_BUILD={
     p.keepers=[];p.svcSpec=[];   // só ambientação: guardas e civis nascem em poiCivSync (poigame.js), os mesmos das cidades
     poiFlag(c,p,9,10,6);
   },
-  mine(c,rng,p){   // mina em cabana: galpão de madeira sobre uma rampa escavada (5 degraus de 1 bloco) com trilhos e um vagonete descendo, torre do guincho, oficina e minério
+  mine(c,rng,p){   // (com legoOn: montada por peças, poilego.js)
+    if(legoOn()){legoBuild(c,rng,p);return}
+    // mina em cabana: galpão de madeira sobre uma rampa escavada (5 degraus de 1 bloco) com trilhos e um vagonete descendo, torre do guincho, oficina e minério
     for(let k=1;k<=5;k++)poiDig(c,-2,4-2*k,2,6-2*k,k);   // a frente é +z; a rampa desce para o fundo
     for(let k=0;k<=5;k++){const zA=4-2*k,zB=6-2*k,y=-k;   // trilhos e dormentes acompanham os degraus
       for(const s of[-0.8,0.8])pBc(c,s-0.06,y+0.02,zA,s+0.06,y+0.16,zB,0x9a9aa2,false,{j:0});
@@ -197,7 +201,9 @@ const POI_BUILD={
     poiPath(c,0,6.5,0,11);poiLampAt(c,3.4,8.5);poiSign(c,-3.5,9,0x8a3a2a);
     poiFlag(c,p,8,9,6);
   },
-  sawmill(c,rng,p){   // galpão aberto, serra, rampa de toras com roda d'água, pilhas, carroça, escritório e serragem
+  sawmill(c,rng,p){   // (com legoOn: montada por peças, poilego.js)
+    if(legoOn()){legoBuild(c,rng,p);return}
+    // galpão aberto, serra, rampa de toras com roda d'água, pilhas, carroça, escritório e serragem
     const r={x0:-6,x1:5,z0:-6,z1:0},f=makeShed(c,r,'S',{h:4,roof:0xc09050},rng);
     FB(c,f,7,3.2,10.5,4.2,0,0.9,0x8a6a3a,true);FB(c,f,8.6,3.1,8.8,4.3,0.9,1.9,0xc0c8d0,false,{j:0});FB(c,f,8.2,3.2,9.2,4.2,1.9,2.0,0x6a6a72,false,{j:0});   // bancada e serra
     FB(c,f,1.5,2,4.5,3.4,0,0.5,0xd0a868,false,{j:0.08});   // serragem
@@ -462,8 +468,8 @@ poiPath(c,0,R+1,0,4);poiBrazier(c,-3.4,R+1.6);poiBrazier(c,3.4,R+1.6);
     for(let k=0;k<7;k++){const x=rng.range(-8,8),z=rng.range(-6,7);pBc(c,x,0,z,x+0.3,rng.range(0.3,0.7),z+0.3,0x3a7a2a,false,{j:0.1})}   // mato
     p.chest=addChest(c.cx,c.y+2.05,c.cz-2.4,0,rng.int(40,120),null);p.chest.onOpen=()=>poiRuinLoot(p);   // 30% de chance de artefato (POIX.ruinRelic)
   },
-  farm(c,rng,p){   // (com ?lego=1: montada por peças, poilego.js)
-    if(legoOn()){legoFarm(c,rng,p);return}
+  farm(c,rng,p){   // (com legoOn: montada por peças, poilego.js)
+    if(legoOn()){legoBuild(c,rng,p);return}
     // fazenda: uma única casa, campos de plantação (trigo e horta) e cercados de animais (vacas, ovelhas, porcos e galinhas), com poço, silos e carroça
     poiHut(c,-12,-14,9,7,'S',{chimney:true,timber:true,shut:0x3a5a3a},rng);   // a casa
     poiPath(c,-7.5,-6,-7.5,3);poiLampAt(c,-5.6,-5.4);
@@ -655,7 +661,7 @@ function poiBuild(p){
   if(p.runtime||p.adapt){c.noDig=true;c.adapt=true}   // POI criado em jogo (frente da guerra): a malha do terreno não muda, então a construção é que se adapta ao chão (poiAdaptBc)
   BX_CAP={batch:new BoxBatch(),cols:[]};
   try{
-    if(p.pad){const r=POI_DEFS[p.type].r;pBc(c,-r,-4,-r,r,0,r,0x6a5a40,true,{j:0.02})}   // base de terra (mapa manual: o chão não é aplainado)
+    if(p.pad){const r=poiR(p);pBc(c,-r,-4,-r,r,0,r,0x6a5a40,true,{j:0.02})}   // base de terra (mapa manual: o chão não é aplainado)
     POI_BUILD[p.type](c,rng,p);
   }finally{const cap=BX_CAP;BX_CAP=null;const m=cap.batch.toMesh(MAT_TERRAIN);if(m){m.userData.cx=p.cx;m.userData.cz=p.cz;scene.add(m);p.mesh=m;p.sceneObjs.push(m)}p.cols=cap.cols}
   poiPaint(p);
@@ -665,7 +671,7 @@ function poiBuild(p){
 // ponto livre de POIs, cavernas e baús perdidos? (usado pelos portais, que nascem em runtime). lax: tentativa folgada
 function ambClash(x,z,lax){
   const g=lax?AMB_GAP*0.5:AMB_GAP;
-  for(const p of WORLD.pois||[])if(Math.hypot(p.cx-x,p.cz-z)<POI_DEFS[p.type].r+g)return true;
+  for(const p of WORLD.pois||[])if(Math.hypot(p.cx-x,p.cz-z)<poiR(p)+g)return true;
   for(const q of WORLD.caves||[])if(Math.hypot(q.cx-x,q.cz-z)<11+g)return true;
   for(const q of wfReserved())if(Math.hypot(q.x-x,q.z-z)<POI_DEFS.fortcamp.r+g)return true;   // terrenos de guerra e dormentes (warfront.js)
   for(const q of WORLD.chests||[])if(Math.hypot(q.x-x,q.z-z)<3+g)return true;
@@ -725,7 +731,7 @@ function poiInitOwner(p,rng){
 // dry (modo reserva, js/reserve.js reservePois): só escolhe os lugares no terreno rascunho (nada é aplainado nem construído) e devolve a lista
 // de POIs planejados; depois, com WORLD.poiPlan, esta função só instancia a lista (os reservados já têm o chão pronto; os outros são aplainados aqui).
 function genWorldPois(cities,taken,dry){
-  if(WORLD.showcaseMode){poiShowcaseGen();return}
+  if(WORLD.showcaseMode){if(legoShowOn())poiLegoShowGen();else poiShowcaseGen();return}
   const rng=new RNG((WORLD.seed*131+7)>>>0);WORLD.pois=[];let id=300;const tc={},bc={},G=POI_GEN;let cap=true;
   const add=(type,x,z,y,extra)=>{
     const d=POI_DEFS[type],p=Object.assign({id:id++,type,cx:x,cz:z,y,biome:B[z*W+x],owner:'bandit'},extra||{});
@@ -848,14 +854,14 @@ function genWorldPois(cities,taken,dry){
     p.owner=poiInitOwner(p,rng);taken.push({x:sp.x,z:sp.z,r:POI_DEFS.bridge.r});poiBuild(p);WORLD.pois.push(p);br.toll=p.id;
   }
   // estradas de ligação: só Fazenda, Taverna e Entreposto (a ponte já está na estrada). Vão até a estrada MAIS PRÓXIMA, não até a cidade
-  const pseudo=q=>({cx:q.cx,cz:q.cz,half:POI_DEFS[q.type].r,gates:[]});
+  const pseudo=q=>({cx:q.cx,cz:q.cz,half:poiR(q),gates:[]});
   for(const p of WORLD.pois){
     if(p.type!=='farm'&&p.type!=='tavern'&&p.type!=='post')continue;
     let best=null,bd=1e9;
     for(let z=6;z<W-6;z+=3)for(let x=6;x<W-6;x+=3){
       const k=T[z*W+x];if(k!==T_ROAD&&k!==T_BRIDGE)continue;const d=Math.hypot(x-p.cx,z-p.cz);if(d<bd){bd=d;best=[x,z]}
     }
-    if(!best||bd<POI_DEFS[p.type].r+6)continue;
+    if(!best||bd<poiR(p)+6)continue;
     carveRoad(pseudo(p),{cx:best[0],cz:best[1],half:-3,gates:[]},cities.concat(WORLD.pois.filter(q=>q!==p&&q.type!=='bridge').map(pseudo)),{water:ROAD_WATER_OLD,noBridge:reserveOn(),pinEnds:reserveOn()});   // só por terra (no modo reserva nem ponte: as pontes vêm só do plano de js/reserve.js)
   }
   if(reserveOn())reserveGateLinks(cities);   // portões ainda sem estrada ligam-se à mais próxima, inclusive às estradas de POI (js/reserve.js)

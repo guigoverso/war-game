@@ -73,7 +73,7 @@ function tcQuery(type, place) {
 function tcAdd(S, type, x, z, y, extra) {
   const d = POI_DEFS[type], p = Object.assign({ id: S.ids++, type, cx: x, cz: z, y, biome: B[z * W + x], owner: tcOwner(type, extra && extra.main), tile: true, cityId: 0 }, extra || {});
   if (d.war) p.adapt = true; else flattenArea(x, z, d.r, y, extra && extra.main ? TILE_PLACE.mainRamp : POI_BIG[type] ? 4 : 3);
-  if (type === 'farm' && legoOn()) {   // fazenda lego: o portão olha para a estrada mais próxima (o principal nasce antes das estradas: olha para a abertura mais próxima, de onde elas virão)
+  if (LEGO_RECIPES[type] && legoOn()) {   // fazenda lego: o portão olha para a estrada mais próxima (o principal nasce antes das estradas: olha para a abertura mais próxima, de onde elas virão)
     const pts = S.roadCells.length ? S.roadCells : S.win.openings.map(o => [o.x, o.z]);
     if (pts.length) { const q = pts.reduce((b, c) => Math.hypot(c[0] - x, c[1] - z) < Math.hypot(b[0] - x, b[1] - z) ? c : b); p.legoFace = legoRotToward(q[0] - x, q[1] - z) }
   }
@@ -101,7 +101,7 @@ function tcMain(S) {
   }
   S.falhas.push('principal');
 }
-function tcSetMain(S, p) { S.main = { type: p.type, x: p.cx, z: p.cz, y: p.y, r: POI_DEFS[p.type].r, rOut: POI_DEFS[p.type].r + TILE_WAR.ringW, owner: p.owner, poi: p } }
+function tcSetMain(S, p) { S.main = { type: p.type, x: p.cx, z: p.cz, y: p.y, r: poiR(p), rOut: poiR(p) + TILE_WAR.ringW, owner: p.owner, poi: p } }
 
 // 2) Estradas: cada abertura até o principal (ou até um ponto central, na ponte; ou até a primeira abertura, na passagem). Cidade/vila: já ligadas por tileTrailLinks.
 function tcRoads(S) {

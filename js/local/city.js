@@ -9,7 +9,9 @@ const PAL={
 const ovr=(a,b,m)=>a.x0-m<=b.x1&&a.x1+m>=b.x0&&a.z0-m<=b.z1&&a.z1+m>=b.z0;
 let BC_XF=null;   // transformação (gira/espelha) de tudo que um POI desenha por Bc; só poilego.js a liga, durante a montagem de um POI lego
 function Bc(c,x0,y0,z0,x1,y1,z1,color,col,o){if(BC_XF){const q=BC_XF(x0,z0,x1,z1);x0=q[0];z0=q[1];x1=q[2];z1=q[3]}if(c.adapt)return poiAdaptBc(c,x0,y0,z0,x1,y1,z1,color,col,o);Bx(c.cx+x0,c.y+y0,c.cz+z0,c.cx+x1,c.y+y1,c.cz+z1,color,col,o)}
-function setTL(c,lx,lz,t){setT(c.cx+lx,c.cz+lz,t)}
+function setTL(c,lx,lz,t){if(BC_XF){const q=BC_XF(lx,lz,lx+1,lz+1);lx=q[0];lz=q[1]}setT(c.cx+lx,c.cz+lz,t)}   // (com BC_XF: a célula também gira)
+// Colisão (addCol) de um POI na caixa local x0..x1, z0..z1 (y absoluto); gira/espelha junto com o desenho quando há BC_XF (POI lego).
+function acL(c,x0,y0,z0,x1,y1,z1){if(BC_XF){const q=BC_XF(x0,z0,x1,z1);x0=q[0];z0=q[1];x1=q[2];z1=q[3]}addCol(c.cx+x0,y0,c.cz+z0,c.cx+x1,y1,c.cz+z1)}
 function fillT(c,r,t,fn){for(let z=r.z0;z<=r.z1;z++)for(let x=r.x0;x<=r.x1;x++)if(!fn||fn(x,z))setTL(c,x,z,t)}
 
 // quadro de coordenadas de um prédio: u = ao longo da parede da porta, v = profundidade para dentro
@@ -52,7 +54,7 @@ function lamp(c,x,z){
 }
 function crate(c,x,z,s,h){
   const by=poiBaseY(c,x+s/2,z+s/2);
-  addCol(c.cx+x,by,c.cz+z,c.cx+x+s,by+h,c.cz+z+s);
+  acL(c,x,by,z,x+s,by+h,z+s);
   const n=Math.max(2,Math.round(h/0.33)),ph=h/n;                       // tábuas horizontais de tons alternados
   for(let i=0;i<n;i++)Bc(c,x,i*ph,z,x+s,(i+1)*ph,z+s,i%2?0x9a7a45:0x8a6c3a,false,{j:0.06});
   for(const [px,pz] of[[0,0],[s-0.12,0],[0,s-0.12],[s-0.12,s-0.12]])Bc(c,x+px-0.02,0,z+pz-0.02,x+px+0.14,h,z+pz+0.14,0x6a4f2a,false,{j:0.04});   // quinas
@@ -60,7 +62,7 @@ function crate(c,x,z,s,h){
 }
 function barrel(c,x,z){
   const by=poiBaseY(c,x+0.45,z+0.45);
-  addCol(c.cx+x,by,c.cz+z,c.cx+x+0.9,by+1.3,c.cz+z+0.9);
+  acL(c,x,by,z,x+0.9,by+1.3,z+0.9);
   const mx=x+0.45,mz=z+0.45;                                           // corpo octogonal com aros e tampa
   for(const [hw,hd,y0,y1] of[[0.45,0.28,0,1.3],[0.28,0.45,0,1.3],[0.4,0.4,0,1.3]])Bc(c,mx-hw,y0,mz-hd,mx+hw,y1,mz+hd,0x7a5a30,false,{j:0.07});
   for(const y of[0.2,0.95])for(const [hw,hd] of[[0.47,0.3],[0.3,0.47],[0.42,0.42]])Bc(c,mx-hw,y,mz-hd,mx+hw,y+0.1,mz+hd,0x333336,false,{j:0});
@@ -69,7 +71,7 @@ function barrel(c,x,z){
 function sandbag(c,x,z,alongX){const L=3,w=0.9;
   if(alongX)Bc(c,x,0,z,x+L,1.3,z+w,0xb8a06a,true);else Bc(c,x,0,z,x+w,1.3,z+L,0xb8a06a,true);}
 function hay(c,x,z){
-  addCol(c.cx+x,c.y,c.cz+z,c.cx+x+1.3,c.y+1.3,c.cz+z+1.3);
+  acL(c,x,c.y,z,x+1.3,c.y+1.3,z+1.3);
   for(let i=0;i<5;i++)Bc(c,x-(i%2?0.03:0),i*0.26,z,x+1.3+(i%2?0.03:0.0),(i+1)*0.26,z+1.3,i%2?0xd8b84a:0xc8a83c,false,{j:0.1});   // camadas de palha
   for(const k of[0.3,0.9])Bc(c,x-0.04,0,z+k,x+1.34,1.3,z+k+0.07,0x6a5a2a,false,{j:0});                                     // cordas
 }
@@ -152,7 +154,7 @@ function roofOn(c,X0,Z0,X1,Z1,yTop,type,color,o){
   while(b-a>=1){
     const y=yTop+k,col=k%2?shadec(color,0.92):color;
     // colisão em uma caixa por degrau; visual em telhas de 1 bloco com tons ligeiramente diferentes
-    if(longX)addCol(c.cx+r0-ov,c.y+y,c.cz+a,c.cx+r1+ov,c.y+y+1,c.cz+b);else addCol(c.cx+a,c.y+y,c.cz+r0-ov,c.cx+b,c.y+y+1,c.cz+r1+ov);
+    if(longX)acL(c,r0-ov,c.y+y,a,r1+ov,c.y+y+1,b);else acL(c,a,c.y+y,r0-ov,b,c.y+y+1,r1+ov);
     for(let t=r0-ov;t<r1+ov;t++){const t1=Math.min(t+1,r1+ov),cc=shadec(col,0.93+Math.random()*0.14);
       if(longX)Bc(c,t,y,a,t1,y+1,b,cc,false,{b:true,j:0.03});else Bc(c,a,y,t,b,y+1,t1,cc,false,{b:true,j:0.03})}
     a++;b--;k++;

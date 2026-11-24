@@ -201,7 +201,7 @@ function worldInit(seed,dominant,opts){
   if(!DOM_NAMES[dominant])dominant=['plains','forest','mountain','snow','desert'][new RNG(seed+999).int(0,4)];
   const win=mapWindowPick(seed,dominant);   // janela do campo do mundo (null no jogo normal; js/mapwin.js): o mapa local passa a ser um pedaço do mundo
   if(win&&win.size!==W)mapSetSize(win.size);
-  WORLD.win=win;WORLD.dominant=dominant;WORLD.seed=seed;WORLD.cities=[];WORLD.chunkMeshes=[];WORLD.windmills=[];WORLD.bt=new Map();WORLD.bridges=[];WORLD.poiPlan=null;WORLD.rivers=null;WORLD.dgSite=null;WORLD.noRail=new Set();WORLD.showcaseMode=new URLSearchParams(location.search).get('cenario')==='pois';
+  WORLD.win=win;WORLD.dominant=dominant;WORLD.seed=seed;WORLD.cities=[];WORLD.chunkMeshes=[];WORLD.windmills=[];WORLD.bt=new Map();WORLD.bridges=[];WORLD.poiPlan=null;WORLD.rivers=null;WORLD.dgSite=null;WORLD.noRail=new Set();WORLD.showcaseMode=['pois','lego'].includes(new URLSearchParams(location.search).get('cenario'));
   Col.map.clear();Col.all.length=0;for(const a of CRITTERS)scene.remove(a.g);CRITTERS.length=0;
   const rng=new RNG(seed);
   const nz=new Noise(seed),nt=new Noise(seed+11),nm=new Noise(seed+23),nr=new Noise(seed+37),nd=new Noise(seed+51),nj=new Noise(seed+77);TNOISE=new Noise(seed+303);
@@ -627,7 +627,7 @@ function genDecor(rng,dn,cities){
     if(WORLD.win&&WORLD.win.band&&WORLD.win.band[i])continue;   // faixa da borda: quem planta é tileBorderBuild
     if(nearCity(px,pz,4,cities))continue;
     if(WORLD.camps.some(k=>Math.hypot(px-k.cx,pz-k.cz)<13.5))continue;   // acampamentos ficam sem árvores, pedras e plantas ao redor
-    if(WORLD.pois&&WORLD.pois.some(k=>Math.hypot(px-k.cx,pz-k.cz)<POI_DEFS[k.type].r+5))continue;   // POIs também (a margem deixa as copas das árvores de fora)
+    if(WORLD.pois&&WORLD.pois.some(k=>Math.hypot(px-k.cx,pz-k.cz)<poiR(k)+5))continue;   // POIs também (a margem deixa as copas das árvores de fora)
     if(tileZoneNear(px,pz))continue;   // zonas de guerra do tile (4E, tilecompose.js): clareiras sem árvores
     if(wfReserved().some(k=>Math.hypot(px-k.x,pz-k.z)<POI_DEFS.fortcamp.r+5))continue;   // e os terrenos de guerra e dormentes reservados (warfront.js)
     if(!clearAround(px,pz))continue;

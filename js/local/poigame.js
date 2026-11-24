@@ -58,7 +58,7 @@ function poiGarrisonPopulate(p){
   if(p.show||p.gar)return;
   const armed=typeof warOpArmed==='function'&&warOpArmed(p);   // operação de ataque ativa (warops.js): guarnição de 10+ mesmo em POI de facção
   if(p.type==='ruins'){if(poiX().done[p.id])return}else if(p.owner!=='bandit'&&!(armed&&typeof p.owner==='number'))return;
-  const d=POI_DEFS[p.type],rng=new RNG((WORLD.seed*29+p.id*61+STATE.round*7+5)>>>0),ru=p.type==='ruins';
+  const d=Object.assign({},POI_DEFS[p.type],{r:poiR(p)}),rng=new RNG((WORLD.seed*29+p.id*61+STATE.round*7+5)>>>0),ru=p.type==='ruins';
   const pl=ru?{n:5,tier:2,hpMul:1}:poiGarrisonPlan(p);
   if(armed){pl.n=Math.max(pl.n,WAR.garrisonMin);if(typeof p.owner==='number')pl.tier=Math.min(4,Math.max(pl.tier,poiLvl(p.owner)))}   // tipos pelo nível da facção e pela distância
   const n=pl.n,tier=pl.tier;
@@ -299,7 +299,7 @@ function poiCivSync(p){
   const ready=friendly&&poiLive(p)&&!(sn!==undefined&&STATE.round<sn+POIX.civDelay);
   if(p.civ&&(!ready||p.civ.fid!==fid))poiCivRemove(p);
   if(!ready||p.civ)return;
-  const d=POI_DEFS[p.type],ring=(k,n,f)=>{const a=k*6.283/n+0.7,q=freeSpot(p.cx+Math.cos(a)*d.r*f,p.cz+Math.sin(a)*d.r*f,0.3,1.8,0.45);return{a,x:q[0],z:q[1]}};
+  const d=Object.assign({},POI_DEFS[p.type],{r:poiR(p)}),ring=(k,n,f)=>{const a=k*6.283/n+0.7,q=freeSpot(p.cx+Math.cos(a)*d.r*f,p.cz+Math.sin(a)*d.r*f,0.3,1.8,0.45);return{a,x:q[0],z:q[1]}};
   p.civ={id:2000+p.id,biome:p.biome,owner:o==='player'?'player':'enemy',fid,npcs:[],kind:'poiciv',cx:p.cx,cz:p.cz,half:12,enemies:[],state:'idle',walk:[]};
   for(let k=0;k<6;k++){const w=ring(k,6,0.5);p.civ.walk.push({x:w.x,z:w.z})}   // pontos por onde os civis caminham
   const ng=POIX.guards[p.type]||POIX.guards.def;
@@ -624,6 +624,6 @@ function poiTick(dt){
   POI_T-=dt;if(POI_T>0)return;POI_T=0.5;
   for(const c of WORLD.garrisons||[])if(c._ally&&c.state!=='attacking'){c._ally=false;armyConquered(WORLD.home)}   // acabou (ou você recuou): de volta ao posto
   const X=poiX();
-  for(const p of WORLD.pois||[])if(!p.show&&!X.seen[p.id]&&poiLive(p)&&Math.hypot(P.x-p.cx,P.z-p.cz)<POIX.reveal+POI_DEFS[p.type].r){X.seen[p.id]=true;if(p.type!=='ruins'&&!G.creative)toast('📍 Você avistou: '+POI_DEFS[p.type].ic+' '+POI_DEFS[p.type].n+' (marcado no mapa).',3500)}
+  for(const p of WORLD.pois||[])if(!p.show&&!X.seen[p.id]&&poiLive(p)&&Math.hypot(P.x-p.cx,P.z-p.cz)<POIX.reveal+poiR(p)){X.seen[p.id]=true;if(p.type!=='ruins'&&!G.creative)toast('📍 Você avistou: '+POI_DEFS[p.type].ic+' '+POI_DEFS[p.type].n+' (marcado no mapa).',3500)}
 }
 document.addEventListener('click',e=>{if(e.target&&e.target.id==='mapback'){closePanel();showPolicy()}});   // do mapa de volta ao cartão do evento

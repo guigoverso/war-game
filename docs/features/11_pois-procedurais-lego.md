@@ -84,7 +84,7 @@ Cada um, uma sessão; todos na `mapa-mundi-update`.
   3. **Chance de ficar fora da estrada:** taverna, pousada e alojamento ficam **majoritariamente na estrada**, mas têm **30%** (valor inicial, modificador novo `TILE_PLACE.offRoad`) de nascer longe dela, com **bifurcação** da estrada e a trilha do item 2. **O entreposto nunca** (só na estrada, onde passa caravana). Alcance máximo da trilha a definir (proposta: 90 blocos); se a trilha não for possível (água, relevo), o POI volta para a beira da estrada.
   4. Testes: a frente aponta para a estrada (distância do portão menor que a do centro), a trilha liga o portão a um `T_ROAD`, nada na trilha bloqueia a porta, entreposto sempre na estrada. Galeria com os dois casos (na estrada e fora dela).
   Estado atual (4E): essas classes de POI já são `place: 'road'` (alojamento incluído desde 2026-11-24) e NÃO nascem se não há estrada por perto (`TILE_PLACE.roadFar`); não há trilha nem giro.
-- **L2 — Migrar 3 POIs (M):** fazenda, mina e serraria como receitas (as 3 de recurso; variam em quantidade de prédios e campos). Os tamanhos pequeno/médio saem do **mesmo** desenho. Serviços e anexação intactos (smoke).
+- **L2 — Migrar 3 POIs (M) — FEITO em 2026-11-24 (seção 7d):** fazenda, mina e serraria como receitas (as 3 de recurso; variam em quantidade de prédios e campos). Os tamanhos pequeno/médio saem do **mesmo** desenho. Serviços e anexação intactos (smoke).
 - **L3 — Micro-POIs (M):** 10 a 12 peças/receitas micro (lista na seção 5) e a coluna **vida** da composição.
 - **L4 — Encaixe no tile (M):** `tilecompose.js` lê classe e vida; sobe a densidade; galeria e teste de 25 POIs/tile; medir tempo.
 - **L5 — Resto e revisão (M):** migrar os demais (pousada, taverna, entreposto, forte, caçadores, santuário), vila de trabalhadores, plantação, pesca; remover os substitutos `pend`.
@@ -155,6 +155,16 @@ Roda o smoke, joga um tile de cada tema, confere o tempo de geração e atualiza
 7. **Sem teste de nav por âncora hoje.** O doc propõe "toda âncora funcional alcançável"; ainda não existe nenhum helper para isso (não verifiquei `buildNav`; fica para o L1).
 
 **Contrato confirmado (substitui a tabela da seção 3 como referência do L1):** a receita monta `p.sceneObjs/mesh/cols` (via `poiBuild`, sem mudança), `p.flagMat` (uma bandeira), e as âncoras funcionais em **coordenadas do mapa**; `p.r` (novo) por instância; `p.lego` vira `p.recipe = {id, seed, rot, mir, pieces, anchors}` (só semente e parâmetros, nunca as peças).
+
+## 7d. L2 — Fazenda, mina e serraria como receitas (FEITO 2026-11-24)
+- **Cenário novo `?cenario=lego`:** mundo super plano (`WORLD.showcaseMode`, como o `pois`) só com os POIs lego: **3 tipos x 2 tamanhos (M médio, P pequeno) x 4 variações = 24 POIs** em grade (`poiLegoShowGen`, `LEGO_SHOW`). A variação *i* usa o esqueleto *i* (giro, espelho, peças e enfeites vêm da semente), então as 4 são visivelmente diferentes; cada POI tem placa com tipo, tamanho, número e esqueleto. Tecla N liga o voo.
+- **Motor generalizado:** `legoBuild` (antes `legoFarm`) lê `LEGO_RECIPES[tipo][tamanho]` (`half`, `gate`, `fence`, `flag`, `decorN`, esqueletos), `LEGO_PICK` (peça por vaga e tipo), `LEGO_MIN`, `LEGO_DECOR`, `LEGO_PAL`. Quadro local de peça com frente (`legoLoc`/`legoDraw`, compõe com o giro do POI).
+- **Peças novas:** mina: `boca` (morro de pedra escalonado com portal, lanternas, trilhos e vagonete, **sem escavar**: gira com o POI), `oficina`, `guincho`, `deposito`, `minerio`, `carvao`, `entulho`; serraria: `serra` (âncora), `escritorio`, `tabuas`, `toras`, `canal` com roda d'água, `entulho`. Esqueletos: fazenda 5 M + 4 P, mina 4 M + 4 P, serraria 4 M + 4 P.
+- **Raio por instância (`p.r`, achado 2 da L0):** `poiR(p)` em `pois.js` (padrão `POI_DEFS[tipo].r`) usado por geração, composição, guerra, reserva e moradores/guarnição (`poigame.js`). `p.legoSize`, `p.legoSk` e `p.legoFace` controlam tamanho, esqueleto e frente.
+- **Correção no gancho `BC_XF`:** `setTL` e a nova `acL` (colisão de `crate`, `barrel`, `hay` e do telhado de `roofOn`) agora giram junto; antes a colisão e o piso (T_FLOOR) de peças giradas ficavam no lugar errado (já no protótipo da fazenda).
+- **Gatilho:** `legoOn()` = `?lego=1` ou `?cenario=lego`; sem eles, fazenda, mina e serraria continuam as antigas (nada muda no jogo normal). **Pendente para decidir:** tornar o lego o padrão (e o tile 4E, que hoje sempre constrói o tamanho M; pequeno entra na L4 com `TILE_COMPOSE`).
+- **Não feito/fora do L2:** serviços (os 3 POIs não têm), `poiDig` da mina antiga (a boca lego não escava), nav por âncora (L1b).
+- **Testes:** `cd tests && node macro/lego.js` (geometria das 6 receitas), `node lego-galeria.js [semente]` (carga, 24 POIs, âncoras, esqueletos distintos, fotos em `docs/img/lego/<tipo>-<tamanho>-<n>.png` e `cenarios-lego.html`); `smoke.js` e `tile-compose.js` seguem OK.
 
 ## 8. Perguntas para decidir
 **[DECIDIDO] 2026-11-24** (todas conforme a recomendação):
