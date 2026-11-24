@@ -52,7 +52,9 @@ const CITY_FOOT = {
 
 // Cidade ENORME (etapa 4B; tile temático 'cidade', ?cenario=tile&tema=cidade; docs/features/8_tiles-e-vilas.md). Ocupa de 40% a 60% da ÁREA do tile
 // (em 384: lado de 243 a 297). Reaproveita buildCity com ruas em blocos, várias praças e formatos de pegada próprios. Padrões entre parênteses.
-// areaFrac: [mín, máx] da área do tile ocupada pela pegada (0.40 e 0.60). minHalf: raio mínimo (blocos) ao encolher quando o terreno não deixa (100).
+// areaFrac: [mín, máx] da área do tile ocupada pela pegada (0.25 e 0.35; a spec original era 0.40 a 0.60, reduzida para sobrar espaço aos POIs e ao cerco).
+// boxMax: máximo da área do tile ocupada pela CAIXA (o quadrado em volta da pegada; formatos magros ganham caixa maior, mas até aqui) (0.45).
+// minHalf: raio mínimo (blocos) ao encolher quando o terreno não deixa (70).
 // margin: folga (blocos) entre a caixa da cidade e a borda do tile, para o muro, a rampa e a faixa de árvores (14).
 // plazaOff: quanto a praça sai do centro da pegada (fração de `half`; ainda limitado pela folga do tile) (0.12). devMul: multiplica o desnível
 // aceito pela pegada (CITY_FOOT.maxDev), porque a cidade é grande e o terreno vira terraço (1.5). nudge: quanto o centro pode andar (16).
@@ -66,7 +68,7 @@ const CITY_FOOT = {
 // soldiers: soldados da cidade fora de guerra (10). civ: [mín, máx] de moradores (50, 70); a cidade é grande e precisa de gente nas ruas.
 // walls: tipos de muro sorteados (a cidade enorme sempre tem muro, para o formato aparecer); ?muro=pedra|paliçada|cerca força um.
 const CITY_HUGE = {
-  areaFrac: [0.40, 0.60], minHalf: 100, margin: 14, plazaOff: 0.12, devMul: 1.5, nudge: 16,
+  areaFrac: [0.25, 0.35], boxMax: 0.45, minHalf: 70, margin: 14, plazaOff: 0.12, devMul: 1.5, nudge: 16,
   shapes: { quadrado: 3, circulo: 2, losango: 1, oval: 2, cruz: 1.5, ele: 1.5, flor: 1.5 },
   edge: { base: 0.97, noise: 0.3, min: 0.9 }, blockStep: [22, 30], avenue: 3, street: 1, plazas: [2, 4], plazaP: [5, 7],
   density: 260, serviceSpread: 60, towerGap: 44, towerMax: 70, soldiers: 10, civ: [50, 70],
@@ -76,7 +78,7 @@ const CITY_HUGE = {
 // enchem menos a caixa (CITY_SHAPES[...].fill, relativo a 0.8 do quadrado) ganham caixa maior, até caber no tile (folga `margin`).
 function cityHugeHalf(rng, size, shape) {
   const f = rng.range(CITY_HUGE.areaFrac[0], CITY_HUGE.areaFrac[1]), fill = (CITY_SHAPES[shape] || { fill: 0.8 }).fill;
-  return Math.min(Math.floor((size - 1) / 2) - CITY_HUGE.margin, Math.floor(size * Math.sqrt(f) / 2 * Math.sqrt(0.8 / fill)));   // 0.8 = fill do quadrado (caixa de 243 a 297 em 384)
+  return Math.min(Math.floor((size - 1) / 2) - CITY_HUGE.margin, Math.floor(size * Math.sqrt(CITY_HUGE.boxMax) / 2), Math.floor(size * Math.sqrt(f) / 2 * Math.sqrt(0.8 / fill)));   // 0.8 = fill do quadrado
 }
 // Formato da pegada de uma cidade enorme: ?forma_cidade=<nome> ou sorteio por peso (rng).
 function cityHugeShape(rng) {

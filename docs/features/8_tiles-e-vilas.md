@@ -118,6 +118,9 @@ Regra de posição: tema e comércio (pousada, taverna, entreposto) **perto da e
 - **[MEDIDO] Linha de base de geração** (Chromium sem janela, até o jogo rodar; 2 execuções): mapa 704 = **7,7 a 10,9 s** (~15 µs por bloco), mapa 640 = 6,6 s, cenário batalha (320, 2 cidades) = 1,2 s, `?cenario=tile` 256 = 1,1 s, 320 de cidade = 1,5 s. **Previsão para 384: ~2,2 s** sem POIs extras. **Limite proposto:** tile temático ≤ 4 s e cidade enorme ≤ 5 s nesse mesmo teste (ajustável).
 - **[ABERTO]** Onde fica a proporção de temas na criação do mundo: proposta `?temas=70` por URL agora, tela de menu depois (aguarda OK).
 
+## Revisão na 4B (2026-11-23)
+- **[DECIDIDO]** Cidade enorme: pegada **25 a 35%** do tile (antes 40 a 60%) e caixa **até 45%** (`CITY_HUGE.areaFrac`/`boxMax`), para sobrar anel livre a POIs e a zona de cerco. Lado típico 200 a 230.
+
 ## Pendente
 - Ligação do tile com rodadas, economia por tile e simulação fora da tela: etapas 7 e 8.
 - Anexação, carne e couro do tile Animais, bônus extra do tile de vila: etapa 8.
