@@ -285,6 +285,7 @@ function genPOIs(rng,cities){
     const h0=H.slice(),t0=T.slice();genWorldPois(cities,taken);
     const sn=WORLD.snap;if(sn)for(let k=0;k<W*W;k++)if(H[k]!==h0[k]||T[k]!==t0[k]){sn.H[k]=H[k];sn.T[k]=T[k];sn.B[k]=B[k]}   // o mapa (makeMapCanvas) usa a cópia de antes dos extras: estradas de ligação e nivelamento dos POIs entram nela
   }
+  if(WORLD.showcaseMode&&legoShowOn()){WORLD.packs=[];WORLD.areas=cities.slice();return}   // cenário lego: só os POIs da feature (sem acampamentos, grutas, baús, bandos nem terrenos de guerra)
   const nCamps=rng.int(14,18);
   for(let i=0;i<nCamps;i++){
     const s=findSpot(rng,10,10+AMB_GAP,6,taken.concat(cities.map(k=>({x:k.cx,z:k.cz,r:k.half+8}))),3500);   // folga AMB_GAP (pois.js) da muralha e dos outros

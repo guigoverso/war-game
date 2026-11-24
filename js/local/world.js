@@ -228,7 +228,8 @@ async function worldCitiesStage(X,status){
   // nº de cidades proporcional à terra do mapa (terra ÷ 48 mil, entre 6 e 8); ?cid=N força um número (estudo)
   let landN=0;for(let i=0;i<W*W;i+=9)if(H[i]>=SEA+1)landN++;
   const NC=tileTestOn()?2:(X.win&&X.win.tile)?1:Math.max(4,Math.min(16,+(new URLSearchParams(location.search).get('cid'))||Math.max(6,Math.min(8,Math.round(landN*9/48000)))));   // mapa de teste: duas cidades
-  const inShow=(x,z)=>WORLD.showcaseMode&&Math.abs(x-W/2)<210&&Math.abs(z-W/2)<170;   // área reservada aos POIs do mapa manual: sem cidades
+  const sa=legoShowOn()?LEGO_SHOW.area:[210,170];   // meia-largura da área reservada em x e z (cenário lego: maior, com o bloco de micro-POIs)
+  const inShow=(x,z)=>WORLD.showcaseMode&&Math.abs(x-W/2)<sa[0]&&Math.abs(z-W/2)<sa[1];   // área reservada aos POIs do mapa manual: sem cidades
   // 2) Locais das cidades
   status('Escolhendo locais para as cidades...');await tick();
   // candidatos planos em terra; depois escolhe pontos o mais afastados possível entre si

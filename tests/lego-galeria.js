@@ -31,6 +31,19 @@ let fails = 0; const rep = (ok, n, w) => { if (!ok) fails++; console.log((ok ? '
         bad: A.every(q => ab(q.x, H + 0.8) && ab(q.z, H + 0.8)) ? '' : 'âncora ou portão fora da área' } });
   });
   rep(list.length === 24, list.length + ' POIs no cenário (3 tipos x 2 tamanhos x 4 variações)');
+  const mc = await page.evaluate(() => {   // L3: micro-POIs (4 dormentes que já existiam + os novos de LEGO_MICRO.list) e cenário limpo
+    const all = (WORLD.dormant || []).concat(WORLD.micros || []), sa = LEGO_SHOW.area;
+    return { nd: (WORLD.dormant || []).length, nm: (WORLD.micros || []).length, want: LEGO_MICRO.list.length,
+      bad: all.filter(d => !d.mesh || !d.cols || d.cols.length < 2).map(d => d.kind), kinds: new Set(all.map(d => d.kind)).size, n: all.length,
+      dist: all.some((a, i) => all.some((b, j) => i < j && Math.hypot(a.x - b.x, a.z - b.z) < a.r + b.r + 2)),
+      camps: (WORLD.camps || []).length, caves: (WORLD.caves || []).length, chests: (WORLD.chests || []).length, packs: (WORLD.packs || []).length,
+      cityIn: WORLD.cities.filter(k => Math.abs(k.cx - W / 2) - k.half < sa[0] - 60 && Math.abs(k.cz - W / 2) - k.half < sa[1] - 60).length };
+  });
+  rep(mc.nd === 4 && mc.nm === mc.want, 'micro-POIs: 4 que já existiam + ' + mc.want + ' novos', mc.nd + ' dormentes, ' + mc.nm + ' novos');
+  rep(!mc.bad.length && mc.kinds === mc.n, 'todos os micro-POIs montados (malha e colisões) e todos diferentes', mc.bad.join(', '));
+  rep(!mc.dist, 'micro-POIs sem sobreposição entre si (raio + 2)');
+  rep(!mc.camps && !mc.caves && !mc.chests && !mc.packs, 'cenário limpo: sem acampamentos, grutas, baús nem bandos', JSON.stringify([mc.camps, mc.caves, mc.chests, mc.packs]));
+  rep(!mc.cityIn, 'nenhuma cidade (com a muralha) dentro da área dos POIs', mc.cityIn + ' cidade(s)');
   const nr = list.filter(i => !i.reach); rep(!nr.length, 'portão e porta da âncora alcançáveis a pé (nav)', nr.slice(0, 4).map(i => i.type + ' ' + i.id + ' ' + i.sk).join(' | '));
   const bad = list.filter(i => i.bad || !i.flag || i.cols < 5); rep(!bad.length, 'todos montados com âncoras, bandeira e colisões', bad.slice(0, 3).map(b => b.type + ' ' + b.id + ' ' + (b.bad || 'sem bandeira/colisões')).join(' | '));
   const un = await page.evaluate(() => {   // poiAnchorsXf: gira as âncoras já em coordenadas do mapa igual ao caminho relativo (legoBuild); yaw acompanha; receita refaz o mesmo POI

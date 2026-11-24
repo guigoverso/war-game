@@ -57,3 +57,5 @@ const txtShopMerchantGold = n => '◉ ' + n + ' moedas do comerciante';
 const txtShopPlayerGold = n => 'Suas moedas: ◉ ' + n;
 // Placa de cada POI do cenário ?cenario=lego (poiLegoShowGen, poilego.js): nome, tamanho, número da variação e esqueleto sorteado.
 const poiLegoLabel = (p, i) => POI_DEFS[p.type].n + ' ' + LEGO_SIZE_NAME[p.recipe.size] + ' ' + (i + 1) + ' — ' + p.recipe.skeleton;
+// Placa de cada micro-POI do cenário ?cenario=lego (poiMicroShowGen, poimicro.js): "Micro: nome" e, nos que já existiam (dormentes da guerra), "(já existia)".
+const poiMicroLabel = m => 'Micro: ' + m.n + (m.old ? ' (já existia)' : '');

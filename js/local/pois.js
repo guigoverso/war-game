@@ -104,6 +104,8 @@ function poiAnimal(c,x,z,col,big){const s=big?1:0.7;pBc(c,x,0.4*s,z,x+1.2*s,0.95
 function poiSign(c,x,z,col){pBc(c,x-0.07,0,z-0.07,x+0.07,1.9,z+0.07,0x4a3320,false,{j:0});pBc(c,x-0.7,1.3,z-0.05,x+0.7,1.9,z+0.07,col||0x6b4a2a,false,{j:0.02});pBc(c,x-0.55,1.45,z+0.07,x+0.55,1.75,z+0.1,0xe8d8a8,false,{j:0})}
 function poiRack(c,x,z,alongX){for(let k=0;k<4;k++){const o=0.3+k*0.4;if(alongX){pBc(c,x+o,0.6,z,x+o+0.06,2.0,z+0.06,0xc0c8d0,false,{j:0});pBc(c,x+o-0.1,0.6,z,x+o+0.16,0.75,z+0.06,0x6b4a2a,false,{j:0})}else{pBc(c,x,0.6,z+o,x+0.06,2.0,z+o+0.06,0xc0c8d0,false,{j:0});pBc(c,x,0.6,z+o-0.1,x+0.06,0.75,z+o+0.16,0x6b4a2a,false,{j:0})}}pBc(c,alongX?x:x-0.05,0,alongX?z-0.05:z,alongX?x+1.8:x+0.15,0.6,alongX?z+0.15:z+1.8,0x5a3d22,true,{j:0.02})}
 function poiHut(c,x0,z0,w,d,D,o,rng){const f=poiHouse(c,x0,z0,w,d,D,o,rng);furnishHouse(c,f,rng,D);return f}   // casa com mobília
+// tenda de pele (5 degraus, entrada ao sul) centrada em (tx,tz); extraída de hunters e lodge, usada também pelos micro-POIs (poimicro.js)
+function poiTent(c,tx,tz,col){for(let i=0;i<5;i++){const w=1.8-i*0.34;pBc(c,tx-w,i*0.5,tz-1.4,tx+w,i*0.5+0.5,tz+1.4,shadec(col,i%2?1.07:0.95),i<3,{j:0.06})}pBc(c,tx-0.5,0,tz+1.35,tx+0.5,1.5,tz+1.45,0x1f1710,false,{j:0})}
 const poiLampAt=(c,x,z)=>{pBc(c,x-0.1,0,z-0.1,x+0.1,3.0,z+0.1,0x2a2a2a,true,{j:0});pBc(c,x-0.3,3.0,z-0.3,x+0.3,3.5,z+0.3,0xffe9a0,false,{j:0});pBc(c,x-0.4,3.5,z-0.4,x+0.4,3.65,z+0.4,0x2a2a2a,false,{j:0})};
 
 // Enfeite de fora da pousada e do alojamento por tema do tile (p.theme; sem ele, pelo bioma): feira na fazenda, minério na mina, toras na serraria.
@@ -127,7 +129,7 @@ function poiRestTheme(c,rng,p){
 // ---------- construtores (frente = +z) ----------
 const POI_BUILD={
   hunters(c,rng,p){   // acampamento de caçadores: tendas de pele, fogueira com tripé, varais de couro, troféus, lenha e armadilhas
-    const tent=(tx,tz,col)=>{for(let i=0;i<5;i++){const w=1.8-i*0.34;pBc(c,tx-w,i*0.5,tz-1.4,tx+w,i*0.5+0.5,tz+1.4,shadec(col,i%2?1.07:0.95),i<3,{j:0.06})}pBc(c,tx-0.5,0,tz+1.35,tx+0.5,1.5,tz+1.45,0x1f1710,false,{j:0})};
+    const tent=(tx,tz,col)=>poiTent(c,tx,tz,col);
     tent(-6,-5,0x8a6a3a);tent(5.5,-6,0xa08a5a);tent(-8.5,0.5,0x6a7a4a);
     p.sceneObjs.push(...buildCampFire(c,rng));   // a mesma fogueira do acampamento de bandidos (poi.js)
     for(const [x0,z0] of[[-9,6],[1,6.5]]){   // varais de couro com peles penduradas
@@ -386,7 +388,7 @@ poiPath(c,0,R+1,0,4);poiBrazier(c,-3.4,R+1.6);poiBrazier(c,3.4,R+1.6);
       pBc(c,bx,1.5,-8.6,bx+1.5,1.75,-6.4,0x6b4a2a,true,{j:0.02});pBc(c,bx+0.1,1.75,-8.5,bx+1.4,1.95,-6.5,rng.pick([0x8a3a3a,0x3a5a8a,0x5a7a3a]),false,{j:0.03});
       for(const [px,pz] of[[bx,-8.6],[bx+1.4,-8.6],[bx,-6.5],[bx+1.4,-6.5]])pBc(c,px,0,pz,px+0.12,1.5,pz+0.12,0x5a3d22,true,{j:0})}
     p.bed={x:c.cx-4.5,z:c.cz-5.4,y:c.y+0.1};
-    const tent=(tx,tz,col)=>{for(let i=0;i<5;i++){const w=1.8-i*0.34;pBc(c,tx-w,i*0.5,tz-1.4,tx+w,i*0.5+0.5,tz+1.4,shadec(col,i%2?1.07:0.95),i<3,{j:0.06})}pBc(c,tx-0.5,0,tz+1.35,tx+0.5,1.5,tz+1.45,0x1f1710,false,{j:0})};
+    const tent=(tx,tz,col)=>poiTent(c,tx,tz,col);
     tent(8,-7,0x8a7a4a);tent(-12,4,0x6a7a4a);tent(11.5,-1.5,0x9a8a5a);
     // cozinha de campo: a fogueira do acampamento de bandidos (buildCampFire, poi.js; [E] cozinha), mesa de preparo, bancos, barris e lenha
     {const fq=bcPt(6,3),xf=BC_XF;BC_XF=null;try{p.sceneObjs.push(...buildCampFire(Object.assign({},c,{cx:c.cx+fq[0],cz:c.cz+fq[1]}),rng))}finally{BC_XF=xf}}   // (a fogueira vai ao ponto já girado e se desenha sem giro: é simétrica)
@@ -641,7 +643,7 @@ function dormBuild(d){
   if(d.mesh||d.off)return;
   const c=poiArea(d.x,d.z,d.y,B[d.z*W+d.x]),rng=new RNG((WORLD.seed*59+d.i*101+5)>>>0);c.noDig=true;c.adapt=true;c.y=tH(d.x,d.z);d.sceneObjs=[];d.flames=null;   // c.y: as chamas da fogueira ficam no chão real
   BX_CAP={batch:new BoxBatch(),cols:[]};
-  try{DORM_BUILD[d.kind](c,rng,d)}
+  try{(DORM_BUILD[d.kind]||MICRO_BUILD[d.kind])(c,rng,d)}   // dormentes da guerra, ou micro-POI do cenário lego (poimicro.js)
   finally{const cap=BX_CAP;BX_CAP=null;const m=cap.batch.toMesh(MAT_TERRAIN);if(m){m.userData.cx=d.x;m.userData.cz=d.z;scene.add(m);d.mesh=m;d.sceneObjs.push(m)}d.cols=cap.cols;for(const f of d.flames||[])d.sceneObjs.push(f)}
 }
 function dormRemove(d){   // tira a decoração do mundo (malha e colisões)

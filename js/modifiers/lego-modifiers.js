@@ -13,7 +13,18 @@ const legoShowOn = () => new URLSearchParams(location.search).get('cenario') ===
 // Tipos de POI que o compositor do tile (tilecompose.js) vira com a frente para a estrada mais próxima e liga a ela por uma trilha (L1b). Os antigos (taverna, entreposto, pousada,
 // alojamento) giram o desenho inteiro pelo gancho BC_XF (poilego.js, legoOldBuild); fazenda, mina e serraria só quando lego está ligado (legoOn). Padrão: os quatro antigos
 const LEGO_FACE_TYPES = ['tavern', 'post', 'inn', 'lodge'];
-const LEGO_SHOW = { n: 4, gap: 46, types: ['farm', 'mine', 'sawmill'], sizes: ['M', 'P'] };
+const LEGO_SHOW = { n: 4, gap: 46, types: ['farm', 'mine', 'sawmill'], sizes: ['M', 'P'], area: [245, 215] };
+// Cenário lego: área limpa (meia-largura em x e em z, em blocos, a partir do centro do mapa) onde não nascem cidades (cada uma tem até 45 de meio-lado, então a muralha fica
+// longe da grade e do bloco de micro-POIs). Em ?cenario=lego também não nascem acampamentos, grutas, baús, bandos nem terrenos de guerra: só o que é da feature. Padrão: LEGO_SHOW.area.
+// Micro-POIs (L3; poimicro.js): só cenário. No cenário lego ficam em bloco ao lado da grade, depois dos 4 dormentes que já existiam: x = distância do centro à 1ª coluna (110),
+// gap = espaço entre os centros (28: cabe o maior raio dormente, 12), cols = colunas (4). list = os novos: id (função de MICRO_PIECES), n (nome da placa) e r (raio, 3 a 7).
+const LEGO_MICRO = { x: 110, gap: 28, cols: 4, list: [
+  { id: 'carroca', n: 'Carroça quebrada', r: 5 }, { id: 'acampamento', n: 'Acampamento abandonado', r: 7 }, { id: 'estande', n: 'Estande de caça', r: 6 },
+  { id: 'altar', n: 'Altar solitário', r: 6 }, { id: 'torre', n: 'Ruína de torre', r: 7 }, { id: 'monolito', n: 'Monólito', r: 5 },
+  { id: 'ermitao', n: 'Cabana de ermitão', r: 7 }, { id: 'minerio', n: 'Carrinho de minério perdido', r: 5 }, { id: 'toras', n: 'Toras caídas', r: 6 },
+  { id: 'armadilha', n: 'Armadilha de caça', r: 5 }, { id: 'tumba', n: 'Tumba', r: 6 }, { id: 'estatua', n: 'Estátua quebrada', r: 5 },
+  { id: 'campo_batalha', n: 'Campo de batalha esquecido', r: 7 }, { id: 'barricada', n: 'Barricada derrubada', r: 7 }, { id: 'trincheira', n: 'Trincheira abandonada', r: 7 },
+  { id: 'vala_comum', n: 'Vala comum', r: 7 }, { id: 'palicada', n: 'Paliçada tombada', r: 8 }] };
 // Sem piso próprio: o POI usa o chão do cenário (como os outros POIs). Com ?cenario=lego, ?piso=planicie|floresta|deserto|neve|montanha força o bioma de todos os POIs (padrão: planicie).
 // Chance de o POI ter cerca em volta, por tamanho: cresce com o POI (P pequeno 25%, M médio 50%, G grande 75%).
 const LEGO_FENCE = { P: 0.25, M: 0.5, G: 0.75 };

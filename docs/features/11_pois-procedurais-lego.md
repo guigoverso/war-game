@@ -88,7 +88,7 @@ Cada um, uma sessão; todos na `mapa-mundi-update`.
   4. Testes: a frente aponta para a estrada (distância do portão menor que a do centro), a trilha liga o portão a um `T_ROAD`, nada na trilha bloqueia a porta, entreposto sempre na estrada. Galeria com os dois casos (na estrada e fora dela).
   Estado atual (4E): essas classes de POI já são `place: 'road'` (alojamento incluído desde 2026-11-24) e NÃO nascem se não há estrada por perto (`TILE_PLACE.roadFar`); não há trilha nem giro.
 - **L2 — Migrar 3 POIs (M) — FEITO em 2026-11-24 (seção 7d):** fazenda, mina e serraria como receitas (as 3 de recurso; variam em quantidade de prédios e campos). Os tamanhos pequeno/médio saem do **mesmo** desenho. Serviços e anexação intactos (smoke).
-- **L3 — Micro-POIs (M):** 10 a 12 peças/receitas micro (lista na seção 5) e a coluna **vida** da composição.
+- **L3 — Micro-POIs (M) — PARTE 1 FEITA em 2026-11-24 (seção 7g):** 12 micro-POIs novos, cenário lego limpo e lista completa. **Falta:** a coluna **vida** da composição (`TILE_COMPOSE`), que fica com o L4.
 - **L4 — Encaixe no tile (M):** `tilecompose.js` lê classe e vida; sobe a densidade; galeria e teste de 25 POIs/tile; medir tempo.
 - **L5 — Resto e revisão (M):** migrar os demais (pousada, taverna, entreposto, forte, caçadores, santuário), vila de trabalhadores, plantação, pesca; remover os substitutos `pend`.
 **Sessões (decidido em 2026-11-24).** Regra: sessão nova com contexto limpo quando o passo é grande, só precisa do que está no repositório e nos docs, ou quando o contexto anterior já está pesado; mesma sessão quando o passo é curto e usa o que acabou de ser lido.
@@ -185,6 +185,14 @@ Roda o smoke, joga um tile de cada tema, confere o tempo de geração e atualiza
 - **Limites:** a trilha dos POIs perto da estrada é de melhor esforço: se a rota cruza água, o POI fica sem trilha (`p.trail.ok = false`) e o teste acusa (não aconteceu nas amostras). Só o compositor do tile vira POIs; os do mapa antigo (`genWorldPois`) continuam sem giro.
 
 - **Chão do POI lego (2026-11-24):** o piso próprio por bioma (terra batida, manchas, `LEGO_FLOOR`, `LEGO_FLOOR_BARE`) foi **removido**: o POI lego usa o chão do cenário, como os outros POIs. Ficam só os chãos das peças (pilha de minério, serragem, canteiros).
+
+## 7g. L3 — Micro-POIs e cenário lego limpo (FEITO 2026-11-24; sem validação visual: o usuário confere no jogo)
+- **Micro-POIs (só cenário, decisão 1):** `js/local/poimicro.js`, `MICRO_PIECES` (12 funções pequenas, raio 5 a 7): carroça quebrada, acampamento abandonado (sem fogueira: regra do CLAUDE.md), estande de caça, altar solitário, ruína de torre, monólito, cabana de ermitão, carrinho de minério perdido, toras caídas, armadilha de caça, tumba, estátua quebrada. Cada um sorteia giro e espelho pela semente (`MICRO_BUILD`, gancho `BC_XF`); só usa peças que passam por `pBc`. Dados (lista, raio, nome da placa, posição do bloco) em `LEGO_MICRO` (`lego-modifiers.js`); placa em `poiMicroLabel` (`poi-texts.js`).
+- **Ecos de conflito antigo (5, pedido do usuário):** campo de batalha esquecido (fuzis cravados com capacete, sepulturas, estojos; armas de fogo, não medievais), barricada derrubada, trincheira abandonada, vala comum com marco e paliçada tombada. Helpers `microRifleStuck`, `microRifleLying`, `microHelmet`. Total: 17 novos + 4 que já existiam = 21 no cenário.
+- **Mesma máquina das dormentes:** `dormBuild` (`pois.js`) lê `DORM_BUILD[kind] || MICRO_BUILD[kind]`; os novos ficam em `WORLD.micros` (os 4 dormentes seguem em `WORLD.dormant`, a fogueira dormente continua cozinhando). Nenhum entra em `WORLD.pois` (sem dono, anexação nem mapa). `poiTent` foi extraída de `hunters` e `lodge` (peça única, L0).
+- **Lista completa no cenário:** bloco de 16 (4 colunas, `gap` 28) ao leste da grade, **os 4 que já existiam** (fogueira, jardim, poço, marco; placa "(já existia)") **e os 12 novos**.
+- **Cenário limpo:** em `?cenario=lego` não nascem acampamentos, grutas, baús, bandos nem terrenos de guerra (`genPOIs`, `poi.js`) e a área sem cidades cresceu para `LEGO_SHOW.area` (245 x 215 de meia-largura; as muralhas ficam fora da grade e do bloco). **Limite:** as cidades do mundo continuam existindo, longe, nos cantos (o jogo exige a cidade inicial); a masmorra (região abaixo do mapa) e a fauna ambiente não foram tocadas.
+- **Testes:** `cd tests && node lego-galeria.js 11 nofoto` confere 4 + 17 micros montados (malha e colisões), todos diferentes, sem sobreposição, sem acampamentos/grutas/baús/bandos e nenhuma cidade na área. `smoke.js` e `tile-compose.js` seguem OK.
 
 ## 8. Perguntas para decidir
 **[DECIDIDO] 2026-11-24** (todas conforme a recomendação):

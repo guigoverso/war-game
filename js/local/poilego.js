@@ -300,7 +300,7 @@ const legoGateRel = p => p.recipe && p.recipe.anchors ? p.recipe.anchors.gate : 
 // Uma fileira por tipo e tamanho (LEGO_SHOW), com LEGO_SHOW.n variações lado a lado: a variação i usa o esqueleto i (giro, espelho, peças e enfeites vêm da semente). Cada POI leva uma placa.
 function poiLegoShowGen() {
   const S = LEGO_SHOW, rows = S.types.length * S.sizes.length, x0 = W / 2 - (S.n - 1) * S.gap / 2, z0 = W / 2 - (rows - 1) * S.gap / 2, Y = SEA + 6, row = { r: 0 };
-  const owners = ['bandit', (WORLD.factions && WORLD.factions[0]) ? WORLD.factions[0].id : 'bandit', 'player']; WORLD.pois = []; WORLD.dormant = []; let id = 900;
+  const owners = ['bandit', (WORLD.factions && WORLD.factions[0]) ? WORLD.factions[0].id : 'bandit', 'player']; WORLD.pois = []; let id = 900;
   for (const type of S.types) for (const size of S.sizes) {
     for (let i = 0; i < S.n; i++) {
       const x = Math.round(x0 + i * S.gap), z = Math.round(z0 + row.r * S.gap), p = { id: id++, type, cx: x, cz: z, y: Y, biome: legoShowBiome(), owner: owners[i % 3], show: true, axis: 'z', legoSize: size, legoSk: i };
@@ -309,6 +309,7 @@ function poiLegoShowGen() {
     }
     row.r++;
   }
+  poiMicroShowGen(Y);   // micro-POIs (os 4 dormentes que já existiam e os novos, poimicro.js) em bloco ao lado da grade
   WORLD.showcase = { x: W / 2, z: z0 + (rows - 1) * S.gap + 30, y: Y };
   poiApply();
 }
