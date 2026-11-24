@@ -7,7 +7,7 @@ const {chromium}=require('playwright');
 const ROOT=path.resolve(__dirname,'..'),OUT=path.join(__dirname,'cidade-enorme-out');
 const MIME={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css','.png':'image/png'};
 const serve=()=>new Promise(r=>{const s=http.createServer((q,res)=>{const f=path.join(ROOT,decodeURIComponent(q.url.split('?')[0]).replace(/^\/$/,'/index.html'));
-  fs.readFile(f,(e,d)=>{if(e){res.writeHead(404);return res.end()}res.writeHead(200,{'Content-Type':MIME[path.extname(f)]||'application/octet-stream'});res.end(d)})});s.listen(0,'127.0.0.1',()=>r(s))});
+  fs.readFile(f,(e,d)=>{if(e){res.writeHead(404);return res.end()}res.writeHead(200,{'Content-Type':MIME[path.extname(f)]||'application/octet-stream'});if(process.env.HALF&&f.endsWith('city-modifiers.js'))d=Buffer.from(d.toString().replace('half: [36, 45]','half: ['+process.env.HALF+']'));res.end(d)})});s.listen(0,'127.0.0.1',()=>r(s))});
 const args=process.argv.slice(2).length?process.argv.slice(2):(process.env.TEMA==='vila'?['11:quadrado','11:circulo','11:ele','11:oval','11:flor','5:','7:']:['11:quadrado','11:circulo','11:cruz','11:ele','11:oval','11:flor','11:losango']);
 (async()=>{
   fs.mkdirSync(OUT,{recursive:true});

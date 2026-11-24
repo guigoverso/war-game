@@ -93,7 +93,7 @@ function cityHugeShape(rng) {
 // VILA (etapa 4C; tile temático 'vila', ?cenario=tile&tema=vila; docs/features/8_tiles-e-vilas.md). A vila ocupa no máximo 10% do tile (caixa de lado até ~121).
 // Reaproveita buildCity (c.vila): sem ruas, só caminhos de terra estreitos ligando as casas, cerca em vez de muro, poucos serviços e poucos soldados.
 // Padrões entre parênteses.
-// half: [mín, máx] do raio da caixa em blocos (lado = 2*half+1; 60 dá lado 121: 9,9% da área do tile, o máximo da spec) ([54, 60]).
+// half: [mín, máx] do raio da caixa em blocos (lado = 2*half+1; 36 a 45 = tamanho das cidades do mapa antigo, lado 73 a 91; a spec permite até 60, lado 121) ([36, 45]).
 // margin: folga entre a caixa e a borda do tile (12). minHalf: raio mínimo ao encolher por falta de chão (28). plazaOff: deslocamento da praça (0.12).
 // devMul: multiplica o desnível aceito pela pegada (1.5). nudge: quanto o centro pode andar (16). edge: recorte do contorno (como em CITY_HUGE.edge).
 // shapes: pesos dos formatos da pegada (os de CITY_SHAPES em cityfoot.js; losango e cruz ficam de fora porque ficam finos demais em ~100 blocos).
@@ -103,7 +103,7 @@ function cityHugeShape(rng) {
 //   só que menores (ver city.js). soldiers: [mín, máx] de soldados fora de guerra (3, 6). civ: [mín, máx] de moradores (8, 14).
 // wall: tipo de cerca da vila ('fence'; sem muro de pedra nem torres de verdade).
 const CITY_VILLAGE = {
-  half: [54, 60], margin: 12, minHalf: 28, plazaOff: 0.12, devMul: 1.5, nudge: 16,
+  half: [36, 45], margin: 12, minHalf: 28, plazaOff: 0.12, devMul: 1.5, nudge: 16,
   shapes: { quadrado: 3, circulo: 2, oval: 2, ele: 2, flor: 1.5 },
   edge: { base: 0.95, noise: 0.35, min: 0.85 }, plaza: [5, 6], road: 1, branches: [14, 22], density: 120,
   services: ['shop', 'barracks'], soldiers: [3, 6], civ: [8, 14], wall: 'fence'
