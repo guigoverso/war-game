@@ -511,13 +511,14 @@ function poiScan(lines){
       ||(p.binoc&&Math.hypot(P.x-p.binoc.x,P.z-p.binoc.z)<1.8&&Math.abs(P.y-p.binoc.y)<3);   // base da torre ou binóculo no tripé
     if(own&&atVigil){G.target={type:'poivigil',p};lines.push(TXT_VIGIL_HINT)}
     if(svc&&p.tavern&&Math.hypot(P.x-p.tavern.x,P.z-p.tavern.z)<3.2&&Math.abs(P.y-p.y)<2.6){G.target={type:'poibar',p};lines.push('[E] Taverneiro: comida e quarto')}
+    if(svc&&p.firePos&&Math.hypot(P.x-p.firePos.x,P.z-p.firePos.z)<3.4&&Math.abs(P.y-p.y)<2.6){G.target={type:'fire'};lines.push('[E] Fogueira: cozinhar')}   // fogueira do alojamento: a mesma do acampamento (game.js: 'fire')
     if(own&&p.stove&&Math.hypot(P.x-p.stove.x,P.z-p.stove.z)<3.0&&Math.abs(P.y-p.y)<2.6){G.target={type:'stove',p};lines.push('[E] Fogão: cozinhar')}   // igual ao da taverna da cidade (game.js: openCooking), só na taverna sua
     if(svc&&p.bed&&Math.hypot(P.x-p.bed.x,P.z-p.bed.z)<2.4&&Math.abs(P.y-p.bed.y)<2.6){G.target={type:'poibed',p};const r=poiX().room;lines.push(r&&r.poi===p.id&&r.round===STATE.round?'[E] Dormir (noite vira manhã; dia vira noite)':txtBedLocked(p.type))}
   }
   let best=null;   // o serviço mais perto de você (o ferreiro e a bigorna ficam próximos)
   const cand=(p,x,z,tg,txt,r)=>{const d=Math.hypot(P.x-x,P.z-z);if(d<r&&Math.abs(P.y-p.y)<2.6&&(!best||d<best.d))best={d,tg,txt}};
   for(const p of WORLD.pois||[]){
-    for(const s of p.svcSpec||[])if(poiSvcOk(p)&&p.civ.svc&&p.civ.svc[s.kind]&&p.civ.svc[s.kind].alive)cand(p,s.x,s.z,{type:'poisvc',p,s},s.label,2.4);
+    for(const s of p.svcSpec||[])if(poiSvcOk(p)&&p.civ.svc&&p.civ.svc[s.kind]&&p.civ.svc[s.kind].alive)cand(p,s.x,s.z,{type:'poisvc',p,s},s.label,s.r||2.4);
   }
   if(best){G.target=best.tg;lines.push('[E] '+best.txt)}
 }

@@ -367,7 +367,7 @@ poiPath(c,0,R+1,0,4);poiBrazier(c,-3.4,R+1.6);poiBrazier(c,3.4,R+1.6);
     poiRestTheme(c,rng,p);
     poiPath(c,0,0,0,9);poiLampAt(c,2.8,1.5);poiLampAt(c,-2.8,1.5);poiSign(c,3.6,3.5,0x6a3a2a);poiWell(c,-8,4);
     for(const [tx,tz] of[[-10,-6],[9,-4],[9,8]])tinyTree(c,tx,tz,rng);
-    p.keepers=[];p.svcSpec=[{kind:'inn',role:'merchant',label:'Pousadeiro: comida, remédios e quarto',x:c.cx-3.4,z:c.cz-6.2,yaw:0}];
+    p.keepers=[];p.svcSpec=[{kind:'inn',role:'merchant',label:'Pousadeiro: comida, remédios e quarto',x:c.cx-1.2,z:c.cz-5.3,yaw:0,r:3.2}];
     poiFlag(c,p,6.5,2,6);
   },
   lodge(c,rng,p){   // alojamento: barracão aberto com beliches, tendas e cozinha de campo (fogueira com panela, mesa, barris); rústico
@@ -382,11 +382,8 @@ poiPath(c,0,R+1,0,4);poiBrazier(c,-3.4,R+1.6);poiBrazier(c,3.4,R+1.6);
     p.bed={x:c.cx-4.5,z:c.cz-5.4,y:c.y+0.1};
     const tent=(tx,tz,col)=>{for(let i=0;i<5;i++){const w=1.8-i*0.34;pBc(c,tx-w,i*0.5,tz-1.4,tx+w,i*0.5+0.5,tz+1.4,shadec(col,i%2?1.07:0.95),i<3,{j:0.06})}pBc(c,tx-0.5,0,tz+1.35,tx+0.5,1.5,tz+1.45,0x1f1710,false,{j:0})};
     tent(8,-7,0x8a7a4a);tent(-12,4,0x6a7a4a);tent(11.5,-1.5,0x9a8a5a);
-    // cozinha de campo: anel de pedras, brasa, tripé com panela, mesa de preparo, bancos, barris e lenha
-    for(let a=0;a<8;a++){const sx=6+Math.cos(a*0.785)*1.3,sz=3+Math.sin(a*0.785)*1.3;pBc(c,sx-0.3,0,sz-0.3,sx+0.3,0.4,sz+0.3,rng.pick(poiStone),true,{j:0.06})}
-    pBc(c,5.4,0,2.4,6.6,0.25,3.6,0xff7a1a,false,{j:0.08});pBc(c,5.7,0.25,2.7,6.3,0.55,3.3,0xffd84a,false,{j:0.08});
-    for(const [dx,dz] of[[-1.2,-1.2],[1.2,-1.2],[0,1.4]])pBc(c,6+dx*0.7-0.06,0,3+dz*0.7-0.06,6+dx*0.25+0.06,2.6,3+dz*0.25+0.06,0x4a3320,false,{j:0});
-    pBc(c,5.5,1.5,2.5,6.5,2.2,3.5,0x2a2a2e,true,{j:0.04});pBc(c,5.6,2.2,2.6,6.4,2.35,3.4,0x8a6a3a,false,{j:0});   // panela com caldo
+    // cozinha de campo: a fogueira do acampamento de bandidos (buildCampFire, poi.js; [E] cozinha), mesa de preparo, bancos, barris e lenha
+    p.sceneObjs.push(...buildCampFire(Object.assign({},c,{cx:c.cx+6,cz:c.cz+3}),rng));p.firePos={x:c.cx+6,z:c.cz+3};
     pBc(c,2,0,5.2,6,0.95,6.4,0x7a5632,true,{j:0.03});for(let k=0;k<5;k++)pBc(c,2.3+k*0.75,0.95,5.4+(k%2)*0.4,2.8+k*0.75,1.2,5.8+(k%2)*0.4,rng.pick([0xc83a2a,0xe08a2a,0x5ab03a,0xd8d0b0]),false,{j:0.06});
     poiBench(c,2,7.6,true);poiBench(c,5,7.6,true);barrel(c,8.5,5.2);barrel(c,9.7,5.6);crate(c,9.2,3.4,1.1,1.1);
     for(let k=0;k<3;k++)pBc(c,-1+k*0.3,0,3+k*0.7,0.8+k*0.3,0.5+0.3*k,3.6+k*0.7,0x6b4a2a,true,{j:0.06});   // lenha
