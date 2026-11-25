@@ -51,7 +51,7 @@ const BATTLE_MOD = {
   // (engage) e distância do centro em que ele para de marchar (hold). Padrão: centro 205,60; pegada 20; pad 25; raio 45 a 140; cinza 20; postos a 40 além do raio, ângulos 0/150/210
   defesa: { center: { x: 205, z: 60 }, footprint: 20, radiusPad: 25, radiusMin: 45, radiusMax: 140, gray: 20, postDist: 40, postAngles: [0, 150, 210],
     engage: 40, hold: 10 },
-  // Cenário ?modo=ataque (regra de 2026-11-25), coordenadas do mapa de teste de 320: POI alvo e onde o jogador começa; guarnição do alvo sem batalhão no tile
+  // Cenário ?modo=ataque (regra de 2026-11-25), coordenadas do mapa de teste de 320: POI alvo e a abertura da trilha (início; ?pos=trilha faz o jogador nascer nela, senão ele nasce na sua cidade e caminha; é onde nasce a reposição dele); guarnição do alvo sem batalhão no tile
   // (?batalhao=0) e com batalhão (completada até este teto, = cota de vivos, com soldados tirados da reserva do inimigo: total = reserva + guarnição); ?guarnicao=N força o número. Raio de alerta da guarnição (acorda e persegue; coleira x leashMul);
   // satélites: faixa de distância ao alvo dos POIs reais aceitos e postos temporários [graus, distância] em arco, que mandam reforços em lotes ao alvo; raio da área do
   // alvo (soldado de reforço preso além dele é teleportado), distância de reação (engage) e de parada (hold) dos reforços. A guarnição é conquistada ao matar o último dela.

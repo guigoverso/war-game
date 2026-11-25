@@ -33,6 +33,8 @@ const killGarrison = page => page.evaluate(() => { for (const e of ENEMIES) if (
     const { page, errs } = await open(browser, base, 'cenario=batalha&modo=ataque&mute=1&semente=5');
     let s = await page.evaluate(() => { const T = BATTLE.target;
       return { c: battleCounts(), sats: T.sats.map(g => [g.reserve, g.kind, Math.hypot(g.x - T.x, g.z - T.z)]), gar: ENEMIES.filter(e => e.alive && e.btl === T.gen).length }; });
+    const d0 = await page.evaluate(() => ({ home: Math.hypot(P.x - WORLD.home.cx, P.z - WORLD.home.cz), tg: Math.hypot(P.x - BATTLE.target.x, P.z - BATTLE.target.z), base: BATTLE.base.x }));
+    ok(d0.home < 40 && d0.tg > 80 && d0.base === 100, 'jogador nasce na cidade, longe do alvo (' + d0.tg.toFixed(0) + '), reposição na trilha');
     ok(s.gar === 30, 'com batalhão a guarnição é de 30 (' + s.gar + ')');
     ok(s.sats.length === 3 && s.sats.every(q => q[2] >= 99 && q[2] <= 151 && q[1] === 'post') && s.sats.reduce((a, q) => a + q[0], 0) === 82, '3 satélites a 100-150 com reserva 82 (100 - 18 que completaram a guarnição) ' + JSON.stringify(s.sats));
     ok(s.c.e.f === 30 && s.c.e.r === 82 && s.c.e.d === 0 && s.c.p.r === 40 && s.c.p.f === 10, 'placar inicial ' + JSON.stringify(s.c));

@@ -419,11 +419,12 @@ function battleStartAtaque(opts) {
   opts = opts || {};
   const A = BATTLE_MOD.ataque, home = WORLD.home, c = A.center;
   tileTestFillEnemies(tileTestFoe(), 0);   // a cidade inimiga fica vazia: as únicas lutas são a guarnição e os reforços
-  const flag = battleBuildTarget(c.x, c.z), f = freeSpot(A.start.x, A.start.z, 0.5, 1.8, 0.45);
+  const flag = battleBuildTarget(c.x, c.z), at = new URLSearchParams(location.search).get('pos') === 'trilha' ? A.start : { x: home.cx + 4, z: home.cz + 4 };   // padrão: nasce na sua cidade e caminha até o alvo
+  const f = freeSpot(at.x, at.z, 0.5, 1.8, 0.45);
   P.x = f[0]; P.z = f[1]; P.y = tH(P.x, P.z) + 0.1; P.vx = P.vz = P.vy = 0; P.camY = P.y;
   P.yaw = Math.atan2(-(c.x - P.x), -(c.z - P.z)); P.pitch = -0.05;
   battleConfig('ataque');
-  BATTLE.base = { x: P.x, z: P.z };
+  BATTLE.base = { x: A.start.x, z: A.start.z };   // a reposição do seu lado nasce na abertura da trilha, perto do alvo (4B-11)
   const bat = battleParam('batalhao', 1) !== 0, er = bat ? battleParam('inim', BATTLE_MOD.enemyReserve) : 0, base = battleParam('guarnicao', A.garrison);
   const fill = bat ? clamp(A.garrisonBattalion - base, 0, er) : 0, gar = base + fill;   // o batalhão completa a guarnição com soldados da reserva (não cria novos)
   const n = Math.min(tileTestCount('alia', TILE_TEST.allies), BATTLE_MOD.allyTotal), pr = Math.max(0, Math.min(battleParam('reserva', 1e9), BATTLE_MOD.allyTotal - n));
