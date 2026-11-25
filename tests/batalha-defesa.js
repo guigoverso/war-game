@@ -40,13 +40,24 @@ async function open(browser, base, qs) {
     s = await page.evaluate(() => ({ c: battleCounts(), d: ENEMIES.filter(e => e.alive && e.btl).map(e => Math.hypot(e.x - BATTLE.center.x, e.z - BATTLE.center.z)) }));
     ok(s.c.e.f > 0 && s.c.e.f <= 30 && s.c.e.r < 100, 'lotes saem dos postos sob a cota (' + s.c.e.f + ', reserva ' + s.c.e.r + ')');
     ok(s.d.some(d => d < 45), 'atacantes chegaram à área (min ' + Math.min(...s.d).toFixed(0) + ')');
+    let r;
+    // soldado preso fora da área: teleporte logo além da borda; preso de novo, recua
+    await page.evaluate(() => { const e = ENEMIES.find(q => q.alive && q.btl && q.btl.kind === 'post'), c = BATTLE.center, d = Math.hypot(e.x - c.x, e.z - c.z) || 1;
+      e.x = c.x + (e.x - c.x) / d * 75; e.z = c.z + (e.z - c.z) / d * 75; window.__st = { e, x: e.x, z: e.z };
+      window.__pin = setInterval(() => { if (!e.stuckN && e.alive) { e.x = __st.x; e.z = __st.z; } }, 30); });
+    await page.waitForFunction(() => __st.e.stuckN === 1, null, { timeout: 30000 });
+    r = await page.evaluate(() => { const e = __st.e, c = BATTLE.center; return { d: Math.hypot(e.x - c.x, e.z - c.z), edge: BATTLE.centerR + BATTLE_MOD.stuck.offset, alive: e.alive }; });
+    ok(r.alive && Math.abs(r.d - r.edge) < 3, 'preso foi teleportado logo além da borda (' + r.d.toFixed(1) + ' ~ ' + r.edge + ')');
+    await page.evaluate(() => { clearInterval(__pin); const e = __st.e; window.__pin = setInterval(() => { if (e.alive) { e.x = __st.x; e.z = __st.z; } }, 30); });
+    await page.waitForFunction(() => !__st.e.alive, null, { timeout: 30000 });
+    ok(true, 'preso de novo: recuou e saiu da batalha'); await page.evaluate(() => clearInterval(__pin));
     // ordem de movimento limitada ao raio
     const o = await page.evaluate(() => { const O = { x: BATTLE.limit.x + 200, z: BATTLE.limit.z }; battleClampOrder(O); return Math.hypot(O.x - BATTLE.limit.x, O.z - BATTLE.limit.z); });
     ok(o <= 45, 'ordem V fora da área é puxada para dentro (' + o.toFixed(1) + ')');
     // zona cinza: aviso; atravessar: fuga
     await page.evaluate(() => { P.x = BATTLE.limit.x + BATTLE.limit.r + 8; P.z = BATTLE.limit.z; });
     await page.waitForTimeout(500);
-    let r = await page.evaluate(() => ({ warn: document.getElementById('btlwarn') && document.getElementById('btlwarn').style.display, over: BATTLE.over }));
+    r = await page.evaluate(() => ({ warn: document.getElementById('btlwarn') && document.getElementById('btlwarn').style.display, over: BATTLE.over }));
     ok(r.warn === 'block' && !r.over, 'zona cinza mostra o aviso sem perder');
     await page.evaluate(() => { P.x = BATTLE.limit.x; P.z = BATTLE.limit.z; });
     await page.waitForTimeout(500);

@@ -53,6 +53,9 @@ const BATTLE_MOD = {
     engage: 40, hold: 10 },
   // Cor da borda da área de defesa e da zona cinza, no chão e no Mapa M. Padrão: 0x4ac0ff e 0x9a9a9a
   defesaColor: 0x4ac0ff, defesaGrayColor: 0x9a9a9a,
+  // Soldado de posto preso fora da área (Choque e Defesa): se marchando ao centro ele anda menos de `move` blocos em `time` segundos, é teleportado para `offset`
+  // blocos além da borda da área, na direção em que está; se travar de novo, recua (sai da batalha e conta como baixa). Padrão: 8 s, 1 bloco, 4 blocos
+  stuck: { time: 8, move: 1, offset: 4 },
   // Cor dos marcadores de cobertura no Mapa M e dos postos do inimigo (o do jogador usa a cor da facção). Padrão: '#c8c8c8'
   coverMark: '#c8c8c8',
   // Teclas de ajuste em tempo real no cenário de teste: tamanho do lote (menos, mais) e atraso entre lotes (menos, mais). Padrão: BracketLeft/BracketRight, Minus/Equal

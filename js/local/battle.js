@@ -5,7 +5,7 @@
 // de batalha (mesma forma da área de raid: state 'attacking', kind 'raid'), então os soldados do jogador (allies.js) os enxergam e a ordem de movimento (V/X) vale.
 // Passo 2 (no fim do arquivo) = modo choque. Passo 1 = só o modo ?cenario=batalha&modo=nucleo: um gerador num mapa aberto, o jogador começa fora do raio. Números em modifiers/battle-modifiers.js,
 // textos em texts/battle-texts.js. Nada daqui roda fora do cenário de teste (BATTLE.on é falso) e nada é salvo (4B-17).
-const BATTLE = { on: false, over: false, mode: '', area: null, gens: [], base: null, center: null, centerR: 0, limit: null, postCfg: null, warn: null, cover: [], rng: null, lot: [3, 5], delay: 3, liveCap: 30, allyCap: 20,
+const BATTLE = { on: false, over: false, mode: '', area: null, gens: [], base: null, center: null, centerR: 0, limit: null, postCfg: null, warn: null, stuckT: 0, cover: [], rng: null, lot: [3, 5], delay: 3, liveCap: 30, allyCap: 20,
   ally: { reserve: 0, total0: 0, lot: null, nextAt: 0 }, total0: 0, t: 0, scanT: 0, hudT: 0, last: 0, fps: 60, hud: null, hudOn: true };
 
 const battleOn = () => BATTLE.on && !BATTLE.over;
@@ -61,7 +61,8 @@ function battleAddGen(x, z, reserve, o) {
 // Lança um soldado em volta do gerador, já em guarda (reage ao jogador).
 function battleSpawnFrom(g) {
   const R = BATTLE_MOD.spawnRing, a = Math.random() * 6.283, r = R[0] + Math.random() * (R[1] - R[0]);
-  const e = spawnEnemy(BATTLE.area, BATTLE_MOD.enemyType, g.x + Math.cos(a) * r, g.z + Math.sin(a) * r);
+  const f = freeSpot(g.x + Math.cos(a) * r, g.z + Math.sin(a) * r, 0.5, 1.8, 0.45);   // nunca nasce dentro de obstáculo
+  const e = spawnEnemy(BATTLE.area, BATTLE_MOD.enemyType, f[0], f[1]);
   e.btl = g; e.aggro = true; e.unseenT = 99; e.reactT = 0.4 + Math.random() * 0.4; e.homeX = g.x; e.homeZ = g.z;
   if (g.kind === 'post') { e.homeX = BATTLE.center.x; e.homeZ = BATTLE.center.z; e.recall = BATTLE.center; }   // sai do posto marchando ao centro
   return e;
@@ -192,7 +193,7 @@ function updateBattle(dt) {
   if (d > 0 && d < 0.5) BATTLE.fps += (1 / d - BATTLE.fps) * 0.05;
   BATTLE.t += dt;
   const A = BATTLE.area; A.cx = P.x; A.cz = P.z; A.y = P.y;
-  battleTickGens(); battleTickAllies(); battleTickLimit();
+  battleTickGens(); battleTickAllies(); battleTickLimit(); battleTickStuck();
   if (BATTLE.over) return;
   BATTLE.scanT -= dt;
   if (BATTLE.scanT <= 0) {
@@ -217,7 +218,7 @@ document.addEventListener('keydown', e => {
 function battleConfig(mode) {
   const q = new URLSearchParams(location.search), lt = (q.get('lote') || '').split('-').map(Number).filter(n => !isNaN(n) && n > 0);
   BATTLE.gens = []; BATTLE.cover = []; BATTLE.center = null; BATTLE.centerR = 0; BATTLE.limit = null; BATTLE.ally.reserve = 0;   // o cenário pode ser montado de novo (mundo refeito)
-  BATTLE.mode = mode; BATTLE.over = false; BATTLE.t = 0; BATTLE.last = performance.now();
+  BATTLE.mode = mode; BATTLE.over = false; BATTLE.t = 0; BATTLE.stuckT = 0; BATTLE.last = performance.now();
   BATTLE.lot = lt.length ? [lt[0], lt[lt.length - 1]] : BATTLE_MOD.lot.slice();
   BATTLE.delay = battleParam('atraso', BATTLE_MOD.lotDelay);
   BATTLE.liveCap = battleParam('vivos', BATTLE_MOD.liveCap); BATTLE.allyCap = battleParam('vivosalia', BATTLE_MOD.allyLiveCap);
@@ -366,4 +367,22 @@ function battleStartDefesa() {
   BATTLE.total0 = er; BATTLE.ally.total0 = n + pr; BATTLE.ally.reserve = pr;
   armyAssault(BATTLE.area, '');
   BATTLE.on = true; battleHudDraw();
+}
+
+// Soldado de posto preso (Choque e Defesa): marchando ao centro e fora da área sem sair do lugar por `time` s -> teleporte logo além da borda da área, na direção em
+// que está; preso de novo -> recua (some e conta como baixa), para a vitória nunca depender dele. Roda no tique de 0,4 s de updateBattle.
+function battleTickStuck() {
+  if (!BATTLE.center || BATTLE.stuckT > BATTLE.t) return;
+  BATTLE.stuckT = BATTLE.t + 0.4;
+  const S = BATTLE_MOD.stuck, c = BATTLE.center, edge = BATTLE.centerR + S.offset;
+  for (const e of BATTLE.area.enemies) {
+    if (!e.alive || !e.btl || e.btl.kind !== 'post') continue;
+    const d = Math.hypot(e.x - c.x, e.z - c.z), k = e.stk;
+    if (!e.recall || d <= edge + 1 || (k && Math.hypot(e.x - k.x, e.z - k.z) > S.move) || !k) { e.stk = { x: e.x, z: e.z, t: BATTLE.t }; continue; }
+    if (BATTLE.t - k.t < S.time) continue;
+    e.stk = { x: e.x, z: e.z, t: BATTLE.t };
+    if (e.stuckN) { e.alive = false; e.gone = true; scene.remove(e.group); BATTLE.area.aliveEnemies--; BATTLE.area.totalEnemies--; continue; }   // recua
+    e.stuckN = 1; const f = freeSpot(c.x + (e.x - c.x) / d * edge, c.z + (e.z - c.z) / d * edge, 0.5, 1.8, 0.45);
+    e.x = f[0]; e.z = f[1]; e.y = tH(e.x, e.z); e.path = null; if (e.group) e.group.position.set(e.x, e.y, e.z);
+  }
 }
