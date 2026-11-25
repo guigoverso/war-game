@@ -256,6 +256,40 @@ function rescueStuck(e,dt,r,hgt,wants){
     if(e.stuckIn>=0.9){const f=freeSpot(e.x,e.z,r,hgt,e.boxStep);e.x=f[0];e.z=f[1];e.y=tH(f[0],f[1]);e.vy=0;e.path=null;e.stuckIn=0}
   }else e.stuckIn=0;
 }
+// Quem está na água (terreno abaixo de SEA) só pensa em sair: anda até um ponto de terra firme LONGE da água (WATER_ESCAPE.inland blocos de terra em volta,
+// não só a margem) e só depois volta à IA normal; sobe margens de até WATER_ESCAPE.stepH. Devolve true quando agiu (o chamador pula o resto do quadro).
+// Serve a inimigos, NPCs e soldados do jogador.
+function waterInland(x,z){   // terra seca (e livre) no ponto e nos 8 pontos a WATER_ESCAPE.inland blocos dele
+  if(tH(x,z)<SEA||!navFree(x,z))return false;
+  const R=WATER_ESCAPE.inland;
+  for(let k=0;k<8;k++){const a=k*0.7854,px=x+Math.cos(a)*R,pz=z+Math.sin(a)*R;if(tH(px,pz)<SEA)return false}
+  return true;
+}
+function waterEscapeStep(e,dt,speed){
+  const W_=WATER_ESCAPE,df=e.def||{};
+  if(!W_.on||e.sentry||e.y<UNDER_Y||df.climb||df.lift||df.bomb)return false;
+  const wet=tH(e.x,e.z)<SEA-0.01;
+  if(!wet&&!e.wDry)return false;
+  if(wet&&!e.wDry)e.wDryT=0;
+  e.wDryT=(e.wDryT||0)+dt;
+  if(!e.wDry||(wet&&e.wDryT>W_.retry*(e.wTries||1))){   // procura (de novo, se ainda molhado depois de um tempo) o ponto de terra firme mais perto
+    e.wTries=(e.wTries||0)+1;e.wDry=null;
+    for(let r=W_.ringStep;r<=W_.maxR&&!e.wDry;r+=W_.ringStep)for(let k=0;k<W_.dirs;k++){
+      const a=k/W_.dirs*6.2832+r,x=e.x+Math.cos(a)*r,z=e.z+Math.sin(a)*r;
+      if(waterInland(x,z)){e.wDry={x,z};break}
+    }
+    if(!e.wDry){e.wTries=0;return false}   // sem terra firme por perto: segue a IA normal
+  }
+  if(Math.hypot(e.wDry.x-e.x,e.wDry.z-e.z)<1.5||e.wDryT>W_.giveUp){e.wDry=null;e.wTries=0;return false}
+  const r=df.r||e.r||0.4,hg=Math.min(df.h||1.8,1.8),px=e.x,pz=e.z;
+  e.cov=null;e.advance=false;e.path=null;e.sees=false;
+  steer(e,e.wDry.x,e.wDry.z,speed,dt,r,hg,W_.stepH);
+  moveY(e,dt,r,hg,W_.stepH);faceMove(e,px,pz,dt);
+  e.phase=(e.phase||0)+dt*speed*2.2;
+  e.group.position.set(e.x,e.y,e.z);e.group.rotation.y=e.yaw;
+  animWalk(e.model,e.phase,0.7);
+  return true;
+}
 function spawnNpc(c,o){
   const rng=new RNG((WORLD.seed*7+c.id*131+NPCS.length*17)>>>0);
   if(!o.stationary&&o.role!=='guard'){const f=freeSpot(o.x,o.z,0.3,1.8,0.45);o.x=f[0];o.z=f[1]}
@@ -306,6 +340,7 @@ function updateNpc(n,dt){
   if(n.caravan)return;   // guarda de caravana: quem cuida é updateCaravanGuards (caravans.js)
   const c=n.city;
   if(!n.alive){n.deadT+=dt;n.group.rotation.z=Math.min(1,n.deadT*3)*1.5;if(n.deadT>6){scene.remove(n.group);n.gone=true}return}
+  if(waterEscapeStep(n,dt,Math.max(3,n.speed*2)))return;   // na água: só sai dela
   if(n.bubble){n.sayT-=dt;if(n.sayT<=0){n.group.remove(n.bubble);n.bubble=null}}
   const dx=P.x-n.x,dz=P.z-n.z,d=Math.hypot(dx,dz);
   let moving=false;const px0=n.x,pz0=n.z;
@@ -461,6 +496,92 @@ function chaseMove(e,tg,speed,dt,r,hg,stepH){
   if(e.def.climb)return steer(e,gx,gz,speed,dt,r,hg,stepH);
   return navMove(e,gx,gz,speed,dt,r,hg,stepH);
 }
+// ---------- IA dos atiradores humanos: cobertura e carregador (feature 12, passo 5, 4B-15; números em enemyai-modifiers.js) ----------
+const COVERQ={t:-1,used:0,cache:new Map()};
+// Orçamento por quadro: devolve false se a busca de n pontos estoura o limite deste quadro (o atirador tenta de novo no seguinte).
+function coverBudget(n){
+  if(COVERQ.t!==G.t){COVERQ.t=G.t;COVERQ.used=0}
+  if(COVERQ.used+n>ENEMYAI.probeBudget)return false;
+  COVERQ.used+=n;return true;
+}
+// Ponto (x,y,z) é abrigo contra o alvo: o corpo fica escondido dele, mas os olhos do atirador enxergam o alvo (atira por cima).
+function coverOk(tg,x,y,z,def){
+  const ex=tg.x,ey=tg.y+tg.eye,ez=tg.z;
+  return !losClear(ex,ey,ez,x,y+ENEMYAI.bodyY,z)&&losClear(ex,ey,ez,x,y+def.eye,z);
+}
+// Lista de abrigos num raio curto em volta do atirador (cache por quadrado de 8 blocos dele e do alvo); null = sem orçamento neste quadro.
+function enemyCoverPoints(e,tg){
+  const A=ENEMYAI,def=e.def,key=(e.x>>3)+','+(e.z>>3)+','+(tg.x>>3)+','+(tg.z>>3),c=COVERQ.cache.get(key);
+  if(c&&G.t-c.t<A.cacheTtl)return c.pts;
+  if(!coverBudget(A.rings.length*A.dirs))return null;
+  const pts=[];
+  for(const r of A.rings)for(let k=0;k<A.dirs;k++){
+    const a=k/A.dirs*6.2832+r*0.37,x=e.x+Math.cos(a)*r,z=e.z+Math.sin(a)*r;
+    if(!navFree(x,z))continue;
+    const dd=Math.hypot(x-tg.x,z-tg.z);if(dd<def.pref*0.6||dd>def.range*0.95)continue;
+    const y=tH(x,z);if(Math.abs(y-e.y)>2.5)continue;
+    if(coverOk(tg,x,y,z,def))pts.push({x,z});
+  }
+  if(COVERQ.cache.size>300)COVERQ.cache.clear();
+  COVERQ.cache.set(key,{t:G.t,pts});return pts;
+}
+// Escolhe o abrigo livre mais perto (no máximo A.perCover atiradores por abrigo). Sem achar, espera A.retry antes de tentar de novo.
+function enemyCoverPick(e,tg){
+  const A=ENEMYAI,pts=enemyCoverPoints(e,tg);
+  if(!pts){e.covT=0.1+Math.random()*0.1;return}
+  const used=ENEMIES.filter(o=>o!==e&&o.alive&&o.cov);let best=null,bd=1e9;
+  for(const p of pts){
+    if(used.filter(o=>Math.hypot(o.cov.x-p.x,o.cov.z-p.z)<A.coverGap).length>=A.perCover)continue;
+    const dd=Math.hypot(p.x-e.x,p.z-e.z);if(dd<bd){bd=dd;best=p}
+  }
+  e.cov=best?{x:best.x,z:best.z}:null;e.covT=best?A.recheck:A.retry;e.covRe=A.recheck;e.covWalk=0;
+  e.holdT=enemyAiRand(A.holdUnseen);e.advance=false;
+}
+const enemyMagNew=e=>Math.round(enemyAiRand(ENEMYAI.mag[e.type]||ENEMYAI.magDefault));
+// Um passo da IA do atirador (chamado por updateEnemy); devolve se ele se moveu. Cobertura: fica abrigado e atira de lá; só sai se o alvo some de
+// vista por muito tempo e aí avança devagar até o último ponto visto. Carregador: acabando os tiros, recarrega (sem atirar) de preferência no abrigo.
+function enemyRangedStep(e,tg,dx,dz,d,da,dt,hg,stepH){
+  const A=ENEMYAI,def=e.def;let moving=false;
+  if(e.mag===undefined)e.mag=enemyMagNew(e);
+  e.reloadT=(e.reloadT||0)-dt;e.covT=(e.covT||0)-dt;
+  e.strafeT-=dt;if(e.strafeT<=0){e.strafe=-e.strafe;e.strafeT=1+Math.random()*2.5}
+  const shoot=e.sees&&d<def.range,useCover=A.cover&&!e.sentry&&EDEF[e.type].pref>=A.minPref;   // pref original: bandidos e batalha têm o alcance pela metade
+  if(e.sees)e.lastSeen={x:tg.x,z:tg.z};
+  if(useCover&&!e.cov&&!e.advance&&e.covT<=0&&(shoot||e.reloadT>0))enemyCoverPick(e,tg);
+  if(e.cov){
+    e.covRe-=dt;
+    if(e.covRe<=0){e.covRe=A.recheck;if(!coverOk(tg,e.cov.x,tH(e.cov.x,e.cov.z),e.cov.z,def)){e.cov=null;e.covT=0}}
+  }
+  if(e.cov&&!e.sees&&e.unseenT>e.holdT&&e.lastSeen){e.cov=null;e.advance=true;e.covT=A.retry}   // sumiu por muito tempo: avança com cuidado
+  if(e.advance&&(e.sees||!e.lastSeen))e.advance=false;
+  if(e.cov){
+    const dc=Math.hypot(e.cov.x-e.x,e.cov.z-e.z);
+    if(dc>1.1){
+      e.covWalk+=dt;
+      if(e.covWalk>A.walkMax){e.cov=null;e.covT=A.retry}
+      else{chaseMove(e,e.cov,def.spd,dt,def.r,hg,stepH);moving=true}
+    }else e.covWalk=0;   // já abrigado: parado
+  }else if(e.advance){
+    const dd=steer(e,e.lastSeen.x,e.lastSeen.z,def.spd*A.carefulSpeed,dt,def.r,hg,stepH);moving=true;
+    if(dd<A.carefulEnd){e.advance=false;e.lastSeen=null}
+  }else if(shoot){
+    if(!e.sentry){
+      if(d>def.pref+5||e.spreadT>0){chaseMove(e,tg,def.spd,dt,def.r,hg,stepH);moving=true}
+      else if(d<def.pref-6){steer(e,e.x-dx,e.z-dz,def.spd*0.8,dt,def.r,hg,stepH);moving=true}
+      else{steer(e,e.x+dz*e.strafe,e.z-dx*e.strafe,def.spd*0.6,dt,def.r,hg,stepH);moving=true}
+    }
+  }else if(!e.sentry){
+    if(d>def.pref+5||e.spreadT>0){chaseMove(e,tg,def.spd,dt,def.r,hg,stepH);moving=true}
+    else{steer(e,e.x+dz*e.strafe,e.z-dx*e.strafe,def.spd*0.4,dt,def.r,hg,stepH);moving=true}   // sem ver o alvo e já perto: contorna em vez de ir a queima-roupa
+  }
+  if(shoot&&e.cool<=0&&da*da<0.4&&!(e.reloadT>0)){   // atira também enquanto corre para o abrigo
+    enemyShoot(e);
+    if(e.burst<=0)e.burst=(def.burst||1)-1;else e.burst--;
+    e.cool=e.burst>0?def.burstInt:def.cd*(0.8+Math.random()*0.5);
+    if(A.magazine&&--e.mag<=0){e.mag=enemyMagNew(e);e.burst=0;e.reloadT=enemyAiRand(A.reload);e.cool=Math.max(e.cool,e.reloadT)}
+  }
+  return moving;
+}
 function updateEnemy(e,dt){  const def=e.def,m=e.model;
   if(!e.alive){
     e.deadT+=dt;const k=Math.min(1,e.deadT*3);
@@ -469,6 +590,7 @@ function updateEnemy(e,dt){  const def=e.def,m=e.model;
     if(m.golem||m.s>1)e.group.position.y=e.y;
     if(e.deadT>5){scene.remove(e.group);e.gone=true}return;
   }
+  if(waterEscapeStep(e,dt,def.spd))return;   // na água: só sai dela
   const c=e.city;
   e.flinch=Math.max(0,(e.flinch||0)-dt);
   e.tgT=(e.tgT||0)-dt;
@@ -496,7 +618,7 @@ function updateEnemy(e,dt){  const def=e.def,m=e.model;
   if((G.invis||((P.y<UNDER_Y)!==(e.y<UNDER_Y)))&&tg===P){active=false;e.aggro=false;e.lunge=0;e.wind=0;e.sees=false}   // invisível, ou o jogador está no outro mundo (em cima/embaixo): ninguém ataca   // modo invisível: ninguém ataca o jogador
   let moving=false;
   if(!active){
-    e.sees=false;
+    e.sees=false;e.cov=null;e.advance=false;
     if(e.btl&&e.recall){const px0=e.x,pz0=e.z;chaseMove(e,e.recall,def.spd,dt,def.r,Math.min(def.h,1.9),1.05);faceMove(e,px0,pz0,dt);moving=true;e.phase+=dt*def.spd*2.2}   // voltando ao gerador
     else if(!e.sentry){
       e.wanderT-=dt;
@@ -516,21 +638,7 @@ function updateEnemy(e,dt){  const def=e.def,m=e.model;
     const stepH=def.climb?7:def.bomb?3:1.05,hg=Math.min(def.h,1.9);
     if(e.reactT>0){/* reagindo: parado, só virando para o alvo */}
     else if(def.ranged){
-      e.strafeT-=dt;if(e.strafeT<=0){e.strafe=-e.strafe;e.strafeT=1+Math.random()*2.5}
-      if(e.sees&&d<def.range){
-        if(!e.sentry){
-          if(d>def.pref+5||e.spreadT>0){chaseMove(e,tg,def.spd,dt,def.r,hg,stepH);moving=true}
-          else if(d<def.pref-6){steer(e,e.x-dx,e.z-dz,def.spd*0.8,dt,def.r,hg,stepH);moving=true}
-          else{steer(e,e.x+dz*e.strafe,e.z-dx*e.strafe,def.spd*0.6,dt,def.r,hg,stepH);moving=true}
-        }
-        if(e.cool<=0&&da*da<0.4){
-          enemyShoot(e);
-          if(e.burst<=0)e.burst=(def.burst||1)-1;else e.burst--;
-          e.cool=e.burst>0?def.burstInt:def.cd*(0.8+Math.random()*0.5);
-        }
-      }else if(!e.sentry){
-        chaseMove(e,tg,def.spd,dt,def.r,hg,stepH);moving=true;
-      }
+      moving=enemyRangedStep(e,tg,dx,dz,d,da,dt,hg,stepH);   // cobertura e carregador (acima)
       if(moving)e.phase+=dt*def.spd*2.2;
     }else{
       // corpo a corpo
@@ -584,7 +692,7 @@ function updateEnemy(e,dt){  const def=e.def,m=e.model;
   if(!def.climb)e.group.rotation.x+=((e.flinch>0?-0.28:0)-e.group.rotation.x)*Math.min(1,dt*25);
   if(m.bot){m.inner.position.y=1.2+Math.sin(performance.now()*0.004+e.phase)*0.12;m.inner.scale.setScalar(1+(e.beepFlash||0)*0.4);e.beepFlash=Math.max(0,(e.beepFlash||0)-dt*4);m.props.forEach(p=>p.rotation.y+=dt*40)}
   if(moving)animWalk(m,e.phase,def.golem?0.5:(m.quad?0.8:0.7));else if(m.legs.length)m.legs.forEach(l=>{if(!m.spider)l.rotation.x*=0.8});
-  if(def.ranged&&m.arms.length){m.arms[1].rotation.x=active?-1.25:-0.2;m.arms[0].rotation.x=active?-1.0:0}
+  if(def.ranged&&m.arms.length){m.arms[1].rotation.x=active?(e.reloadT>0?-0.5:-1.25):-0.2;m.arms[0].rotation.x=active?(e.reloadT>0?-0.4:-1.0):0}   // recarregando: baixa a arma
 }
 function damageEnemy(e,amount,head,byAlly,src){   // src: outro bicho/soldado que causou o dano (briga entre eles, sem envolver o jogador)
   if(!e.alive)return;

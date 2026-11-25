@@ -48,6 +48,7 @@ function tileTestPlace(mode) {
 }
 
 function tileTestAfter() {
+  if (iaTestOn()) { iaTestStart(); return; }   // IA dos atiradores, passo 5 (iatest.js)
   if (battleMode() === 'nucleo') { battleStartNucleo(); return; }   // batalha no tile, passo 1 (battle.js)
   if (battleMode() === 'choque') { battleStartChoque(); return; }   // batalha no tile, passo 2 (battle.js)
   if (battleMode() === 'defesa') { battleStartDefesa(); return; }   // batalha no tile, passo 3 (battle.js)
@@ -81,7 +82,7 @@ function tileTestHtml() {
   const p = TILETEST.perf, B = (k, t) => '<button class="alt" data-tt="' + k + '" style="margin:2px">' + t + '</button>';
   const st = TILETEST.acc ? 'medindo… (feche a pausa e jogue ' + TILE_TEST.perfFrames + ' quadros)'
     : p ? txtTileTestPerf(p, tileTestAlive(ENEMIES), tileTestAlive(ALLIES)) : 'sem medição ainda';
-  return '<p class="ptitle">' + TXT_TILETEST_TITLE + '</p><p class="ldsm" style="margin:2px 0 4px">' + (battleMode() ? TXT_BATTLE_HELP[battleMode()] || TXT_BATTLE_HELP.nucleo : TXT_TILETEST_HELP) + '</p>'
+  return '<p class="ptitle">' + TXT_TILETEST_TITLE + '</p><p class="ldsm" style="margin:2px 0 4px">' + (iaTestOn() ? TXT_IA_HELP : battleMode() ? TXT_BATTLE_HELP[battleMode()] || TXT_BATTLE_HELP.nucleo : TXT_TILETEST_HELP) + '</p>'
     + '<p class="ldsm"><b>' + st + '</b></p>'
     + B('measure', '⏱ Medir') + B('home', '📍 Minha cidade') + B('gate', '📍 Portão inimigo') + B('center', '📍 Centro inimigo') + B('kill', '☠ Matar os inimigos')
     + '<br><button class="alt" data-scn="reload">↻ Recomeçar o cenário</button><hr style="border-color:#444">';

@@ -23,6 +23,7 @@ function gridLos(x0,z0,x1,z1,u){
     if(cx===px&&cz===pz)continue;
     if(cx<0||cz<0||cx>=W||cz>=W)return false;
     const k=cz*W+cx;if(BL[k])return false;
+    if(!u&&H[k]<SEA&&H[pz*W+px]>=SEA)return false;   // não corta caminho entrando na água: o A* decide (água custa mais)
     if(Math.abs(navH(u,k)-navH(u,pz*W+px))>1)return false;
     if(cx!==px&&cz!==pz&&(BL[pz*W+cx]||BL[cz*W+px]))return false;
     px=cx;pz=cz;
@@ -51,7 +52,7 @@ function findPath(sx,sz,gx,gz,u){
       if(!dx&&!dz)continue;const vx=ux+dx,vz=uz+dz,v=vz*W+vx;
       if(bl[v])continue;if(Math.abs(navH(u0,v)-navH(u0,u))>1)continue;
       if(dx&&dz&&(bl[uz*W+vx]||bl[vz*W+ux]))continue;
-      const ng=g[u]+(dx&&dz?1.414:1)*(!u0&&H[v]<SEA?3:1);
+      const ng=g[u]+(dx&&dz?1.414:1)*(!u0&&H[v]<SEA?NAV_WATER_COST:1);
       if(sp[v]!==st||ng<g[v]){sp[v]=st;g[v]=ng;came[v]=u;hp.push(ng+heur(vx,vz),v)}
     }
   }

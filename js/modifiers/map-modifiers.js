@@ -26,7 +26,7 @@ const TILE_TEST = {
   perfFrames: 300
 };
 // Verdadeiro quando o cenário de teste de batalha está ligado pela URL.
-const tileTestOn = () => new URLSearchParams(location.search).get('cenario') === 'batalha';
+const tileTestOn = () => ['batalha', 'ia'].includes(new URLSearchParams(location.search).get('cenario'));   // ?cenario=ia (passo 5 da batalha no tile) reaproveita o mapa de teste
 
 // ---------- Etapa 4 do plano: tiles com tema (feature 8, docs/features/8_tiles-e-vilas.md; plano em 9_plano-implementacao-tiles.md) ----------
 // Lado do tile (mapa local), em blocos, igual para TODOS os tiles (múltiplo de 32). ?tam=N troca só para teste. Padrão: 384

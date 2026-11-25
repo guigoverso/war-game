@@ -176,6 +176,7 @@ function orderStep(a,dt,faceYaw){   // faceYaw: se dado, continua olhando para o
 function updateAlly(a,dt){
   const w=WEAPONS[ARMY.weapon],ord=ORDER.on&&!a.post;
   if(!a.alive){a.deadT+=dt;a.group.rotation.z=Math.min(1,a.deadT*3)*1.5;if(a.deadT>5){scene.remove(a.group);a.gone=true}return}
+  if(waterEscapeStep(a,dt,5))return;   // na água: só sai dela
   a.cool-=dt;a.scanT-=dt;
   if(a.state==='assault'){const c=a.assaultCity;if(!c||c.state!=='attacking'||(c.aliveEnemies<=0&&!c.btl)){a.state='patrol';a.patrolCity=c||WORLD.home}}
   if(a.scanT<=0){a.scanT=0.25+Math.random()*0.1;allyFindTarget(a,w)}

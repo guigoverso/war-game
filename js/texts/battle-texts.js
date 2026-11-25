@@ -50,3 +50,8 @@ const TXT_BATTLE_HELP = {
   ataque: 'Ataque: conquiste o POI alvo (bandeira vermelha) matando a guarnição. Com batalhão no tile (padrão) a guarnição é completada até 30 com soldados da reserva (total 112) e 3 satélites vermelhos mandam '
     + 'reforços em lotes à medida que morrem; com &batalhao=0 só a guarnição (12). Conquistado o alvo, vença zerando os reforços. Ordem aos soldados: V e X. Ajuste: [ ] lote, - = atraso.'
 };
+
+// Explicação do cenário ?cenario=ia (painel de testes da pausa): atiradores com cobertura e carregador (passo 5).
+const TXT_IA_HELP = 'IA dos atiradores: 7 atiradores inimigos (4 soldados, 1 franco-atirador, 1 saqueador, 1 metralhador) a leste e você sozinho a oeste, '
+  + 'com peças de cobertura no meio. Eles procuram abrigo num raio curto, atiram de lá e recarregam (2 a 3 s) quando o carregador acaba; se você some de vista por '
+  + '10 a 15 s, avançam devagar até onde viram você. Comparar com o comportamento antigo: &abrigo=0 e &carregador=0 na URL.';
