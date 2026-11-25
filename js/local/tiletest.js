@@ -48,6 +48,7 @@ function tileTestPlace(mode) {
 }
 
 function tileTestAfter() {
+  if (battleMode() === 'nucleo') { battleStartNucleo(); return; }   // batalha no tile, passo 1 (battle.js)
   const home = WORLD.home, foe = tileTestFoe(), n = tileTestCount('inim', TILE_TEST.defenders), a = tileTestCount('alia', TILE_TEST.allies);
   tileTestPlace(new URLSearchParams(location.search).get('pos') || 'casa');
   // sem guerra declarada, atacar a cidade é "crime": ela reage, mas você não recebe os seus soldados (startAttack em entities.js); por isso a guerra vem
@@ -77,7 +78,7 @@ function tileTestHtml() {
   const p = TILETEST.perf, B = (k, t) => '<button class="alt" data-tt="' + k + '" style="margin:2px">' + t + '</button>';
   const st = TILETEST.acc ? 'medindo… (feche a pausa e jogue ' + TILE_TEST.perfFrames + ' quadros)'
     : p ? txtTileTestPerf(p, tileTestAlive(ENEMIES), tileTestAlive(ALLIES)) : 'sem medição ainda';
-  return '<p class="ptitle">' + TXT_TILETEST_TITLE + '</p><p class="ldsm" style="margin:2px 0 4px">' + TXT_TILETEST_HELP + '</p>'
+  return '<p class="ptitle">' + TXT_TILETEST_TITLE + '</p><p class="ldsm" style="margin:2px 0 4px">' + (battleMode() ? TXT_BATTLE_HELP : TXT_TILETEST_HELP) + '</p>'
     + '<p class="ldsm"><b>' + st + '</b></p>'
     + B('measure', '⏱ Medir') + B('home', '📍 Minha cidade') + B('gate', '📍 Portão inimigo') + B('center', '📍 Centro inimigo') + B('kill', '☠ Matar os inimigos')
     + '<br><button class="alt" data-scn="reload">↻ Recomeçar o cenário</button><hr style="border-color:#444">';
@@ -89,6 +90,6 @@ document.addEventListener('click', e => {
   else if (k === 'home') { tileTestPlace('casa'); closePanel(); }
   else if (k === 'gate') { tileTestPlace('portao'); closePanel(); }
   else if (k === 'center') { tileTestPlace('centro'); closePanel(); }
-  else if (k === 'kill') { for (const x of ENEMIES) if (x.alive && x.city === foe) damageEnemy(x, 99999, false); }
+  else if (k === 'kill') { for (const x of ENEMIES) if (x.alive && (x.city === foe || x.city === BATTLE.area)) damageEnemy(x, 99999, false); }
   if (typeof refreshCheats === 'function') refreshCheats();
 });

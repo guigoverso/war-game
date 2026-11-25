@@ -480,6 +480,7 @@ function updateEnemy(e,dt){  const def=e.def,m=e.model;
   const tg=e.tg,dx=tg.x-e.x,dz=tg.z-e.z,d=Math.hypot(dx,dz);
   e.cool-=dt;e.losT-=dt;e.flash-=dt;
   let active=c.state==='attacking'&&!P.dead&&d<140;
+  if(e.btl)active=battleEnemyActive(e);   // soldado lançado por um gerador de batalha: coleira e retorno (battle.js)
   if(c.kind==='cave'||c.kind==='camp'||c.kind==='pack'||c.kind==='dungeon'||c.kind==='poi'){
     const dc=Math.hypot(P.x-c.cx,P.z-c.cz),leash=c.leash||(c.kind==='cave'?24:30);
     e.wildT=(e.wildT||0)-dt;
@@ -496,7 +497,8 @@ function updateEnemy(e,dt){  const def=e.def,m=e.model;
   let moving=false;
   if(!active){
     e.sees=false;
-    if(!e.sentry){
+    if(e.btl&&e.recall){const px0=e.x,pz0=e.z;chaseMove(e,e.recall,def.spd,dt,def.r,Math.min(def.h,1.9),1.05);faceMove(e,px0,pz0,dt);moving=true;e.phase+=dt*def.spd*2.2}   // voltando ao gerador
+    else if(!e.sentry){
       e.wanderT-=dt;
       const pk=c.kind==='pack';
       if(e.wanderT<=0){e.tx=e.homeX+(Math.random()-0.5)*(pk?3:8);e.tz=e.homeZ+(Math.random()-0.5)*(pk?3:8);e.wanderT=pk?2+Math.random()*3:3+Math.random()*5;e.walking=true}

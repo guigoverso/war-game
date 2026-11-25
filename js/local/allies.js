@@ -108,7 +108,7 @@ function recruitAlly(c){
 function damageAlly(a,dmg){
   if(!a.alive)return;if(a.armor>0){const ab=Math.min(a.armor,dmg*0.6);a.armor-=ab;dmg-=ab}
   a.hp-=dmg;burst(a.x,a.y+1,a.z,0x2a5ac0,6,4,0.1);
-  if(a.hp<=0){a.alive=false;a.deadT=0;if(!a.temp&&!(typeof REBB!=='undefined'&&REBB.active)&&!(ARMY.reserve>0))toast('☠ Um soldado seu caiu! Recrute outro no Quartel.',3000)}   // com reserva, um substituto já vem a caminho   // sem aviso nas batalhas de rebelião (o contador de aliados mostra)
+  if(a.hp<=0){a.alive=false;a.deadT=0;if(!a.temp&&!battleOn()&&!(typeof REBB!=='undefined'&&REBB.active)&&!(ARMY.reserve>0))toast('☠ Um soldado seu caiu! Recrute outro no Quartel.',3000)}   // com reserva, um substituto já vem a caminho   // sem aviso nas batalhas de rebelião (o contador de aliados mostra)
 }
 function armyAssault(c,msg,only){   // only: filtro opcional (quais soldados)
   if(!only)orderCancel();   // a invasão manda os soldados atrás de você: a ordem antiga cai
@@ -177,7 +177,7 @@ function updateAlly(a,dt){
   const w=WEAPONS[ARMY.weapon],ord=ORDER.on&&!a.post;
   if(!a.alive){a.deadT+=dt;a.group.rotation.z=Math.min(1,a.deadT*3)*1.5;if(a.deadT>5){scene.remove(a.group);a.gone=true}return}
   a.cool-=dt;a.scanT-=dt;
-  if(a.state==='assault'){const c=a.assaultCity;if(!c||c.state!=='attacking'||c.aliveEnemies<=0){a.state='patrol';a.patrolCity=c||WORLD.home}}
+  if(a.state==='assault'){const c=a.assaultCity;if(!c||c.state!=='attacking'||(c.aliveEnemies<=0&&!c.btl)){a.state='patrol';a.patrolCity=c||WORLD.home}}
   if(a.scanT<=0){a.scanT=0.25+Math.random()*0.1;allyFindTarget(a,w)}
   let moving=false;
   const t=a.tgtE&&a.tgtE.alive?a.tgtE:null;

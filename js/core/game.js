@@ -120,7 +120,7 @@ function damagePlayer(dmg,fx,fz){
   $(id).style.opacity=1;setTimeout(()=>$(id).style.opacity=0,350);
   if(P.hp<=0){P.hp=0;die()}
 }
-function die(){P.dead=true;G.fireHeld=false;G.aiming=false;openPanel('dead');if(RAID.active&&RAID.engaged)raidFailed('morte');if(CVB.active)cvbEnd(false);if(typeof rebCombatDied==='function')rebCombatDied()}   // morrer defendendo a cidade: o raid é perdido (saque)
+function die(){P.dead=true;G.fireHeld=false;G.aiming=false;if(battleOn()){battleDefeat();return}openPanel('dead');if(RAID.active&&RAID.engaged)raidFailed('morte');if(CVB.active)cvbEnd(false);if(typeof rebCombatDied==='function')rebCombatDied()}   // morrer defendendo a cidade: o raid é perdido (saque)
 function respawn(){
   if(G.dg)leaveDungeon(true);
   P.dead=false;P.hp=P.maxhp;P.armor=0;P.coins=P.coins>0?Math.floor(P.coins*0.9):P.coins;P.crouch=false;P.regen=null;fishClean();
@@ -583,6 +583,7 @@ function drawMinimap(){
   }
   if(!G.dg)for(const p of WORLD.pois||[]){if(p.type==='ruins'||!poiVisible(p))continue;const x=(p.cx-P.x)*s,y=(p.cz-P.z)*s;mmc.fillStyle=poiCss(p.owner);mmc.strokeStyle=POI_BORDER;mmc.lineWidth=1.3;mmc.beginPath();mmc.rect(x-4.5,y-4.5,9,9);mmc.fill();mmc.stroke()}   // POIs (cor do dono)
   if(!G.dg&&WORLD.tileCompose)tileMarkDraw(mmc,(wx,wz)=>[(wx-P.x)*s,(wz-P.z)*s],TILE_MARK.mini,1);   // círculos do principal (ciano) e dos donos (azul/vermelho) no cenário de tile (tilecompose.js)
+  if(!G.dg)battleMarks(mmc,(wx,wz)=>[(wx-P.x)*s,(wz-P.z)*s],s,1,false);   // raios e geradores da batalha (battle.js)
   if(!G.dg)warFrontDrawMini(mmc,s);   // rota da frente da guerra (warfront.js; liga/desliga em WAR.front.minimap)
   {const ct=G.dg?null:cvbTarget();if(ct){let x=(ct.x-P.x)*s,y=(ct.z-P.z)*s;const L=Math.hypot(x,y),maxL=62;if(L>maxL){x*=maxL/L;y*=maxL/L}drawStar(mmc,x,y,7)}}   // caravana sendo saqueada
   if(!G.dg)for(const a of ALLIES)if(a.alive){mmc.fillStyle='#4aa0ff';mmc.fillRect((a.x-P.x)*s-2,(a.z-P.z)*s-2,4,4)}
@@ -662,6 +663,7 @@ function drawBigMap(cvArg,mk){   // cvArg: outro canvas (popup de missão); mk: 
   {const rm=rebMarker();if(rm){drawStar(g,rm.x*s,rm.z*s,13*k,'#ff3a2a');g.fillStyle='#ff9a8a';g.strokeStyle='#000';g.lineWidth=3;g.strokeText(rm.label,rm.x*s,rm.z*s-18*k);g.fillText(rm.label,rm.x*s,rm.z*s-18*k)}}
   for(const pm of poiX().marks)drawQuery(g,pm.x*s,pm.z*s,11*k)   // "?" da vigia, sem rótulo
   {const qt=questTarget();if(qt){drawStar(g,qt.x*s,qt.z*s,10*k);g.fillStyle='#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText('Missão ativa',qt.x*s,qt.z*s-16*k);g.fillText('Missão ativa',qt.x*s,qt.z*s-16*k)}}
+  battleMarks(g,(wx,wz)=>[wx*s,wz*s],s,k,true);   // raios, geradores e soldados da batalha no Mapa M (battle.js)
   if(mk){drawStar(g,mk.x*s,mk.z*s,13*k,mk.col);g.fillStyle=mk.lcol||'#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText(mk.label,mk.x*s,mk.z*s-18*k);g.fillText(mk.label,mk.x*s,mk.z*s-18*k)}
   if(!(G.dg||G.office||P.y<UNDER_Y)){g.save();g.translate(P.x*s,P.z*s);g.rotate(-P.yaw);g.scale(k,k);g.fillStyle='#fff';g.strokeStyle='#000';g.beginPath();g.moveTo(0,-9);g.lineTo(7,8);g.lineTo(0,4);g.lineTo(-7,8);g.closePath();g.fill();g.stroke();g.restore();}   // fora do mapa (dungeon, sala do líder, sala de reuniões): sem o indicador do jogador
 }
@@ -718,7 +720,7 @@ function update(dt){
   if(!P.dead)updatePlayer(dt);
   updateWeapons(dt);
   updateActors(dt);updateAllies(dt);updateCritters(dt);updateWild(dt);updateChests(dt);updateDayNight(dt);updateQuests(dt);
-  updateFx(dt);checkStuck(dt);updateInventory(dt);updateFishing(dt);updateVendors();updatePortals(dt);updateRaids(dt);updateRounds(dt);
+  updateFx(dt);checkStuck(dt);updateInventory(dt);updateFishing(dt);updateVendors();updatePortals(dt);updateRaids(dt);updateBattle(dt);updateRounds(dt);
   updateInteract();facPatrol();rebWatch();gevTick(dt);
   // recuo: cidade em ataque se o jogador se afastou demais
   for(const c of WORLD.cities)if(c.state==='attacking'&&Math.hypot(c.cx-P.x,c.cz-P.z)>170){c.state='idle';c.crime=false;toast('Você recuou. Os inimigos voltam aos postos.',2500);for(const e of c.enemies)if(e.alive){e.hp=e.maxhp}}
