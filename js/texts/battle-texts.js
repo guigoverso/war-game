@@ -23,8 +23,13 @@ const TXT_BATTLE_LOSE = {
   titulo: 'DERROTA',
   nucleo: 'O comandante caiu. Sem ordens, os soldados foram dispersados e a batalha está perdida.',
   choque: 'O comandante caiu no centro do campo. Sem ordens, os soldados recuaram e a batalha está perdida.',
+  defesa: 'O comandante caiu defendendo a posição. Sem ordens, os soldados foram vencidos e os invasores tomaram o que era seu.',
+  defesaFuga: 'O comandante fugiu. No auge da batalha, ele abandonou o campo; sem ordens, os soldados foram esmagados, e o comandante foi caçado e morto na fuga.',
   botao: 'Reiniciar'
 };
+
+// Aviso fixo no topo da tela (Defesa), enquanto o comandante está na zona cinza, além da borda da área de defesa. Rascunho a aprovar.
+const TXT_BATTLE_DEF_WARN = 'Você está saindo da área de defesa! Volte, ou será considerado fuga.';
 
 // Explicação curta do cenário (painel de testes da pausa), por modo de batalha.
 const TXT_BATTLE_HELP = {
@@ -32,5 +37,8 @@ const TXT_BATTLE_HELP = {
     + 'até a cota de vivos; ao sair do raio x 1,3 eles voltam. Ordem aos soldados: V (ponto mirado) e X (cancelar). '
     + 'Ajuste em tempo real: [ ] muda o lote, - = muda o atraso.',
   choque: 'Choque: 3 postos seus (azul, oeste) e 3 do inimigo (vermelho, leste) mandam soldados em lotes ao centro (círculo branco), onde estão as peças de '
-    + 'cobertura. Vence quem zerar a reserva e os vivos do outro lado. Ordem aos soldados: V e X. Ajuste: [ ] lote, - = atraso.'
+    + 'cobertura. Vence quem zerar a reserva e os vivos do outro lado. Ordem aos soldados: V e X. Ajuste: [ ] lote, - = atraso.',
+  defesa: 'Defesa: você foi levado ao centro do POI defendido (bandeira). Os atacantes saem de 3 postos vermelhos fora da área (círculo azul) e vêm em lotes. '
+    + 'Além da borda azul há uma zona cinza: ao entrar nela aparece o aviso; ao atravessá-la você foge e perde. Vence zerando reserva e vivos dos atacantes. '
+    + 'Ordem aos soldados (V, X) só vale dentro da área. Ajuste: [ ] lote, - = atraso.'
 };

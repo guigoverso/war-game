@@ -50,7 +50,8 @@ function tileTestPlace(mode) {
 function tileTestAfter() {
   if (battleMode() === 'nucleo') { battleStartNucleo(); return; }   // batalha no tile, passo 1 (battle.js)
   if (battleMode() === 'choque') { battleStartChoque(); return; }   // batalha no tile, passo 2 (battle.js)
-  const home = WORLD.home, foe = tileTestFoe(), n = tileTestCount('inim', TILE_TEST.defenders), a = tileTestCount('alia', TILE_TEST.allies);
+  if (battleMode() === 'defesa') { battleStartDefesa(); return; }   // batalha no tile, passo 3 (battle.js)
+  const home = WORLD.home, foe = tileTestFoe(), n =tileTestCount('inim', TILE_TEST.defenders), a = tileTestCount('alia', TILE_TEST.allies);
   tileTestPlace(new URLSearchParams(location.search).get('pos') || 'casa');
   // sem guerra declarada, atacar a cidade é "crime": ela reage, mas você não recebe os seus soldados (startAttack em entities.js); por isso a guerra vem
   // antes de ajustar os soldados (a declaração recoloca a guarnição da cidade)

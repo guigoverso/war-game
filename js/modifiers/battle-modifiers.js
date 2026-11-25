@@ -45,6 +45,14 @@ const BATTLE_MOD = {
   // fica no eixo central), faixa de distância ao centro (mín, máx) onde nascem e folga mínima, em blocos, em relação às rotas dos postos ao centro (para não bloquear).
   // Padrão: 8 a 15 peças, distância 8 a 28, folga 6
   cover: { count: [8, 15], ring: [8, 28], routeGap: 6 },
+  // Cenário ?modo=defesa (4B-10), coordenadas do mapa de teste de 320: centro do POI defendido (o jogador nasce nele, "teletransportado") e meia-pegada dele;
+  // raio da área de defesa = meia-pegada + radiusPad, limitado a [radiusMin, radiusMax]; largura da zona cinza além da borda (aviso; atravessá-la = fuga = derrota);
+  // distância dos 3 postos atacantes além do raio (para o tile de 384 comportá-los) e seus ângulos em graus; raio em que o soldado recém-saído do posto já reage
+  // (engage) e distância do centro em que ele para de marchar (hold). Padrão: centro 205,60; pegada 20; pad 25; raio 45 a 140; cinza 20; postos a 40 além do raio, ângulos 0/150/210
+  defesa: { center: { x: 205, z: 60 }, footprint: 20, radiusPad: 25, radiusMin: 45, radiusMax: 140, gray: 20, postDist: 40, postAngles: [0, 150, 210],
+    engage: 40, hold: 10 },
+  // Cor da borda da área de defesa e da zona cinza, no chão e no Mapa M. Padrão: 0x4ac0ff e 0x9a9a9a
+  defesaColor: 0x4ac0ff, defesaGrayColor: 0x9a9a9a,
   // Cor dos marcadores de cobertura no Mapa M e dos postos do inimigo (o do jogador usa a cor da facção). Padrão: '#c8c8c8'
   coverMark: '#c8c8c8',
   // Teclas de ajuste em tempo real no cenário de teste: tamanho do lote (menos, mais) e atraso entre lotes (menos, mais). Padrão: BracketLeft/BracketRight, Minus/Equal

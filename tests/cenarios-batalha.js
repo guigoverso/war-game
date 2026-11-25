@@ -11,7 +11,8 @@ const CENARIOS = [
   { passo: 2, status: 'pronto', t: 'Choque: 3 postos por lado e centro', q: 'cenario=batalha&modo=choque',
     d: '3 postos seus (azul, oeste) e 3 do inimigo (vermelho, leste) mandam lotes de 3 a 5 ao centro (círculo branco), com 8 a 15 peças de cobertura espelhadas fora das rotas. '
       + 'Reserva inimiga 100 (dividida nos postos); seu batalhão 50 (10 elites + 40 nos postos). Teclas: [ ] lote, - = atraso, V/X ordem. Parâmetros: &inim= &reserva= &alia= &vivos= &vivosalia= &lote= &atraso= &semente= &cobertura=N &raios=0' },
-  { passo: 3, status: 'pendente', t: 'Defesa: teleporte, barreira, 3 postos atacantes', q: 'cenario=batalha&modo=defesa', d: '' },
+  { passo: 3, status: 'pronto', t: 'Defesa: teleporte, barreira, 3 postos atacantes', q: 'cenario=batalha&modo=defesa',
+    d: 'Você nasce no centro do POI defendido (bandeira). 3 postos inimigos fora da área (círculo azul) mandam lotes de 3 a 5. Zona cinza de 20 blocos além da borda: aviso ao entrar, fuga (derrota) ao atravessar. Ordem V só vale dentro da área. Parâmetros: &inim= &reserva= &alia= &vivos= &vivosalia= &lote= &atraso= &semente= &raios=0' },
   { passo: 4, status: 'pendente', t: 'Ataque: POI alvo e 3 satélites', q: 'cenario=batalha&modo=ataque', d: '' },
   { passo: 5, status: 'pendente', t: 'IA dos atiradores: cobertura e carregador', q: 'cenario=ia', d: '' },
   { passo: 6, status: 'pendente', t: 'Aliados: carregador e cobertura', q: 'cenario=ia&aliados=1', d: '' },

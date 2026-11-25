@@ -154,7 +154,7 @@ function orderGo(){   // mira do jogador -> ponto do chão
   const d=new THREE.Vector3(),o=new THREE.Vector3();camera.getWorldDirection(d);camera.getWorldPosition(o);
   rayWorld(o.x,o.y,o.z,d.x,d.y,d.z,ORDER_MAX_DIST);
   if(RAY.kind===0)return;
-  ORDER.x=o.x+d.x*RAY.t;ORDER.z=o.z+d.z*RAY.t;ORDER.on=true;
+  ORDER.x=o.x+d.x*RAY.t;ORDER.z=o.z+d.z*RAY.t;battleClampOrder(ORDER);ORDER.on=true;   // na Defesa o ponto fica dentro da área
   const m=orderMarker();m.position.set(ORDER.x,tH(ORDER.x,ORDER.z)+0.15,ORDER.z);
   for(const a of ALLIES)if(a.alive)a.path=null;   // recalcula o caminho já no destino novo
   if(orderInBattle())sfx('coin',0);
