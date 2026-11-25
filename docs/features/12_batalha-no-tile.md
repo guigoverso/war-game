@@ -1,25 +1,25 @@
-# Batalha no tile: rascunho e ordem de implementação (feature 12; ideias do usuário, ainda SEM especificação fechada)
+# Batalha no tile: especificação e ordem de implementação (feature 12; especificação fechada em 2026-11-25, seção 4B)
 
-Origem: 2026-11-24. Os POIs de guerra por zona (4E: acampamento, trincheira, barricada) eram só de teste e **não valem como design**: com a batalha num ponto de um mapa aberto o jogador pode dar a volta e atacar o POI principal, e a "resistência ao longo de um caminho" perde o sentido. A especificação completa fica para depois; este arquivo guarda as ideias do usuário e a **ordem de implementação** sugerida. Convenção: **[DECIDIDO]** do usuário; **[PROPOSTA]** da IA; **[ABERTO]** pergunta.
+Origem: 2026-11-24. Os POIs de guerra por zona (4E: acampamento, trincheira, barricada) eram só de teste e **não valem como design**: com a batalha num ponto de um mapa aberto o jogador pode dar a volta e atacar o POI principal, e a "resistência ao longo de um caminho" perde o sentido. Em 2026-11-25 a especificação foi fechada em conversa: **vale a seção 4B**; as seções 1 e 2 são o rascunho original e ficam como histórico (onde divergem da 4B, vale a 4B). A **ordem de implementação** está na seção 5. Convenção: **[DECIDIDO]** do usuário; **[PROPOSTA]** da IA; **[ABERTO]** pergunta.
 
-## 1. Ideias do usuário [DECIDIDO como direção; detalhes abertos]
+## 1. Ideias do usuário (rascunho original; detalhes fechados na seção 4B)
 1. **Arredores do POI principal** (cenário): trincheira em volta; barricadas nas estradas que chegam a ele.
 2. **Acampamentos inimigos que geram inimigos.**
 3. **POI gerador de inimigos:** um POI do inimigo tem um **raio grande**; quando o jogador pisa nele, o POI começa a **lançar inimigos** em direção ao jogador, saindo do POI. Serve para ataque e para defesa.
 4. **Contador de inimigos:** em vez de 30 de uma vez, o jogador luta contra N (ex.: 100) **repostos à medida que morrem**. Só vence quem mata todos; impede correr para o objetivo ignorando os soldados.
 5. **Ataque:** o jogador tem de conquistar um POI específico; os POIs em volta geram e repõem soldados sem parar. Mesmo conquistado, é preciso derrotar os que tentam retomá-lo, o que significa tomar os outros POIs.
-6. **Defesa:** o jogador defende um POI. O NPC usa POIs do mapa para enviar ondas contínuas. O jogador é **teletransportado** para o POI e fica **limitado a um raio**; sair da área = batalha perdida.
-7. **Choque:** (menos pensado) o jogador vai até um POI que é a sua **base** (ex.: acampamento); o inimigo tem a dele; a batalha começa e os soldados são repostos até não sobrar nenhum.
-8. **Batalhão em três partes:** **Comandante** (o jogador controla), **Elites** (soldados que aparecem ao invadir um POI dominado por bandidos) e **Comuns** (o total de soldados, repostos durante a batalha). Em gameplay Elites e Comuns são **a mesma coisa**; só muda **quando aparecem**. Exemplo: 51 = Comandante + 5 Elites + 45 Comuns.
+6. **Defesa:** o jogador defende um POI. O NPC usa POIs do mapa para enviar ondas contínuas. O jogador é **teletransportado** para o POI e fica **limitado a um raio**; sair da área = batalha perdida. **[Revisto na 4B-10: a derrota é só a morte do comandante; o raio é uma barreira.]**
+7. **Choque:** (menos pensado) o jogador vai até um POI que é a sua **base** (ex.: acampamento); o inimigo tem a dele; a batalha começa e os soldados são repostos até não sobrar nenhum. **[Revisto na 4B-9: 3 postos por lado enviando soldados a um centro.]**
+8. **Batalhão em três partes:** **Comandante** (o jogador controla), **Elites** (soldados que aparecem ao invadir um POI dominado por bandidos) e **Comuns** (o total de soldados, repostos durante a batalha). Em gameplay Elites e Comuns são **a mesma coisa**; só muda **quando aparecem**. Exemplo: 51 = Comandante + 5 Elites + 45 Comuns. **[Revisto na 4B-4: Elites são os soldados que acompanham o jogador em qualquer luta; Comuns só entram na batalha grande.]**
 
 ## 2. Sugestões da IA [PROPOSTA]
 - **Separar "vivos ao mesmo tempo" de "total":** tamanho do batalhão = reserva; só N em campo (ex.: 20 a 30) para manter o FPS; o resto entra quando alguém morre. O teste 30×10 do cenário `batalha` mede o limite.
-- **Fim da geração:** cada gerador tem reserva própria e **para ao ser conquistado** (ou quando a reserva zera); sem isso a batalha nunca termina. Conquistar o gerador desliga o fluxo dele.
+- **Fim da geração:** cada gerador tem reserva própria e **para ao ser conquistado** (ou quando a reserva zera); sem isso a batalha nunca termina. Conquistar o gerador desliga o fluxo dele. **[Ajustado na 4B-2: só o POI alvo do Ataque é conquistado; satélites e Choque acabam ao zerar a reserva.]**
 - **Os arredores (item 1) servem de cobertura e ambiente**, não de objetivo: trincheira dá abrigo, barricada fecha a estrada. Dependem de peças lego (feature 11) e da regra "quem é dono do principal" (tile da facção ganha arredores de defesa; tile de bandidos ganha acampamentos).
 - **Zonas da 4E reaproveitadas:** a zona de cada abertura vira **ponto de entrada** (de onde chegam os reforços do atacante), o anel vira o **perímetro da defesa** e a praça vira **ponto de captura/encontro** do choque. Os POIs de teste (fortcamp, trench, barricade) saem.
-- **Choque:** acrescentar um **ponto de captura no meio** (a praça) para a batalha não ser só "vá à base e espere"; capturá-lo reduz a reposição do inimigo.
-- **Defesa:** teletransporte + raio limite combina com `STATE.rd` e a rodada; perder = POI cai; cuidar da saída por morte (respawn) para não ser punição dupla.
-- **Elites x Comuns:** como são iguais em gameplay, o dado `origem` ('elite' | 'comum') só decide **quando entram** e o que acontece depois da batalha (morreu = perde do batalhão? volta ferido?). [ABERTO] ver 4.
+- **Choque:** acrescentar um **ponto de captura no meio** (a praça) para a batalha não ser só "vá à base e espere"; capturá-lo reduz a reposição do inimigo. **[Descartado na 4B-9: o próprio centro é o ponto da batalha.]**
+- **Defesa:** teletransporte + raio limite combina com `STATE.rd` e a rodada; perder = POI cai **[descartado na 4B-10: derrota só pela morte]**; cuidar da saída por morte (respawn) para não ser punição dupla.
+- **Elites x Comuns:** como são iguais em gameplay, o dado `origem` ('elite' | 'comum') só decide **quando entram** e o que acontece depois da batalha (morreu = perde do batalhão? volta ferido?). **[Resolvido na 4B-4: quem morre sai do batalhão para sempre.]**
 
 ## 3. O que já existe e dá para reaproveitar
 | Peça | Onde | Serve para |
@@ -32,14 +32,20 @@ Origem: 2026-11-24. Os POIs de guerra por zona (4E: acampamento, trincheira, bar
 | Zonas de guerra e descritor de batalha | `tilecompose.js`, `macro/tile.js` (`tileBattle`) | pontos de entrada/captura |
 | Estado de batalhões, ações, turno alternado | **etapa 7** do plano 6 | o batalhão novo muda esta etapa |
 
-## 4. Perguntas em aberto [ABERTO]
-1. Quem morre fica morto para sempre (perde do batalhão) ou só na batalha? Comuns e Elites diferem aqui?
-2. O jogador pode dar ordens (tecla V) aos soldados, ou eles só o acompanham?
-3. Quanto da batalha é decidido por número (NPC contra NPC) e quanto o jogador joga?
-4. Condição de vitória de cada modo (Ataque: POI alvo conquistado **e** sem retomada? Defesa: tempo, ondas ou reserva zerada? Choque: reserva zerada ou base destruída?).
-5. Quantos geradores por tile e de que tipo (POI existente, acampamento, atalaia)? Isso pede o tipo "gerador" nas receitas lego.
+## 4. Perguntas do rascunho (todas resolvidas na seção 4B)
+1. Quem morre fica morto? **Sim, sai do batalhão para sempre; Comuns e Elites não diferem** (4B-4).
+2. Ordens aos soldados? **Sim, a ordem de movimento da 1A vale na batalha grande** (4B-8).
+3. Número x jogador? **O jogador sempre joga as batalhas em que está; NPC contra NPC é simulado por número; resolução automática opcional** (4B-7).
+4. Vitória por modo? **Ataque: alvo conquistado e reservas zeradas; Defesa: reserva dos atacantes zerada; Choque: reserva e vivos do outro lado zerados** (4B-2, 9, 10).
+5. Geradores por tile? **3 por lado (Choque e Defesa) e 3 satélites (Ataque), POIs reais do dono do tile ou postos temporários** (4B-9, 10, 12).
 
-## 4B. Decisões fechadas em conversa (2026-11-25; perguntas 1 a 9 de 19) [DECIDIDO]
+## 4A. Ainda em aberto (pequenas confirmações e calibragens)
+- **Barreira no raio da Defesa** em vez de derrota por sair (4B-10): confirmar com o uso.
+- **Limite de vivos** (20 a 30), tamanho e atraso do lote, prazos do cerco (3/5/8), reserva padrão 100 x 50: calibrar jogando no passo 1.
+- **Textos narrativos** dos pop-ups (4B-6): revisáveis em `battle-texts.js` depois de ver na tela.
+- **Flag de "atirador humano"** nas definições de inimigo para a IA de cobertura (4B-15): descobrir quais `def.ranged` são humanos ao implementar.
+
+## 4B. Decisões fechadas em conversa (2026-11-25; 18 decisões) [DECIDIDO]
 Números novos vão para `js/modifiers/battle-modifiers.js` e textos para `js/texts/battle-texts.js` (arquivos novos).
 1. **Gerador:** raio de ativação grande (~60); ao entrar, acorda e lança soldados em direção ao jogador; ao sair, para de lançar (sem perder a reserva). Reserva própria por gerador; cota de vivos total de 20 a 30 (a medir). **Nos testes, os raios ficam visíveis no chão** (modificador para desligar).
 2. **Reserva sempre finita.** Soldados lançados perseguem o jogador só até o raio x 1,3 e voltam ao gerador (coleira). Só o **POI alvo do Ataque** é conquistado (matar a defesa e ficar uns 5 s no centro, **centro livre de inimigos**); satélites e o Choque acabam ao zerar a reserva. Depois de conquistado o alvo, os satélites com reserva mandam soldados para **retomá-lo** (vira defesa).
