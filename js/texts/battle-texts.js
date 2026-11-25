@@ -24,6 +24,7 @@ const TXT_BATTLE_LOSE = {
   nucleo: 'O comandante caiu. Sem ordens, os soldados foram dispersados e a batalha está perdida.',
   choque: 'O comandante caiu no centro do campo. Sem ordens, os soldados recuaram e a batalha está perdida.',
   defesa: 'O comandante caiu defendendo a posição. Sem ordens, os soldados foram vencidos e os invasores tomaram o que era seu.',
+  ataque: 'O comandante caiu diante do alvo. Sem ordens, o assalto se desfez e o tile continua nas mãos do inimigo.',
   defesaFuga: 'O comandante fugiu. No auge da batalha, ele abandonou o campo; sem ordens, os soldados foram esmagados, e o comandante foi caçado e morto na fuga.',
   botao: 'Reiniciar'
 };
@@ -40,5 +41,8 @@ const TXT_BATTLE_HELP = {
     + 'cobertura. Vence quem zerar a reserva e os vivos do outro lado. Ordem aos soldados: V e X. Ajuste: [ ] lote, - = atraso.',
   defesa: 'Defesa: você foi levado ao centro do POI defendido (bandeira). Os atacantes saem de 3 postos vermelhos fora da área (círculo azul) e vêm em lotes. '
     + 'Além da borda azul há uma zona cinza: ao entrar nela aparece o aviso; ao atravessá-la você foge e perde. Vence zerando reserva e vivos dos atacantes. '
-    + 'Ordem aos soldados (V, X) só vale dentro da área. Ajuste: [ ] lote, - = atraso.'
+    + 'Ordem aos soldados (V, X) só vale dentro da área. Ajuste: [ ] lote, - = atraso.',
+  ataque: 'Ataque: conquiste o POI alvo (bandeira vermelha, círculo branco): mate a guarnição e fique 5 s no centro, sem inimigos por perto. 3 satélites '
+    + 'vermelhos em arco geram soldados quando você entra no raio deles. Conquistado o alvo, os satélites com reserva mandam lotes para retomá-lo. '
+    + 'Vence com o alvo seu e a reserva e os vivos do inimigo zerados. Ordem aos soldados: V e X. Ajuste: [ ] lote, - = atraso.'
 };

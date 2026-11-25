@@ -3,7 +3,7 @@
 // Peças reutilizáveis pelos modos seguintes (Choque, Defesa, Ataque): GERADOR (ponto que lança soldados em lotes, com raio de ativação, reserva própria e coleira),
 // cota de vivos, reposição do lado do jogador, placar, pop-ups de fim e ajuste em tempo real. Os soldados lançados são inimigos normais (spawnEnemy) de uma "área"
 // de batalha (mesma forma da área de raid: state 'attacking', kind 'raid'), então os soldados do jogador (allies.js) os enxergam e a ordem de movimento (V/X) vale.
-// Passo 2 (no fim do arquivo) = modo choque. Passo 1 = só o modo ?cenario=batalha&modo=nucleo: um gerador num mapa aberto, o jogador começa fora do raio. Números em modifiers/battle-modifiers.js,
+// Passo 2 = modo choque, passo 3 = defesa, passo 4 (no fim do arquivo) = ataque. Passo 1 = só o modo ?cenario=batalha&modo=nucleo: um gerador num mapa aberto, o jogador começa fora do raio. Números em modifiers/battle-modifiers.js,
 // textos em texts/battle-texts.js. Nada daqui roda fora do cenário de teste (BATTLE.on é falso) e nada é salvo (4B-17).
 const BATTLE = { on: false, over: false, mode: '', area: null, gens: [], base: null, center: null, centerR: 0, limit: null, postCfg: null, warn: null, stuckT: 0, cover: [], rng: null, lot: [3, 5], delay: 3, liveCap: 30, allyCap: 20,
   ally: { reserve: 0, total0: 0, lot: null, nextAt: 0 }, total0: 0, t: 0, scanT: 0, hudT: 0, last: 0, fps: 60, hud: null, hudOn: true };
@@ -50,7 +50,7 @@ function battleAddGen(x, z, reserve, o) {
   const y = tH(x, z), grp = new THREE.Group(), side = o.side || 'enemy', post = o.kind === 'post';
   part(grp, GEO_BOX, 0.4, 3.2, 0.4, 0x4a3a2a, 0, 1.6, 0); part(grp, GEO_BOX, 1.5, 0.9, 0.1, side === 'player' ? (facColor(0) || 0x2a4a9a) : 0xb02020, 0.85, 2.7, 0);
   grp.position.set(x, y, z); scene.add(grp);
-  const g = { x, z, y, side, kind: post ? 'post' : 'gen', radius: BATTLE_MOD.genRadius, reserve, reserve0: reserve, awake: post, lot: null, nextAt: 0, group: grp };
+  const g = { x, z, y, side, kind: post ? 'post' : 'gen', radius: o.radius || BATTLE_MOD.genRadius, reserve, reserve0: reserve, awake: post, lot: null, nextAt: 0, group: grp };
   if (!post && BATTLE_MOD.showRings && new URLSearchParams(location.search).get('raios') !== '0') {
     g.ring = battleRing(x, z, g.radius, BATTLE_MOD.ringColor, 0.8);
     g.leashRing = battleRing(x, z, g.radius * BATTLE_MOD.leashMul, BATTLE_MOD.leashColor, 0.5);
@@ -152,13 +152,17 @@ function battleMarks(g, f, sc, k, units) {
     }
     g.fillStyle = BATTLE_MOD.coverMark; for (const c of BATTLE.cover) { const [x, y] = f(c.x, c.z); g.fillRect(x - 2 * k, y - 2 * k, 4 * k, 4 * k); }
   }
+  const T = BATTLE.target;
+  if (T) {   // Ataque: círculo de captura do POI alvo (branco; verde depois de conquistado)
+    const [x, y] = f(T.x, T.z); g.lineWidth = 2 * k; g.strokeStyle = T.captured ? '#4aff7a' : '#fff'; g.beginPath(); g.arc(x, y, BATTLE_MOD.ataque.captureR * sc, 0, 6.283); g.stroke();
+  }
   for (const q of BATTLE.gens) {
     const [x, y] = f(q.x, q.z);
     if (q.ring) {
       g.lineWidth = 2 * k; g.strokeStyle = hex6(BATTLE_MOD.ringColor); g.beginPath(); g.arc(x, y, q.radius * sc, 0, 6.283); g.stroke();
       g.strokeStyle = hex6(BATTLE_MOD.leashColor); g.setLineDash([6 * k, 5 * k]); g.beginPath(); g.arc(x, y, q.radius * BATTLE_MOD.leashMul * sc, 0, 6.283); g.stroke(); g.setLineDash([]);
     }
-    g.fillStyle = q.side === 'player' ? hex6(facColor(0) || 0x2a4a9a) : '#b02020'; g.strokeStyle = '#fff'; g.lineWidth = 1.5 * k; g.fillRect(x - 5 * k, y - 5 * k, 10 * k, 10 * k); g.strokeRect(x - 5 * k, y - 5 * k, 10 * k, 10 * k);
+    g.fillStyle = q.side === 'player' || (T && q === T.gen && T.captured) ? hex6(facColor(0) || 0x2a4a9a) : '#b02020'; g.strokeStyle = '#fff'; g.lineWidth = 1.5 * k; g.fillRect(x - 5 * k, y - 5 * k, 10 * k, 10 * k); g.strokeRect(x - 5 * k, y - 5 * k, 10 * k, 10 * k);
   }
   if (units) {
     g.strokeStyle = '#000'; g.lineWidth = k;
@@ -193,12 +197,12 @@ function updateBattle(dt) {
   if (d > 0 && d < 0.5) BATTLE.fps += (1 / d - BATTLE.fps) * 0.05;
   BATTLE.t += dt;
   const A = BATTLE.area; A.cx = P.x; A.cz = P.z; A.y = P.y;
-  battleTickGens(); battleTickAllies(); battleTickLimit(); battleTickStuck();
+  battleTickGens(); battleTickAllies(); battleTickLimit(); battleTickStuck(); battleTickAtaque(dt);
   if (BATTLE.over) return;
   BATTLE.scanT -= dt;
   if (BATTLE.scanT <= 0) {
     BATTLE.scanT = 0.4; A.enemies = A.enemies.filter(e => !e.gone);
-    if (!P.dead && BATTLE.total0 > 0 && A.aliveEnemies <= 0 && BATTLE.gens.every(g => g.side === 'player' || g.reserve <= 0)) { battleWin(); return; }
+    if (!P.dead && BATTLE.total0 > 0 && A.aliveEnemies <= 0 && (!BATTLE.target || BATTLE.target.captured) && BATTLE.gens.every(g => g.side === 'player' || g.reserve <= 0)) { battleWin(); return; }
   }
   BATTLE.hudT -= dt; if (BATTLE.hudT <= 0) { BATTLE.hudT = 0.2; battleHudDraw(); }
 }
@@ -217,7 +221,7 @@ document.addEventListener('keydown', e => {
 // Configuração comum a todos os modos: cotas, lote, atraso e sorteio vindos da URL ou dos modificadores.
 function battleConfig(mode) {
   const q = new URLSearchParams(location.search), lt = (q.get('lote') || '').split('-').map(Number).filter(n => !isNaN(n) && n > 0);
-  BATTLE.gens = []; BATTLE.cover = []; BATTLE.center = null; BATTLE.centerR = 0; BATTLE.limit = null; BATTLE.ally.reserve = 0;   // o cenário pode ser montado de novo (mundo refeito)
+  BATTLE.gens = []; BATTLE.cover = []; BATTLE.center = null; BATTLE.centerR = 0; BATTLE.limit = null; BATTLE.target = null; BATTLE.ally.reserve = 0;   // o cenário pode ser montado de novo (mundo refeito)
   BATTLE.mode = mode; BATTLE.over = false; BATTLE.t = 0; BATTLE.stuckT = 0; BATTLE.last = performance.now();
   BATTLE.lot = lt.length ? [lt[0], lt[lt.length - 1]] : BATTLE_MOD.lot.slice();
   BATTLE.delay = battleParam('atraso', BATTLE_MOD.lotDelay);
@@ -384,5 +388,85 @@ function battleTickStuck() {
     if (e.stuckN) { e.alive = false; e.gone = true; scene.remove(e.group); BATTLE.area.aliveEnemies--; BATTLE.area.totalEnemies--; continue; }   // recua
     e.stuckN = 1; const f = freeSpot(c.x + (e.x - c.x) / d * edge, c.z + (e.z - c.z) / d * edge, 0.5, 1.8, 0.45);
     e.x = f[0]; e.z = f[1]; e.y = tH(e.x, e.z); e.path = null; if (e.group) e.group.position.set(e.x, e.y, e.z);
+  }
+}
+
+// ---------- Modo ataque (passo 4; ?cenario=batalha&modo=ataque; 4B-2 e 4B-12) ----------
+// POI alvo (marcador provisório do cenário: bandeira inimiga e sacos de areia; o POI real entra na integração, passo 10). Devolve a bandeira (muda de cor ao conquistar).
+function battleBuildTarget(x, z) {
+  const grp = new THREE.Group(), y = tH(x, z);
+  part(grp, GEO_BOX, 0.5, 6, 0.5, 0x4a3a2a, 0, 3, 0); const flag = part(grp, GEO_BOX, 2.4, 1.4, 0.1, 0xb02020, 1.3, 5.2, 0);
+  grp.position.set(x, y, z); scene.add(grp);
+  for (let i = 0; i < 4; i++) { const a = i / 4 * 6.283 + 0.4; battleBuildCover('sacos', x + Math.cos(a) * 6, z + Math.sin(a) * 6, i % 2); }
+  return flag;
+}
+
+// Pontos dos 3 satélites (4B-12): POIs reais do dono do tile (pois, a 100-150 do alvo) primeiro; o que faltar vira posto temporário em arco ([graus, distância]).
+function battleSatSpots(T, pois) {
+  const A = BATTLE_MOD.ataque, out = [];
+  for (const p of pois || []) {
+    const d = Math.hypot(p.cx - T.x, p.cz - T.z);
+    if (out.length < 3 && d >= A.satRange[0] && d <= A.satRange[1]) out.push({ x: p.cx, z: p.cz, poi: p });
+  }
+  for (const [deg, dist] of A.satTemp.slice(out.length)) {
+    const a = deg * Math.PI / 180, f = freeSpot(T.x + Math.cos(a) * dist, T.z + Math.sin(a) * dist, 0.5, 1.8, 0.45);
+    out.push({ x: f[0], z: f[1] });
+  }
+  return out.slice(0, 3);
+}
+
+// Modo ataque: guarnição fixa no POI alvo (sem reposição, com raio de alerta e coleira) e 3 satélites geradores em arco, com a reserva do inimigo dividida entre eles.
+// opts (integração, passo 10): { poi, pois } = POI real do alvo e POIs do dono do tile (satélites e anexação junto). O jogador começa na abertura da trilha.
+function battleStartAtaque(opts) {
+  opts = opts || {};
+  const A = BATTLE_MOD.ataque, home = WORLD.home, c = A.center;
+  tileTestFillEnemies(tileTestFoe(), 0);   // a cidade inimiga fica vazia: as únicas lutas são a guarnição e os satélites
+  const flag = battleBuildTarget(c.x, c.z), f = freeSpot(A.start.x, A.start.z, 0.5, 1.8, 0.45);
+  P.x = f[0]; P.z = f[1]; P.y = tH(P.x, P.z) + 0.1; P.vx = P.vz = P.vy = 0; P.camY = P.y;
+  P.yaw = Math.atan2(-(c.x - P.x), -(c.z - P.z)); P.pitch = -0.05;
+  battleConfig('ataque');
+  BATTLE.base = { x: P.x, z: P.z };
+  const n = Math.min(tileTestCount('alia', TILE_TEST.allies), BATTLE_MOD.allyTotal), er = battleParam('inim', BATTLE_MOD.enemyReserve), gar = battleParam('guarnicao', A.garrison);
+  const pr = Math.max(0, Math.min(battleParam('reserva', 1e9), BATTLE_MOD.allyTotal - n));
+  for (let i = 0; i < n; i++) spawnAlly(P.x + (i - n / 2) * 1.5, P.z + 3, home);
+  const T = { x: c.x, z: c.z, flag, captured: false, capT: 0, owner: 'enemy', poi: opts.poi || null, sats: [], pois: [] };
+  T.gen = battleAddGen(c.x, c.z, 0, { radius: A.alert });   // o alvo é um gerador sem reserva: só dá o raio de alerta e a coleira da guarnição
+  for (let i = 0; i < gar; i++) {
+    const a = i / gar * 6.283, r = 2 + (i % 3) * 2.5, e = battleSpawnFrom(T.gen), q = freeSpot(c.x + Math.cos(a) * r, c.z + Math.sin(a) * r, 0.5, 1.8, 0.45);
+    e.x = q[0]; e.z = q[1]; e.y = tH(e.x, e.z); e.group.position.set(e.x, e.y, e.z); e.homeX = c.x; e.homeZ = c.z;
+    e.aggro = false; e.unseenT = 0;   // a guarnição só reage quando o jogador chega ao raio de alerta
+  }
+  const spots = battleSatSpots(T, opts.pois);
+  battleSplit(er, spots.length).forEach((r, i) => {
+    const g = battleAddGen(spots[i].x, spots[i].z, r, { side: 'enemy' }); g.role = 'sat'; T.sats.push(g); if (spots[i].poi) T.pois.push(spots[i].poi);
+  });
+  if (T.poi) T.pois.unshift(T.poi);
+  if (BATTLE_MOD.showRings && new URLSearchParams(location.search).get('raios') !== '0') battleRing(c.x, c.z, A.captureR, 0xffffff, 0.7);
+  BATTLE.target = T; BATTLE.postCfg = A;
+  BATTLE.total0 = er + gar; BATTLE.ally.total0 = n + pr; BATTLE.ally.reserve = pr;
+  armyAssault(BATTLE.area, '');
+  BATTLE.on = true; battleHudDraw();
+}
+
+// Anexação (4B-2 e 4B-7): o alvo passa ao jogador (bandeira muda de cor); em jogo real, o POI e os demais POIs do tile passam junto para o novo dono.
+function battleAnnex(T) {
+  T.captured = true; T.owner = 'player'; T.flag.material = mat(facColor(0) || 0x2a4a9a);
+  if (T.gen.ring) { scene.remove(T.gen.ring); scene.remove(T.gen.leashRing); T.gen.ring = T.gen.leashRing = null; }
+  for (const p of T.pois) if (typeof poiSetOwner === 'function') poiSetOwner(p, 'player');
+}
+
+// Ataque, a cada quadro: conquista = guarnição morta, centro livre de inimigos e o jogador dentro do círculo por `captureT` s seguidos. Ao conquistar, os satélites com
+// reserva viram postos que mandam soldados em lotes para retomar o alvo (4B-2, "vira defesa"); só se vence com o alvo seu e reserva e vivos zerados.
+function battleTickAtaque(dt) {
+  const T = BATTLE.target; if (!T || T.captured || P.dead) return;
+  const A = BATTLE_MOD.ataque, en = BATTLE.area.enemies.filter(e => e.alive);
+  const free = en.every(e => e.btl !== T.gen && Math.hypot(e.x - T.x, e.z - T.z) >= A.captureR);
+  T.capT = free && Math.hypot(P.x - T.x, P.z - T.z) < A.captureR ? T.capT + dt : 0;
+  if (T.capT < A.captureT) return;
+  battleAnnex(T);
+  BATTLE.center = { x: T.x, z: T.z }; BATTLE.centerR = A.retakeR;
+  for (const g of T.sats) {
+    if (g.ring) { scene.remove(g.ring); scene.remove(g.leashRing); g.ring = g.leashRing = null; }
+    g.kind = 'post'; g.awake = true; g.nextAt = BATTLE.t + BATTLE.delay;   // os soldados que já estavam fora também voltam ao alvo (battlePostActive)
   }
 }

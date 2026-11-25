@@ -51,6 +51,13 @@ const BATTLE_MOD = {
   // (engage) e distância do centro em que ele para de marchar (hold). Padrão: centro 205,60; pegada 20; pad 25; raio 45 a 140; cinza 20; postos a 40 além do raio, ângulos 0/150/210
   defesa: { center: { x: 205, z: 60 }, footprint: 20, radiusPad: 25, radiusMin: 45, radiusMax: 140, gray: 20, postDist: 40, postAngles: [0, 150, 210],
     engage: 40, hold: 10 },
+  // Cenário ?modo=ataque (4B-2 e 4B-12), coordenadas do mapa de teste de 320: POI alvo, onde o jogador começa (abertura da trilha), guarnição fixa do alvo (?guarnicao=N),
+  // raio de alerta da guarnição (acorda e persegue; coleira x leashMul), raio de captura e segundos que o jogador deve ficar nele (guarnição morta, centro livre);
+  // satélites: faixa de distância ao alvo dos POIs reais aceitos e postos temporários [graus, distância] em arco; depois de conquistado: raio de retomada (soldado preso
+  // além dele é teleportado), distância de reação (engage) e de parada (hold) dos soldados que vêm retomar. Padrão: alvo 150,55; início 100,55; guarnição 12; alerta 40;
+  // captura 12 em 5 s; satélites a 100-150 ([-25,105], [0,125], [25,105]); retomada 45; engage 40; hold 10
+  ataque: { center: { x: 150, z: 55 }, start: { x: 100, z: 55 }, garrison: 12, alert: 40, captureR: 12, captureT: 5, satRange: [100, 150],
+    satTemp: [[-25, 105], [0, 125], [25, 105]], retakeR: 45, engage: 40, hold: 10 },
   // Cor da borda da área de defesa e da zona cinza, no chão e no Mapa M. Padrão: 0x4ac0ff e 0x9a9a9a
   defesaColor: 0x4ac0ff, defesaGrayColor: 0x9a9a9a,
   // Soldado de posto preso fora da área (Choque e Defesa): se marchando ao centro ele anda menos de `move` blocos em `time` segundos, é teleportado para `offset`
