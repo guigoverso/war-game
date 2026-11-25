@@ -91,7 +91,7 @@ Cada um, uma sessão; todos na `mapa-mundi-update`.
 - **L3 — Micro-POIs (M) — PARTE 1 FEITA em 2026-11-24 (seção 7g):** 12 micro-POIs novos, cenário lego limpo e lista completa. **Falta:** a coluna **vida** da composição (`TILE_COMPOSE`), que fica com o L4.
 - **L3.5 — Montar como lego os POIs "bons candidatos" e "possíveis" (G) — FEITO em 2026-11-24 (seção 7i; sem validação visual: o usuário confere no jogo):** caçadores, santuário, ruínas, forte, torre, pousada, alojamento, entreposto, plantação, vila de pesca e vila de trabalhadores como receitas (M e P, 4 esqueletos cada). **Falta:** encaixe no tile (L4), `TILE_POI_MAP` das 3 novas e tornar o lego o padrão.
 - **L4 — Encaixe no tile (M) — FEITO em 2026-11-24 (seção 7j):** `tilecompose.js` lê tamanho e vida; densidade maior; teste `tile-lego.js`; tempo medido. Com lego ligado (`?lego=1`); o padrão continua desligado.
-- **L5 — Resto e revisão (M):** migrar os demais (pousada, taverna, entreposto, forte, caçadores, santuário), vila de trabalhadores, plantação, pesca; remover os substitutos `pend`.
+- **L5 — Resto e revisão (M) — FEITO em 2026-11-24 (seção 7k):** todos já eram receitas (L3.5/L4) menos a taverna, que entrou agora; lego como padrão; substitutos `pend` removidos. Hospital e POIs de guerra seguem fixos (decisão 4).
 **Sessões (decidido em 2026-11-24).** Regra: sessão nova com contexto limpo quando o passo é grande, só precisa do que está no repositório e nos docs, ou quando o contexto anterior já está pesado; mesma sessão quando o passo é curto e usa o que acabou de ser lido.
 | Passo | Sessão | Por quê |
 |---|---|---|
@@ -249,6 +249,13 @@ Regras comuns (do L2/L1a): cada POI vira `LEGO_RECIPES[tipo][tamanho]` (esquelet
 - **Pendente:** tornar o lego o padrão (decisão do usuário; sem `?lego=1` o tile só leva os 14 desenhos fixos); pesca sem virar para a água; micros só entram em tile composto; ver as fotos do tile no jogo.
 
 - **Vila (2026-11-24, pedido do usuário):** obrigatórios prefeitura e cura (`CITY_VILLAGE.services = ['clinic']`); opcionais armeiro 60%, quartel 50% (`optionalServices`, prédios de canto), loja 60% e taverna 40% (`optionalBuildings`); **sem armazém** (`warehouse: false`). Teste: `cd tests && node tile-vila.js`.
+
+## 7k. L5 — Taverna, lego como padrão e fim dos `pend` (FEITO 2026-11-24; sem validação visual além de fotos de teste: o usuário confere no jogo)
+- **Taverna (`tavern`):** `js/local/poilego3.js`. Peça `taverna` = o prédio das cidades (`makeBuilding` + `buildTavern`, 2 andares, escada, 5 quartos) desenhado no quadro do prédio e levado à vaga por uma `loc` de translação; frente de 3 a 6 blocos (chão batido, barris, banco, placa, lampiões); peça `ferraria` (vaga `forja`, 9x9) com fornalha, bigorna e o ferreiro. Âncoras no quadro do esqueleto: `tavern`, `stove`, `keepers` (com `yaw` e `y` relativos), `bed` (quarto aberto) e `svcSpec` (ferreiro e mercenário, que ocupa o lugar de um freguês). M `half` 18 (raio 19, antes 17) e P `half` 14 (raio 15), 4 esqueletos cada (um com a casa de lado, `lane` 4). Textos novos `txtLegoSvc.smith/merc`.
+- **Lego como padrão:** `legoOn()` = `?cenario=pois` desligado, o resto ligado (`?lego=1` não faz nada). O tile sempre usa tamanhos, micro-POIs, densidade e tipos novos (código condicional a `legoOn` saiu de `tilecompose.js`).
+- **`pend` removido:** `TILE_POI_MAP` tem `size`/`type` direto (`plantacao`, `pesca`, `vila_apoio`, `vila_trabalhadores` são tipos próprios); `WORLD.tileCompose.pend` e a linha do painel do mapa saíram.
+- **Testes:** `node macro/lego.js` (30 receitas), `node lego-l35.js [semente] [tipo]` (agora 12 tipos, taverna incluída; âncoras interiores valem a até 18 blocos da porta), `node tile-lego.js` (sem pendentes; tavernas com receita, balcão e ferreiro), `smoke.js`, `tile-face.js`, `lego-galeria.js`. `tile-compose.js` mostra 'cidade: ambiente 1' em algumas sementes (já acontecia antes desta sessão).
+- **Limites:** a taverna do mapa antigo (`genWorldPois`) reserva o raio de `POI_DEFS` (17) e a lego tem 19; o hospital e os POIs de guerra continuam de desenho fixo.
 
 ## 8. Perguntas para decidir
 **[DECIDIDO] 2026-11-24** (todas conforme a recomendação):

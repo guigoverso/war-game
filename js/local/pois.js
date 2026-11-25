@@ -303,7 +303,9 @@ poiPath(c,0,R+1,0,4);poiBrazier(c,-3.4,R+1.6);poiBrazier(c,3.4,R+1.6);
     p.vigilPos={x:c.cx,z:c.cz};   // dentro da base: [E] Fazer vigia
     poiFlag(c,p,b+2.6,-b-1,7);
   },
-  tavern(c,rng,p){   // térreo = taverna das cidades (balcão, fogão, mesas); escada interna até um andar com saguão e quartos (uma porta aberta, o resto falso)
+  tavern(c,rng,p){   // (com legoOn: montada por peças, poilego3.js)
+    if(legoOn()){legoBuild(c,rng,p);return}
+    // térreo = taverna das cidades (balcão, fogão, mesas); escada interna até um andar com saguão e quartos (uma porta aberta, o resto falso)
     const r={x0:-9,x1:8,z0:-8,z1:4},D='S',doorU=8;   // 18 × 13; a porta fica no meio
     const f=makeBuilding(c,r,D,doorU,{floors:2,noFloors:true,wall:0xc89a62,glass:0x9ed4ff,roof:0x5a3a24,roofT:'gable',chimney:true,timber:true,shut:0x5a3d22,base:0xa88a5a},rng);
     const U=f.U,V=f.V,Y=3.6,SZ={u0:15.0,u1:17.0,v1:5.0};   // SZ: vão da escada no canto da frente, à direita

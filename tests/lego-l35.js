@@ -6,13 +6,13 @@
 const http = require('http'), fs = require('fs'), path = require('path');
 const { chromium } = require('playwright');
 const ROOT = path.resolve(__dirname, '..'), SEED = +(process.argv[2] || 11), ONLY = process.argv[3];
-const TYPES = ['hunters', 'sanctuary', 'ruins', 'fort', 'tower', 'inn', 'lodge', 'post', 'plantation', 'fishery', 'workers'];
+const TYPES = ['hunters', 'sanctuary', 'ruins', 'fort', 'tower', 'inn', 'lodge', 'post', 'plantation', 'fishery', 'workers', 'tavern'];
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css' };
 const srv = http.createServer((q, res) => { const f = path.join(ROOT, decodeURIComponent(q.url.split('?')[0]).replace(/^\/$/, '/index.html'));
   fs.readFile(f, (e, d) => { if (e) { res.writeHead(404); return res.end() } res.writeHead(200, { 'Content-Type': MIME[path.extname(f)] || 'application/octet-stream' }); res.end(d) }) });
 let fails = 0; const rep = (ok, n, w) => { if (!ok) fails++; console.log((ok ? 'OK    ' : 'FALHA ') + n + (w ? ' — ' + w : '')) };
 // o que cada tipo tem de gravar em p (âncoras funcionais)
-const WANT = { hunters: ['firePos', 'chestPos'], tower: ['vigilPos', 'binoc'], inn: ['bed', 'svcSpec:inn'], lodge: ['bed', 'firePos', 'svcSpec:inn'], post: ['svcSpec:shop'], ruins: ['chest'] };
+const WANT = { hunters: ['firePos', 'chestPos'], tower: ['vigilPos', 'binoc'], inn: ['bed', 'svcSpec:inn'], lodge: ['bed', 'firePos', 'svcSpec:inn'], post: ['svcSpec:shop'], tavern: ['bed', 'tavern', 'stove', 'keepers', 'svcSpec:smith'], ruins: ['chest'] };
 (async () => {
   await new Promise(r => srv.listen(0, '127.0.0.1', r));
   const base = 'http://127.0.0.1:' + srv.address().port + '/index.html?cenario=lego&auto=1&mute=1&seed=' + SEED, browser = await chromium.launch();
@@ -28,12 +28,12 @@ const WANT = { hunters: ['firePos', 'chestPos'], tower: ['vigilPos', 'binoc'], i
       return WORLD.pois.map(p => { const l = p.recipe, o = { id: p.id, type: p.type, size: l && l.size, sk: l && l.skeleton, r: p.r, bad: [], cols: p.cols ? p.cols.length : 0, flag: !!p.flagMat, pieces: l && l.pieces };
         if (!l) { o.bad.push('sem p.recipe'); return o }
         const a = l.anchors; o.reach = [a.door, a.gate].every(q => legoReach(p, p.cx + q.x, p.cz + q.z)); if (!o.reach) o.bad.push('porta/portão inalcançável');
-        const pts = []; for (const k of ['bed', 'vigilPos', 'firePos', 'chestPos', 'chest']) if (p[k]) pts.push([k, p[k].x !== undefined ? p[k] : { x: p[k].x, z: p[k].z }]);
+        const pts = []; for (const k of ['bed', 'vigilPos', 'firePos', 'chestPos', 'chest', 'tavern', 'stove']) if (p[k]) pts.push([k, p[k].x !== undefined ? p[k] : { x: p[k].x, z: p[k].z }]);
         if (p.chest) { pts.pop(); pts.push(['chest', { x: p.chest.x !== undefined ? p.chest.x : p.chest.g ? p.chest.g.position.x : p.cx, z: p.chest.z !== undefined ? p.chest.z : p.chest.g ? p.chest.g.position.z : p.cz }]) }
-        for (const s of p.svcSpec || []) pts.push(['svc:' + s.kind, s]); for (const s of p.beds || []) pts.push(['leito', s]);
+        for (const s of p.svcSpec || []) pts.push(['svc:' + s.kind, s]); for (const s of p.keepers || []) pts.push(['keepers', s]); for (const s of p.beds || []) pts.push(['leito', s]);
         o.anch = pts.map(q => q[0]);
-        const dp = { x: p.cx + a.door.x, z: p.cz + a.door.z };   // a nav bloqueia o interior das casas: âncora dentro de um prédio vale se a porta é alcançável e ela está a até 10 blocos dela
-        for (const [k, q] of pts) { if (!near(p, q)) o.bad.push(k + ' fora do raio'); if (k !== 'chest' && !legoReach(p, q.x, q.z) && Math.hypot(q.x - dp.x, q.z - dp.z) > 10) o.bad.push(k + ' inalcançável') }
+        const dp = { x: p.cx + a.door.x, z: p.cz + a.door.z };   // a nav bloqueia o interior das casas: âncora dentro de um prédio vale se a porta é alcançável e ela está a até 10 blocos dela (18 na taverna, de dois andares)
+        for (const [k, q] of pts) { if (!near(p, q)) o.bad.push(k + ' fora do raio'); if (k !== 'chest' && !legoReach(p, q.x, q.z) && Math.hypot(q.x - dp.x, q.z - dp.z) > (p.type === 'tavern' ? 18 : 10)) o.bad.push(k + ' inalcançável') }
         if (p.binoc) { o.anch.push('binoc'); if (!near(p, p.binoc)) o.bad.push('binoc fora do raio') }
         return o });
     });

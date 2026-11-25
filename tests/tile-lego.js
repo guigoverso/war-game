@@ -2,7 +2,7 @@
 // ---------- Teste da L4 (POIs lego no tile; docs/features/11_pois-procedurais-lego.md, 7j; Node + Playwright, só desenvolvimento) ----------
 // Abre ?cenario=tile&lego=1 em cada tema e semente e confere: carga sem erros, POIs de verdade (meta 12 a 14 com o principal) e micro-POIs (10 a 15), tamanho P/M por POI
 // (raio da receita = p.r), tipos novos (plantação, pesca, vila de trabalhadores) com receita, folgas entre POIs e micros, nada sobre água, tempo (limite 4 s; cidade 5 s)
-// e que SEM lego nada disso aparece (sem micros, sem tipos novos). Uso: cd tests && node tile-lego.js [semente ...]   (TABELA=1 imprime a contagem)
+// e (L5) que não há substitutos pendentes. Uso: cd tests && node tile-lego.js [semente ...]   (TABELA=1 imprime a contagem)
 const http = require('http'), fs = require('fs'), path = require('path');
 const { chromium } = require('playwright');
 const ROOT = path.resolve(__dirname, '..'), seeds = process.argv.slice(2).length ? process.argv.slice(2) : ['11', '23'];
@@ -48,7 +48,7 @@ const MEASURE = () => {
     return { page, errs, why };
   };
   for (const sd of seeds) for (const tema of THEMES) {
-    const tag = tema + '/' + sd, { page, errs, why } = await open('seed=' + sd + '&tema=' + tema + '&lego=1');
+    const tag = tema + '/' + sd, { page, errs, why } = await open('seed=' + sd + '&tema=' + tema + '');
     rep(!why && !errs.length, tag + ': carrega sem erros', why || errs.slice(0, 2).join(' | '));
     if (why) { await page.close(); continue }
     const r = await page.evaluate(MEASURE);
@@ -59,10 +59,10 @@ const MEASURE = () => {
     rep(r.ms <= (r.city ? 5000 : 4000), tag + ': composição em ' + r.ms + ' ms');
     await page.close();
   }
-  {   // sem lego: nada muda (sem micros, sem tipos novos, raio = POI_DEFS)
-    const { page, errs, why } = await open('seed=' + seeds[0] + '&tema=fazenda');
-    const r = await page.evaluate(() => ({ mic: (WORLD.micros || []).length, nw: WORLD.pois.filter(p => ['plantation', 'fishery', 'workers'].includes(p.type) || p.legoSize).length, ok: WORLD.pois.every(p => p.recipe === undefined) }));
-    rep(!why && !errs.length && r.mic === 0 && r.nw === 0 && r.ok, 'sem lego: sem micros, sem tipos novos, sem receitas', JSON.stringify(r) + (why || errs.join('|')));
+  {   // L5: sem substitutos pendentes (plantação, pesca e vilas têm POI próprio) e as tavernas vêm da receita com ferreiro
+    const { page, errs, why } = await open('seed=' + seeds[0] + '&tema=vila');
+    const r = await page.evaluate(() => ({ pend: WORLD.tileCompose.pend, tav: WORLD.pois.filter(p => p.type === 'tavern').map(p => !!p.recipe && !!p.tavern && (p.svcSpec || []).some(s => s.kind === 'smith')) }));
+    rep(!why && !errs.length && r.pend === undefined && r.tav.every(Boolean), 'L5: sem pendentes; taverna por receita com balcão e ferreiro', JSON.stringify(r) + (why || errs.join('|')));
     await page.close();
   }
   if (process.env.TABELA) { console.log('\ntema/semente | POIs | micros | tamanhos | ms | falhas'); for (const t of table) console.log(t.join(' | ')) }

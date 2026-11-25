@@ -1,23 +1,23 @@
 'use strict';
 // ---------- Modificadores: POIs "lego" (L2: fazenda, mina e serraria; docs/features/11_pois-procedurais-lego.md) ----------
 // Um POI lego é montado de PEÇAS (casa, celeiro, boca de mina, serra, campo...) colocadas em VAGAS de um ESQUELETO desenhado à mão; a semente decide esqueleto, giro/espelho,
-// peça de cada vaga e enfeites. Este arquivo só tem dados (números e tabelas); o montador está em js/local/poilego.js. Ligado por ?lego=1 ou ?cenario=lego (legoOn); sem eles
-// fazenda, mina e serraria continuam as de sempre. Coordenadas do esqueleto "de frente para o sul": o portão fica em z = half-1 (sul) e o esqueleto gira/espelha depois.
+// peça de cada vaga e enfeites. Este arquivo só tem dados (números e tabelas); o montador está em js/local/poilego.js. Ligado sempre, menos em ?cenario=pois (legoOn). Coordenadas do esqueleto "de frente para o sul": o portão fica em z = half-1 (sul) e o esqueleto gira/espelha depois.
 // Padrões entre parênteses.
 
-// Verdadeiro com ?lego=1 ou ?cenario=lego (fazenda, mina e serraria passam a ser montadas por peças; o resto do jogo não muda).
-const legoOn = () => { const q = new URLSearchParams(location.search); return q.get('lego') === '1' || q.get('cenario') === 'lego' };
+// L5: o lego é o PADRÃO (os 15 tipos de POI com receita são montados por peças; o tile usa tamanhos M/P, micro-POIs e os tipos novos). Só ?cenario=pois (galeria dos desenhos fixos antigos, POI_BUILD)
+// o desliga. ?lego=1 continua aceito e não faz nada.
+const legoOn = () => new URLSearchParams(location.search).get('cenario') !== 'pois';
 // Verdadeiro só em ?cenario=lego: mundo super plano com os POIs lego em grade (poiLegoShowGen).
 const legoShowOn = () => new URLSearchParams(location.search).get('cenario') === 'lego';
 // Cenário lego: variações por tipo e tamanho (4), colunas e espaçamento mínimo da grade em blocos (46; cresce para caber o maior POI da vista), tipos na ordem das fileiras e tamanhos de cada tipo (M médio, P pequeno).
 // Tipos de POI que o compositor do tile (tilecompose.js) vira com a frente para a estrada mais próxima e liga a ela por uma trilha (L1b). Os antigos (taverna, entreposto, pousada,
-// alojamento) giram o desenho inteiro pelo gancho BC_XF (poilego.js, legoOldBuild); fazenda, mina e serraria só quando lego está ligado (legoOn). Padrão: os quatro antigos
+// alojamento) giram o desenho inteiro pelo gancho BC_XF (poilego.js, legoOldBuild); fazenda, mina, serraria, plantação e vila de trabalhadores pelo giro nativo da receita. Padrão: os quatro antigos
 const LEGO_FACE_TYPES = ['tavern', 'post', 'inn', 'lodge'];
 // L3.5: types = todos os tipos (um link por tipo na galeria cenarios-pois.html: ?cenario=lego&tipo=<tipo>); base = o que a vista sem `tipo` mostra (só os 3 primeiros: a grade
 // de 14 tipos x 2 tamanhos x 46 blocos não cabe no mapa). Receitas e peças dos 11 tipos novos: lego-poi-modifiers.js e poilego2.js.
 // Tipos lego que, com lego ligado, também giram para a estrada e ganham trilha no tile (fazenda, mina, serraria) e, no L4, plantação e vila de trabalhadores (de estrada). Padrão: os cinco.
 const LEGO_FACE_RECIPES = ['farm', 'mine', 'sawmill', 'plantation', 'workers'];
-const LEGO_SHOW = { n: 4, gap: 46, types: ['farm', 'mine', 'sawmill', 'hunters', 'sanctuary', 'ruins', 'fort', 'tower', 'inn', 'lodge', 'post', 'plantation', 'fishery', 'workers'],
+const LEGO_SHOW = { n: 4, gap: 46, types: ['farm', 'mine', 'sawmill', 'hunters', 'sanctuary', 'ruins', 'fort', 'tower', 'inn', 'lodge', 'post', 'plantation', 'fishery', 'workers', 'tavern'],
   base: ['farm', 'mine', 'sawmill'], sizes: ['M', 'P'], area: [245, 215] };
 // Cenário lego: área limpa (meia-largura em x e em z, em blocos, a partir do centro do mapa) onde não nascem cidades (cada uma tem até 45 de meio-lado, então a muralha fica
 // longe da grade e do bloco de micro-POIs). Em ?cenario=lego também não nascem acampamentos, grutas, baús, bandos nem terrenos de guerra: só o que é da feature. Padrão: LEGO_SHOW.area.

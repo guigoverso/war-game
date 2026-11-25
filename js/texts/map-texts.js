@@ -94,7 +94,6 @@ const txtTileCompose = tc => {
     + (tc.principal ? ' em (' + tc.principal.x + ', ' + tc.principal.z + ')' : '')
     + '<br>POIs: <b>' + tc.pois + '</b>' + (tipos ? ' (' + tipos + ')' : '') + ' • acampamentos ' + tc.camps + ' • grutas ' + tc.caves + ' • bandos ' + tc.packs + ' • baús ' + tc.chests
     + '<br>Zonas de guerra: ' + (tc.zones.length ? tc.zones.map(z => { const k = z.split(':'); return (TXT_TILE_ZONE[k[0]] || k[0]) + (k[1] ? ' ' + k[1] : '') }).join(', ') : 'nenhuma')
-    + (tc.pend.length ? '<br>Pendentes (POI ainda não existe, entrou um substituto): ' + tc.pend.join(', ') : '')
     + (tc.falhas.length ? '<br>Sem lugar: ' + tc.falhas.join(', ') : '') + ' • composto em ' + tc.ms + ' ms';
 };
 // Linha de atalhos da batalha no painel: rótulo e nomes dos tipos (tileBattleRow, mapwin.js); '' = sem batalha.

@@ -3,7 +3,7 @@
 // Um POI lego é um ESQUELETO (vagas com retângulo, tipo e frente) preenchido por PEÇAS que se ajustam ao retângulo da vaga. Tudo é desenhado no quadro do esqueleto
 // (portão ao sul, +z) e girado/espelhado de uma vez pelo gancho BC_XF de Bc (city.js; setTL e acL também o seguem): peças só usam funções que passam por Bc/pBc/acL
 // (poiFence, poiHut, poiWell, crate, barrel, hay...; NÃO usar tinyTree, que escreve direto). Dados em js/modifiers/lego-modifiers.js (LEGO_RECIPES, LEGO_PICK...).
-// Ligado por ?lego=1 ou ?cenario=lego (legoOn). Determinístico: só usa `rng`.
+// Ligado por padrão (L5; só ?cenario=pois o desliga, legoOn). Determinístico: só usa `rng`.
 // Contrato com o jogo: p.flagMat/bandeira (poiFlag), p.r (raio da instância), p.recipe = {id, lego:true, size, skeleton, seed, rot, mir, pieces, anchors:{house, gate, door}} (coordenadas
 // relativas ao centro; só a semente e os parâmetros, nunca as peças: com p.recipe já posto, poiBuild refaz o mesmo POI) e as âncoras funcionais (p.bed, p.svcSpec... ver legoAnchor). Tamanho: p.legoSize ('M' médio, 'P' pequeno); esqueleto forçado: p.legoSk (índice); frente: p.legoFace (0 a 3, ver legoRotToward).
 

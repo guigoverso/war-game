@@ -100,18 +100,17 @@ const TILE_MAIN = {
 };
 // Como cada id da tabela TILE_COMPOSE vira POI. type = id de POI_DEFS; place = onde nasce: 'road' (perto da estrada), 'far' (longe das estradas),
 // 'main' (colado ao POI principal), 'free' (qualquer lugar); ambient: acampamento/gruta/bando (áreas, não POIs de POI_DEFS). owner: dono inicial ('none' = ruínas).
-// pend: o POI ainda não existe e entra o substituto de `type` (vila de trabalhadores, plantação, pesca) e a tabela do tile marca "pendente".
-// lego (L4, só com legoOn): o que muda no id com lego ligado: type (outro tipo), size ('P' pequeno, 'M' médio; sem size o tipo sorteia pelo TILE_LEGO.pChance), place ('shore' = margem de água), pend:false (já existe).
+// size ('P' pequeno, 'M' médio; sem size o tipo sorteia pelo TILE_LEGO.pChance), place ('shore' = margem de água). L5: todos os ids têm POI próprio (nada de substituto pendente).
 // caravan: só onde passa estrada de caravana (tileCaravanRoad). 'vila_ou_descanso' sorteia entre as opções de `pick` (40% vila de trabalhadores, 60% descanso).
 const TILE_POI_MAP = {
-  fazenda: { type: 'farm', place: 'road' }, fazenda_pequena: { type: 'farm', place: 'road', lego: { size: 'P' } }, plantacao: { type: 'farm', place: 'road', pend: true, lego: { type: 'plantation', pend: false } },
-  mina_pequena: { type: 'mine', place: 'road', lego: { size: 'P' } }, serraria_pequena: { type: 'sawmill', place: 'road', lego: { size: 'P' } }, cacadores: { type: 'hunters', place: 'far' },
-  cacadores_pequeno: { type: 'hunters', place: 'far', lego: { size: 'P' } }, pousada: { type: 'inn', place: 'road' }, pousada_abandonada: { type: 'inn', place: 'far' },
+  fazenda: { type: 'farm', place: 'road' }, fazenda_pequena: { type: 'farm', place: 'road', size: 'P' }, plantacao: { type: 'plantation', place: 'road' },
+  mina_pequena: { type: 'mine', place: 'road', size: 'P' }, serraria_pequena: { type: 'sawmill', place: 'road', size: 'P' }, cacadores: { type: 'hunters', place: 'far' },
+  cacadores_pequeno: { type: 'hunters', place: 'far', size: 'P' }, pousada: { type: 'inn', place: 'road' }, pousada_abandonada: { type: 'inn', place: 'far' },
   taverna: { type: 'tavern', place: 'road' }, entreposto: { type: 'post', place: 'road', caravan: true }, santuario: { type: 'sanctuary', place: 'far' },
-  alojamento: { type: 'lodge', place: 'road' }, torre_vigia: { type: 'tower', place: 'free' }, pesca: { type: 'tower', place: 'free', pend: true, lego: { type: 'fishery', place: 'shore', pend: false } },
-  ruinas_menor: { type: 'ruins', place: 'free', lego: { size: 'P' } }, ruinas_rara: { type: 'ruins', place: 'far' }, reliquia: { type: 'ruins', place: 'far' }, guardioes: { type: 'ruins', place: 'far' },
+  alojamento: { type: 'lodge', place: 'road' }, torre_vigia: { type: 'tower', place: 'free' }, pesca: { type: 'fishery', place: 'shore' },
+  ruinas_menor: { type: 'ruins', place: 'free', size: 'P' }, ruinas_rara: { type: 'ruins', place: 'far' }, reliquia: { type: 'ruins', place: 'far' }, guardioes: { type: 'ruins', place: 'far' },
   acampamento_fortificado: { type: 'fortcamp', place: 'free' }, atalaia: { type: 'lookout', place: 'free' }, trincheira: { type: 'trench', place: 'free' },
-  vila_apoio: { type: 'lodge', place: 'road', pend: true, lego: { type: 'workers', size: 'P', pend: false } }, vila_trabalhadores: { type: 'lodge', place: 'road', pend: true, lego: { type: 'workers', size: 'M', pend: false } },
+  vila_apoio: { type: 'workers', place: 'road', size: 'P' }, vila_trabalhadores: { type: 'workers', place: 'road', size: 'M' },
   vila_ou_descanso: { pick: [['vila_trabalhadores', 40], ['pousada', 30], ['alojamento', 30]] },
   acampamento: { ambient: 'camp' }, gruta: { ambient: 'cave' }, caverna: { ambient: 'cave' }, bando: { ambient: 'pack' }, matilha: { ambient: 'pack' }
 };

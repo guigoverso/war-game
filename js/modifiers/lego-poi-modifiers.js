@@ -241,3 +241,27 @@ Object.assign(LEGO_PAL, {
   fish: [0xb8c0c8, 0xc8d0d8, 0xa8b0b8], boat: [0x7a5632, 0x8a4a2a, 0x5a6a7a, 0x3a5a7a], blankets: [0x8a3a3a, 0x3a5a8a, 0x5a7a3a], flowers: [0xe05a8a, 0xf0d84a, 0xf2f2f2, 0x9a6ae0],
   goods: [0xc8a060, 0xa03a3a, 0x5a8a4a, 0xd8d0b0, 0x6a7a9a, 0x8a6a3a], fruit: [0xc83a2a, 0xe08a2a, 0xe0c030, 0x5ab03a]
 });
+
+// L5: taverna (peças taverna e ferraria em poilego3.js). A vaga 'casa' leva o prédio com o pátio da frente (18 x 19, ou 18 x 17 no P); a vaga 'forja' (9 x 9) a ferraria, que traz o ferreiro.
+// O prédio tem a frente em +v; só os esqueletos 'lateral' (lane 4) o põem de lado. P: half 14; M: half 18 (o desenho antigo tinha raio 17).
+Object.assign(LEGO_RECIPES, {
+  tavern: {
+    M: { half: 18, gate: 2.5, flag: [4, 18.2], decorN: [3, 4],
+      skeletons: [
+        { id: 'fundo', slots: [LS('casa', -9, -18, 18, 19, 'S'), LS('forja', 9, -18, 9, 9, 'S'), LS('campo', -18, -18, 9, 16), LS('patio', 9, -9, 9, 10), LS('patio', -9, 1, 27, 8)] },
+        { id: 'centro', slots: [LS('casa', -9, -8, 18, 19, 'S'), LS('forja', -18, -8, 9, 9, 'S'), LS('campo', -18, -18, 36, 9), LS('campo', 9, -8, 9, 12), LS('campo', -18, 1, 9, 10), LS('patio', -9, 11, 18, 5)] },
+        { id: 'lateral', lane: 4, slots: [LS('casa', -18, -9, 19, 18, 'E'), LS('patio', 1, -9, 8, 18), LS('forja', 9, -9, 9, 9, 'W'), LS('campo', -18, -18, 36, 9), LS('campo', 9, 0, 9, 9), LS('campo', -18, 9, 15, 7)] },
+        { id: 'adiante', slots: [LS('casa', -9, -4, 18, 19, 'S'), LS('forja', -18, -18, 9, 9, 'S'), LS('campo', 9, -18, 9, 14), LS('campo', -18, -4, 9, 18), LS('campo', -9, -18, 18, 14)] }
+      ] },
+    P: { half: 14, gate: 2.5, flag: [4, 14.2], decorN: [2, 3],
+      skeletons: [
+        { id: 'p-esquerda', slots: [LS('casa', -9, -14, 18, 19, 'S'), LS('forja', -14, 5, 9, 8, 'S'), LS('campo', 5, 5, 9, 8), LS('campo', -14, -14, 5, 19), LS('campo', 9, -14, 5, 19), LS('patio', -5, 5, 10, 7)] },
+        { id: 'p-direita', slots: [LS('casa', -9, -14, 18, 19, 'S'), LS('forja', 5, 5, 9, 8, 'S'), LS('campo', -14, 5, 9, 8), LS('campo', -14, -14, 5, 19), LS('campo', 9, -14, 5, 19), LS('patio', -5, 5, 10, 7)] },
+        { id: 'p-fundo', slots: [LS('casa', -9, -5, 18, 17, 'S'), LS('forja', -14, -14, 9, 9, 'S'), LS('campo', 5, -14, 9, 9), LS('campo', -14, -5, 5, 17), LS('campo', 9, -5, 5, 17)] },
+        { id: 'p-patio', slots: [LS('casa', -9, -14, 18, 17, 'S'), LS('forja', -14, 3, 9, 9, 'S'), LS('patio', -5, 3, 10, 9), LS('campo', 5, 3, 9, 9), LS('campo', -14, -14, 5, 17), LS('campo', 9, -14, 5, 17)] }
+      ] }
+  }
+});
+Object.assign(LEGO_PICK, { tavern: { casa: { taverna: 1 }, forja: { ferraria: 1 }, campo: { bosque: 4, horta: 1 } } });
+Object.assign(LEGO_MIN, { taverna: [18, 17], ferraria: [9, 8] });
+Object.assign(LEGO_DECOR, { tavern: { lampiao: 3, banco: 3, barril: 2, caixa: 1, poco: 2, carroca: 1 } });
