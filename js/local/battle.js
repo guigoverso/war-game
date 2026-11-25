@@ -153,9 +153,6 @@ function battleMarks(g, f, sc, k, units) {
     g.fillStyle = BATTLE_MOD.coverMark; for (const c of BATTLE.cover) { const [x, y] = f(c.x, c.z); g.fillRect(x - 2 * k, y - 2 * k, 4 * k, 4 * k); }
   }
   const T = BATTLE.target;
-  if (T) {   // Ataque: círculo de captura do POI alvo (branco; verde depois de conquistado)
-    const [x, y] = f(T.x, T.z); g.lineWidth = 2 * k; g.strokeStyle = T.captured ? '#4aff7a' : '#fff'; g.beginPath(); g.arc(x, y, BATTLE_MOD.ataque.captureR * sc, 0, 6.283); g.stroke();
-  }
   for (const q of BATTLE.gens) {
     const [x, y] = f(q.x, q.z);
     if (q.ring) {
@@ -197,7 +194,7 @@ function updateBattle(dt) {
   if (d > 0 && d < 0.5) BATTLE.fps += (1 / d - BATTLE.fps) * 0.05;
   BATTLE.t += dt;
   const A = BATTLE.area; A.cx = P.x; A.cz = P.z; A.y = P.y;
-  battleTickGens(); battleTickAllies(); battleTickLimit(); battleTickStuck(); battleTickAtaque(dt);
+  battleTickGens(); battleTickAllies(); battleTickLimit(); battleTickStuck(); battleTickAtaque();
   if (BATTLE.over) return;
   BATTLE.scanT -= dt;
   if (BATTLE.scanT <= 0) {
@@ -415,34 +412,37 @@ function battleSatSpots(T, pois) {
   return out.slice(0, 3);
 }
 
-// Modo ataque: guarnição fixa no POI alvo (sem reposição, com raio de alerta e coleira) e 3 satélites geradores em arco, com a reserva do inimigo dividida entre eles.
-// opts (integração, passo 10): { poi, pois } = POI real do alvo e POIs do dono do tile (satélites e anexação junto). O jogador começa na abertura da trilha.
+// Modo ataque (regra de 2026-11-25): SEM batalhão no tile (?batalhao=0) o jogador luta só com a guarnição do POI alvo; COM batalhão (padrão) a guarnição cresce até
+// `garrisonBattalion` (30) e 3 satélites (POIs reais do dono do tile ou postos temporários, com a reserva do inimigo dividida) mandam reforços em lotes ao alvo à medida
+// que os soldados morrem (cota de vivos). opts (integração, passo 10): { poi, pois } = POI real do alvo e POIs do dono do tile (satélites e anexação junto).
 function battleStartAtaque(opts) {
   opts = opts || {};
   const A = BATTLE_MOD.ataque, home = WORLD.home, c = A.center;
-  tileTestFillEnemies(tileTestFoe(), 0);   // a cidade inimiga fica vazia: as únicas lutas são a guarnição e os satélites
+  tileTestFillEnemies(tileTestFoe(), 0);   // a cidade inimiga fica vazia: as únicas lutas são a guarnição e os reforços
   const flag = battleBuildTarget(c.x, c.z), f = freeSpot(A.start.x, A.start.z, 0.5, 1.8, 0.45);
   P.x = f[0]; P.z = f[1]; P.y = tH(P.x, P.z) + 0.1; P.vx = P.vz = P.vy = 0; P.camY = P.y;
   P.yaw = Math.atan2(-(c.x - P.x), -(c.z - P.z)); P.pitch = -0.05;
   battleConfig('ataque');
   BATTLE.base = { x: P.x, z: P.z };
-  const n = Math.min(tileTestCount('alia', TILE_TEST.allies), BATTLE_MOD.allyTotal), er = battleParam('inim', BATTLE_MOD.enemyReserve), gar = battleParam('guarnicao', A.garrison);
-  const pr = Math.max(0, Math.min(battleParam('reserva', 1e9), BATTLE_MOD.allyTotal - n));
+  const bat = battleParam('batalhao', 1) !== 0, er = bat ? battleParam('inim', BATTLE_MOD.enemyReserve) : 0, gar = battleParam('guarnicao', bat ? A.garrisonBattalion : A.garrison);
+  const n = Math.min(tileTestCount('alia', TILE_TEST.allies), BATTLE_MOD.allyTotal), pr = Math.max(0, Math.min(battleParam('reserva', 1e9), BATTLE_MOD.allyTotal - n));
   for (let i = 0; i < n; i++) spawnAlly(P.x + (i - n / 2) * 1.5, P.z + 3, home);
-  const T = { x: c.x, z: c.z, flag, captured: false, capT: 0, owner: 'enemy', poi: opts.poi || null, sats: [], pois: [] };
+  const name = opts.poi && typeof POI_DEFS !== 'undefined' && POI_DEFS[opts.poi.type] ? POI_DEFS[opts.poi.type].n : TXT_BATTLE_TARGET_NAME;
+  const T = { x: c.x, z: c.z, flag, name, captured: false, owner: 'enemy', poi: opts.poi || null, sats: [], pois: [] };
+  BATTLE.center = { x: c.x, z: c.z }; BATTLE.centerR = A.retakeR; BATTLE.postCfg = A; BATTLE.target = T;   // os reforços marcham ao alvo
   T.gen = battleAddGen(c.x, c.z, 0, { radius: A.alert });   // o alvo é um gerador sem reserva: só dá o raio de alerta e a coleira da guarnição
   for (let i = 0; i < gar; i++) {
-    const a = i / gar * 6.283, r = 2 + (i % 3) * 2.5, e = battleSpawnFrom(T.gen), q = freeSpot(c.x + Math.cos(a) * r, c.z + Math.sin(a) * r, 0.5, 1.8, 0.45);
+    const a = i / gar * 6.283, r = 2 + (i % 4) * 2.5, e = battleSpawnFrom(T.gen), q = freeSpot(c.x + Math.cos(a) * r, c.z + Math.sin(a) * r, 0.5, 1.8, 0.45);
     e.x = q[0]; e.z = q[1]; e.y = tH(e.x, e.z); e.group.position.set(e.x, e.y, e.z); e.homeX = c.x; e.homeZ = c.z;
     e.aggro = false; e.unseenT = 0;   // a guarnição só reage quando o jogador chega ao raio de alerta
   }
-  const spots = battleSatSpots(T, opts.pois);
-  battleSplit(er, spots.length).forEach((r, i) => {
-    const g = battleAddGen(spots[i].x, spots[i].z, r, { side: 'enemy' }); g.role = 'sat'; T.sats.push(g); if (spots[i].poi) T.pois.push(spots[i].poi);
-  });
+  if (bat) {
+    const spots = battleSatSpots(T, opts.pois);
+    battleSplit(er, spots.length).forEach((r, i) => {
+      const g = battleAddGen(spots[i].x, spots[i].z, r, { side: 'enemy', kind: 'post' }); g.role = 'sat'; T.sats.push(g); if (spots[i].poi) T.pois.push(spots[i].poi);
+    });
+  }
   if (T.poi) T.pois.unshift(T.poi);
-  if (BATTLE_MOD.showRings && new URLSearchParams(location.search).get('raios') !== '0') battleRing(c.x, c.z, A.captureR, 0xffffff, 0.7);
-  BATTLE.target = T; BATTLE.postCfg = A;
   BATTLE.total0 = er + gar; BATTLE.ally.total0 = n + pr; BATTLE.ally.reserve = pr;
   armyAssault(BATTLE.area, '');
   BATTLE.on = true; battleHudDraw();
@@ -455,18 +455,11 @@ function battleAnnex(T) {
   for (const p of T.pois) if (typeof poiSetOwner === 'function') poiSetOwner(p, 'player');
 }
 
-// Ataque, a cada quadro: conquista = guarnição morta, centro livre de inimigos e o jogador dentro do círculo por `captureT` s seguidos. Ao conquistar, os satélites com
-// reserva viram postos que mandam soldados em lotes para retomar o alvo (4B-2, "vira defesa"); só se vence com o alvo seu e reserva e vivos zerados.
-function battleTickAtaque(dt) {
-  const T = BATTLE.target; if (!T || T.captured || P.dead) return;
-  const A = BATTLE_MOD.ataque, en = BATTLE.area.enemies.filter(e => e.alive);
-  const free = en.every(e => e.btl !== T.gen && Math.hypot(e.x - T.x, e.z - T.z) >= A.captureR);
-  T.capT = free && Math.hypot(P.x - T.x, P.z - T.z) < A.captureR ? T.capT + dt : 0;
-  if (T.capT < A.captureT) return;
+// Ataque, a cada quadro: o POI é conquistado quando morre o último soldado da guarnição (os de reforço não contam). Se ainda há reserva ou reforços vivos, avisa
+// (txtBattleTomado); a batalha só termina (vitória) com o alvo seu e a reserva e os vivos do inimigo zerados.
+function battleTickAtaque() {
+  const T = BATTLE.target; if (!T || T.captured || P.dead || BATTLE.area.enemies.some(e => e.alive && e.btl === T.gen)) return;
   battleAnnex(T);
-  BATTLE.center = { x: T.x, z: T.z }; BATTLE.centerR = A.retakeR;
-  for (const g of T.sats) {
-    if (g.ring) { scene.remove(g.ring); scene.remove(g.leashRing); g.ring = g.leashRing = null; }
-    g.kind = 'post'; g.awake = true; g.nextAt = BATTLE.t + BATTLE.delay;   // os soldados que já estavam fora também voltam ao alvo (battlePostActive)
-  }
+  const more = BATTLE.area.aliveEnemies > 0 || BATTLE.gens.some(g => g.side === 'enemy' && g.reserve > 0);
+  if (more) toast(txtBattleTomado(T.name), 6000);
 }

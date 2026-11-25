@@ -51,12 +51,12 @@ const BATTLE_MOD = {
   // (engage) e distância do centro em que ele para de marchar (hold). Padrão: centro 205,60; pegada 20; pad 25; raio 45 a 140; cinza 20; postos a 40 além do raio, ângulos 0/150/210
   defesa: { center: { x: 205, z: 60 }, footprint: 20, radiusPad: 25, radiusMin: 45, radiusMax: 140, gray: 20, postDist: 40, postAngles: [0, 150, 210],
     engage: 40, hold: 10 },
-  // Cenário ?modo=ataque (4B-2 e 4B-12), coordenadas do mapa de teste de 320: POI alvo, onde o jogador começa (abertura da trilha), guarnição fixa do alvo (?guarnicao=N),
-  // raio de alerta da guarnição (acorda e persegue; coleira x leashMul), raio de captura e segundos que o jogador deve ficar nele (guarnição morta, centro livre);
-  // satélites: faixa de distância ao alvo dos POIs reais aceitos e postos temporários [graus, distância] em arco; depois de conquistado: raio de retomada (soldado preso
-  // além dele é teleportado), distância de reação (engage) e de parada (hold) dos soldados que vêm retomar. Padrão: alvo 150,55; início 100,55; guarnição 12; alerta 40;
-  // captura 12 em 5 s; satélites a 100-150 ([-25,105], [0,125], [25,105]); retomada 45; engage 40; hold 10
-  ataque: { center: { x: 150, z: 55 }, start: { x: 100, z: 55 }, garrison: 12, alert: 40, captureR: 12, captureT: 5, satRange: [100, 150],
+  // Cenário ?modo=ataque (regra de 2026-11-25), coordenadas do mapa de teste de 320: POI alvo e onde o jogador começa; guarnição do alvo sem batalhão no tile
+  // (?batalhao=0) e com batalhão (cresce até este teto, = cota de vivos); ?guarnicao=N força o número. Raio de alerta da guarnição (acorda e persegue; coleira x leashMul);
+  // satélites: faixa de distância ao alvo dos POIs reais aceitos e postos temporários [graus, distância] em arco, que mandam reforços em lotes ao alvo; raio da área do
+  // alvo (soldado de reforço preso além dele é teleportado), distância de reação (engage) e de parada (hold) dos reforços. A guarnição é conquistada ao matar o último dela.
+  // Padrão: alvo 150,55; início 100,55; guarnição 12 (sem batalhão) / 30 (com); alerta 40; satélites a 100-150 ([-25,105], [0,125], [25,105]); área 45; engage 40; hold 10
+  ataque: { center: { x: 150, z: 55 }, start: { x: 100, z: 55 }, garrison: 12, garrisonBattalion: 30, alert: 40, satRange: [100, 150],
     satTemp: [[-25, 105], [0, 125], [25, 105]], retakeR: 45, engage: 40, hold: 10 },
   // Cor da borda da área de defesa e da zona cinza, no chão e no Mapa M. Padrão: 0x4ac0ff e 0x9a9a9a
   defesaColor: 0x4ac0ff, defesaGrayColor: 0x9a9a9a,

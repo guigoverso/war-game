@@ -29,6 +29,11 @@ const TXT_BATTLE_LOSE = {
   botao: 'Reiniciar'
 };
 
+// Nome do POI alvo no cenário de teste do Ataque (em jogo real vem do POI).
+const TXT_BATTLE_TARGET_NAME = 'Posto inimigo';
+// Notificação do Ataque (aprovada em 2026-11-25): aparece ao conquistar o POI quando ainda há soldados inimigos vindo dos outros POIs.
+const txtBattleTomado = nome => nome + ' tomado. Defenda a posição';
+
 // Aviso fixo no topo da tela (Defesa), enquanto o comandante está na zona cinza, além da borda da área de defesa. Rascunho a aprovar.
 const TXT_BATTLE_DEF_WARN = 'Você está saindo da área de defesa! Volte, ou será considerado fuga.';
 
@@ -42,7 +47,6 @@ const TXT_BATTLE_HELP = {
   defesa: 'Defesa: você foi levado ao centro do POI defendido (bandeira). Os atacantes saem de 3 postos vermelhos fora da área (círculo azul) e vêm em lotes. '
     + 'Além da borda azul há uma zona cinza: ao entrar nela aparece o aviso; ao atravessá-la você foge e perde. Vence zerando reserva e vivos dos atacantes. '
     + 'Ordem aos soldados (V, X) só vale dentro da área. Ajuste: [ ] lote, - = atraso.',
-  ataque: 'Ataque: conquiste o POI alvo (bandeira vermelha, círculo branco): mate a guarnição e fique 5 s no centro, sem inimigos por perto. 3 satélites '
-    + 'vermelhos em arco geram soldados quando você entra no raio deles. Conquistado o alvo, os satélites com reserva mandam lotes para retomá-lo. '
-    + 'Vence com o alvo seu e a reserva e os vivos do inimigo zerados. Ordem aos soldados: V e X. Ajuste: [ ] lote, - = atraso.'
+  ataque: 'Ataque: conquiste o POI alvo (bandeira vermelha) matando a guarnição. Com batalhão no tile (padrão) a guarnição é de 30 e 3 satélites vermelhos mandam '
+    + 'reforços em lotes à medida que morrem; com &batalhao=0 só a guarnição (12). Conquistado o alvo, vença zerando os reforços. Ordem aos soldados: V e X. Ajuste: [ ] lote, - = atraso.'
 };

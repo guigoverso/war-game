@@ -1,7 +1,7 @@
 'use strict';
 // ---------- Teste do Ataque da batalha (feature 12, passo 4; Node + Playwright, só para desenvolvimento) ----------
-// Abre ?cenario=batalha&modo=ataque e confere: guarnição no alvo, 3 satélites a 100-150 com a reserva dividida, satélite que acorda, captura (guarnição morta + 5 s no
-// centro, reinicia se sair), satélites viram postos que retomam o alvo, vitória só com o alvo seu e tudo zerado, derrota, anexação de POIs reais. Uso: cd tests && node batalha-ataque.js
+// Abre ?cenario=batalha&modo=ataque e confere: com batalhão, guarnição de 30 e 3 satélites (100-150, reserva 100) que reforçam conforme morrem; conquista ao matar a
+// guarnição, com a notificação se ainda vêm reforços; vitória só com tudo zerado; sem batalhão (?batalhao=0) só a guarnição; derrota; anexação de POIs reais. Uso: cd tests && node batalha-ataque.js
 const http = require('http'), fs = require('fs'), path = require('path');
 const { chromium } = require('playwright');
 const ROOT = path.resolve(__dirname, '..');
@@ -32,41 +32,21 @@ const killGarrison = page => page.evaluate(() => { for (const e of ENEMIES) if (
   {
     const { page, errs } = await open(browser, base, 'cenario=batalha&modo=ataque&mute=1&semente=5');
     let s = await page.evaluate(() => { const T = BATTLE.target;
-      return { c: battleCounts(), sats: T.sats.map(g => [g.reserve, Math.hypot(g.x - T.x, g.z - T.z)]), gar: ENEMIES.filter(e => e.alive && e.btl === T.gen).length, cap: T.captured }; });
-    ok(s.gar === 12 && !s.cap, 'guarnição fixa de 12 no alvo (' + s.gar + ')');
-    ok(s.sats.length === 3 && s.sats.every(q => q[1] >= 99 && q[1] <= 151) && s.sats.reduce((a, q) => a + q[0], 0) === 100, '3 satélites a 100-150 com reserva 100 dividida ' + JSON.stringify(s.sats));
-    ok(s.c.e.f === 12 && s.c.e.r === 100 && s.c.p.r === 40 && s.c.p.f === 10, 'placar inicial ' + JSON.stringify(s.c));
-    await page.waitForTimeout(3000);
-    s = await page.evaluate(() => ({ gens: BATTLE.gens.filter(g => g.role === 'sat').map(g => g.awake), live: BATTLE.area.aliveEnemies }));
-    ok(s.gens.every(a => !a) && s.live === 12, 'satélites dormem longe do jogador; só a guarnição está viva');
-    // satélite acorda ao entrar no raio e lança lote
-    await page.evaluate(() => { const g = BATTLE.target.sats[1]; P.x = g.x - 40; P.z = g.z; });
-    await page.waitForTimeout(6000);
-    s = await page.evaluate(() => { const g = BATTLE.target.sats[1]; return { awake: g.awake, res: g.reserve, r0: g.reserve0 }; });
-    ok(s.awake && s.res < s.r0, 'satélite acorda no raio e lança soldados (reserva ' + s.res + '/' + s.r0 + ')');
-    // captura: precisa da guarnição morta; sozinho no centro por 5 s
-    await page.evaluate(() => { for (const e of ENEMIES) if (e.alive && e.btl && e.btl.role === 'sat') damageEnemy(e, 99999, false, true); P.x = BATTLE.target.x + 2; P.z = BATTLE.target.z; });
+      return { c: battleCounts(), sats: T.sats.map(g => [g.reserve, g.kind, Math.hypot(g.x - T.x, g.z - T.z)]), gar: ENEMIES.filter(e => e.alive && e.btl === T.gen).length }; });
+    ok(s.gar === 30, 'com batalhão a guarnição é de 30 (' + s.gar + ')');
+    ok(s.sats.length === 3 && s.sats.every(q => q[2] >= 99 && q[2] <= 151 && q[1] === 'post') && s.sats.reduce((a, q) => a + q[0], 0) === 100, '3 satélites a 100-150 com reserva 100 dividida ' + JSON.stringify(s.sats));
+    ok(s.c.e.f === 30 && s.c.e.r === 100 && s.c.p.r === 40 && s.c.p.f === 10, 'placar inicial ' + JSON.stringify(s.c));
     await page.waitForTimeout(5000);
-    s = await page.evaluate(() => ({ cap: BATTLE.target.captured, gar: ENEMIES.filter(e => e.alive && e.btl === BATTLE.target.gen).length }));
-    ok(!s.cap && s.gar > 0, 'com a guarnição viva o alvo não é conquistado');
-    await killGarrison(page); await page.waitForTimeout(1500);
-    await page.evaluate(() => { P.x = BATTLE.target.x + 40; });   // sai do círculo: o tempo reinicia
-    await page.waitForTimeout(4000);
-    await page.evaluate(() => { P.x = BATTLE.target.x + 2; });
-    await page.waitForTimeout(3000);
-    s = await page.evaluate(() => ({ cap: BATTLE.target.captured, t: BATTLE.target.capT }));
-    ok(!s.cap && s.t > 1, 'sair do círculo zera a contagem; voltou e ainda falta (' + s.t.toFixed(1) + ' s)');
-    await page.waitForTimeout(3500);
-    s = await page.evaluate(() => ({ cap: BATTLE.target.captured, over: BATTLE.over, kinds: BATTLE.target.sats.map(g => g.kind), center: !!BATTLE.center }));
-    ok(s.cap && !s.over, 'alvo conquistado após 5 s no centro; sem vitória (há reserva)');
-    ok(s.kinds.every(k => k === 'post') && s.center, 'satélites viram postos que retomam o alvo');
-    // retomada: soldados chegam ao alvo
-    await page.evaluate(() => { P.x = BATTLE.target.x + 3; P.z = BATTLE.target.z; });
-    await page.waitForTimeout(25000);
-    s = await page.evaluate(() => ({ d: ENEMIES.filter(e => e.alive && e.btl).map(e => Math.hypot(e.x - BATTLE.target.x, e.z - BATTLE.target.z)), c: battleCounts() }));
-    ok(s.c.e.r < 100 - 12 && s.d.length > 0 && s.d.some(d => d < 60), 'satélites mandam lotes ao alvo (min ' + Math.min(...s.d).toFixed(0) + ', reserva ' + s.c.e.r + ')');
-    // vitória: zerar reserva e vivos
-    for (let i = 0; i < 16; i++) { await page.waitForTimeout(1500); await page.evaluate(() => { for (const e of ENEMIES) if (e.alive && e.btl) damageEnemy(e, 99999, false, true); }); }
+    s = await page.evaluate(() => ({ r: battleCounts().e.r, live: BATTLE.area.aliveEnemies }));
+    ok(s.r === 100 && s.live === 30, 'cota cheia: satélites ainda não mandam reforço');
+    await page.evaluate(() => { let k = 0; for (const e of ENEMIES) if (e.alive && e.btl === BATTLE.target.gen && k++ < 6) damageEnemy(e, 99999, false, true); });
+    await page.waitForTimeout(6000);
+    s = await page.evaluate(() => ({ r: battleCounts().e.r, live: BATTLE.area.aliveEnemies, cap: BATTLE.target.captured }));
+    ok(s.r < 100 && s.live <= 30 && !s.cap, 'à medida que morrem, os satélites mandam reforços (reserva ' + s.r + ', vivos ' + s.live + ')');
+    await killGarrison(page); await page.waitForTimeout(800);
+    s = await page.evaluate(() => ({ cap: BATTLE.target.captured, over: BATTLE.over, t: window.__toasts.join(' | ') }));
+    ok(s.cap && !s.over && /Posto inimigo tomado\. Defenda a posição/.test(s.t), 'guarnição morta = conquista e notificação: ' + s.t);
+    for (let i = 0; i < 20; i++) { await page.waitForTimeout(1500); await page.evaluate(() => { for (const e of ENEMIES) if (e.alive && e.btl) damageEnemy(e, 99999, false, true); }); }
     await page.waitForTimeout(1000);
     const r = await page.evaluate(() => ({ over: BATTLE.over, txt: window.__toasts.join(' | ') }));
     ok(r.over && /VITÓRIA/.test(r.txt) && /conquistado/.test(r.txt), 'vitória com alvo seu e inimigo zerado: ' + r.txt.replace(/\n+/g, ' / '));
@@ -74,15 +54,13 @@ const killGarrison = page => page.evaluate(() => { for (const e of ENEMIES) if (
     ok(errs.length === 0, errs.length ? 'ERROS: ' + errs.slice(0, 4).join(' | ') : 'sem erros no console');
     await page.close();
   }
-  {   // sem alvo conquistado não há vitória, mesmo com tudo morto
-    const { page, errs } = await open(browser, base, 'cenario=batalha&modo=ataque&mute=1&inim=0&guarnicao=3');
+  {   // sem batalhão: só a guarnição; conquistar = vencer, sem a notificação
+    const { page, errs } = await open(browser, base, 'cenario=batalha&modo=ataque&mute=1&batalhao=0');
+    let s = await page.evaluate(() => ({ gar: ENEMIES.filter(e => e.alive && e.btl === BATTLE.target.gen).length, sats: BATTLE.target.sats.length, gens: BATTLE.gens.length, c: battleCounts() }));
+    ok(s.gar === 12 && s.sats === 0 && s.gens === 1 && s.c.e.r === 0, 'sem batalhão: só a guarnição de 12, sem satélites ' + JSON.stringify(s));
     await killGarrison(page); await page.waitForTimeout(1500);
-    let r = await page.evaluate(() => ({ over: BATTLE.over, cap: BATTLE.target.captured }));
-    ok(!r.over && !r.cap, 'tudo morto, mas alvo não conquistado: sem vitória');
-    await page.evaluate(() => { P.x = BATTLE.target.x; P.z = BATTLE.target.z; });
-    await page.waitForTimeout(6500);
-    r = await page.evaluate(() => ({ over: BATTLE.over, txt: window.__toasts.join(' | ') }));
-    ok(r.over && /VITÓRIA/.test(r.txt), 'conquistou sem reserva: vitória na hora');
+    s = await page.evaluate(() => ({ over: BATTLE.over, cap: BATTLE.target.captured, t: window.__toasts.join(' | ') }));
+    ok(s.over && s.cap && /VITÓRIA/.test(s.t) && !/Defenda/.test(s.t), 'conquista sem reforços: vitória, sem a notificação de defesa');
     ok(errs.length === 0, errs.length ? 'ERROS: ' + errs.slice(0, 4).join(' | ') : 'sem erros no console');
     await page.close();
   }

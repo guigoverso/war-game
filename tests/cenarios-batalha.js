@@ -14,8 +14,8 @@ const CENARIOS = [
   { passo: 3, status: 'pronto', t: 'Defesa: teleporte, barreira, 3 postos atacantes', q: 'cenario=batalha&modo=defesa',
     d: 'Você nasce no centro do POI defendido (bandeira). 3 postos inimigos fora da área (círculo azul) mandam lotes de 3 a 5. Zona cinza de 20 blocos além da borda: aviso ao entrar, fuga (derrota) ao atravessar. Ordem V só vale dentro da área. Parâmetros: &inim= &reserva= &alia= &vivos= &vivosalia= &lote= &atraso= &semente= &raios=0' },
   { passo: 4, status: 'pronto', t: 'Ataque: POI alvo e 3 satélites', q: 'cenario=batalha&modo=ataque',
-    d: 'Alvo com guarnição fixa de 12 (círculo branco = captura: mate todos e fique 5 s no centro). 3 satélites em arco (100 a 150 do alvo, raio vermelho) lançam lotes quando você entra no raio; '
-      + 'conquistado o alvo, os satélites com reserva mandam lotes para retomá-lo. Parâmetros: &inim= &guarnicao= &reserva= &alia= &vivos= &vivosalia= &lote= &atraso= &semente= &raios=0' },
+    d: 'Com batalhão no tile (padrão) a guarnição do alvo é de 30 e 3 satélites (100 a 150 do alvo, reserva 100) mandam reforços em lotes à medida que morrem; matar a guarnição conquista o alvo '
+      + '(notificação se ainda vêm reforços); vence zerando tudo. Sem batalhão (&batalhao=0) só a guarnição de 12. Parâmetros: &batalhao=0 &inim= &guarnicao= &reserva= &alia= &vivos= &vivosalia= &lote= &atraso= &semente= &raios=0' },
   { passo: 5, status: 'pendente', t: 'IA dos atiradores: cobertura e carregador', q: 'cenario=ia', d: '' },
   { passo: 6, status: 'pendente', t: 'Aliados: carregador e cobertura', q: 'cenario=ia&aliados=1', d: '' },
   { passo: 7, status: 'pendente', t: 'Batalha pequena', q: 'cenario=batalha&modo=pequena', d: '' },
