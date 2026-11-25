@@ -252,11 +252,11 @@ Impacto: **Alto** = refeito; **Médio** = regra fica, a parte espacial muda; **B
 | 9 | Raids (ondas, emboscada de caravana) | Médio | passam a ser atores bandidos chegando ao tile da cidade |
 | 10 | Rebelião (batalha, mina, ruínas) | Médio | batalha vai para o tile da cidade; missão da mina vira tile/sítio |
 | 11 | POIs (10 tipos, anexação, guarnição, renda, pedágio, entreposto, vigia, santuário, ponte) | Alto | viram sítios dentro de tiles; geração, "no caminho", vigia (raio 300 > tile), preços |
-| 12 | Guerra (frente, operações, POIs de guerra, cabo de guerra, fadiga, espiões, aliados, paz) | Alto | refeita como batalhões no grafo; **pausada** |
-| 13 | Combate (armas, inimigos, IA, aliados, quartel, mercenário) | Baixo | vive no mapa local; guarnição 10 e teste 10x30 |
+| 12 | Guerra (frente, operações, POIs de guerra, cabo de guerra, fadiga, espiões, aliados, paz) | Alto | refeita como batalhões no grafo; **pausada**; a fadiga já entra nas consequências da batalha (`12`, 4B-13) |
+| 13 | Combate (armas, inimigos, IA, aliados, quartel, mercenário) | Baixo | vive no mapa local; guarnição 10 e teste 10x30; **batalha grande com geradores e IA de cobertura/recarga: ver `12_batalha-no-tile.md`** |
 | 14 | Jogador (vida, inventário, buffs, durabilidade, lojas, cura, pesca, culinária) | Baixo | pistola inquebrável, kit, dívida de munição, morte nova |
-| 15 | Morte do jogador | Novo | batalhão destruído, perde ouro/soldados/munição |
-| 16 | Batalhões, comandante único, criação no turno do Líder | Novo | batalhão macro + soldados só no tile |
+| 15 | Morte do jogador | Novo | batalhão destruído, perde ouro/soldados/munição; **revista em `12_batalha-no-tile.md` (4B-3, 4B-10: branda na batalha pequena; fuga na Defesa)** |
+| 16 | Batalhões, comandante único, criação no turno do Líder | Novo | batalhão macro + soldados só no tile; **elites e comuns, recrutamento com limites por rodada: ver `12_batalha-no-tile.md` (4B-4, 4B-19)** |
 | 17 | Mapa mundi, trilhas, ações, turno alternado NPCs, resumo no livro | Novo | camada macro inteira |
 | 18 | Dungeons/portais, veios, lendárias, portal dourado | A decidir | espaço à parte ou sítio de tile |
 | 19 | Escritório do Líder, sala de reunião | Baixo | continuam espaços à parte |

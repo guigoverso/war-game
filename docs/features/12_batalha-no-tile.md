@@ -12,14 +12,13 @@ Origem: 2026-11-24. Os POIs de guerra por zona (4E: acampamento, trincheira, bar
 7. **Choque:** (menos pensado) o jogador vai até um POI que é a sua **base** (ex.: acampamento); o inimigo tem a dele; a batalha começa e os soldados são repostos até não sobrar nenhum. **[Revisto na 4B-9: 3 postos por lado enviando soldados a um centro.]**
 8. **Batalhão em três partes:** **Comandante** (o jogador controla), **Elites** (soldados que aparecem ao invadir um POI dominado por bandidos) e **Comuns** (o total de soldados, repostos durante a batalha). Em gameplay Elites e Comuns são **a mesma coisa**; só muda **quando aparecem**. Exemplo: 51 = Comandante + 5 Elites + 45 Comuns. **[Revisto na 4B-4: Elites são os soldados que acompanham o jogador em qualquer luta; Comuns só entram na batalha grande.]**
 
-## 2. Sugestões da IA [PROPOSTA]
-- **Separar "vivos ao mesmo tempo" de "total":** tamanho do batalhão = reserva; só N em campo (ex.: 20 a 30) para manter o FPS; o resto entra quando alguém morre. O teste 30×10 do cenário `batalha` mede o limite.
-- **Fim da geração:** cada gerador tem reserva própria e **para ao ser conquistado** (ou quando a reserva zera); sem isso a batalha nunca termina. Conquistar o gerador desliga o fluxo dele. **[Ajustado na 4B-2: só o POI alvo do Ataque é conquistado; satélites e Choque acabam ao zerar a reserva.]**
-- **Os arredores (item 1) servem de cobertura e ambiente**, não de objetivo: trincheira dá abrigo, barricada fecha a estrada. Dependem de peças lego (feature 11) e da regra "quem é dono do principal" (tile da facção ganha arredores de defesa; tile de bandidos ganha acampamentos).
-- **Zonas da 4E reaproveitadas:** a zona de cada abertura vira **ponto de entrada** (de onde chegam os reforços do atacante), o anel vira o **perímetro da defesa** e a praça vira **ponto de captura/encontro** do choque. Os POIs de teste (fortcamp, trench, barricade) saem.
-- **Choque:** acrescentar um **ponto de captura no meio** (a praça) para a batalha não ser só "vá à base e espere"; capturá-lo reduz a reposição do inimigo. **[Descartado na 4B-9: o próprio centro é o ponto da batalha.]**
-- **Defesa:** teletransporte + raio limite combina com `STATE.rd` e a rodada; perder = POI cai **[descartado na 4B-10: derrota só pela morte]**; cuidar da saída por morte (respawn) para não ser punição dupla.
-- **Elites x Comuns:** como são iguais em gameplay, o dado `origem` ('elite' | 'comum') só decide **quando entram** e o que acontece depois da batalha (morreu = perde do batalhão? volta ferido?). **[Resolvido na 4B-4: quem morre sai do batalhão para sempre.]**
+## 2. Sugestões da IA (rascunho; todas resolvidas ou revistas na seção 4B)
+- Separar "vivos ao mesmo tempo" de "total" (reserva x cota): **adotado** (4B-1, 4A).
+- Fim da geração por reserva finita: **adotado**, com ajuste (4B-2).
+- Arredores como cobertura e ambiente, e regra de dono do tile: **adotado** (4B-14).
+- Zonas da 4E como pontos de entrada, anel de defesa e praça: **descartado em parte**; os POIs de teste (fortcamp, trench, barricade) saem; no Choque o centro é o ponto da batalha (4B-9).
+- Choque com ponto de captura no meio e Defesa com "POI cai": **descartados** (4B-9, 4B-10).
+- Elites x Comuns (`origem`): **definido** (4B-4).
 
 ## 3. O que já existe e dá para reaproveitar
 | Peça | Onde | Serve para |
@@ -31,6 +30,10 @@ Origem: 2026-11-24. Os POIs de guerra por zona (4E: acampamento, trincheira, bar
 | Cenário de batalha 30×10 e medição de FPS | `tiletest.js` (`?cenario=batalha`) | protótipo e limite de soldados vivos |
 | Zonas de guerra e descritor de batalha | `tilecompose.js`, `macro/tile.js` (`tileBattle`) | pontos de entrada/captura |
 | Estado de batalhões, ações, turno alternado | **etapa 7** do plano 6 | o batalhão novo muda esta etapa |
+| Ordem de movimento dos soldados (1A, pronta) | `allies.js` (`ORDER`, `orderStep`) | ordens na batalha grande (4B-8) |
+| IA dos atiradores (`def.ranged`, `chaseMove`) | `entities.js` (`updateEnemy`) | cobertura e carregador (4B-15) |
+| Recrutamento e quartel | `allies.js` (`recruitAlly`, `openBarracks`) | passo 11 (4B-19) |
+| Fadiga de guerra e `STATE.war.fat` | `warops.js`, `fase-6-guerra.md` | consequências da batalha (4B-13) |
 
 ## 4. Perguntas do rascunho (todas resolvidas na seção 4B)
 1. Quem morre fica morto? **Sim, sai do batalhão para sempre; Comuns e Elites não diferem** (4B-4).
@@ -57,7 +60,7 @@ Números novos vão para `js/modifiers/battle-modifiers.js` e textos para `js/te
    | Reserva | 20 | | 37 |
    | Mortos | 20 | | 36 |
 6. **Pop-ups de fim:** **vitória** (verde) na hora, mensagem por modo (Ataque: tile conquistado; Defesa: invasores repelidos; Choque: vitória no campo); **derrota** só ao voltar ao mapa mundi, com mensagem por modo + batalhões restantes (se zero: turno do Comandante encerrado) e botão OK. Textos narrativos propostos na conversa (revisáveis em `battle-texts.js`). **Regra de processo:** em **cada passo** da implementação eu apresento quais pop-ups aparecem e com quais textos, e o usuário aprova ali (nada é fechado de antemão).
-7. **Quando ocorre cada modo:** Ataque = jogador entra em tile inimigo com POI/cidade; Defesa = inimigo entra em tile do jogador com POI/cidade; Choque = encontro em tile neutro ou sem POI principal. Tile inimigo **sem batalhão**: sem defesa local = conquista direta; com defesa local = **batalha pequena** (jogador + elites contra número fixo, sem reposição; POI principal mais forte; raio de alerta + coleira; conquista = matar a defesa e tomar o centro); cidade = invasão em ondas (layout antigo). Os demais POIs do tile passam junto para o novo dono. **Resolução automática opcional** (simulada, com mais baixas) e NPC contra NPC por número. [PROPOSTA ainda sem confirmação] cerco de N rodadas antes de o inimigo tomar um POI do jogador sem batalhão (aviso só no resumo da rodada).
+7. **Quando ocorre cada modo:** Ataque = jogador entra em tile inimigo com POI/cidade; Defesa = inimigo entra em tile do jogador com POI/cidade; Choque = encontro em tile neutro ou sem POI principal. Tile inimigo **sem batalhão**: sem defesa local = conquista direta; com defesa local = **batalha pequena** (jogador + elites contra número fixo, sem reposição; POI principal mais forte; raio de alerta + coleira; conquista = matar a defesa e tomar o centro); cidade = invasão em ondas (layout antigo). Os demais POIs do tile passam junto para o novo dono. **Resolução automática opcional** (simulada, com mais baixas) e NPC contra NPC por número. Cerco ao POI sem batalhão do jogador: ver 4B-18.
 8. **Ordens:** a ordem de movimento da 1A (clicar no chão, cancelar) vale na batalha grande; reposições nascem seguindo a ordem ativa; na Defesa limitada ao raio.
 9. **Choque:** **3 postos por lado** (não conquistáveis) mandam soldados a um **centro**, onde a batalha acontece; sem ponto de captura. Reserva finita dividida entre os postos; cada um para ao zerar. Reposição **em lotes** por posto (lote **aleatório de 3 a 5**, sorteado a cada lote; atraso ~3 s, quando a cota do posto comporta um lote inteiro); soldados recém-saídos reagem ao jogador num raio pequeno em volta do posto. **Nos testes: marcar os 3 postos do jogador, os 3 do inimigo e a área central** (visível, ligado por modificador); tamanho do lote ajustável em tempo real no `?cenario=batalha`.
 10. **Defesa:** jogador teletransportado para o centro do POI defendido. Atacantes vêm de **3 postos inimigos** fora da área, em volta do POI, em lotes (como no Choque). Defendem: a defesa local do POI e o batalhão do jogador (elites e comuns como reposição). **Vitória:** reserva total dos atacantes zerada e vivos mortos, sem limite de tempo. **Área de defesa visível no mapa** (raio = meia-pegada do POI + 25 blocos, mínimo 45 e máximo 140; modificadores) com uma **zona cinza** de 20 blocos (~3 s correndo, a conferir no teste) logo além da borda: ao entrar nela aparece o aviso de que o jogador está **saindo da área de defesa**; ao atravessá-la ele **foge e perde a batalha**. **Derrota:** a morte do comandante **ou a fuga**; o POI não "cai" por tempo. Pop-up de derrota por fuga (rascunho, a aprovar no passo 3): *O comandante fugiu. No auge da batalha, ele abandonou o campo; sem ordens, os soldados foram esmagados, e o comandante foi caçado e morto na fuga.*
