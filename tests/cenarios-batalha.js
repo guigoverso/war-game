@@ -8,7 +8,9 @@ const CENARIOS = [
   { passo: 1, status: 'pronto', t: 'Núcleo: um gerador, lote ajustável, FPS com 100', q: 'cenario=batalha&modo=nucleo',
     d: 'Um gerador inimigo (raio vermelho no chão; coleira laranja). Entre no raio e ele lança lotes de 3 a 5 até 30 vivos; ao sair do raio x 1,3 eles voltam. '
       + 'Reserva inimiga 100; seu batalhão 50 (10 elites + 40 de reserva). Teclas: [ ] lote, - = atraso, V/X ordem aos soldados. Parâmetros: &inim= &reserva= &alia= &vivos= &vivosalia= &lote=4 &atraso=2 &semente=7 &raios=0' },
-  { passo: 2, status: 'pendente', t: 'Choque: 3 postos por lado e centro', q: 'cenario=batalha&modo=choque', d: '' },
+  { passo: 2, status: 'pronto', t: 'Choque: 3 postos por lado e centro', q: 'cenario=batalha&modo=choque',
+    d: '3 postos seus (azul, oeste) e 3 do inimigo (vermelho, leste) mandam lotes de 3 a 5 ao centro (círculo branco), com 8 a 15 peças de cobertura espelhadas fora das rotas. '
+      + 'Reserva inimiga 100 (dividida nos postos); seu batalhão 50 (10 elites + 40 nos postos). Teclas: [ ] lote, - = atraso, V/X ordem. Parâmetros: &inim= &reserva= &alia= &vivos= &vivosalia= &lote= &atraso= &semente= &cobertura=N &raios=0' },
   { passo: 3, status: 'pendente', t: 'Defesa: teleporte, barreira, 3 postos atacantes', q: 'cenario=batalha&modo=defesa', d: '' },
   { passo: 4, status: 'pendente', t: 'Ataque: POI alvo e 3 satélites', q: 'cenario=batalha&modo=ataque', d: '' },
   { passo: 5, status: 'pendente', t: 'IA dos atiradores: cobertura e carregador', q: 'cenario=ia', d: '' },

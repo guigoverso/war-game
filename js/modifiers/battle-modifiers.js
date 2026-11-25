@@ -3,7 +3,7 @@
 // Todo modificador tem um comentário acima: para que serve e o valor padrão. Altere o valor e recarregue o jogo.
 // Parâmetros de URL do cenário ?cenario=batalha&modo=nucleo: ?inim=N (reserva inimiga), ?reserva=N (reserva do jogador), ?alia=N (soldados de elite),
 // ?vivos=N (cota de vivos do inimigo), ?vivosalia=N (cota do jogador), ?lote=3-5 (ou ?lote=4), ?atraso=S (segundos entre lotes), ?semente=N (sorteio dos lotes
-// reproduzível), ?raios=0 (esconde os raios no chão).
+// reproduzível), ?raios=0 (esconde os raios no chão). Modo choque (?modo=choque): também ?cobertura=N (total de peças de cobertura; 0 = nenhuma).
 
 const BATTLE_MOD = {
   // Máximo de soldados inimigos vivos ao mesmo tempo, somando todos os geradores (definido em 2026-11-25). Padrão: 30
@@ -36,6 +36,17 @@ const BATTLE_MOD = {
   areaHalf: 30,
   // Cenário ?modo=nucleo: onde fica o gerador, onde o jogador começa (blocos do mapa de teste de 320) e quanto andar antes do gerador acordar. Padrão: gerador 200,60; jogador 130,60
   nucleo: { gen: { x: 200, z: 60 }, start: { x: 130, z: 60 } },
+  // Cenário ?modo=choque (4B-9 e 4B-14), coordenadas do mapa de teste de 320: centro da batalha e seu raio; 3 postos do jogador (oeste) e 3 do inimigo (leste), cada
+  // um a ~85 do centro, na faixa livre acima das cidades; raio em que o soldado recém-saído do posto já reage (engage), distância do centro a partir da qual ele
+  // para de marchar (hold); anel de nascimento em volta do posto. Padrão: centro 205,60 raio 30; postos z 28/60/92 em x 120 (jogador) e 290 (inimigo); engage 40; hold 10
+  choque: { center: { x: 205, z: 60 }, centerR: 30, playerPosts: [{ x: 120, z: 28 }, { x: 114, z: 60 }, { x: 120, z: 92 }],
+    enemyPosts: [{ x: 290, z: 28 }, { x: 296, z: 60 }, { x: 290, z: 92 }], engage: 40, hold: 10, postRing: [3, 6], playerStart: { x: 132, z: 60 } },
+  // Peças de cobertura do Choque (4B-14): total sorteado entre mín e máx (mesma quantidade para os dois lados: pares espelhados em volta do centro; se ímpar, uma
+  // fica no eixo central), faixa de distância ao centro (mín, máx) onde nascem e folga mínima, em blocos, em relação às rotas dos postos ao centro (para não bloquear).
+  // Padrão: 8 a 15 peças, distância 8 a 28, folga 6
+  cover: { count: [8, 15], ring: [8, 28], routeGap: 6 },
+  // Cor dos marcadores de cobertura no Mapa M e dos postos do inimigo (o do jogador usa a cor da facção). Padrão: '#c8c8c8'
+  coverMark: '#c8c8c8',
   // Teclas de ajuste em tempo real no cenário de teste: tamanho do lote (menos, mais) e atraso entre lotes (menos, mais). Padrão: BracketLeft/BracketRight, Minus/Equal
   keys: { lotDown: 'BracketLeft', lotUp: 'BracketRight', delayDown: 'Minus', delayUp: 'Equal' },
   // Passo do ajuste do atraso em segundos e limites do lote ajustável. Padrão: 0.5, lote de 1 a 15

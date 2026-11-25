@@ -9,7 +9,7 @@ const TXT_BATTLE_SCORE = { field: 'Em campo', reserve: 'Reserva', dead: 'Mortos'
 const txtBattleTune = (lot, delay, fps) =>
   fps.toFixed(0) + ' qps • lote ' + (lot[0] === lot[1] ? lot[0] : lot[0] + '-' + lot[1]) + ' ([ ]) • atraso ' + delay.toFixed(1) + ' s (- =)';
 
-// Pop-up de vitória (verde), na hora em que a batalha é vencida. Rascunho por modo; "nucleo" é o cenário de teste do passo 1.
+// Notificação de vitória (toast verde, sem pop-up), na hora em que a batalha é vencida; titulo abre a frase. Rascunho por modo; "nucleo" é o cenário de teste do passo 1.
 const TXT_BATTLE_WIN = {
   titulo: 'VITÓRIA',
   nucleo: 'Vitória no campo. O último soldado do gerador caiu e a reserva inimiga se esgotou.',
@@ -22,13 +22,15 @@ const TXT_BATTLE_WIN = {
 const TXT_BATTLE_LOSE = {
   titulo: 'DERROTA',
   nucleo: 'O comandante caiu. Sem ordens, os soldados foram dispersados e a batalha está perdida.',
+  choque: 'O comandante caiu no centro do campo. Sem ordens, os soldados recuaram e a batalha está perdida.',
   botao: 'Reiniciar'
 };
 
-// Botão de fechar o pop-up de vitória.
-const TXT_BATTLE_OK = 'OK';
-
-// Explicação curta do cenário (aparece no painel de testes da pausa).
-const TXT_BATTLE_HELP = 'Núcleo da batalha: um gerador inimigo (raio vermelho no chão) acorda quando você entra no raio e lança soldados em lotes, '
-  + 'até a cota de vivos; ao sair do raio x 1,3 eles voltam. Ordem aos soldados: V (ponto mirado) e X (cancelar). '
-  + 'Ajuste em tempo real: [ ] muda o lote, - = muda o atraso.';
+// Explicação curta do cenário (painel de testes da pausa), por modo de batalha.
+const TXT_BATTLE_HELP = {
+  nucleo: 'Núcleo da batalha: um gerador inimigo (raio vermelho no chão) acorda quando você entra no raio e lança soldados em lotes, '
+    + 'até a cota de vivos; ao sair do raio x 1,3 eles voltam. Ordem aos soldados: V (ponto mirado) e X (cancelar). '
+    + 'Ajuste em tempo real: [ ] muda o lote, - = muda o atraso.',
+  choque: 'Choque: 3 postos seus (azul, oeste) e 3 do inimigo (vermelho, leste) mandam soldados em lotes ao centro (círculo branco), onde estão as peças de '
+    + 'cobertura. Vence quem zerar a reserva e os vivos do outro lado. Ordem aos soldados: V e X. Ajuste: [ ] lote, - = atraso.'
+};

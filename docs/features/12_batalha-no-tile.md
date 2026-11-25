@@ -91,7 +91,7 @@ A especificação (antigo passo 4) está fechada na seção 4B. Todos os passos 
 | # | Passo | Tam. | Sessão (e por quê) | Testa em jogo? | Cenário na galeria |
 |---|---|---|---|---|---|
 | 1 | **FEITO em 2026-11-25** (cota de vivos do jogador = 10, igual às elites; textos dos pop-ups em rascunho). **Núcleo:** gerador (raio visível, lotes, cota, reserva, coleira), painel, pop-ups de fim, ordens da 1A; cria a galeria | M | **Nova:** cria os arquivos (`battle.js`, modificadores, textos) que os demais usam | **Sim** | `?cenario=batalha&modo=nucleo` (um gerador, lote ajustável em tempo real, FPS com 100) |
-| 2 | **Choque:** 3 postos por lado, centro, peças de cobertura, marcação dos postos e do centro | M | **Mesma do 1** se o contexto estiver leve: usa o que acabou de ser escrito, mesmos arquivos | **Sim** | `?cenario=batalha&modo=choque` |
+| 2 | **FEITO em 2026-11-25** (pop-ups de vitória e derrota do Choque em rascunho, a aprovar). **Choque:** 3 postos por lado, centro, peças de cobertura, marcação dos postos e do centro | M | **Mesma do 1** se o contexto estiver leve: usa o que acabou de ser escrito, mesmos arquivos | **Sim** | `?cenario=batalha&modo=choque` |
 | 3 | **Defesa:** teleporte, barreira, 3 postos atacantes | M | **Nova:** mesmos arquivos do 1 e 2, então depois e sem paralelo | **Sim** | `?cenario=batalha&modo=defesa` |
 | 4 | **Ataque:** POI alvo, 3 satélites, retomada, anexação | M | **Nova:** mexe na troca de dono do POI (`poigame.js`) | **Sim** | `?cenario=batalha&modo=ataque` |
 | 5 | **IA dos atiradores:** cobertura e carregador (inimigos) | M | **Nova, em paralelo com 1 a 4:** só edita `entities.js` e `enemyai-modifiers.js` | **Sim** | `?cenario=ia` (atiradores, peças de cobertura, jogador sozinho) |

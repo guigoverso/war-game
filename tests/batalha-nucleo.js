@@ -22,7 +22,7 @@ async function open(browser, base, qs) {
   await page.goto(base + '/index.html?' + qs);
   await page.waitForFunction(() => typeof G !== 'undefined' && G.running && typeof BATTLE !== 'undefined' && BATTLE.on, null, { timeout: 240000 });
   await page.waitForTimeout(800);
-  await page.evaluate(() => { closePanel(); G.god = true; });
+  await page.evaluate(() => { closePanel(); G.god = true; window.__toasts = []; const o = toast; window.toast = (m, ms) => { window.__toasts.push(m); o(m, ms); }; });
   return { page, errs };
 }
 const snap = page => page.evaluate(() => ({ c: battleCounts(), t: BATTLE.t, awake: BATTLE.gens[0].awake, over: BATTLE.over,
@@ -59,8 +59,8 @@ const snap = page => page.evaluate(() => ({ c: battleCounts(), t: BATTLE.t, awak
     await page.evaluate(() => { const g = BATTLE.gens[0]; P.x = g.x - g.radius + 6; P.z = g.z; P.y = tH(P.x, P.z) + 0.1; P.camY = P.y; });
     for (let i = 0; i < 12; i++) { await page.waitForTimeout(1500); await page.evaluate(() => { for (const e of ENEMIES) if (e.alive && e.btl) damageEnemy(e, 99999, false, true); }); }
     await page.waitForTimeout(1000);
-    const r = await page.evaluate(() => ({ over: BATTLE.over, panel: G.panel, txt: document.getElementById('victory').innerText }));
-    ok(r.over && r.panel === 'victory', 'vitória ao zerar reserva e vivos: ' + r.txt.replace(/\n+/g, ' / '));
+    const r = await page.evaluate(() => ({ over: BATTLE.over, panel: G.panel, txt: window.__toasts.join(' | ') }));
+    ok(r.over && r.panel !== 'victory' && /VITÓRIA/.test(r.txt), 'vitória ao zerar reserva e vivos: ' + r.txt.replace(/\n+/g, ' / '));
     ok(errs.length === 0, errs.length ? 'ERROS: ' + errs.slice(0, 4).join(' | ') : 'sem erros no console');
     await page.close();
   }
