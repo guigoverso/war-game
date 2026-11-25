@@ -412,8 +412,8 @@ function battleSatSpots(T, pois) {
   return out.slice(0, 3);
 }
 
-// Modo ataque (regra de 2026-11-25): SEM batalhão no tile (?batalhao=0) o jogador luta só com a guarnição do POI alvo; COM batalhão (padrão) a guarnição cresce até
-// `garrisonBattalion` (30) e 3 satélites (POIs reais do dono do tile ou postos temporários, com a reserva do inimigo dividida) mandam reforços em lotes ao alvo à medida
+// Modo ataque (regra de 2026-11-25): SEM batalhão no tile (?batalhao=0) o jogador luta só com a guarnição do POI alvo; COM batalhão (padrão) a guarnição é completada até
+// `garrisonBattalion` (30) com soldados tirados da reserva (total = reserva + guarnição original) e 3 satélites (POIs reais do dono do tile ou postos temporários, com a reserva do inimigo dividida) mandam reforços em lotes ao alvo à medida
 // que os soldados morrem (cota de vivos). opts (integração, passo 10): { poi, pois } = POI real do alvo e POIs do dono do tile (satélites e anexação junto).
 function battleStartAtaque(opts) {
   opts = opts || {};
@@ -424,7 +424,8 @@ function battleStartAtaque(opts) {
   P.yaw = Math.atan2(-(c.x - P.x), -(c.z - P.z)); P.pitch = -0.05;
   battleConfig('ataque');
   BATTLE.base = { x: P.x, z: P.z };
-  const bat = battleParam('batalhao', 1) !== 0, er = bat ? battleParam('inim', BATTLE_MOD.enemyReserve) : 0, gar = battleParam('guarnicao', bat ? A.garrisonBattalion : A.garrison);
+  const bat = battleParam('batalhao', 1) !== 0, er = bat ? battleParam('inim', BATTLE_MOD.enemyReserve) : 0, base = battleParam('guarnicao', A.garrison);
+  const fill = bat ? clamp(A.garrisonBattalion - base, 0, er) : 0, gar = base + fill;   // o batalhão completa a guarnição com soldados da reserva (não cria novos)
   const n = Math.min(tileTestCount('alia', TILE_TEST.allies), BATTLE_MOD.allyTotal), pr = Math.max(0, Math.min(battleParam('reserva', 1e9), BATTLE_MOD.allyTotal - n));
   for (let i = 0; i < n; i++) spawnAlly(P.x + (i - n / 2) * 1.5, P.z + 3, home);
   const name = opts.poi && typeof POI_DEFS !== 'undefined' && POI_DEFS[opts.poi.type] ? POI_DEFS[opts.poi.type].n : TXT_BATTLE_TARGET_NAME;
@@ -438,12 +439,12 @@ function battleStartAtaque(opts) {
   }
   if (bat) {
     const spots = battleSatSpots(T, opts.pois);
-    battleSplit(er, spots.length).forEach((r, i) => {
+    battleSplit(er - fill, spots.length).forEach((r, i) => {
       const g = battleAddGen(spots[i].x, spots[i].z, r, { side: 'enemy', kind: 'post' }); g.role = 'sat'; T.sats.push(g); if (spots[i].poi) T.pois.push(spots[i].poi);
     });
   }
   if (T.poi) T.pois.unshift(T.poi);
-  BATTLE.total0 = er + gar; BATTLE.ally.total0 = n + pr; BATTLE.ally.reserve = pr;
+  BATTLE.total0 = er + base; BATTLE.ally.total0 = n + pr; BATTLE.ally.reserve = pr;   // total = reserva + guarnição original (ex.: 100 + 12 = 112)
   armyAssault(BATTLE.area, '');
   BATTLE.on = true; battleHudDraw();
 }
