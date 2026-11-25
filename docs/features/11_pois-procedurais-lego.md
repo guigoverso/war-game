@@ -257,6 +257,9 @@ Regras comuns (do L2/L1a): cada POI vira `LEGO_RECIPES[tipo][tamanho]` (esquelet
 - **Testes:** `node macro/lego.js` (30 receitas), `node lego-l35.js [semente] [tipo]` (agora 12 tipos, taverna incluída; âncoras interiores valem a até 18 blocos da porta), `node tile-lego.js` (sem pendentes; tavernas com receita, balcão e ferreiro), `smoke.js`, `tile-face.js`, `lego-galeria.js`. `tile-compose.js` mostra 'cidade: ambiente 1' em algumas sementes (já acontecia antes desta sessão).
 - **Limites:** a taverna do mapa antigo (`genWorldPois`) reserva o raio de `POI_DEFS` (17) e a lego tem 19; o hospital e os POIs de guerra continuam de desenho fixo.
 
+## 7l. 4G — Revisão (FEITA 2026-11-24)
+Todos os testes de lego, tile e smoke rodados com o lego como padrão: OK. Por tema (semente 11): 10 a 21 POIs, 12 a 21 micros, 51 a 132 ms de composição. Falhas antigas que seguem: `tile-compose.js` 'cidade: ambiente 1' e 12 'trilha impossível' em `tile-face.js` (7f). **Pendente:** ver o visual no jogo; hospital e POIs de guerra fixos (etapa 10); a mina lego depende da rampa `legoDig`.
+
 ## 8. Perguntas para decidir
 **[DECIDIDO] 2026-11-24** (todas conforme a recomendação):
 - Protótipo da fazenda convenceu: seguir para o L1.

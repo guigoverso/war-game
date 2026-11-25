@@ -40,6 +40,11 @@ Gerador que preenche o tile: principal no centro (marcado no mapa como as cidade
 ### 4F. Estado e economia do tile (M) — **FEITA em 2026-11-24** (resumo em `docs/ESTADO.md` e `docs/MAPA.md`), pode ir em paralelo com 4E
 Camada `macro` (sem Three.js): dono do tile = dono do POI principal, diferenças da semente, lista de POIs de guerra do tile `{tipo, zona, dono}`, produção resumida por rodada (comida/recurso nos de recurso; imposto `12 + 5 × rank` na vila), bônus que substitui o dos POIs de hoje. Teste em Node (`node tests/macro/run.js`). Se mexer no estado salvo: `SAVE_VERSION` e `migrateSave`. A anexação detalhada fica para a etapa 8.
 
+### 4G. Revisão e fechamento (P) — **FEITA em 2026-11-24** (resumo em `docs/ESTADO.md`)
+Rodados: `smoke.js`, `macro/run.js`, `macro/lego.js`, `mundo-hash.js`, `tile.js`, `tile-compose.js`, `tile-face.js`, `tile-vila.js`, `lego-l35.js`, `lego-galeria.js` e `tile-lego.js` (10 temas x sementes 11 e 23). Resultado: tudo OK, **exceto limites antigos conhecidos** (abaixo). Densidade medida: 10 a 21 POIs e 12 a 21 micro-POIs por tile; composição de 51 a 132 ms (limite 4 s). Sem teste visual (o usuário confere no jogo).
+- **Falhas conhecidas, não regressões:** `tile-compose.js` 'cidade: ambiente 1' (já falhava antes do lego); `tile-face.js` 12 'trilha impossível' (pousada, fazenda; limite de melhor esforço da trilha, `11_...` 7f).
+- **Tema em passagem:** `passagem` leva só 10 POIs (esperado: passagem com poucas construções).
+
 ## Ordem e paralelismo
 `4.0` (leitura) em paralelo com a especificação -> `4A` -> (`4B` -> `4C`) em paralelo com `4D` e `4F` -> `4E` -> **`4F`** -> **POIs lego (etapa 4B do plano 6, `11_pois-procedurais-lego.md`)** -> **`4G`** (a revisão passa para depois do lego, que muda a densidade e o tempo de geração). Em paralelo com o lego, o protótipo da batalha (etapa 4C do plano 6, `12_batalha-no-tile.md`).
 Só `4B` e `4C` mexem nos mesmos arquivos; as demais não se sobrepõem entre si.
