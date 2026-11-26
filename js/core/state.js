@@ -1,7 +1,7 @@
 'use strict';
 // ---------- Estado do jogo, livro de recursos, preços e ganchos (Fase 0) ----------
 // Tudo o que precisa sobreviver a um salvamento e que não faz parte do mundo gerado pela semente fica em STATE (JSON puro).
-const SAVE_VERSION=23;   // ver as regras no topo de migrateSave (save.js)
+const SAVE_VERSION=24;   // ver as regras no topo de migrateSave (save.js)
 const STATE={version:SAVE_VERSION,round:0,phase:'commander',res:{food:0,ore:0,wood:0}};
 // zera o estado para uma partida nova; sistemas que guardam coisas em STATE (inventário, durabilidade...) assinam 'resetState'
 // relatório da rodada: STATE.rd.report = o que fechou a rodada ANTERIOR (cobrança, produção, resultados) e STATE.rd.now = o que acontece na rodada ATUAL (eventos, caravanas, decisões...)

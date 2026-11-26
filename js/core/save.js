@@ -20,7 +20,7 @@ function collectSave(){
     camps:WORLD.camps.map(c=>({id:c.id,gone:!!c.gone,goneAt:c.goneAt,completed:!!c.completed,cleared:c.state==='cleared',cageOpened:!!(c.cage&&c.cage.opened)})),
     chests:WORLD.chests.filter(c=>c.opened).map(chestKey),
     time:{t:DN.t,days:DN.days},
-    state:JSON.parse(JSON.stringify(STATE))
+    state:Object.assign(JSON.parse(JSON.stringify(STATE)),{bat:batSaved()})   // batalhão: com batalha em curso grava a foto de antes dela
   };
 }
 
@@ -58,7 +58,8 @@ function migrateSave(d){
   if(d.v<21){d.v=21}   // v21: state.poiX (POIs limpos à espera de decisão, adiamentos, vigia e quarto da taverna); ausente = nada
   if(d.v<22){d.v=22}   // v22: state.war (fadiga, campanhas, operações e ataques pendentes da guerra); ausente = sem guerra
   if(d.v<23){d.v=23}   // v23: state.tiles (por tile: dono, diferenças da semente, POIs de guerra, estoque); ausente = nada
-  // if(d.v<24){ ...ajustes...; d.v=24 }
+  if(d.v<24){d.v=24}   // v24: state.bat (batalhões: id, tile, dono, soldados por tipo, munição); ausente = nenhum
+  // if(d.v<25){ ...ajustes...; d.v=25 }
   return d;
 }
 
@@ -96,6 +97,7 @@ function applySave(d){
   STATE.portals=s.portals||[];STATE.portalSeq=s.portalSeq||0;STATE.portalDay=s.portalDay;STATE.legend=s.legend||{};STATE.burnt=s.burnt||{};STATE.raidDay=s.raidDay||0;STATE.raidLast=s.raidLast===undefined?-9:s.raidLast;
   if(!(s.portals&&s.portals.length)&&s.portalDay===undefined)STATE.portalDay=undefined;   // salvamento antigo: os portais nascem na hora
   if(s.pol)STATE.pol=s.pol;normalizePol();   // políticas: carta pendente, efeitos ativos, fila do turno do Comandante, recargas
+  batApply(s.bat);   // batalhões (macro/battalion.js)
   STATE.tiles=s.tiles||{};   // estado dos tiles (macro/tilestate.js)
   if(s.frel)STATE.frel=s.frel;if(s.flog)STATE.flog=s.flog;
   if(s.fev)STATE.fev=s.fev;if(s.meet)STATE.meet=s.meet;if(s.gev)STATE.gev=s.gev;   // eventos entre facções NPC e reuniões   // eventos entre facções NPC (facevents.js)
