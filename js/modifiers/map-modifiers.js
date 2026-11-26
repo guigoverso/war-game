@@ -286,3 +286,8 @@ const WORLD3D = { unit: 16, cell: 16, vScale: 0.25, terrace: 4, smooth: 4, baseY
   costPerAction: 2.5,
   // Árvores por coluna de terra (0 a 1) em bosques: floresta, planície, deserto (cacto), neve (pinheiro), rocha. Padrão: 0.22, 0.01, 0.015, 0.12, 0
   treeProb: [0.22, 0.01, 0.015, 0.12, 0] };
+
+// ---------- Nomes dos tiles (js/macro/tilename.js; etapa 6A) ----------
+// Tentativas de sorteio por tile até achar um nome ainda não usado no mundo (depois entra número romano) e chance de o nome de recurso usar o terreno
+// (em vez de um santo ou família), de uma vila ser "Vila <nome>" e de uma cidade de costa usar o nome de costa. Padrão: 12, 0.6, 0.5, 0.5.
+const TILE_NAME = { tries: 12, terrain: 0.6, villaPlain: 0.5, coast: 0.5 };

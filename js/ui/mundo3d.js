@@ -477,7 +477,7 @@ function wm3Build(F, G) {
     WM_MODEL[n.tema](g, n, new RNG((F.seed * 31 + n.id * 7 + 1) >>> 0), G, T); if (n.porto) wm3Port(g, G, T, n);
     sc.add(g);
     if (!n.mar) {
-      const hh = n.tema === 'cidade' ? 10 : 8.2, pl = wm3Plate(n), lb = wm3Label(TXT_WM3_THEME[n.tema], wm3Owner(n) === null ? null : '#' + wm3Owner(n).toString(16).padStart(6, '0'));
+      const hh = n.tema === 'cidade' ? 10 : 8.2, pl = wm3Plate(n), lb = wm3Label(tileName(G, n), wm3Owner(n) === null ? null : '#' + wm3Owner(n).toString(16).padStart(6, '0'));
       pl.position.set(p.x, y + 0.16, p.z); lb.position.set(p.x, y + 0.9, p.z + wm3Half(n) + 2.6); lb.visible = WM.names; sc.add(pl, lb); labels.push(lb);
     }
     const rr = n.tema === 'cidade' ? 9 : 6, pk = new THREE.Mesh(new THREE.CylinderGeometry(rr, rr, 10, 12), new THREE.MeshBasicMaterial({ visible: false }));
@@ -561,7 +561,7 @@ function wm3Info(id) {
   if (id < 0) return '';
   const B = WM.built, n = B.G.nodes[id], p = id === WM.at ? null : wm3Path(B.G, WM.at, id), ow = wm3Owner(n);
   const prod = n.tema === 'vila' || n.tema === 'cidade' ? 'imposto' : TILE_PROD.res[n.tema] || null;
-  return txtWm3Info(n, { prod: prod && TXT_WM3_PROD[prod], owner: ow === null ? null : { name: wm3OwnerName(n), css: '#' + ow.toString(16).padStart(6, '0') },
+  return txtWm3Info(n, { nome: tileName(B.G, n), prod: prod && TXT_WM3_PROD[prod], owner: ow === null ? null : { name: wm3OwnerName(n), css: '#' + ow.toString(16).padStart(6, '0') },
     aqui: id === WM.at, cost: p ? { acoes: p.acoes, mar: p.mar } : null, sem: id !== WM.at && !p });
 }
 function wm3Select(id) {

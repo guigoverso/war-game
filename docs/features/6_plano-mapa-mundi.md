@@ -76,7 +76,7 @@ Os POIs de guerra por zona foram descartados (`8_tiles-e-vilas.md`, Pendente): c
 - Diorama em voxels (terreno em colunas, penhascos laterais, mar, estrada clara, trilha tracejada), modelos por tipo de tile, bonecos (batalhão com cor da facção), câmera inclinada com giro e zoom limitados, clique por raio, prévia do caminho com o custo em ações.
 - Só visual e seleção; sem atores ainda. Abre pelo livro/atalho e sai para o mapa local.
 
-## Etapa 6A: gerador de nomes dos tiles (P; pedido do usuário em 2026-11-26; depois do mapa mundi 3D e antes da etapa 7)
+## Etapa 6A: gerador de nomes dos tiles — CÓDIGO PRONTO em 2026-11-26 (`js/macro/tilename.js`, `TILE_NAME`, `TXT_NAME_*`, teste `tests/macro/nomes.js`; rótulo e painel do mapa mundi 3D já usam; falta só o usuário olhar na tela) (P; pedido do usuário em 2026-11-26; depois do mapa mundi 3D e antes da etapa 7)
 Hoje o rótulo do tile é só o tema ("Fazenda", "Fortaleza"). Passa a ter um **nome próprio**, por exemplo "Fazenda de Santa Maria", "Mina do Corvo", "Serraria do Pinhal", "Ponte do Rio Fundo".
 - **Determinístico:** o nome sai da semente do mundo e do id do tile (`RNG` já usado em `graph.js`), então não vai para o save e a mesma semente dá os mesmos nomes; a etapa 8 só grava o nome se o jogador puder renomear.
 - **Usa o terreno** (decidido: sim): bioma dominante, costa, altura e água do tile (`n.terr`, `n.costa`, `n.agua` do grafo). Ex.: serraria em floresta -> "do Pinhal/Bosque/Carvalhal"; mina em rocha -> "da Pedra/Serra/Rochedo"; vila de costa -> "do Porto/Cais/Maré"; ponte sobre vão -> "do Vão/Estreito"; deserto -> "da Areia/Oásis"; neve -> "do Gelo/Neve".

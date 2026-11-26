@@ -114,10 +114,10 @@ const TXT_POS_COPY = '📋 Copiar', TXT_POS_COPIED = '✔ Copiado', TXT_POS_FAIL
 const TXT_WM3_THEME = Object.assign({ mar: 'Mar aberto' }, TXT_TILE_THEME);
 // Nome do bioma, na ordem de WF_BIO (planície, floresta, deserto, neve, rocha).
 const TXT_WM3_BIOME = ['campos', 'mata', 'areia', 'neve', 'rocha'];
-// Painel do tile no mapa mundi (canto superior direito). n = ponto do grafo, d = {prod: texto|null, owner: {name, css}|null, aqui, cost: {acoes, mar}|null, sem}.
+// Painel do tile no mapa mundi (canto superior direito). n = ponto do grafo, d = {nome, prod: texto|null, owner: {name, css}|null, aqui, cost: {acoes, mar}|null, sem}.
 // Mostra o nome, a produção (se houver), a facção (ou neutro) e, se há um caminho prévio, o custo.
 const txtWm3Info = (n, d) => {
-  let s = '<div class="wm3-head">' + TXT_WM3_THEME[n.tema] + (n.home ? ' ★' : '') + (n.porto ? ' ⚓' : '') + '</div><div class="wm3-body">';
+  let s = '<div class="wm3-head">' + d.nome + (n.home ? ' ★' : '') + (n.porto ? ' ⚓' : '') + '</div><div class="wm3-body"><div class="wm3-row"><i>📍</i><span>Lugar</span><b>' + TXT_WM3_THEME[n.tema] + '</b></div>';
   if (d.prod) s += '<div class="wm3-row"><i>⚒️</i><span>Produção</span><b>' + d.prod + '</b></div>';
   s += '<div class="wm3-row"><i>🏴</i><span>Facção</span><b>' + (d.owner ? '<span class="wm3-sw" style="background:' + d.owner.css + '"></span>' + d.owner.name : 'Neutro') + '</b></div>';
   if (d.aqui) s += '<div class="wm3-row"><i>🛡️</i><span>Seu batalhão está aqui</span></div>';
@@ -142,3 +142,33 @@ const TXT_WM3_MENU = [{ id: 'entrar', ic: '🚪', t: 'Entrar no tile', ok: false
 const TXT_WM3_LOADING = 'Desenhando o mundo...';
 // Botão do modo criativo (aba Mundo) que abre o mapa mundi.
 const TXT_WM3_BUTTON = '🌍 Mapa mundi 3D';
+
+// ---------- Nomes próprios dos tiles (js/macro/tilename.js; etapa 6A) ----------
+// Santos que nomeiam lugares ("São Jorge", "Santa Maria"). Entram com "de" na frente nos recursos, fortes e ruínas.
+const TXT_NAME_SAINTS = ['Santa Maria', 'São Jorge', 'São Tomé', 'Santa Luzia', 'São Bento', 'Santa Clara', 'São Miguel', 'Santo Antão', 'Santa Rita', 'São Pedro', 'São Lucas', 'Santa Inês',
+  'São Vicente', 'Santa Helena', 'São Martinho', 'Santa Teresa'];
+// Famílias e alcunhas, já com a preposição ("do Corvo"). Servem de dono do lugar: "Mina do Corvo", "Forte dos Alves".
+const TXT_NAME_HOUSES = ['do Corvo', 'dos Alves', 'do Falcão', 'da Ribeira', 'dos Moura', 'do Lobo', 'dos Sá', 'do Cervo', 'dos Vaz', 'do Moinho', 'da Fonte', 'do Carvalho', 'do Pardal',
+  'dos Teles', 'do Ferreiro', 'da Viúva', 'do Barão', 'do Peregrino'];
+// Nomes soltos para "Vila <nome>".
+const TXT_NAME_VILLAGES = ['Trovão', 'Aurora', 'Esperança', 'Bonfim', 'Alvorada', 'Boa Vista', 'Rosal', 'Pedralva', 'Valverde', 'Brasa', 'Cinzeiro', 'Calmaria', 'Lameira', 'Fartura'];
+// Acidente do terreno pelo bioma dominante do tile, já com a preposição; ordem de WF_BIO (planície, floresta, deserto, neve, rocha).
+const TXT_NAME_TERRAIN = [
+  ['do Campo', 'da Várzea', 'do Prado', 'do Vale', 'da Campina', 'do Trigal'],
+  ['do Pinhal', 'do Bosque', 'do Carvalhal', 'da Mata', 'da Clareira', 'do Cedral'],
+  ['da Areia', 'da Duna', 'do Oásis', 'do Pedregal', 'da Miragem', 'da Sede'],
+  ['do Gelo', 'da Neve', 'da Geada', 'do Inverno', 'da Nevasca', 'do Norte'],
+  ['da Pedra', 'da Serra', 'do Rochedo', 'do Penhasco', 'do Despenhadeiro', 'do Cascalho']];
+// Lugar de costa (tile que toca o mar), com a preposição.
+const TXT_NAME_COAST = ['do Porto', 'do Cais', 'da Maré', 'da Enseada', 'do Farol', 'da Baía', 'do Sal'];
+// Ponte: onde a travessia acontece (o tile de ponte é sempre sobre água).
+const TXT_NAME_BRIDGE = ['do Vão', 'do Estreito', 'do Rio Fundo', 'da Travessia', 'do Barqueiro', 'do Remanso', 'da Cheia', 'do Vau'];
+// Mar aberto entre ilhas, com a preposição.
+const TXT_NAME_SEA = ['do Corvo', 'da Calmaria', 'do Naufrágio', 'dos Ventos', 'da Bruma', 'do Albatroz', 'das Tormentas', 'do Sol Posto'];
+// Palavra que abre o nome de cada tema (o que não aparece aqui usa um padrão próprio em tileName): ex. "Fazenda de Santa Maria", "Forte do Lobo".
+const TXT_NAME_BASE = { fazenda: 'Fazenda', mina: 'Mina', serraria: 'Serraria', animais: 'Curral', ponte: 'Ponte', fortaleza: 'Forte', ruinas: 'Ruínas de', passagem: 'Passo', mar: 'Mar' };
+// Número romano que desempata um nome repetido no mesmo mundo (só se 'tentativas' falhar).
+// Depois dos romanos (até X) segue em números comuns, para nunca esgotar.
+const txtNameRepeat = (nome, i) => nome + ' ' + (['II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][i] || (i + 2));
+// Palavra que abre o nome do mar aberto (sorteada).
+const TXT_NAME_SEA_BASE = ['Mar', 'Golfo', 'Águas', 'Canal'];
