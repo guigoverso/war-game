@@ -91,7 +91,7 @@ Hoje o rótulo do tile é só o tema ("Fazenda", "Fortaleza"). Passa a ter um **
 
 > **Pendência da ponte (pedido do usuário, 2026-11-26; fica para depois, junto da etapa 8 / POIs viram sítios):** no mapa mundi 3D a ponte do tile é **reta, com arcos nas pontas** (`wm3BridgeBuild`; as bifurcações foram descartadas por ficarem quebradas). O **tile local** de ponte (`tcBridge`, `tilecompose.js`) ainda tem uma ponte simples: deve ganhar o mesmo modelo com ramos, um por abertura/estrada que chega ao vão.
 
-## Etapa 7: batalhões, ações e turno alternado (G)
+## Etapa 7: batalhões, ações e turno alternado (G) — CÓDIGO PRONTO em 2026-11-26 (`js/macro/worldturn.js`, `js/ui/mundoturno.js`, teste `tests/macro/worldturn.js`; falta ligar a batalha real no tile e as rodadas do jogo; ver `docs/ESTADO.md`)
 - Pool de **ações** por rodada (cresce com o nível da facção), custo por terreno, **até 3 batalhões**, **comandante único** que troca de batalhão de graça, criação de batalhões no **turno do Líder** (primeiro grátis, depois guarnição cheia, com doação de soldados em cidade), morte (perde soldados, ouro, munição; nunca dívida), kit do comandante.
 - **Turno alternado:** jogador age -> NPCs dão **um passo** -> ...; atores com ficha comum; encontro no mesmo tile = batalha (sempre jogada para o jogador; por número entre NPCs); **resumo no livro**.
 - Layouts de batalha: campo, defesa da cidade, invasão da cidade (reaproveitar a invasão antiga). Tamanho do exército de raid vem do teste 30 x 10.

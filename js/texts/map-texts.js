@@ -122,7 +122,7 @@ const txtWm3Info = (n, d) => {
   s += '<div class="wm3-row"><i>🏴</i><span>Facção</span><b>' + (d.owner ? '<span class="wm3-sw" style="background:' + d.owner.css + '"></span>' + d.owner.name : 'Neutro') + '</b></div>';
   if (d.aqui) s += '<div class="wm3-row"><i>🛡️</i><span>Seu batalhão está aqui</span></div>';
   else if (d.sem) s += '<div class="wm3-row"><i>🧭</i><span>Sem caminho até lá</span></div>';
-  else if (d.cost) s += '<div class="wm3-row"><i>🧭</i><span>Caminho</span><b>' + d.cost.acoes + (d.cost.acoes === 1 ? ' ação' : ' ações') + (d.cost.mar ? ' • navio' : '') + '</b></div>';
+  else if (d.cost) s += '<div class="wm3-row"><i>🧭</i><span>Caminho</span><b>' + d.cost.mov + ' de movimento • ' + d.cost.acoes + (d.cost.acoes === 1 ? ' ação' : ' ações') + (d.cost.mar ? ' • navio' : '') + '</b></div>';
   return s + '</div>';
 };
 // Produção por tipo de recurso (TILE_PROD.res) e o imposto de vila/cidade (aparece no painel do tile).

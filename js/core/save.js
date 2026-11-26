@@ -61,7 +61,8 @@ function migrateSave(d){
   if(d.v<24){d.v=24}
   if(d.v<25){d.v=25}   // v25: STATE.tiles[chave].cerco/cicatriz/tomado (cerco e cicatrizes de batalha); ausente = nenhum   // v24: state.bat (batalhões: id, tile, dono, soldados por tipo, munição); ausente = nenhum
   if(d.v<26){if(d.army){d.army.max=ARMY_MAX_SOLDIERS;delete d.army.reserve}d.v=26}   // v26: teto único de 50 soldados e fim da reserva antiga (army.reserve some); army.recr = recrutados por lugar na rodada (ausente = nenhum)
-  // if(d.v<27){ ...ajustes...; d.v=27 }
+  if(d.v<27){d.v=27}   // v27: state.wt (turno do mapa mundi: pool de ações, batalhão ativo, atores e encontro); ausente = estado novo
+  // if(d.v<28){ ...ajustes...; d.v=28 }
   return d;
 }
 
@@ -100,6 +101,7 @@ function applySave(d){
   if(!(s.portals&&s.portals.length)&&s.portalDay===undefined)STATE.portalDay=undefined;   // salvamento antigo: os portais nascem na hora
   if(s.pol)STATE.pol=s.pol;normalizePol();   // políticas: carta pendente, efeitos ativos, fila do turno do Comandante, recargas
   batApply(s.bat);   // batalhões (macro/battalion.js)
+  wtApply(s.wt);   // turno do mapa mundi (macro/worldturn.js)
   STATE.tiles=s.tiles||{};   // estado dos tiles (macro/tilestate.js)
   if(s.frel)STATE.frel=s.frel;if(s.flog)STATE.flog=s.flog;
   if(s.fev)STATE.fev=s.fev;if(s.meet)STATE.meet=s.meet;if(s.gev)STATE.gev=s.gev;   // eventos entre facções NPC e reuniões   // eventos entre facções NPC (facevents.js)

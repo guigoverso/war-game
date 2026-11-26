@@ -5,7 +5,7 @@
 // (buildHuman) que anda pela trilha ao clicar duas vezes. Câmera livre com inércia. Cena própria (sceneUse, render.js); a câmera do jogo é emprestada e
 // devolvida ao fechar. Números em WORLD3D (map-modifiers.js), textos em map-texts.js (txtWm3*).
 // Abre com J (jogo), pelo botão do modo criativo ou com ?cenario=mundo3d (&seed=N &forma=pangeia|continentes|arquipelagos|lago &dom=plains|forest|...).
-const WM = { time: 0.3, spent: 0, names: false, open: false, built: null, saved: null, hud: null, hover: -1, sel: -1, at: 0, mx: 0, my: 0, drag: null, walk: null, follow: false, standalone: false,
+const WM = { time: 0.3, spent: 0, names: false, open: false, built: null, saved: null, hud: null, hover: -1, sel: -1, at: 0, mx: 0, my: 0, drag: null, walk: null, seq: null, speed: 1, turnEl: null, follow: false, standalone: false,
   yaw: 0, pitch: 0.9, dist: 150, tx: 0, tz: 0, c: { yaw: 0, pitch: 0.9, dist: 150, tx: 0, ty: 0, tz: 0 } };
 const WM_BOX = new THREE.BoxGeometry(1, 1, 1), WM_MATS = new Map();
 // Todo voxel de modelo marca o stencil onde aparece (ZPass): as linhas dos caminhos não desenham nesses pixels (o modelo tem preferência sobre a estrada).
@@ -170,13 +170,14 @@ function wm3TerrainGeo(T) {
     else if (T.R[id] === 3) c = WM_TRAIL;
     else if (!T.R[id] && (wet(i - 1, j) || wet(i + 1, j) || wet(i, j - 1) || wet(i, j + 1)) && T.B[id] !== WF_BIO.SNOW) c = WM_SAND;
     else c = WM_TOP[T.B[id]];
+    if (T.M && T.M[id] >= 1 && !T.R[id]) c = wm3MtnTop(T, i, j);
     if (T.R[id] >= 2) k = 0.97 + wmHash(i, j) * 0.05;
     quad([[x0, y, z0], [x0, y, z1], [x1, y, z1], [x1, y, z0]], [0, 1, 0], c, k);
     const sides = [[x0, z1, x0, z0, -1, 0], [x1, z0, x1, z1, 1, 0], [x0, z0, x1, z0, 0, -1], [x1, z1, x0, z1, 0, 1]];
     for (const [ax, az, bx, bz, di, dj] of sides) {
       const a = i + di, b = j + dj, lo = a < 0 || b < 0 || a >= n || b >= n ? -2 * K.vScale : T.Y[b * n + a];   // fora do mundo: o fundo do mar segue (sem parede)
       if (lo >= y - 1e-6) continue;
-      const mid = Math.max(lo, y - 0.5), dirt = land && T.B[id] !== WF_BIO.ROCK ? WM_DIRT : WM_STONE;
+      const mid = Math.max(lo, y - 0.5), dirt = T.M && T.M[id] >= 1 ? wm3MtnSide(T, i, j) : land && T.B[id] !== WF_BIO.ROCK ? WM_DIRT : WM_STONE;
       if (y - mid > 1e-6) quad([[ax, y, az], [ax, mid, az], [bx, mid, bz], [bx, y, bz]], [di, 0, dj], dirt, 0.88);
       if (mid - lo > 1e-6) quad([[ax, mid, az], [ax, lo, az], [bx, lo, bz], [bx, mid, bz]], [di, 0, dj], WM_STONE, 0.78);
     }
@@ -308,11 +309,144 @@ function wm3Label(text, owner) {
   s.scale.set(18, 4.5, 1); s.renderOrder = 30; return s;
 }
 
+// ---------- montanhas ----------
+// Montanhas como RELEVO de voxels (colunas de 1 bloco, como as referências): um campo de altura extra T.M somado ao terreno (T.Y), com cristas (ruído "ridged"), contornos
+// irregulares, esporões e encostas íngremes. Nascem nas terras altas do campo (altura acima do mar >= WORLD3D.mtn.minElev), um monte por célula de spacing colunas, em
+// formatos (WORLD3D.mtn.shapes): PICO (pontudo), DOMO (arredondado), CUME (cordilheira de 3 picos em fila), MESA (platô de topo plano) e LADEIRA (um lado íngreme, o outro
+// em declive). Altura = base + (elevação - minElev) x perElev; raio = altura x radiusMul. Não nascem sobre pedestal de tile, estrada, trilha ou ponte (marcas T.R), e
+// somem num colchão de 4 colunas em volta delas. T.Mf = altura relativa (0 a 1) do monte dono da coluna, usada na cor (grama, pedra, neve) pelo wm3TerrainGeo.
+// Ruído de valor suave (0 a 1) em (x, z); s muda a semente.
+function wm3Noise(x, z, s) {
+  const xi = Math.floor(x), zi = Math.floor(z), fx = x - xi, fz = z - zi, u = fx * fx * (3 - 2 * fx), v = fz * fz * (3 - 2 * fz);
+  const a = wmHash(xi + s * 131, zi), b = wmHash(xi + 1 + s * 131, zi), c = wmHash(xi + s * 131, zi + 1), d = wmHash(xi + 1 + s * 131, zi + 1);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+// Expoente da encosta e aspereza (peso das cristas) de cada formato.
+const WM_MTN_SHAPE = { pico: { expo: 1.2, rough: 0.5 }, domo: { expo: 0.55, rough: 0.18 }, mesa: { expo: 0.6, rough: 0.3 }, cume: { expo: 1.1, rough: 0.5 }, ladeira: { expo: 0.95, rough: 0.42 } };
+// Soma um monte ao campo: centro (cx, cz), altura hgt, raio r, formato shape, ângulo ang (lado da ladeira), semente sd.
+function wm3MountainApply(T, cx, cz, hgt, r, shape, ang, sd) {
+  const n = T.n, P = WM_MTN_SHAPE[shape], reach = Math.ceil(r * 1.9);
+  for (let j = Math.max(0, Math.floor(cz) - reach); j <= Math.min(n - 1, Math.floor(cz) + reach); j++) for (let i = Math.max(0, Math.floor(cx) - reach); i <= Math.min(n - 1, Math.floor(cx) + reach); i++) {
+    const k = j * n + i; if (!T.land[k]) continue;
+    const dx = i + 0.5 - cx, dz = j + 0.5 - cz, d = Math.hypot(dx, dz), a = Math.atan2(dz, dx);
+    const reff = r * (0.7 + 0.6 * wm3Noise(Math.cos(a) * 1.6 + sd * 7, Math.sin(a) * 1.6 + 3, sd)) * (shape === 'ladeira' ? 1 + 0.55 * Math.cos(a - ang) : 1), t = d / reff;
+    if (t >= 1) continue;
+    const p = Math.pow(1 - t, P.expo), ridge = 1 - Math.abs(2 * wm3Noise(i * 0.17, j * 0.17, sd + 3) - 1), fine = wm3Noise(i * 0.6, j * 0.6, sd + 9);
+    let m = hgt * p * ((1 - P.rough) + P.rough * ridge * ridge) + (fine - 0.5) * 2.2 * p;
+    if (shape === 'mesa') m = Math.min(m, hgt * 0.78);
+    if (m > T.M[k]) { T.M[k] = m; T.Mh[k] = hgt }
+  }
+}
+function wm3MountainField(T, G) {
+  const M = WORLD3D.mtn, K = WORLD3D, n = T.n; T.NT = new Uint8Array(n * n); T.M = new Float32Array(n * n); T.Mh = new Float32Array(n * n); T.Mf = new Float32Array(n * n);
+  const free = (cx, cz, r) => {   // sem marca de pedestal/caminho no miolo e longe dos tiles
+    const q = Math.ceil(r * 0.5);
+    for (let dj = -q; dj <= q; dj++) for (let di = -q; di <= q; di++) {
+      const i = Math.floor(cx) + di, j = Math.floor(cz) + dj; if (i < 0 || j < 0 || i >= n || j >= n || T.R[j * n + i]) return false;
+    }
+    for (const nd of G.nodes) { const p = T.pos[nd.id]; if (p && Math.hypot(p.x - cx, p.z - cz) < (nd.tema === 'cidade' ? K.cityPlateau : K.plateau) + r * 0.35 + 2) return false }
+    return true;
+  };
+  wm3MineHills(T, G, free);
+  for (let gj = 0; gj * M.spacing < n; gj++) for (let gi = 0; gi * M.spacing < n; gi++) {
+    const cx = (gi + 0.15 + wmHash(gi, gj * 3 + 1) * 0.7) * M.spacing, cz = (gj + 0.15 + wmHash(gi * 5 + 2, gj) * 0.7) * M.spacing;
+    if (cx >= n - 1 || cz >= n - 1) continue;
+    const k = Math.floor(cz) * n + Math.floor(cx), elev = T.H[k] - T.sea;
+    if (!T.land[k] || elev < M.minElev) continue;
+    const shape = M.shapes[Math.floor(wmHash(gi * 13 + 5, gj * 17 + 3) * M.shapes.length)], ang = wmHash(gi * 3 + 7, gj * 5 + 1) * Math.PI * 2, sd = (gi * 7 + gj * 13) % 97;
+    let hgt = M.base + (elev - M.minElev) * M.perElev + wmHash(gi, gj) * M.jitter, r = hgt * M.radiusMul + 2;
+    if (shape === 'domo') { hgt *= 0.75; r *= 1.3 } else if (shape === 'mesa') { hgt *= 0.7; r *= 1.15 } else if (shape === 'cume') r *= 0.7;
+    if (!free(cx, cz, shape === 'cume' ? r * 2.4 : r)) continue;
+    if (shape === 'cume') for (let t = -1; t <= 1; t++)   // três picos em fila (o do meio é o mais alto)
+      wm3MountainApply(T, cx + Math.cos(ang) * t * r * 1.2, cz + Math.sin(ang) * t * r * 1.2, hgt * (t ? 0.7 + wmHash(gi + t, gj) * 0.25 : 1), r, 'pico', ang, sd + t + 2);
+    else wm3MountainApply(T, cx, cz, hgt, r, shape, ang, sd);
+  }
+  wm3SmallHills(T, G, free);
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {   // colchão em volta de caminhos e pedestais, arredonda para blocos inteiros e soma ao terreno
+    const k = j * n + i; if (T.M[k] <= 0) continue;
+    let dr = 5; for (let dj = -4; dj <= 4 && dr > 0; dj++) for (let di = -4; di <= 4; di++) {
+      const a = i + di, b = j + dj; if (a >= 0 && b >= 0 && a < n && b < n && T.R[b * n + a]) dr = Math.min(dr, Math.max(Math.abs(di), Math.abs(dj)));
+    }
+    const m = Math.round(T.M[k] * Math.min(1, dr / 4));
+    if (m >= 1) { T.M[k] = m; T.Y[k] += m; T.Mf[k] = Math.min(1, m / T.Mh[k]) } else T.M[k] = 0;
+  }
+  wm3MineEntrances(T, G);
+}
+// Morro da mina: um monte do lado do tile de mina, com a encosta voltada para ele (a abertura da mina nasce nessa encosta, ver wm3MineEntrances). Escolhe entre 8 ângulos o
+// que tem mais terra e nenhum caminho; WORLD3D.mtn.mine = {r, off, hgt, entH, width}.
+function wm3MineHills(T, G, free) {
+  const K = WORLD3D, M = K.mtn.mine, n = T.n; T.mine = {};
+  for (const nd of G.nodes) {
+    if (nd.tema !== 'mina') continue;
+    const p = T.pos[nd.id]; let best = null;
+    for (let q = 0; q < 8; q++) {
+      const ang = (q / 8) * Math.PI * 2 + wmHash(nd.id, 3) * 0.6, d = K.plateau + M.off, cx = p.x + Math.cos(ang) * d, cz = p.z + Math.sin(ang) * d;
+      let sc = 0;
+      for (let j = Math.floor(cz - M.r); j <= cz + M.r; j += 2) for (let i = Math.floor(cx - M.r); i <= cx + M.r; i += 2) {
+        if (i < 0 || j < 0 || i >= n || j >= n) { sc -= 3; continue }
+        const k = j * n + i; sc += T.land[k] ? 1 : 0; if (T.R[k] > 1) sc -= 6;
+      }
+      for (const o of G.nodes) if (o !== nd && T.pos[o.id] && Math.hypot(T.pos[o.id].x - cx, T.pos[o.id].z - cz) < M.r + 6) sc -= 60;
+      if (!best || sc > best.sc) best = { sc, ang, cx, cz };
+    }
+    if (!best) continue;
+    wm3MountainApply(T, best.cx, best.cz, M.hgt, M.r, 'pico', best.ang, 40 + nd.id);
+    T.mine[nd.id] = { ang: best.ang };
+  }
+}
+// Abertura da mina: da borda do tile até a encosta (primeira coluna com altura >= entH) o chão é limpo num corredor de 2 x width + 1 colunas, e a parede que sobra
+// fica de frente para o tile. T.mine[id] = {ang, e (distância em colunas até a parede), y (altura do chão na frente dela)}.
+function wm3MineEntrances(T, G) {
+  const K = WORLD3D, M = K.mtn.mine, n = T.n;
+  for (const nd of G.nodes) {
+    const m = T.mine && T.mine[nd.id]; if (!m) continue;
+    const p = T.pos[nd.id], cs = Math.cos(m.ang), sn = Math.sin(m.ang), at = (t, u) => {
+      const i = Math.floor(p.x + cs * t - sn * u), j = Math.floor(p.z + sn * t + cs * u); return i < 0 || j < 0 || i >= n || j >= n ? -1 : j * n + i;
+    };
+    let e = -1;
+    for (let t = K.plateau; t < K.plateau + 26; t += 0.5) { const k = at(t, 0); if (k >= 0 && T.M[k] >= M.entH) { e = t; break } }
+    if (e < 0) { delete T.mine[nd.id]; continue }
+    for (let t = K.plateau - 1; t < e - 0.5; t += 0.5) for (let u = -M.width; u <= M.width; u += 0.5) {
+      const k = at(t, u); if (k >= 0 && T.M[k] > 0 && !T.R[k]) { T.Y[k] -= T.M[k]; T.M[k] = 0; T.Mf[k] = 0 }
+    }
+    for (let t = K.plateau - 1; t < e + 2; t += 0.5) for (let u = -M.width - 3; u <= M.width + 3; u += 0.5) { const k = at(t, u); if (k >= 0) T.NT[k] = 1 }   // sem árvores na frente da abertura
+    const k0 = at(e - 1, 0); m.e = e; m.y = T.Y[k0 >= 0 ? k0 : at(K.plateau, 0)];
+  }
+}
+// Morros pequenos: montes baixos e gentis (grama, pedra só onde é íngreme) espalhados pelas terras médias, sem neve. WORLD3D.mtn.small.
+function wm3SmallHills(T, G, free) {
+  const K = WORLD3D, S = K.mtn.small, n = T.n;
+  for (let gj = 0; gj * S.spacing < n; gj++) for (let gi = 0; gi * S.spacing < n; gi++) {
+    if (wmHash(gi * 9 + 4, gj * 7 + 2) > S.prob) continue;
+    const cx = (gi + 0.15 + wmHash(gi + 3, gj * 3 + 1) * 0.7) * S.spacing, cz = (gj + 0.15 + wmHash(gi * 5 + 2, gj + 8) * 0.7) * S.spacing;
+    if (cx >= n - 1 || cz >= n - 1) continue;
+    const k = Math.floor(cz) * n + Math.floor(cx), elev = T.H[k] - T.sea;
+    if (!T.land[k] || elev < S.minElev || T.M[k] > 0) continue;
+    const sd = (gi * 11 + gj * 5) % 89, shape = S.shapes[Math.floor(wmHash(gi * 3 + 1, gj * 5 + 9) * S.shapes.length)];
+    const hgt = S.base + (elev - S.minElev) * S.perElev + wmHash(gi + 9, gj) * S.jitter, r = hgt * S.radiusMul + 3;
+    if (!free(cx, cz, r)) continue;
+    wm3MountainApply(T, cx, cz, hgt, r, shape, wmHash(gi, gj + 4) * Math.PI * 2, sd + 50);
+  }
+}
+const WM_ROCKS = [0x9a948a, 0x8a847a, 0xa8a49a, 0x756f66];
+// Cor do topo de uma coluna de montanha: grama no pé, pedra com camadas no meio, neve no alto (linha irregular; encosta muito íngreme fica de pedra).
+function wm3MtnTop(T, i, j) {
+  const n = T.n, id = j * n + i, f = T.Mf[id], M = WORLD3D.mtn; let steep = 0;
+  for (const [a, b] of [[i - 1, j], [i + 1, j], [i, j - 1], [i, j + 1]]) if (a >= 0 && b >= 0 && a < n && b < n) steep = Math.max(steep, T.Y[id] - T.Y[b * n + a]);
+  const line = M.snowFrac + (wm3Noise(i * 0.3, j * 0.3, 5) - 0.5) * 0.3, h = wmHash(i, j);
+  if (T.Mh[id] <= M.small.maxH) return steep >= 2.5 ? WM_ROCKS[(h * 4) | 0] : f > 0.8 ? 0x6e9a48 : h < 0.5 ? 0x5e8a3e : 0x4f7a38;   // morro pequeno: grama, pedra só na parte íngreme
+  if (T.Mh[id] >= M.snowMin && f > line && (steep < 1.5 || h < 0.4)) return 0xf2f5f8;
+  if (f < 0.12) return WM_TOP[T.B[id]];
+  if (f < 0.3 && steep < 2) return h < 0.5 ? 0x5e8a3e : 0x4f7a38;
+  return WM_ROCKS[Math.floor((wm3Noise(i * 0.35 + j * 0.35, T.Y[id] * 0.9, 8) * 0.7 + h * 0.3) * 4) % 4];
+}
+// Cor da parede lateral de uma coluna de montanha (pedra; branca perto do cume).
+const wm3MtnSide = (T, i, j) => { const id = j * T.n + i; return T.Mf[id] > WORLD3D.mtn.snowFrac + 0.1 && T.Mh[id] >= WORLD3D.mtn.snowMin ? 0xdfe5ea : T.Mh[id] <= WORLD3D.mtn.small.maxH ? WM_DIRT : WM_ROCKS[(wmHash(i, j) * 4) | 0] };
 // ---------- bosques (instâncias) ----------
 function wm3Trees(T) {
   const K = WORLD3D, L = [];
   for (let j = 0; j < T.n; j++) for (let i = 0; i < T.n; i++) {
-    const id = j * T.n + i; if (T.H[id] < T.sea + 2 || T.R[id]) continue;
+    const id = j * T.n + i; if (T.H[id] < T.sea + 2 || T.R[id] || (T.M && T.M[id] >= 1 && T.Mf[id] > 0.3) || (T.NT && T.NT[id])) continue;
     const b = T.B[id], grove = 0.55 + 0.9 * wmHash(i >> 3, j >> 3), pr = K.treeProb[b] * grove;
     if (wmHash(i * 3 + 1, j) < pr) L.push({ x: (i + 0.5) * T.u, z: (j + 0.5) * T.u, y: T.Y[id], b, s: 1 + wmHash(j, i + 1) * 0.6 });
   }
@@ -375,10 +509,18 @@ const WM_MODEL = {
     for (let k = 0; k < 4; k++) wmBox(g, -2.6 + k * 1.75, 0, 2.2, 1.45, 0.12 + (k % 2) * 0.06, 4.6, [0xd9b84a, 0x8ab04a, 0xb8903a, 0x9ac05a][k]);
     wmBox(g, -1.5, 0, -2.6, 3.6, 2.2, 2.8, 0xa8402e); wmBox(g, -1.5, 2.2, -2.6, 3.9, 0.7, 3.1, 0x7a3020); wmBox(g, 2.4, 0, -2.4, 1, 3, 1, 0xd8d2c0);
   },
-  mina(g, n, rg) {
-    wmBox(g, 0, 0, 0, 6, 1.6, 5, 0x77746f); wmBox(g, -0.6, 1.6, 0.4, 3.8, 1.6, 3.4, 0x6b6863); wmBox(g, -0.9, 3.2, 0.6, 1.8, 1.1, 1.8, 0x8a8782);
-    wmBox(g, 0, 0, 2.55, 1.5, 1.4, 0.3, 0x1a1a1e); wmBox(g, -0.9, 0, 2.6, 0.25, 1.5, 0.35, 0x8a5a2e); wmBox(g, 0.9, 0, 2.6, 0.25, 1.5, 0.35, 0x8a5a2e);
-    wmBox(g, 2.6, 0, 3.4, 1, 0.55, 0.7, 0x5a4a3a); wmBox(g, -2.8, 0, 3.4, 0.7, 0.5, 0.6, 0xb89a3a);
+  mina(g, n, rg, G, T) {
+    const m = T && T.mine && T.mine[n.id];
+    if (!m) { wmBox(g, 0, 0, 0, 6, 1.6, 5, 0x77746f); wmBox(g, 0, 0, 2.55, 1.5, 1.4, 0.3, 0x1a1a1e); return }   // sem morro (não coube): monte simples
+    // Abertura da mina na encosta do morro: moldura de madeira com a boca escura, trilhos até o tile, carrinho e minério. +z do grupo aponta para o tile.
+    const ms = WORLD3D.modelScale, h = new THREE.Group(), cs = Math.cos(m.ang), sn = Math.sin(m.ang), D = (m.e - 0.4) / ms, p = T.pos[n.id];
+    h.position.set(cs * D, (m.y - T.Y[wm3Col(T, p.x, p.z)]) / ms, sn * D); h.rotation.y = Math.atan2(-cs, -sn); g.add(h);
+    wmBox(h, -1.9, 0, -0.2, 3.8, 3.6, 0.8, 0x14141a);   // boca escura
+    wmBox(h, -2.3, 0, 0, 0.5, 3.9, 0.7, 0x8a5a2e); wmBox(h, 1.8, 0, 0, 0.5, 3.9, 0.7, 0x8a5a2e); wmBox(h, -2.5, 3.7, 0, 5, 0.5, 0.8, 0x7a4e26);   // moldura
+    wmBox(h, -1.5, 0, 0.9, 0.12, 0.12, 5.5, 0x6a6a70); wmBox(h, 1.4, 0, 0.9, 0.12, 0.12, 5.5, 0x6a6a70);   // trilhos
+    for (let z = 1.2; z < 6; z += 0.9) wmBox(h, -1.7, 0, z, 3.4, 0.1, 0.25, 0x5a3e22);   // dormentes
+    wmBox(h, -1.1, 0.12, 3, 2.2, 0.9, 1.4, 0x4a4a50); wmBox(h, -1, 1, 3.1, 2, 0.3, 1.2, 0x2a2a30);   // carrinho de minério
+    wmBox(h, 3, 0, 1.2, 1.8, 0.9, 1.6, 0x8a8782); wmBox(h, 3.3, 0.9, 1.4, 1, 0.6, 1, 0xb89a3a);   // pilha de pedra e minério
   },
   serraria(g, n, rg) {
     wmBox(g, -1.5, 0, -1, 3.4, 1.6, 2.6, 0x9a6a3a); wmBox(g, -1.5, 1.6, -1, 3.8, 0.6, 3, 0x6b4a2a);
@@ -461,7 +603,7 @@ function wm3Build(F, G) {
   sc.background = new THREE.Color(0x2a1e14);   // cor de espera até a imagem de fundo (a mesa) carregar; sem névoa nem céu
   const hemi = new THREE.HemisphereLight(0xdcecff, 0x6a7a50, 0.4), sun = new THREE.DirectionalLight(0xfff0d0, 1), moon = new THREE.DirectionalLight(0x8aa6ff, 0.3);
   sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.25; sc.add(hemi, sun, sun.target, moon);
-  const edgePts = G.edges.map(e => wm3EdgePts(T, G, e)), carve = wm3Carve(T, G, edgePts);
+  const edgePts = G.edges.map(e => wm3EdgePts(T, G, e)), carve = wm3Carve(T, G, edgePts); wm3MountainField(T, G);   // as montanhas entram depois do caminho (desviam dele)
   const land = new THREE.Mesh(wm3TerrainGeo(T), new THREE.MeshLambertMaterial({ vertexColors: true })); land.castShadow = land.receiveShadow = true; sc.add(land);
   const wy = 0.1, wmat = new THREE.MeshLambertMaterial({ color: 0x2f86d0, transparent: true, opacity: 0.55, depthWrite: false });   // mesma opacidade da superfície ondulada: a borda do mundo não aparece
   const wgeo = new THREE.PlaneGeometry(S, S, 110, 110); wgeo.rotateX(-Math.PI / 2);
@@ -494,15 +636,19 @@ function wm3Build(F, G) {
 }
 
 // ---------- herói ----------
-function wm3Token(B) {
-  const pc = (typeof STATE !== 'undefined' && STATE.fac && STATE.fac.color) || 0, col = FAC_COLORS[pc].c;
+// Boneco de batalhão (o mesmo para o jogador, as facções e os bandidos; muda só a cor): soldado com capacete e bandeira. Devolve {g, h, pick}.
+function wm3Figure(col) {
   const h = buildHuman({ skin: 0xe3b48e, shirt: col, pants: 0x3b3f55, hair: 0x3a2a1c, hairStyle: 'helmet', hat: 0x8a9ab0, scale: 1 }), g = new THREE.Group();
   wmBox(g, 1.1, 0, 0.12, 0.06, 2.8, 0.06, 0x4a3a2a); wmBox(g, 1.55, 2, 0.12, 0.9, 0.6, 0.05, col);   // bandeira do batalhão
   const hp = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 2.4, 10), new THREE.MeshBasicMaterial({ visible: false }));   // área de clique do batalhão
-  hp.position.y = 1.2; g.add(hp); B.heroPick = hp;
-  g.add(h.group); g.traverse(o => { if (o.isMesh && o !== hp) o.castShadow = true }); B.hero = h;
+  hp.position.y = 1.2; g.add(hp);
+  g.add(h.group); g.traverse(o => { if (o.isMesh && o !== hp) o.castShadow = true });
   g.scale.setScalar(WORLD3D.heroScale);   // tamanho do batalhão: WORLD3D.heroScale (recarregue a página ao mudar)
-  B.scene.add(g); B.token = g; return g;
+  return { g, h, pick: hp };
+}
+function wm3Token(B) {
+  const pc = (typeof STATE !== 'undefined' && STATE.fac && STATE.fac.color) || 0, f = wm3Figure(FAC_COLORS[pc].c);
+  B.heroPick = f.pick; B.hero = f.h; B.scene.add(f.g); B.token = f.g; return f.g;
 }
 // Onde o herói fica ao lado do tile (de frente, fora do modelo).
 function wm3Anchor(id) {
@@ -516,27 +662,8 @@ function wm3TokenPlace(id) {
 }
 
 // ---------- caminho e custo ----------
-const wm3Actions = e => Math.max(1, Math.ceil((e.custo || e.len / TILE_SIZE * 2.2) / WORLD3D.costPerAction));
-// Menor caminho (em ações) por todas as arestas, de `from` até `to`. Devolve {acoes, mar, ids:[aresta...], from:[ponto...]} ou null.
-function wm3Path(G, from, to) {
-  const N = G.nodes.length, d = new Array(N).fill(Infinity), pv = new Array(N).fill(-1), pe = new Array(N).fill(-1), done = new Array(N).fill(false);
-  d[from] = 0;
-  for (;;) {
-    let u = -1; for (let i = 0; i < N; i++) if (!done[i] && d[i] < Infinity && (u < 0 || d[i] < d[u])) u = i;
-    if (u < 0 || u === to) break;
-    done[u] = true;
-    for (const x of G.adj[u]) {
-      const e = G.edges[x.e], w = d[u] + wm3Actions(e) + (e.kind === 'mar' ? 0.01 : 0);
-      if (w < d[x.to]) { d[x.to] = w; pv[x.to] = u; pe[x.to] = e.id }
-    }
-  }
-  if (d[to] === Infinity) return null;
-  const ids = [], fr = []; let a = 0, mar = false;
-  for (let v = to; pv[v] >= 0; v = pv[v]) {
-    ids.unshift(pe[v]); fr.unshift(pv[v]); a += wm3Actions(G.edges[pe[v]]); if (G.edges[pe[v]].kind === 'mar') mar = true;
-  }
-  return { acoes: a, mar, ids, from: fr };
-}
+// Custo e caminho em ações vêm da camada macro (wtEdgeCost, wtPath; números em WT, worldturn-modifiers.js). Aqui o mar entra (só para mostrar o custo).
+const wm3Path = (G, from, to) => wtPath(G, from, to, false);
 // Pontos livres do caminho, na ordem de quem anda (cada aresta virada para o lado certo).
 function wm3PathPts(p) {
   const B = WM.built, out = [];
@@ -562,7 +689,7 @@ function wm3Info(id) {
   const B = WM.built, n = B.G.nodes[id], p = id === WM.at ? null : wm3Path(B.G, WM.at, id), ow = wm3Owner(n);
   const prod = n.tema === 'vila' || n.tema === 'cidade' ? 'imposto' : TILE_PROD.res[n.tema] || null;
   return txtWm3Info(n, { nome: tileName(B.G, n), prod: prod && TXT_WM3_PROD[prod], owner: ow === null ? null : { name: wm3OwnerName(n), css: '#' + ow.toString(16).padStart(6, '0') },
-    aqui: id === WM.at, cost: p ? { acoes: p.acoes, mar: p.mar } : null, sem: id !== WM.at && !p });
+    aqui: id === WM.at, cost: p ? { mov: p.acoes, acoes: wtPlan(B.G, p), mar: p.mar } : null, sem: id !== WM.at && !p });
 }
 function wm3Select(id) {
   const B = WM.built; WM.sel = id; B.selRing.visible = id >= 0;
@@ -570,16 +697,17 @@ function wm3Select(id) {
   wm3ShowPath(id >= 0 && id !== WM.at ? wm3Path(B.G, WM.at, id) : null);
   WM.hud.info.innerHTML = wm3Info(id); WM.hud.info.style.display = id >= 0 ? '' : 'none';
 }
-// Segundo clique no tile escolhido: o herói anda pela trilha (só visual por enquanto; só por terra).
+// Segundo clique no tile escolhido: o batalhão ativo marcha (wtMove gasta as ações e os NPCs andam) e o boneco anda pela trilha até onde chegou.
 function wm3Go(id) {
-  const B = WM.built, p = wm3Path(B.G, WM.at, id); if (!p || p.mar || WM.walk) return;
-  const pts = wm3PathPts(p).slice(), a = wm3Anchor(id), t = B.token.position;
-  WM.walk = { pts: [{ x: t.x, y: t.y, z: t.z }].concat(pts, [{ x: a.x, y: a.y, z: a.z }]), k: 0, f: 0, dest: id }; WM.follow = true;
-  WM.spent += p.acoes;   // gastar ações passa o tempo (dia e noite)
+  const B = WM.built; if (WM.walk || WM.seq) return;
+  const r = wtMove(B.G, id); if (!r.ok) { wm3TurnNote(r.why); return }
+  wm3TurnState.note = ''; wm3TurnHud();   // o contador de movimento desce já ao partir
+  WM.spent += r.gasto;   // gastar movimento passa o tempo (dia e noite)
   B.path.children.slice().forEach(c => B.path.remove(c)); WM.hud.info.style.display = 'none'; B.selRing.visible = false;
+  WM.follow = true; WM.seq = { steps: r.steps, i: -1, tw: null }; wm3SeqNext();
 }
 function wm3WalkStep(dt) {
-  const B = WM.built, w = WM.walk, t = B.token.position; let left = WORLD3D.walkSpeed * dt;
+  const B = WM.built, w = WM.walk, t = B.token.position; let left = WORLD3D.walkSpeed * WM.speed * dt;
   while (left > 0 && w.k < w.pts.length - 1) {
     const a = w.pts[w.k], b = w.pts[w.k + 1], l = Math.hypot(b.x - a.x, b.z - a.z) || 0.001, rem = l * (1 - w.f);
     if (left >= rem) { left -= rem; w.k++; w.f = 0; continue }
@@ -593,7 +721,7 @@ function wm3WalkStep(dt) {
   B.hero.legs[0].rotation.x = sw; B.hero.legs[1].rotation.x = -sw; B.hero.arms[0].rotation.x = -sw; B.hero.arms[1].rotation.x = sw;
   if (w.k >= w.pts.length - 1) {
     WM.walk = null; WM.at = w.dest; wm3TokenPlace(w.dest);
-    B.hero.legs.concat(B.hero.arms).forEach(l => { l.rotation.x = 0 }); wm3Select(-1);
+    B.hero.legs.concat(B.hero.arms).forEach(l => { l.rotation.x = 0 }); wm3Select(-1); if (WM.seq) wm3SeqNpc(); else wm3TurnAfter();
   }
 }
 const WM_RAY = new THREE.Raycaster(), WM_V = new THREE.Vector2();
@@ -788,6 +916,7 @@ function wm3Frame(dt) {
   const B = WM.built, K = WORLD3D, k = G.keys, sp = WORLD3D.panSpeed * WM.dist * dt, on = (a, b) => (k[a] || k[b] ? 1 : 0);
   wm3Pan((on('KeyW', 'ArrowUp') - on('KeyS', 'ArrowDown')) * sp, (on('KeyD', 'ArrowRight') - on('KeyA', 'ArrowLeft')) * sp);
   if (k.KeyQ) WM.yaw -= dt * 1.4; if (k.KeyE) WM.yaw += dt * 1.4;
+  wm3TurnAnim(dt);
   if (WM.walk) wm3WalkStep(dt); else if (B.token) B.token.position.y = B.tokenY + Math.abs(Math.sin(performance.now() / 700)) * 0.05;
   wm3Cam(dt);
   WM.time += (K.dayStart + WM.spent / K.actionsPerDay - WM.time) * (1 - Math.exp(-dt * 0.9));   // a hora só anda quando se gastam ações; a luz acompanha devagar
@@ -825,12 +954,12 @@ window.addEventListener('mousemove', e => {
 });
 window.addEventListener('mouseup', e => {
   const d = WM.drag; if (!WM.open || !d) return; WM.drag = null;
-  if (d.moved || WM.walk) return;
+  if (d.moved || WM.walk || WM.seq) return;
   const wasMenu = WM.menuOn; wm3MenuClose();
   if (d.b === 2) { if (wm3HeroAt(e.clientX, e.clientY) && !wasMenu) wm3MenuOpen(); return }   // botão direito no batalhão: menu do batalhão
   if (d.b !== 0) return;
-  const id = wm3PickAt(e.clientX, e.clientY);
-  if (id < 0) wm3Select(-1); else if (id === WM.sel && id !== WM.at) wm3Go(id); else wm3Select(id);
+  const id = wm3PickAt(e.clientX, e.clientY); wm3EntClose();
+  if (id < 0) wm3Select(-1); else if (id === WM.sel && id !== WM.at) wm3Go(id); else { wm3Select(id); wm3EntMenu(e.clientX, e.clientY, id) }   // 1º clique: info do tile e menu do que há nele; 2º clique: ir
 });
 window.addEventListener('wheel', e => { if (WM.open) { WM.dist *= e.deltaY > 0 ? 1.12 : 1 / 1.12; e.preventDefault() } }, { passive: false });
 window.addEventListener('contextmenu', e => { if (WM.open) e.preventDefault() });
@@ -903,7 +1032,7 @@ function wm3Open(F) {
   G.panel = 'mundo3d'; if (document.pointerLockElement) document.exitPointerLock();
   $('hud').classList.add('hidden');
   const oh = document.getElementById('officehint'); WM.saved.oh = oh ? oh.style.display : ''; if (oh) oh.style.display = 'none';   // dica do escritório não aparece no mapa
-  WM.at = B.G.inicio ? B.G.inicio.id : (B.G.nodes.find(n => !n.mar) || B.G.nodes[0]).id; wm3TokenPlace(WM.at); WM.walk = null;
+  WM.at = B.G.inicio ? B.G.inicio.id : (B.G.nodes.find(n => !n.mar) || B.G.nodes[0]).id; wm3TurnOpen(B); WM.walk = null;
   const t = B.token.position; WM.tx = WM.c.tx = t.x; WM.tz = WM.c.tz = t.z; WM.c.ty = B.nodeY[WM.at];
   WM.dist = WM.c.dist = WORLD3D.dist; WM.pitch = WM.c.pitch = WORLD3D.pitch; WM.yaw = WM.c.yaw = 0; WM.hover = -1; WM.drag = null; WM.follow = false;
   WM.open = true; WM.hud.el.style.display = 'block'; wm3MenuClose(); wm3Select(-1);

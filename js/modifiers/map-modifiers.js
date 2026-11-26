@@ -279,11 +279,27 @@ const WORLD3D = { unit: 16, cell: 16, vScale: 0.25, terrace: 4, smooth: 4, baseY
   clouds: 26, cloudY: [26, 42], cloudSpeed: 1.2, ships: 8, shipScale: 1.5, shipSpeed: 3,
   // TAMANHO DO BATALHÃO do jogador no mapa (escala do boneco com a bandeira; 1 = um humano normal, ~1,95 de altura). Mude e recarregue a página. Padrão: 3.2
   heroScale: 5,
+  // Cor do bando de bandidos no mapa (o boneco é o mesmo do batalhão; o das facções usa a cor da facção). Padrão: 0x8a1c1c
+  banditColor: 0x8a1c1c,
+  // MONTANHAS do mapa mundi 3D (relevo de voxels sobre as terras altas, com cristas e neve). shapes = formatos sorteados por monte (pico, domo arredondado, cume = 3 picos em fila,
+  // mesa de topo plano, ladeira = um lado íngreme e o outro em declive; repita um nome para ele sair mais, tire para não sair). minElev = altura mínima do terreno acima do mar
+  // (blocos do campo) para nascer um monte; spacing = distância entre montes (colunas); base e perElev = altura (colunas) base e extra por bloco de elevação; jitter = sorteio extra de
+  // altura; radiusMul = raio como fração da altura (menor = mais íngreme); snowFrac = fração da altura onde começa a neve; snowMin = altura mínima para ter neve. Recarregue a página.
+  // Padrões: 9, 10, 30, 2.4, 8, 0.55, 0.5, 20
+  mtn: { shapes: ['pico', 'domo', 'cume', 'mesa', 'ladeira'], minElev: 9, spacing: 10, base: 30, perElev: 2.4, jitter: 8, radiusMul: 0.55, snowFrac: 0.5, snowMin: 20,
+    // MORROS PEQUENOS (sem neve): shapes, altura mínima do terreno, distância entre morros, chance de nascer em cada célula, altura base e por elevação, sorteio extra, raio como
+    // fração da altura e altura máxima que ainda conta como morro pequeno (cor de grama). Padrões: domo/ladeira/pico, 4, 9, 0.3, 5, 0.5, 4, 1.1, 14
+    small: { shapes: ['domo', 'ladeira', 'domo', 'pico'], minElev: 4, spacing: 9, prob: 0.3, base: 5, perElev: 0.5, jitter: 4, radiusMul: 1.1, maxH: 14 },
+    // MORRO DA MINA (um por tile de mina, com a abertura na encosta voltada para o tile): raio, distância do centro do morro à borda do tile, altura, altura da parede onde fica a
+    // abertura e meia-largura do corredor limpo até ela. Padrões: 12, 5, 18, 8, 3
+    mine: { r: 12, off: 5, hgt: 18, entH: 8, width: 3 } },
+  // Vagas visíveis de batalhões/caravanas por tile (o excedente de menor prioridade some; prioridade: seu batalhão ativo, seus outros batalhões, facções e
+  // bandos, caravanas) e distância entre as vagas. Padrão: 3 e 5.5
+  tileSlots: 3, slotGap: 5.5,
+  // TAMANHO DA CARAVANA no mapa, como multiplicador do batalhão (heroScale): 1 = da altura do batalhão. Recarregue a página. Padrão: 1
+  caravanScale: 0.5,
   // Escala dos modelos dos tiles e velocidade do herói andando pela trilha (unidades por segundo). Padrões: 1.3 e 16
   modelScale: 1.3, walkSpeed: 16,
-  // Custo de caminho de uma aresta (WORLD_GRAPH, campo custo) por ação do mapa: ações = máx(1, teto(custo / costPerAction)). PROVISÓRIO: a etapa 7 define o
-  // custo real por terreno. Padrão: 2.5
-  costPerAction: 2.5,
   // Árvores por coluna de terra (0 a 1) em bosques: floresta, planície, deserto (cacto), neve (pinheiro), rocha. Padrão: 0.22, 0.01, 0.015, 0.12, 0
   treeProb: [0.22, 0.01, 0.015, 0.12, 0] };
 
