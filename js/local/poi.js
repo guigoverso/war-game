@@ -470,7 +470,7 @@ function updateWild(dt){
     if(cg&&cg.leaveT>0){cg.leaveT-=dt;if(cg.leaveT<=0){
       const h=c.hostage;if(h&&h.alive){h.alive=false;h.gone=true;scene.remove(h.group);
         const hm=WORLD.home,bk=hm.barracks||{x:hm.cx,z:hm.cz};
-        if(cg.questReward){msObjective(msById(cg.questReward))}else{const g=armyGain(1);toast(g.spawned?'🪢 O refém agora é um dos seus soldados, no quartel de '+hm.name+'.':'🪢 Refém libertado! '+TXT_ARMY_FULL_LOST,4500)}}c.completed=true}}
+        if(cg.questReward){msObjective(msById(cg.questReward))}else{const g=armyGain(1);toast(g.spawned?'🪢 O refém agora é um dos seus soldados, no quartel de '+hm.name+'.':(P.coins+=HOSTAGE_FULL_REWARD,'🪢 Refém libertado! '+TXT_ARMY_FULL_LOST),4500)}}c.completed=true}}
     if(cg&&cg.opened&&cg.t<1){cg.t=Math.min(1,cg.t+dt*1.6);cg.door.rotation.y=cg.yb+cg.th*cg.t}}
   for(const m of FIRES){const k=0.85+Math.sin(G.t*14+m.position.x)*0.15+Math.random()*0.1;m.scale.set(m.userData.base[0]*k,m.userData.base[1]*(0.8+Math.random()*0.4),m.userData.base[2]*k)}
 }

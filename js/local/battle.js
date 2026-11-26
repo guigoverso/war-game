@@ -190,7 +190,7 @@ function battleWin() {
   if (BATTLE.over) return;
   BATTLE.over = true; battleRecord('vitoria'); BATTLE.area.state = 'cleared';
   battleSquadStand();   // os soldados deixam de seguir o jogador e patrulham onde a batalha terminou
-  toast(TXT_BATTLE_WIN.titulo + ': ' + (TXT_BATTLE_WIN[BATTLE.mode] || TXT_BATTLE_WIN.nucleo), 8000);
+  toast(TXT_BATTLE_WIN.titulo + ': ' + (TXT_BATTLE_WIN[BATTLE.mode] || TXT_BATTLE_WIN.nucleo).replace('{fac}', facOf(0).name), 8000);
   const t = $('toasts').lastChild; if (t) { t.style.background = 'rgba(20,90,40,.92)'; t.style.borderColor = '#2a8a3a'; t.style.color = '#b8ffc8'; }
   battleHudDraw(); sfx('win', 0);
 }

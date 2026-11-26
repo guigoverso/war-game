@@ -24,6 +24,8 @@ function canOrderAllies() { return ALLIES.some(a => a.alive && !a.post); }
 const ARMY_MAX_SOLDIERS = 50;
 // Teto de soldados recrutados por RODADA em cada lugar (renova a cada rodada): cidade, vila sua e vila neutra. O teto do exército vale por cima. Padrão: 50, 15 e 5
 const RECRUIT_ROUND_CAP = { city: 50, village: 15, neutral: 5 };
+// Recompensa em ouro que o refém libertado dá quando o exército está cheio e ele não pode se juntar. Padrão: 100
+const HOSTAGE_FULL_REWARD = 100;
 // Onde dá para recrutar: 'city' = cidade sua (Quartel); 'village' = vila sua; 'neutral' = vila neutra (não dominada por facção); null = em lugar nenhum.
 // Cidade de outra facção e vila dominada por facção não recrutam.
 function recruitPlace(c) {

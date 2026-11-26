@@ -13,21 +13,21 @@ const txtBattleTune = (lot, delay, fps) =>
 const TXT_BATTLE_WIN = {
   titulo: 'VITÓRIA',
   nucleo: 'Vitória no campo. O último soldado do gerador caiu e a reserva inimiga se esgotou.',
-  ataque: 'Tile conquistado. A bandeira do povo cobre o que era do inimigo.',
-  defesa: 'Invasores repelidos. A posição segue em suas mãos.',
-  pequena: 'Posição tomada. A defesa local caiu e a bandeira do povo agora cobre o tile.',
-  choque: 'Vitória no campo. O inimigo recuou e deixou a terra para você.'
+  ataque: 'Território conquistado. A sua bandeira já tremula onde ontem era do inimigo.',
+  defesa: 'Invasores repelidos. A posição resistiu e continua fazendo parte de {fac}.',   // {fac} = nome da facção do jogador (battle.js troca)
+  pequena: 'Posição tomada. A guarda local caiu e o território passa a ser seu.',
+  choque: 'O inimigo desfez as linhas e abandonou o campo. A terra é sua.'
 };
 
 // Pop-up de derrota (vermelho): comandante morto. Rascunho; no protótipo vem com o botão "Reiniciar".
 const TXT_BATTLE_LOSE = {
   titulo: 'DERROTA',
   nucleo: 'O comandante caiu. Sem ordens, os soldados foram dispersados e a batalha está perdida.',
-  choque: 'O comandante caiu no centro do campo. Sem ordens, os soldados recuaram e a batalha está perdida.',
-  defesa: 'O comandante caiu defendendo a posição. Sem ordens, os soldados foram vencidos e os invasores tomaram o que era seu.',
-  ataque: 'O comandante caiu diante do alvo. Sem ordens, o assalto se desfez e o tile continua nas mãos do inimigo.',
-  pequena: 'O comandante caiu diante da posição. Os soldados recuaram levando os feridos; o batalhão segue inteiro, e o tile continua nas mãos do inimigo.',
-  defesaFuga: 'O comandante fugiu. No auge da batalha, ele abandonou o campo; sem ordens, os soldados foram esmagados, e o comandante foi caçado e morto na fuga.',
+  choque: 'O comandante caiu no centro do campo. Sem comando, os soldados recuaram e o campo ficou com o inimigo.',
+  defesa: 'O comandante caiu defendendo a posição. Os soldados sem comando foram vencidos e os invasores tomaram o que era seu.',
+  ataque: 'O comandante caiu diante do alvo. Sem ninguém para dar ordens, a invasão foi vencida.',
+  pequena: 'O comandante caiu diante da posição. Os soldados recuaram levando os feridos.',
+  defesaFuga: 'O comandante fugiu no auge da batalha. Sem ninguém para guiá-los, os soldados foram esmagados, e ele foi caçado e morto na fuga.',
   botao: 'Reiniciar'
 };
 
@@ -37,7 +37,7 @@ const TXT_BATTLE_TARGET_NAME = 'Posto inimigo';
 const txtBattleTomado = nome => nome + ' tomado. Defenda a posição';
 
 // Aviso fixo no topo da tela (Defesa), enquanto o comandante está na zona cinza, além da borda da área de defesa. Rascunho a aprovar.
-const TXT_BATTLE_DEF_WARN = 'Você está saindo da área de defesa! Volte, ou será considerado fuga.';
+const TXT_BATTLE_DEF_WARN = 'Você está abandonando a posição! Volte, seus soldados precisam de você.';
 
 // Explicação curta do cenário (painel de testes da pausa), por modo de batalha.
 const TXT_BATTLE_HELP = {

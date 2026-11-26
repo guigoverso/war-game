@@ -5,7 +5,7 @@
 // Linha de cima do Quartel (allies.js, renderBarracks): moedas e soldados vivos.
 const txtBarracksInfo = (coins, n, max) => '◉ ' + coins + ' moedas  •  Soldados: ' + n + '/' + max;
 // Rótulo do botão de recrutar: cheio, limite da rodada esgotado ou com o preço.
-const txtRecruitBtn = (cost, full, left) => full ? 'Exército completo' : left <= 0 ? 'Limite da rodada' : 'Recrutar ◉' + cost;
+const txtRecruitBtn = (cost, full, left) => full ? 'Exército completo' : left <= 0 ? 'Sem mais vagas' : 'Recrutar ◉' + cost;
 // Título da tela do edifício de alistamento da vila (poigame.js, svcRecruit).
 const TXT_RECRUIT_TITLE = '⚔ ALISTAMENTO';
 // Fala do sargento na tela do alistamento (svcRecruit): depende de a vila ser sua (gente leal à sua facção), neutra (gente atrás de emprego) ou de não haver mais recrutas.
@@ -18,6 +18,6 @@ const txtRecruitGreeting = (kind, fac, left) => left <= 0
 const txtRecruitQueue = left => left > 0 ? left + (left === 1 ? ' recruta disponível' : ' recrutas disponíveis') : '';
 // Placa e linha de interação do edifício de alistamento da vila (city.js e game.js).
 const TXT_RECRUIT_SIGN = 'ALISTAMENTO';
-const TXT_RECRUIT_PROMPT = '[E] Alistamento: recrutar soldados';
+const TXT_RECRUIT_PROMPT = '[E] Falar com o sargento recrutador';
 // Aviso ao ganhar soldado (refém libertado, mercenários, refugiados) com o exército cheio: o excesso se perde (substitui o texto da reserva).
-const TXT_ARMY_FULL_LOST = 'Seu exército está cheio: o excesso não pôde se juntar.';
+const TXT_ARMY_FULL_LOST = 'E te deu uma recompensa como forma de agradecer.';
