@@ -5,6 +5,8 @@
 const IA_TEST = {
   // Onde o jogador começa e para onde olha (blocos do mapa de teste). Padrão: 120,60
   start: { x: 120, z: 60 },
+  // Soldados do jogador no ?aliados=1 (?alia=N troca). Padrão: 5
+  allies: 5,
   // Atiradores inimigos: tipo e posição (leste, a ~70 do jogador). Padrão: 4 soldados, 1 franco-atirador, 1 saqueador, 1 metralhador
   shooters: [['soldier', 195, 52], ['soldier', 195, 60], ['soldier', 195, 68], ['soldier', 200, 60], ['sniper', 210, 48], ['raider', 200, 72], ['gunner', 205, 60]],
   // Peças de cobertura: [tipo, x, z, girada]. Padrão: 8 peças espalhadas entre os dois lados
@@ -23,4 +25,13 @@ function iaTestStart() {
   WORLD.areas.push(area);
   for (const [k, x, z, a] of IA_TEST.cover) battleBuildCover(k, x, z, a);
   for (const [t, x, z] of IA_TEST.shooters) spawnEnemy(area, t, x, z).def = EDEF[t];   // alcance cheio (a área 'raid' o reduziria à metade)
+  iaTestAllies(area);
+}
+
+// ?aliados=1 (passo 6): soldados do jogador (?alia=N, padrão 5) em modo de assalto contra os atiradores, para ver o carregador e a cobertura deles.
+function iaTestAllies(area) {
+  if (new URLSearchParams(location.search).get('aliados') !== '1') return;
+  const n = tileTestCount('alia', IA_TEST.allies);
+  for (let i = 0; i < n; i++) spawnAlly(P.x + (i - n / 2) * 1.5, P.z + 3, WORLD.home);
+  armyAssault(area, '');
 }

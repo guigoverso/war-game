@@ -5,7 +5,7 @@
 // de batalha (mesma forma da área de raid: state 'attacking', kind 'raid'), então os soldados do jogador (allies.js) os enxergam e a ordem de movimento (V/X) vale.
 // Passo 2 = modo choque, passo 3 = defesa, passo 4 (no fim do arquivo) = ataque. Passo 1 = só o modo ?cenario=batalha&modo=nucleo: um gerador num mapa aberto, o jogador começa fora do raio. Números em modifiers/battle-modifiers.js,
 // textos em texts/battle-texts.js. Nada daqui roda fora do cenário de teste (BATTLE.on é falso) e nada é salvo (4B-17).
-const BATTLE = { on: false, over: false, mode: '', area: null, gens: [], base: null, center: null, centerR: 0, limit: null, postCfg: null, warn: null, stuckT: 0, cover: [], rng: null, lot: [3, 5], delay: 3, liveCap: 30, allyCap: 20,
+const BATTLE = { on: false, over: false, mode: '', small: false, squadOn: false, area: null, gens: [], base: null, center: null, centerR: 0, limit: null, postCfg: null, warn: null, stuckT: 0, cover: [], rng: null, lot: [3, 5], delay: 3, liveCap: 30, allyCap: 20,
   ally: { reserve: 0, total0: 0, lot: null, nextAt: 0 }, total0: 0, t: 0, scanT: 0, hudT: 0, last: 0, fps: 60, hud: null, hudOn: true };
 
 const battleOn = () => BATTLE.on && !BATTLE.over;
@@ -127,6 +127,7 @@ function battleCounts() {
 
 // Placar (4B-5): topo = em campo + reserva; depois em campo, reserva e mortos (mais fraco); jogador à esquerda; rodapé com o ajuste em tempo real.
 function battleHudDraw() {
+  if (BATTLE.small) return;   // batalha pequena: sem placar (4B-5, o placar é só da batalha grande)
   if (!BATTLE.hud) { const d = document.createElement('div'); d.id = 'btlhud';
     d.style.cssText = 'position:fixed;right:8px;top:300px;z-index:5;background:rgba(15,15,22,.78);border:3px solid #111;padding:6px 14px;'
       + 'font:14px/1.4 monospace;color:#ccc;text-align:center;pointer-events:none;min-width:270px;text-shadow:1px 1px 0 #000'; document.body.appendChild(d); BATTLE.hud = d; }
@@ -169,11 +170,18 @@ function battleMarks(g, f, sc, k, units) {
   g.restore();
 }
 
+// Os soldados do jogador deixam de seguir: patrulham em volta do ponto (padrão: onde o jogador está agora), numa área de patrulha própria (mesma forma de uma cidade
+// para o `patrol` de updateAlly). Para voltar a segui-lo (outra batalha), armyAssault os teleporta para trás do jogador.
+function battleSquadStand(x, z) {
+  const spot = { cx: x === undefined ? P.x : x, cz: z === undefined ? P.z : z, half: BATTLE_MOD.standHalf };
+  for (const a of ALLIES) if (a.alive) { a.state = 'patrol'; a.patrolCity = spot; a.assaultCity = null; a.tgtE = null; a.path = null; a.form = null; }
+}
+
 // Vitória: só uma notificação verde na hora (sem pop-up), com a mensagem do modo; o jogo continua para o jogador andar pelo campo.
 function battleWin() {
   if (BATTLE.over) return;
   BATTLE.over = true; BATTLE.area.state = 'cleared';
-  for (const a of ALLIES) if (a.alive) { a.state = 'patrol'; a.patrolCity = WORLD.home; a.assaultCity = null; }
+  battleSquadStand();   // os soldados deixam de seguir o jogador e patrulham onde a batalha terminou
   toast(TXT_BATTLE_WIN.titulo + ': ' + (TXT_BATTLE_WIN[BATTLE.mode] || TXT_BATTLE_WIN.nucleo), 8000);
   const t = $('toasts').lastChild; if (t) { t.style.background = 'rgba(20,90,40,.92)'; t.style.borderColor = '#2a8a3a'; t.style.color = '#b8ffc8'; }
   battleHudDraw(); sfx('win', 0);
@@ -194,7 +202,7 @@ function updateBattle(dt) {
   if (d > 0 && d < 0.5) BATTLE.fps += (1 / d - BATTLE.fps) * 0.05;
   BATTLE.t += dt;
   const A = BATTLE.area; A.cx = P.x; A.cz = P.z; A.y = P.y;
-  battleTickGens(); battleTickAllies(); battleTickLimit(); battleTickStuck(); battleTickAtaque();
+  battleTickGens(); battleTickAllies(); battleTickLimit(); battleTickStuck(); battleTickAtaque(); battleTickPequena();
   if (BATTLE.over) return;
   BATTLE.scanT -= dt;
   if (BATTLE.scanT <= 0) {
@@ -219,7 +227,7 @@ document.addEventListener('keydown', e => {
 function battleConfig(mode) {
   const q = new URLSearchParams(location.search), lt = (q.get('lote') || '').split('-').map(Number).filter(n => !isNaN(n) && n > 0);
   BATTLE.gens = []; BATTLE.cover = []; BATTLE.center = null; BATTLE.centerR = 0; BATTLE.limit = null; BATTLE.target = null; BATTLE.ally.reserve = 0;   // o cenário pode ser montado de novo (mundo refeito)
-  BATTLE.mode = mode; BATTLE.over = false; BATTLE.t = 0; BATTLE.stuckT = 0; BATTLE.last = performance.now();
+  BATTLE.mode = mode; BATTLE.small = mode === 'pequena'; BATTLE.over = false; BATTLE.t = 0; BATTLE.stuckT = 0; BATTLE.last = performance.now();
   BATTLE.lot = lt.length ? [lt[0], lt[lt.length - 1]] : BATTLE_MOD.lot.slice();
   BATTLE.delay = battleParam('atraso', BATTLE_MOD.lotDelay);
   BATTLE.liveCap = battleParam('vivos', BATTLE_MOD.liveCap); BATTLE.allyCap = battleParam('vivosalia', BATTLE_MOD.allyLiveCap);
@@ -460,8 +468,48 @@ function battleAnnex(T) {
 // Ataque, a cada quadro: o POI é conquistado quando morre o último soldado da guarnição (os de reforço não contam). Se ainda há reserva ou reforços vivos, avisa
 // (txtBattleTomado); a batalha só termina (vitória) com o alvo seu e a reserva e os vivos do inimigo zerados.
 function battleTickAtaque() {
-  const T = BATTLE.target; if (!T || T.captured || P.dead || BATTLE.area.enemies.some(e => e.alive && e.btl === T.gen)) return;
+  const T = BATTLE.target; if (BATTLE.small || !T || T.captured || P.dead || BATTLE.area.enemies.some(e => e.alive && e.btl === T.gen)) return;
   battleAnnex(T);
   const more = BATTLE.area.aliveEnemies > 0 || BATTLE.gens.some(g => g.side === 'enemy' && g.reserve > 0);
   if (more) toast(txtBattleTomado(T.name), 6000);
+}
+
+// ---------- Modo pequena (passo 7; ?cenario=batalha&modo=pequena; 4B-3, 4B-7 e 4B-16) ----------
+// Tile inimigo SEM batalhão: o jogador e só as elites (até 10) contra uma defesa local de número fixo, sem reposição de nenhum lado e sem placar. O POI principal é mais
+// forte (a defesa tem mais vida: hpMul). A defesa acorda no raio de alerta e tem coleira (como a guarnição do Ataque). Conquista = matar a defesa (decisão de 2026-11-25: sem tempo
+// no centro); o raio de alerta e a coleira valem até a conquista; a vitória sai logo depois da anexação. Derrota branda: o comandante cai e perde só o que morreu na luta (protótipo: tela com Reiniciar).
+// opts (integração, passo 10): { poi } = POI real do alvo (passa ao jogador junto com o tile).
+function battleStartPequena(opts) {
+  opts = opts || {};
+  const A = BATTLE_MOD.pequena, home = WORLD.home, c = A.center;
+  tileTestFillEnemies(tileTestFoe(), 0);   // a cidade inimiga fica vazia: a única luta é a defesa local
+  const flag = battleBuildTarget(c.x, c.z), f = freeSpot(home.cx + 4, home.cz + 4, 0.5, 1.8, 0.45);
+  P.x = f[0]; P.z = f[1]; P.y = tH(P.x, P.z) + 0.1; P.vx = P.vz = P.vy = 0; P.camY = P.y;
+  P.yaw = Math.atan2(-(c.x - P.x), -(c.z - P.z)); P.pitch = -0.05;
+  battleConfig('pequena');
+  BATTLE.base = { x: P.x, z: P.z };
+  const n = Math.min(tileTestCount('alia', TILE_TEST.allies), A.elites), gar = Math.round(battleParam('guarnicao', A.garrison));
+  for (let i = 0; i < n; i++) spawnAlly(P.x + (i - n / 2) * 1.5, P.z + 3, home);
+  const name = opts.poi && typeof POI_DEFS !== 'undefined' && POI_DEFS[opts.poi.type] ? POI_DEFS[opts.poi.type].n : TXT_BATTLE_TARGET_NAME;
+  const T = { x: c.x, z: c.z, flag, name, captured: false, owner: 'enemy', poi: opts.poi || null, sats: [], pois: opts.poi ? [opts.poi] : [], capT: 0 };
+  BATTLE.target = T;
+  T.gen = battleAddGen(c.x, c.z, 0, { radius: A.alert });   // sem reserva: só dá o raio de alerta e a coleira da defesa (somem ao conquistar, em battleAnnex)
+  for (let i = 0; i < gar; i++) {
+    const a = i / gar * 6.283, r = 2 + (i % 4) * 2.5, e = battleSpawnFrom(T.gen), q = freeSpot(c.x + Math.cos(a) * r, c.z + Math.sin(a) * r, 0.5, 1.8, 0.45);
+    e.x = q[0]; e.z = q[1]; e.y = tH(e.x, e.z); e.group.position.set(e.x, e.y, e.z); e.homeX = c.x; e.homeZ = c.z;
+    e.aggro = false; e.unseenT = 0; e.hp *= A.hpMul; e.maxhp *= A.hpMul;   // o POI principal é mais forte
+  }
+  BATTLE.total0 = gar; BATTLE.ally.total0 = n; BATTLE.squadOn = false;
+  battleSquadStand();   // os soldados só aparecem em volta do jogador (teleporte) quando a defesa acorda; antes patrulham aqui
+  BATTLE.on = true;
+}
+
+// Batalha pequena, a cada quadro: (1) os soldados só acompanham o jogador enquanto a defesa está acordada (ele está lutando): ao acordar são teleportados para trás dele,
+// ao dormir de novo (ele se afastou) ficam patrulhando onde ele está; (2) morta a defesa o POI é anexado na hora (sem tempo no centro) e a vitória sai no tique de
+// updateBattle. (battleTickAtaque não age aqui.)
+function battleTickPequena() {
+  const T = BATTLE.target; if (!BATTLE.small || !T || T.captured || P.dead) return;
+  const fight = T.gen.awake;
+  if (fight !== BATTLE.squadOn) { BATTLE.squadOn = fight; if (fight) armyAssault(BATTLE.area, ''); else battleSquadStand(); }
+  if (!BATTLE.area.enemies.some(e => e.alive)) battleAnnex(T);
 }

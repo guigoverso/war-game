@@ -54,3 +54,24 @@ const WATER_ESCAPE = {
 };
 // Custo de andar por um quadradinho de água no A* dos NPCs (nav.js) em relação a terra (1): quanto maior, mais eles contornam lagos em vez de atravessar. Padrão: 10
 const NAV_WATER_COST = 10;
+
+// ---------- IA dos soldados do jogador: carregador e cobertura (passo 6 da batalha no tile, 4B-15) ----------
+// Cobertura só em combate (tem alvo), nunca durante ordem de movimento (V) nem em posto fixo, e num raio curto em volta de onde ele está.
+const ALLYAI = {
+  // Cobertura ligada (?abrigo=0 desliga) e carregador ligado (?carregador=0 desliga). Padrão: ligados
+  cover: new URLSearchParams(location.search).get('abrigo') !== '0',
+  magazine: new URLSearchParams(location.search).get('carregador') !== '0',
+  // Carregador = o da arma do exército (WEAPONS[].mag) limitado a este mínimo e máximo de tiros; recarga em segundos (sorteio). Padrão: [4, 12] e [2, 3]
+  magRange: [4, 12], reload: [2, 3],
+  // Busca de abrigo em volta do soldado (raio curto, bem menor que o dos inimigos): anéis, direções por anel, altura do corpo escondido, cache, 1 por abrigo.
+  // Padrão: [3,6,9], 12, 0.7, 2.5 s, 1 e 2
+  rings: [3, 6, 9], dirs: 12, bodyY: 0.7, cacheTtl: 2.5, perCover: 1, coverGap: 2,
+  // Pontos de abrigo: distância mínima do alvo (blocos) e que fração do alcance da arma (limitado a 60) vale como máxima. Padrão: 6 e 0.9
+  minDist: 6, rangeMul: 0.9,
+  // Só procura abrigo quando o alvo está a até este múltiplo da distância de parada (hold) dele; mais longe, ele avança. Padrão: 1.3
+  engageMul: 1.3,
+  // Confere o abrigo a cada tanto (s), espera (s) antes de tentar de novo sem achar e tempo máximo (s) andando até ele. Padrão: 1.2, 1.5 e 5
+  recheck: 1.2, retry: 1.5, walkMax: 5,
+  // Orçamento por quadro: o mesmo dos inimigos (ENEMYAI.probeBudget). Nome do cache. Padrão: 'a'
+  probeBudget: ENEMYAI.probeBudget, tag: 'a'
+};

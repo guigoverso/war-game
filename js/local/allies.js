@@ -173,20 +173,40 @@ function orderStep(a,dt,faceYaw){   // faceYaw: se dado, continua olhando para o
   const d=Math.hypot(tx-a.x,tz-a.z);if(d<1.2)return false;
   navMove(a,tx,tz,d>25?6:3.4,dt,a.r,1.8,1.05);if(faceYaw===undefined)a.yaw=Math.atan2(tx-a.x,tz-a.z);return true;
 }
+// Cobertura dos soldados do jogador (passo 6, 4B-15; ALLYAI em enemyai-modifiers.js; a busca é a dos inimigos, entities.js). Devolve 'walk' (indo ao
+// abrigo), 'hold' (abrigado, parado) ou '' (sem abrigo: a lógica normal de movimento segue).
+function allyCoverStep(a,t,d,hold,w,dt){
+  const A=ALLYAI;a.covT=(a.covT||0)-dt;
+  const def={eye:1.6,pref:A.minDist/0.6,range:Math.min(w.range,60)*A.rangeMul};
+  if(d>hold*A.engageMul){a.cov=null;return ''}   // alvo longe: avança em vez de se abrigar
+  if(!a.cov&&a.covT<=0)enemyCoverPick(a,t,def,A,ALLIES);
+  if(!a.cov)return '';
+  a.covRe-=dt;
+  if(a.covRe<=0){a.covRe=A.recheck;if(!coverOk(t,a.cov.x,tH(a.cov.x,a.cov.z),a.cov.z,def)){a.cov=null;a.covT=0;return ''}}
+  if(Math.hypot(a.cov.x-a.x,a.cov.z-a.z)<1.1){a.covWalk=0;return 'hold'}
+  a.covWalk+=dt;if(a.covWalk>A.walkMax){a.cov=null;a.covT=A.retry;return ''}
+  navMove(a,a.cov.x,a.cov.z,3.8,dt,a.r,1.8,1.05);return 'walk';
+}
+const allyMagNew=w=>clamp(w.mag||ALLYAI.magRange[1],ALLYAI.magRange[0],ALLYAI.magRange[1]);   // carregador simples: o da arma, limitado
 function updateAlly(a,dt){
   const w=WEAPONS[ARMY.weapon],ord=ORDER.on&&!a.post;
   if(!a.alive){a.deadT+=dt;a.group.rotation.z=Math.min(1,a.deadT*3)*1.5;if(a.deadT>5){scene.remove(a.group);a.gone=true}return}
   if(waterEscapeStep(a,dt,5))return;   // na água: só sai dela
-  a.cool-=dt;a.scanT-=dt;
+  a.cool-=dt;a.scanT-=dt;a.reloadT=(a.reloadT||0)-dt;
+  if(a.mag===undefined)a.mag=allyMagNew(w);
   if(a.state==='assault'){const c=a.assaultCity;if(!c||c.state!=='attacking'||(c.aliveEnemies<=0&&!c.btl)){a.state='patrol';a.patrolCity=c||WORLD.home}}
   if(a.scanT<=0){a.scanT=0.25+Math.random()*0.1;allyFindTarget(a,w)}
   let moving=false;
   const t=a.tgtE&&a.tgtE.alive?a.tgtE:null;
+  if(!t)a.cov=null;   // sem alvo: sai do abrigo
   if(t){
     const dx=t.x-a.x,dz=t.z-a.z,d=Math.hypot(dx,dz),face=Math.atan2(dx,dz);
     a.yaw+=((face-a.yaw+Math.PI*3)%(Math.PI*2)-Math.PI)*Math.min(1,dt*10);
     const hold=(w.range>100?35:w.id==='shotgun'?8:18)*(a.holdMul||1)*(a.holdM||1);
-    if(ord){   // a ordem tem prioridade: vai ao ponto atirando; só depois de chegar persegue inimigos perto dele
+    const cv=ALLYAI.cover&&!ord&&!a.post&&!(typeof REBB!=='undefined'&&REBB.active)?allyCoverStep(a,t,d,hold,w,dt):'';
+    if(ord)a.cov=null;
+    if(cv){moving=cv==='walk'}   // abrigando-se: anda até o abrigo (atira no caminho) ou fica parado nele
+    else if(ord){   // a ordem tem prioridade: vai ao ponto atirando; só depois de chegar persegue inimigos perto dele
       moving=orderStep(a,dt,face);
       if(!moving&&d>hold&&Math.hypot(t.x-ORDER.x,t.z-ORDER.z)<=ORDER_CHASE){navMove(a,t.x,t.z,3.8,dt,a.r,1.8,1.05);moving=true}
     }
@@ -197,8 +217,9 @@ function updateAlly(a,dt){
       if(d<hold*0.45)moveXZ(a,-dx/(d||1)*2*dt,-dz/(d||1)*2*dt,a.r,1.8,1.05);
       moving=true;
     }
-    if(a.cool<=0){
+    if(a.cool<=0&&!(a.reloadT>0)){
       a.cool=clamp(60/w.rpm*6,0.5,2.2)*(1+Math.random()*0.4)*(a.cdM||1);
+      if(ALLYAI.magazine&&--a.mag<=0){a.mag=allyMagNew(w);a.reloadT=enemyAiRand(ALLYAI.reload)}   // acabou o carregador: recarrega
       const ox=a.x,oy=a.y+1.4,oz=a.z,ty=t.y+t.lift+t.def.h*0.6;
       const hit=Math.random()<clamp(0.38-d/(w.range*2),0.12,0.3);
       const ex=t.x+(hit?0:(Math.random()-0.5)*3),ez=t.z+(hit?0:(Math.random()-0.5)*3);
@@ -208,7 +229,7 @@ function updateAlly(a,dt){
         else damageEnemy(t,w.dmg*(w.pellets>1?w.pellets*0.55:1)*allyDmgMul()*(a.dmgM||1)*0.22,false,true);
       }
     }
-  }else if(ord){moving=orderStep(a,dt)
+  }else if(ord){a.cov=null;moving=orderStep(a,dt)
   }else if(a.state==='assault'){
     const c=a.assaultCity,dc=Math.hypot(c.cx-a.x,c.cz-a.z);
     const fm=a.form||{ang:0,r:0};let tx=c.cx+Math.cos(fm.ang)*fm.r,tz=c.cz+Math.sin(fm.ang)*fm.r;

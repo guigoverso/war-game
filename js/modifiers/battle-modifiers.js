@@ -58,6 +58,13 @@ const BATTLE_MOD = {
   // Padrão: alvo 150,55; início 100,55; guarnição 12 (completada até 30 com batalhão); alerta 40; satélites a 100-150 ([-25,105], [0,125], [25,105]); área 45; engage 40; hold 10
   ataque: { center: { x: 150, z: 55 }, start: { x: 100, z: 55 }, garrison: 12, garrisonBattalion: 30, alert: 40, satRange: [100, 150],
     satTemp: [[-25, 105], [0, 125], [25, 105]], retakeR: 45, engage: 40, hold: 10 },
+  // Cenário ?modo=pequena (4B-7 e 4B-16), coordenadas do mapa de teste de 320: POI principal do tile (mesmo ponto do Ataque; o jogador nasce na sua cidade); defesa local fixa
+  // (?guarnicao=N força) com vida multiplicada (POI principal mais forte, 1,5 a 2x); só as elites entram (até `elites`), sem reposição; raio de alerta da defesa
+  // (vale até a conquista); conquista = defesa morta. Padrão: alvo 150,55; defesa 10 com vida x1,75; elites 10; alerta 40
+  pequena: { center: { x: 150, z: 55 }, garrison: 10, hpMul: 1.75, elites: 10, alert: 40 },
+  // Meia-largura, em blocos, da área onde os soldados patrulham quando deixam de seguir o jogador (fim da batalha, ou antes de a defesa acordar na pequena); o
+  // círculo de patrulha fica a half+5 do ponto. Padrão: 4
+  standHalf: 4,
   // Cor da borda da área de defesa e da zona cinza, no chão e no Mapa M. Padrão: 0x4ac0ff e 0x9a9a9a
   defesaColor: 0x4ac0ff, defesaGrayColor: 0x9a9a9a,
   // Soldado de posto preso fora da área (Choque e Defesa): se marchando ao centro ele anda menos de `move` blocos em `time` segundos, é teleportado para `offset`

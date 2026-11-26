@@ -510,8 +510,10 @@ function coverOk(tg,x,y,z,def){
   return !losClear(ex,ey,ez,x,y+ENEMYAI.bodyY,z)&&losClear(ex,ey,ez,x,y+def.eye,z);
 }
 // Lista de abrigos num raio curto em volta do atirador (cache por quadrado de 8 blocos dele e do alvo); null = sem orçamento neste quadro.
-function enemyCoverPoints(e,tg){
-  const A=ENEMYAI,def=e.def,key=(e.x>>3)+','+(e.z>>3)+','+(tg.x>>3)+','+(tg.z>>3),c=COVERQ.cache.get(key);
+// def e A opcionais: os soldados do jogador usam a mesma busca com ALLYAI (allies.js).
+function enemyCoverPoints(e,tg,def,A){
+  def=def||e.def;A=A||ENEMYAI;
+  const key=(A.tag||'')+(e.x>>3)+','+(e.z>>3)+','+(tg.x>>3)+','+(tg.z>>3),c=COVERQ.cache.get(key);
   if(c&&G.t-c.t<A.cacheTtl)return c.pts;
   if(!coverBudget(A.rings.length*A.dirs))return null;
   const pts=[];
@@ -526,16 +528,16 @@ function enemyCoverPoints(e,tg){
   COVERQ.cache.set(key,{t:G.t,pts});return pts;
 }
 // Escolhe o abrigo livre mais perto (no máximo A.perCover atiradores por abrigo). Sem achar, espera A.retry antes de tentar de novo.
-function enemyCoverPick(e,tg){
-  const A=ENEMYAI,pts=enemyCoverPoints(e,tg);
+function enemyCoverPick(e,tg,def,A,list){
+  A=A||ENEMYAI;const pts=enemyCoverPoints(e,tg,def,A);
   if(!pts){e.covT=0.1+Math.random()*0.1;return}
-  const used=ENEMIES.filter(o=>o!==e&&o.alive&&o.cov);let best=null,bd=1e9;
+  const used=(list||ENEMIES).filter(o=>o!==e&&o.alive&&o.cov);let best=null,bd=1e9;
   for(const p of pts){
     if(used.filter(o=>Math.hypot(o.cov.x-p.x,o.cov.z-p.z)<A.coverGap).length>=A.perCover)continue;
     const dd=Math.hypot(p.x-e.x,p.z-e.z);if(dd<bd){bd=dd;best=p}
   }
   e.cov=best?{x:best.x,z:best.z}:null;e.covT=best?A.recheck:A.retry;e.covRe=A.recheck;e.covWalk=0;
-  e.holdT=enemyAiRand(A.holdUnseen);e.advance=false;
+  e.holdT=enemyAiRand(A.holdUnseen||[0,0]);e.advance=false;
 }
 const enemyMagNew=e=>Math.round(enemyAiRand(ENEMYAI.mag[e.type]||ENEMYAI.magDefault));
 // Um passo da IA do atirador (chamado por updateEnemy); devolve se ele se moveu. Cobertura: fica abrigado e atira de lá; só sai se o alvo some de

@@ -18,8 +18,10 @@ const CENARIOS = [
       + '(notificação se ainda vêm reforços); vence zerando tudo. Sem batalhão (&batalhao=0) só a guarnição de 12. Você nasce na sua cidade e caminha até o alvo (&pos=trilha começa perto dele). Parâmetros: &pos=trilha &batalhao=0 &inim= &guarnicao= &reserva= &alia= &vivos= &vivosalia= &lote= &atraso= &semente= &raios=0' },
   { passo: 5, status: 'pronto', t: 'IA dos atiradores: cobertura e carregador', q: 'cenario=ia',
     d: '7 atiradores inimigos (4 soldados, franco-atirador, saqueador, metralhador) a leste, 8 peças de cobertura no meio e você sozinho a oeste. Eles procuram abrigo (raio ~20), atiram de lá, recarregam 2 a 3 s quando o carregador acaba e, se você some por 10 a 15 s, avançam devagar até o último ponto visto. Comparar: &abrigo=0 e &carregador=0' },
-  { passo: 6, status: 'pendente', t: 'Aliados: carregador e cobertura', q: 'cenario=ia&aliados=1', d: '' },
-  { passo: 7, status: 'pendente', t: 'Batalha pequena', q: 'cenario=batalha&modo=pequena', d: '' },
+  { passo: 6, status: 'pronto', t: 'Aliados: carregador e cobertura', q: 'cenario=ia&aliados=1',
+    d: 'Como o passo 5, mas com 5 soldados seus (&alia=N) em assalto contra os 7 atiradores. Os soldados usam o carregador da arma (4 a 12 tiros, recarga 2 a 3 s) e, em combate, procuram abrigo num raio curto (9); nunca durante a ordem V nem em posto fixo. Comparar: &abrigo=0 e &carregador=0' },
+  { passo: 7, status: 'pronto', t: 'Batalha pequena: defesa local, POI mais forte', q: 'cenario=batalha&modo=pequena',
+    d: 'Só você e as 10 elites contra a defesa fixa do POI (10 soldados com vida x1,75), sem reposição e sem placar. A defesa acorda no raio de alerta (40). Conquista = matar toda a defesa. Derrota branda (tela com Reiniciar no protótipo). Parâmetros: &guarnicao= &alia= &semente= &raios=0' },
   { passo: 11, status: 'pendente', t: 'Recrutamento com regras e limites', q: 'cenario=recrutamento', d: '' }
 ];
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
