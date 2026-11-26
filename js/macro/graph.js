@@ -215,7 +215,8 @@ function wgArticulation(G) {
 // Quantos tiles de cada tema: os tiles de terra x porcentagem temática (tileThemedPct) repartidos pelo peso de cada tema, no mínimo 1 de cada.
 // Cidades: faixa pedida (WORLD_GRAPH.cities), limitada a cityMaxFrac dos temáticos. Devolve {tema: n}.
 function wgQuotas(nLand, pct, rg) {
-  const K = WORLD_GRAPH, ks = Object.keys(TILE_THEME_WEIGHT), tot = ks.reduce((a, k) => a + TILE_THEME_WEIGHT[k], 0);
+  // A ponte não entra na conta: nasce à parte (wgPlaceBridges) e não ocupa tile de terra, senão a cota de terra sairia ~8% menor.
+  const K = WORLD_GRAPH, ks = Object.keys(TILE_THEME_WEIGHT), tot = ks.filter(k => k !== 'ponte').reduce((a, k) => a + TILE_THEME_WEIGHT[k], 0);
   const T = Math.max(ks.length, Math.round(nLand * tileThemedPct(pct) / 100)), q = {};
   for (const k of ks) q[k] = Math.max(1, Math.round(T * TILE_THEME_WEIGHT[k] / tot));
   q.cidade = Math.max(1, Math.min(rg.int(K.cities[0], K.cities[1]), Math.round(T * K.cityMaxFrac)));
@@ -309,6 +310,8 @@ function wgPickThemes(G, q) {
     const free = land.filter(n => !n.tema), cand = free.map(n => ({ n, fit: wgFit(n, tema) }));
     let pick = null, bs = -1;
     for (const c of cand) if (c.fit >= K.minFit) { const s = wgScore(G, ctx, c.n, tema, c.fit); if (s > bs) { bs = s; pick = c } }
+    // Sem tile bom o bastante: aceita o melhor acima de softFit (cota de recurso não fica vazia; pedido de 2026-11-26, menos passagem).
+    if (!pick) for (const c of cand) if (c.fit >= K.softFit) { const s = wgScore(G, ctx, c.n, tema, c.fit); if (s > bs) { bs = s; pick = c } }
     if (!pick && k === 0 && cand.length) { pick = cand.reduce((a, b) => (b.fit > a.fit ? b : a)); pick.forca = true }
     if (!pick) break;
     pick.n.tema = tema; pick.n.fit = pick.fit;

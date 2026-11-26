@@ -5,7 +5,7 @@
 // (buildHuman) que anda pela trilha ao clicar duas vezes. Câmera livre com inércia. Cena própria (sceneUse, render.js); a câmera do jogo é emprestada e
 // devolvida ao fechar. Números em WORLD3D (map-modifiers.js), textos em map-texts.js (txtWm3*).
 // Abre com J (jogo), pelo botão do modo criativo ou com ?cenario=mundo3d (&seed=N &forma=pangeia|continentes|arquipelagos|lago &dom=plains|forest|...).
-const WM = { time: 0.3, spent: 0, names: false, open: false, built: null, saved: null, hud: null, hover: -1, sel: -1, at: 0, mx: 0, my: 0, drag: null, walk: null, seq: null, speed: 1, turnEl: null, follow: false, standalone: false,
+const WM = { time: 0.3, spent: 0, names: false, open: false, built: null, saved: null, hud: null, hover: -1, sel: -1, armed: false, at: 0, mx: 0, my: 0, drag: null, walk: null, seq: null, speed: 1, turnEl: null, follow: false, standalone: false,
   yaw: 0, pitch: 0.9, dist: 150, tx: 0, tz: 0, c: { yaw: 0, pitch: 0.9, dist: 150, tx: 0, ty: 0, tz: 0 } };
 const WM_BOX = new THREE.BoxGeometry(1, 1, 1), WM_MATS = new Map();
 // Todo voxel de modelo marca o stencil onde aparece (ZPass): as linhas dos caminhos não desenham nesses pixels (o modelo tem preferência sobre a estrada).
@@ -630,7 +630,7 @@ function wm3Build(F, G) {
       new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide, depthTest: false, transparent: true, opacity: 0.9 }));
     m.rotation.x = -Math.PI / 2; m.renderOrder = 10; m.visible = false; sc.add(m); return m;
   };
-  const B = { scene: sc, T, G, F, S, edgePts, pick, nodeY, hoverRing: ring(6.2, 6.8, 0xffffff), selRing: ring(6.9, 7.8, 0xffd23a),
+  const B = { scene: sc, T, G, F, S, edgePts, pick, nodeY, hoverRing: ring(6.2, 6.8, 0xffffff), selRing: ring(6.9, 7.8, 0xffd23a), batRing: ring(7.9, 8.7, 0x6bff6b),
     path: new THREE.Group(), token: null, hemi, sun, moon, wmat, wave, labels, clouds, ships };
   sc.add(B.path); wm3Backdrop(B); return B;
 }
@@ -694,16 +694,17 @@ function wm3Info(id) {
 function wm3Select(id) {
   const B = WM.built; WM.sel = id; B.selRing.visible = id >= 0;
   if (id >= 0) { const p = B.T.pos[id]; B.selRing.position.set(p.x, B.nodeY[id] + 0.2, p.z); B.selRing.scale.setScalar(wm3Half(B.G.nodes[id]) / 6.2 * 1.25) }
-  wm3ShowPath(id >= 0 && id !== WM.at ? wm3Path(B.G, WM.at, id) : null);
+  wm3ShowPath(WM.armed && id >= 0 && id !== WM.at ? wm3Path(B.G, WM.at, id) : null);
   WM.hud.info.innerHTML = wm3Info(id); WM.hud.info.style.display = id >= 0 ? '' : 'none';
 }
-// Segundo clique no tile escolhido: o batalhão ativo marcha (wtMove gasta as ações e os NPCs andam) e o boneco anda pela trilha até onde chegou.
+// Com o batalhão selecionado, um clique no tile: ele marcha (wtMove gasta as ações e os NPCs andam) e o boneco anda pela trilha até onde chegou.
+// Recusa (sem ações, sem caminho) fica em silêncio: o contador de ações basta.
 function wm3Go(id) {
   const B = WM.built; if (WM.walk || WM.seq) return;
-  const r = wtMove(B.G, id); if (!r.ok) { wm3TurnNote(r.why); return }
-  wm3TurnState.note = ''; wm3TurnHud();   // o contador de movimento desce já ao partir
+  const r = wtMove(B.G, id); if (!r.ok) return;
+  wm3TurnHud();   // o contador de movimento desce já ao partir
   WM.spent += r.gasto;   // gastar movimento passa o tempo (dia e noite)
-  B.path.children.slice().forEach(c => B.path.remove(c)); WM.hud.info.style.display = 'none'; B.selRing.visible = false;
+  B.path.children.slice().forEach(c => B.path.remove(c)); WM.hud.info.style.display = 'none'; B.selRing.visible = false; B.batRing.visible = false;
   WM.follow = true; WM.seq = { steps: r.steps, i: -1, tw: null }; wm3SeqNext();
 }
 function wm3WalkStep(dt) {
@@ -845,8 +846,20 @@ function wm3HeroAt(mx, my) {
   const B = WM.built; WM_V.set(mx / innerWidth * 2 - 1, -(my / innerHeight) * 2 + 1); WM_RAY.setFromCamera(WM_V, camera);
   return WM_RAY.intersectObject(B.heroPick, false).length > 0;
 }
-// Abre o menu do batalhão ao lado dele (segue o boneco na tela). As opções ainda não fazem nada (só existem para as próximas etapas).
-function wm3MenuOpen() { WM.menuOn = true; WM.hud.menu.style.display = 'block'; wm3MenuPlace() }
+// Anel do batalhão selecionado (WM.armed) no tile onde ele está; some durante a marcha e quando ninguém está selecionado.
+function wm3ArmRing() {
+  const B = WM.built, on = WM.armed && !WM.walk && !WM.seq && !!wtActive(); B.batRing.visible = on;
+  if (on) { const p = B.T.pos[WM.at]; B.batRing.position.set(p.x, B.nodeY[WM.at] + 0.22, p.z); B.batRing.scale.setScalar(wm3Half(B.G.nodes[WM.at]) / 6.2 * 1.25) }
+}
+// Solta o batalhão: o clique esquerdo volta a só mostrar a informação do tile.
+function wm3Disarm() { WM.armed = false; wm3ArmRing(); wm3ShowPath(null) }
+// Menu do batalhão selecionado, ao lado dele (segue o boneco na tela). Só mostra o que cabe agora (explorar fora do tile, sair dentro dele).
+function wm3MenuOpen() {
+  const w = wtX(), ok = { explorar: wm3CanExplore(), sair: w.inTile !== null && !w.enc, entrar: true, acampar: true, soldados: true, suprimentos: true, soltar: true, fechar: true };
+  WM.hud.menu.innerHTML = '<div class="wm3-head">' + TXT_WM3_MENU_TITLE + '</div>' + TXT_WM3_MENU.filter(o => ok[o.id]).map(o => '<button data-m="' + o.id + '"'
+    + (o.ok ? '' : ' class="soon"') + '><i style="font-style:normal">' + o.ic + '</i>' + o.t + '</button>').join('');
+  WM.menuOn = true; WM.hud.menu.style.display = 'block'; wm3MenuPlace();
+}
 function wm3MenuClose() { if (!WM.hud) return; WM.menuOn = false; WM.hud.menu.style.display = 'none' }
 function wm3MenuPlace() {
   const v = WM.built.token.position.clone(); v.y += WORLD3D.heroScale * 1.1; v.project(camera);
@@ -855,11 +868,20 @@ function wm3MenuPlace() {
 }
 function wm3MenuAct(id) {
   wm3MenuClose();
-  // GANCHO: aqui entram as ações reais (entrar no tile = abrir o mapa local do tile do batalhão; as demais, nas etapas 7 e 8). Ainda sem efeito.
+  if (id === 'explorar') wm3TurnClick('explore');
+  else if (id === 'sair') wm3TurnClick('leave');
+  else if (id === 'soltar') wm3Disarm();
+  // GANCHO: aqui entram as ações reais que faltam (entrar no tile = abrir o mapa local do tile do batalhão; as demais, nas etapas 7 e 8). Ainda sem efeito.
   WM.lastAct = id;
 }
 // Abre o livro do jogo (tecla L ou botão); ao fechar o livro o mapa mundi continua aberto (wm3Frame devolve o painel). Só dentro do jogo.
 function wm3Book() { if (!G.running || WM.standalone) return; wm3MenuClose(); openBook('book') }
+// Engrenagem: abre e fecha o painel de opções (por ora só a velocidade das marchas, que fica guardada no navegador).
+function wm3GearToggle(on) { const o = WM.hud.opts; o.style.display = (on === undefined ? o.style.display === 'none' : on) ? 'block' : 'none' }
+function wm3SpeedSet(x) {
+  WM.speed = x; localStorage.setItem('wm3speed', x);
+  WM.hud.opts.querySelectorAll('[data-x]').forEach(b => b.classList.toggle('on', +b.dataset.x === x));
+}
 
 // ---------- câmera livre com inércia ----------
 function wm3Limits() {
@@ -926,13 +948,15 @@ function wm3Frame(dt) {
   document.body.style.cursor = h >= 0 ? 'pointer' : '';
   if (h !== WM.hover) {
     WM.hover = h; B.hoverRing.visible = h >= 0 && h !== WM.sel;
+    if (WM.armed && !WM.walk && !WM.seq) wm3ShowPath(h >= 0 && h !== WM.at ? wm3Path(B.G, WM.at, h) : null);   // com o batalhão selecionado, o caminho aparece ao passar o mouse
     if (h >= 0) { const p = B.T.pos[h]; B.hoverRing.position.set(p.x, B.nodeY[h] + 0.18, p.z); B.hoverRing.scale.setScalar(wm3Half(B.G.nodes[h]) / 6.2 * 1.25) }
   }
 }
 function wm3Keys(e) {
   if (!WM.open || G.panel !== 'mundo3d') return;   // com o livro aberto, as teclas são do jogo
   if (e.code === 'Escape' || e.code === 'KeyJ') {
-    if (WM.menuOn) wm3MenuClose(); else if (!WM.standalone && !e.repeat) wm3Close();
+    if (WM.menuOn) wm3MenuClose(); else if (WM.pickEl && WM.pickEl.style.display === 'block') wm3EntClose();
+    else if (WM.hud.opts.style.display === 'block') wm3GearToggle(false); else if (WM.armed) wm3Disarm(); else if (!WM.standalone && !e.repeat) wm3Close();
     e.preventDefault(); e.stopImmediatePropagation(); return;
   }
   if (e.code === 'KeyL' && !e.repeat) { wm3Book(); e.preventDefault(); e.stopImmediatePropagation(); return }
@@ -955,11 +979,14 @@ window.addEventListener('mousemove', e => {
 window.addEventListener('mouseup', e => {
   const d = WM.drag; if (!WM.open || !d) return; WM.drag = null;
   if (d.moved || WM.walk || WM.seq) return;
-  const wasMenu = WM.menuOn; wm3MenuClose();
-  if (d.b === 2) { if (wm3HeroAt(e.clientX, e.clientY) && !wasMenu) wm3MenuOpen(); return }   // botão direito no batalhão: menu do batalhão
-  if (d.b !== 0) return;
-  const id = wm3PickAt(e.clientX, e.clientY); wm3EntClose();
-  if (id < 0) wm3Select(-1); else if (id === WM.sel && id !== WM.at) wm3Go(id); else { wm3Select(id); wm3EntMenu(e.clientX, e.clientY, id) }   // 1º clique: info do tile e menu do que há nele; 2º clique: ir
+  wm3MenuClose(); wm3EntClose(); wm3GearToggle(false);
+  if (d.b !== 0 && d.b !== 2) return;
+  const hero = wm3HeroAt(e.clientX, e.clientY), id = hero ? WM.at : wm3PickAt(e.clientX, e.clientY);
+  // Botão direito: lista o que há no tile (ou, no vazio sem nada selecionado, oferece encerrar as ações).
+  if (d.b === 2) { if (id < 0) { wm3EndMenu(e.clientX, e.clientY); return } wm3EntMenu(e.clientX, e.clientY, id); return }
+  // Botão esquerdo: com o batalhão selecionado, o tile dele abre o menu e qualquer outro tile manda ele marchar; sem seleção, só mostra a informação do tile.
+  if (id < 0) { wm3Select(-1); return }
+  if (WM.armed) { if (id === WM.at) { wm3Select(-1); wm3MenuOpen() } else wm3Go(id) } else wm3Select(id);
 });
 window.addEventListener('wheel', e => { if (WM.open) { WM.dist *= e.deltaY > 0 ? 1.12 : 1 / 1.12; e.preventDefault() } }, { passive: false });
 window.addEventListener('contextmenu', e => { if (WM.open) e.preventDefault() });
@@ -988,8 +1015,12 @@ function wm3HudMake() {
       background: #3a2810; color: #f4ecd8; }
     #wm3 .wm3-btn:hover { background: #5a3d1a; }
     #wm3 .wm3-btn.off { opacity: .65; }
-    #wm3 .wm3-hint { position: fixed; right: 16px; bottom: 14px; padding: 6px 12px; color: #f4ecd8; font-size: 13px; background: rgba(20,14,8,.7);
-      border: 1px solid rgba(201,162,74,.7); border-radius: 8px; }
+    #wm3 .wm3-tr { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+    #wm3 .wm3-gear { font-size: 20px; padding: 4px 12px; }
+    #wm3 .wm3-opts { pointer-events: auto; width: 270px; background: rgba(30,21,11,.96); border: 2px solid #c9a24a; border-radius: 12px; color: #f4ecd8; overflow: hidden; }
+    #wm3 .wm3-opts .wm3-sub { color: #d8c8a0; margin-bottom: 8px; font-size: 13px; }
+    #wm3 .wm3-btn.on { background: #6a4a1c; }
+    #wm3 .wm3-opts .wm3-btns { gap: 6px; } #wm3 .wm3-opts .wm3-btn { flex: 1; padding: 6px 2px; text-align: center; }
     #wm3 .wm3-menu { position: fixed; display: none; pointer-events: auto; min-width: 200px; background: rgba(30,21,11,.97);
       border: 2px solid #c9a24a; border-radius: 12px; overflow: hidden; }
     #wm3 .wm3-menu .wm3-head { font-size: 16px; padding: 8px 12px; }
@@ -1000,18 +1031,20 @@ function wm3HudMake() {
     #wm3 .wm3-menu button.soon { opacity: .6; }`;
   document.head.appendChild(css);
   const el = document.createElement('div'); el.id = 'wm3';
-  el.innerHTML = '<div class="wm3-tl"><div id="wm3info" class="wm3-panel" style="display:none"></div>'
-    + '<button class="wm3-btn off" data-v="nomes">' + TXT_WM3_VIEW.nomes + '</button></div>'
-    + '<div class="wm3-tr"><button class="wm3-btn" data-v="livro">' + TXT_WM3_VIEW.livro + '</button></div>'
-    + '<div class="wm3-hint">' + TXT_WM3_BOOKHINT + '</div>'
-    + '<div class="wm3-menu"><div class="wm3-head">' + TXT_WM3_MENU_TITLE + '</div>'
-    + TXT_WM3_MENU.map(o => '<button data-m="' + o.id + '"' + (o.ok ? '' : ' class="soon"') + '><i style="font-style:normal">' + o.ic + '</i>' + o.t + '</button>').join('') + '</div>';
+  el.innerHTML = '<div class="wm3-tl"><div id="wm3turn"></div><button class="wm3-btn off" data-v="nomes">' + TXT_WM3_VIEW.nomes + '</button>'
+    + '<button class="wm3-btn" data-v="livro">' + TXT_WM3_VIEW.livro + '</button><div id="wm3info" class="wm3-panel" style="display:none"></div></div>'
+    + '<div class="wm3-tr"><button class="wm3-btn wm3-gear" data-v="engrenagem">' + TXT_WM3_GEAR + '</button><div class="wm3-opts" style="display:none"><div class="wm3-head">'
+    + TXT_WM3_OPTIONS.titulo + '</div><div class="wm3-body"><div class="wm3-sub">' + TXT_WM3_OPTIONS.vel + '</div><div class="wm3-btns">'
+    + WT.speeds.map(x => '<button class="wm3-btn' + (x === WM.speed ? ' on' : '') + '" data-x="' + x + '">' + txtWm3Speed(x) + '</button>').join('') + '</div></div></div></div>'
+    + '<div class="wm3-menu"></div>';
   document.body.appendChild(el);
   const nm = el.querySelector('[data-v="nomes"]');
   nm.onclick = () => { WM.names = !WM.names; WM.built.labels.forEach(l => { l.visible = WM.names }); nm.classList.toggle('off', !WM.names) };
   el.querySelector('[data-v="livro"]').onclick = wm3Book;
-  el.querySelectorAll('.wm3-menu button').forEach(b => { b.onclick = () => wm3MenuAct(b.dataset.m) });
-  WM.hud = { el, info: el.querySelector('#wm3info'), menu: el.querySelector('.wm3-menu'), book: el.querySelector('[data-v="livro"]'), hint: el.querySelector('.wm3-hint') };
+  el.querySelector('.wm3-menu').addEventListener('click', e => { const b = e.target.closest('button'); if (b) wm3MenuAct(b.dataset.m) });
+  WM.hud = { el, info: el.querySelector('#wm3info'), menu: el.querySelector('.wm3-menu'), book: el.querySelector('[data-v="livro"]'), opts: el.querySelector('.wm3-opts') };
+  el.querySelector('[data-v="engrenagem"]').onclick = () => { wm3EntClose(); wm3GearToggle() };
+  el.querySelectorAll('.wm3-opts [data-x]').forEach(b => { b.onclick = () => wm3SpeedSet(+b.dataset.x) });
 }
 
 // ---------- abrir e fechar ----------
@@ -1035,8 +1068,8 @@ function wm3Open(F) {
   WM.at = B.G.inicio ? B.G.inicio.id : (B.G.nodes.find(n => !n.mar) || B.G.nodes[0]).id; wm3TurnOpen(B); WM.walk = null;
   const t = B.token.position; WM.tx = WM.c.tx = t.x; WM.tz = WM.c.tz = t.z; WM.c.ty = B.nodeY[WM.at];
   WM.dist = WM.c.dist = WORLD3D.dist; WM.pitch = WM.c.pitch = WORLD3D.pitch; WM.yaw = WM.c.yaw = 0; WM.hover = -1; WM.drag = null; WM.follow = false;
-  WM.open = true; WM.hud.el.style.display = 'block'; wm3MenuClose(); wm3Select(-1);
-  WM.hud.book.style.opacity = WM.hud.hint.style.opacity = WM.standalone || !G.running ? 0.45 : 1;   // o livro só abre dentro do jogo
+  WM.open = true; WM.hud.el.style.display = 'block'; wm3MenuClose(); wm3Select(-1); wm3Disarm(); wm3GearToggle(false);
+  WM.hud.book.style.opacity = WM.standalone || !G.running ? 0.45 : 1;   // o livro só abre dentro do jogo
 }
 function wm3Close() {
   if (!WM.open) return; const s = WM.saved;

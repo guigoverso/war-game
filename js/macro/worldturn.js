@@ -170,6 +170,12 @@ function wtReach(G, ids, q) {
 function wtPlan(G, p) { let q = 0, a = 0; while (q < p.ids.length) { q += wtReach(G, p.ids, q); a++ } return a }
 // Fim de uma ação do jogador: o cerco conta 1 e cada NPC dá UM passo. Devolve os passos [{id, from, to, e}] para animar.
 function wtActionEnd(G) { for (const k of siegeList()) siegeTick(k, 1); wtMoveLog = []; wtNpcStep(G); return wtMoveLog }
+// Encerrar UMA ação sem agir: o batalhão fica parado, a ação se gasta e cada NPC dá o seu passo. Devolve {ok, steps:[{npc}], enc, left} ou {ok:false, why}.
+function wtSkip(G) {
+  const w = wtX(); if (w.turn !== 'commander' || w.enc || w.inTile !== null) return { ok: false, why: 'turno' };
+  if (w.left <= 0) return { ok: false, why: 'sem-acao' };
+  w.left--; return { ok: true, steps: [{ npc: wtActionEnd(G) }], enc: w.enc, left: w.left };
+}
 // Explorar o tile (entrar no mapa local): gasta 1 ação e encerra a ação, mas os NPCs só andam quando o jogador SAI do tile (wtLeave). Devolve {ok} ou {ok:false, why}.
 function wtExplore(G) {
   const w = wtX(), b = wtActive();

@@ -131,13 +131,19 @@ const TXT_WM3_PROD = { food: 'Alimentos', ore: 'Minério', wood: 'Madeira', impo
 const txtWm3FacName = c => 'Facção ' + c;
 // Nome da facção do jogador quando ele ainda não deu um.
 const TXT_WM3_YOURS = 'Sua facção';
-// Botões do canto superior direito (mostrar/ocultar nomes dos tiles; abrir o livro) e a dica do canto inferior direito.
-const TXT_WM3_VIEW = { nomes: '🏷️ Nomes', livro: '📖 Livro (L)' };
-const TXT_WM3_BOOKHINT = '📖 L — abrir o livro';
-// Menu do batalhão (clique DIREITO nele): título e opções. ok = já funciona; as outras só existem por enquanto (etapas 7 e 8).
+// Botões do canto superior esquerdo, abaixo da caixa de Ações (mostrar/ocultar nomes dos tiles; abrir o livro).
+const TXT_WM3_VIEW = { nomes: '🏷️ Nomes', livro: '📖 Livro' };
+// Engrenagem do canto superior direito e o painel de opções que ela abre (por ora só a velocidade das marchas). vel = rótulo; x = multiplicador.
+const TXT_WM3_GEAR = '⚙';
+const TXT_WM3_OPTIONS = { titulo: 'Opções', vel: 'Velocidade das marchas' };
+const txtWm3Speed = x => x + 'x';
+// Menu do batalhão selecionado (clique no tile dele): título e opções. ok = já funciona; as outras só existem por enquanto (etapas 7 e 8).
+// explorar, sair e soltar aparecem só quando cabem (explorar fora do tile, sair dentro dele); soltar tira a seleção do batalhão.
 const TXT_WM3_MENU_TITLE = 'Batalhão';
-const TXT_WM3_MENU = [{ id: 'entrar', ic: '🚪', t: 'Entrar no tile', ok: false }, { id: 'acampar', ic: '⛺', t: 'Acampar', ok: false },
-  { id: 'soldados', ic: '🛡️', t: 'Soldados', ok: false }, { id: 'suprimentos', ic: '🎒', t: 'Suprimentos', ok: false }, { id: 'fechar', ic: '✖️', t: 'Fechar', ok: true }];
+const TXT_WM3_MENU = [{ id: 'entrar', ic: '🚪', t: 'Entrar no tile', ok: false }, { id: 'explorar', ic: '🔍', t: 'Explorar o tile', ok: true },
+  { id: 'sair', ic: '🚪', t: 'Sair do tile', ok: true }, { id: 'acampar', ic: '⛺', t: 'Acampar', ok: false },
+  { id: 'soldados', ic: '🛡️', t: 'Soldados', ok: false }, { id: 'suprimentos', ic: '🎒', t: 'Suprimentos', ok: false },
+  { id: 'soltar', ic: '↩️', t: 'Desselecionar', ok: true }, { id: 'fechar', ic: '✖️', t: 'Fechar', ok: true }];
 // Aviso enquanto o mundo é montado (tela de carregamento do mapa mundi).
 const TXT_WM3_LOADING = 'Desenhando o mundo...';
 // Botão do modo criativo (aba Mundo) que abre o mapa mundi.

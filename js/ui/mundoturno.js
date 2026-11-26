@@ -1,13 +1,13 @@
 'use strict';
 // ---------- Turno no mapa mundi 3D (etapa 7): painel de ações/batalhões, atores no diorama e encontro (js/ui/mundo3d.js + js/macro/worldturn.js) ----------
-// Só interface: as regras estão em worldturn.js (STATE.wt). Atores = bandidos (vermelho) e caravanas (carroça); outros batalhões seus = bandeira da facção.
-// Sem toast: recusas aparecem como nota no painel; o resumo do turno vai para o livro (rdNow) em wtEnd.
-const wm3TurnState = { grp: null, note: '' };
+// Só interface: as regras estão em worldturn.js (STATE.wt). Caixa de Ações no alto à esquerda; o resto sai dos cliques no mapa (ver wm3EntMenu). Atores = bandidos (vermelho) e caravanas (carroça); outros batalhões seus = bandeira da facção.
+// Sem toast nem nota: recusas ficam em silêncio (o contador de ações basta); o resumo do turno vai para o livro (rdNow) em wtEnd.
+const wm3TurnState = { grp: null };
 const wm3TurnTile = n => tileName(WM.built.G, WM.built.G.nodes[n]);
 
 // Ao abrir o mapa: garante o mundo (atores), começa o turno do Comandante se ainda era o do Líder (no jogo, só fora do escritório) e põe o boneco no batalhão ativo.
 function wm3TurnOpen(B) {
-  const w = wtX(); wtInit(B.G); WM.speed = +localStorage.getItem('wm3speed') || WT.speedDefault;
+  const w = wtX(); wtInit(B.G); wm3SpeedSet(+localStorage.getItem('wm3speed') || WT.speedDefault);
   if (w.turn === 'leader' && (WM.standalone || typeof STATE.phase === 'undefined' || STATE.phase !== 'leader')) wtCommanderBegin(B.G);
   const b = wtEnsureBat(B.G); WM.at = b ? wtNode(b.tile) : B.G.inicio.id;
   wm3TokenPlace(WM.at); wm3TurnActors(); wm3TurnHud();
@@ -44,7 +44,7 @@ function wm3TurnActors() {
   sc.add(g); wm3TurnState.grp = g;
 }
 // ---- marcha em sequência: um passo do batalhão (uma ação) e logo os NPCs dão o deles, tudo andando na tela ----
-// WM.seq = {steps:[{from,node,edge,npc:[{id,from,to,e}]}], i, tw}. Chamado por wm3Go (e por "Encerrar turno", que só tem passos de NPC).
+// WM.seq = {steps:[{from,node,edge,npc:[{id,from,to,e}]}], i, tw}. Chamado por wm3Go (e por "Encerrar ações", que só tem passos de NPC).
 function wm3SeqNext() {
   const q = WM.seq; if (!q) return;
   if (++q.i >= q.steps.length) { WM.seq = null; wm3TurnAfter(); return }
@@ -84,61 +84,56 @@ function wm3TurnAnim(dt) {
   }
   if (!live) { for (const t of q.tw) if (t.o.h) t.o.h.legs.forEach(l => { l.rotation.x = 0 }); q.tw = null; wm3SeqNext() }
 }
-function wm3TurnNote(why) { wm3TurnState.note = TXT_WT_WHY[why] || ''; wm3TurnHud() }
-// Depois de a marcha acabar: marcadores, painel e, se houver encontro, o painel dele.
-function wm3TurnAfter() { wm3TurnActors(); wm3TurnHud() }
+// Depois de a marcha acabar: marcadores, caixa de Ações e anel do batalhão selecionado.
+function wm3TurnAfter() { wm3TurnActors(); wm3TurnHud(); wm3ArmRing() }
+// Começa uma marcha só de passos de NPC (encerrar ações, sair do tile, luta): devolve true se havia passos para andar.
+function wm3TurnSeqStart(steps) {
+  if (!steps || !steps.length) return false;
+  WM.seq = { steps, i: -1, tw: null }; wm3SeqNext(); return true;
+}
 
+// Caixa de Ações (canto superior esquerdo, sempre no topo da coluna): contador de ações e, quando vale, o encontro ou o aviso de dentro do tile.
 function wm3TurnHudMake() {
   if (WM.turnEl) return;
   const css = document.createElement('style');
-  css.textContent = `#wm3turn { position: fixed; left: 16px; bottom: 14px; width: 290px; pointer-events: auto; background: rgba(30,21,11,.96); border: 2px solid #c9a24a;
+  css.textContent = `#wm3turn { width: 270px; box-sizing: border-box; pointer-events: auto; background: rgba(30,21,11,.96); border: 2px solid #c9a24a;
       border-radius: 12px; color: #f4ecd8; font: 14px Georgia, serif; padding: 10px 12px; display: none; }
     #wm3turn b { color: #fff; } #wm3turn .wm3-sub { color: #d8c8a0; margin: 4px 0; font-size: 13px; }
     #wm3turn button { display: block; width: 100%; margin-top: 6px; text-align: left; pointer-events: auto; cursor: pointer; padding: 7px 10px; border: 2px solid #c9a24a;
       border-radius: 10px; font: bold 13px Georgia, serif; background: #3a2810; color: #f4ecd8; }
-    #wm3turn button:hover { background: #5a3d1a; } #wm3turn button.on { background: #6a4a1c; } #wm3turn .wm3-warn { color: #ff9a8a; margin-top: 6px; font-size: 13px; }`;
+    #wm3turn button:hover { background: #5a3d1a; } #wm3turn .wm3-warn { color: #ff9a8a; margin-top: 6px; font-size: 13px; }`;
   document.head.appendChild(css);
-  const el = document.createElement('div'); el.id = 'wm3turn'; WM.hud.el.appendChild(el); WM.turnEl = el;
-  el.addEventListener('click', e => { const b = e.target.closest('button'); if (b) wm3TurnClick(b.dataset.a, +b.dataset.i) });
+  const el = WM.turnEl = WM.hud.el.querySelector('#wm3turn');
+  el.addEventListener('click', e => { const b = e.target.closest('button'); if (b) wm3TurnClick(b.dataset.a) });
 }
 function wm3TurnHud() {
   wm3TurnHudMake();
-  const el = WM.turnEl, w = wtX(), B = WM.built, G2 = B.G; let h = '<button data-a="speed">' + txtWtSpeed(WM.speed) + '</button>';
-  if (w.turn === 'leader') {
-    h += '<div class="wm3-sub">' + TXT_WT_LEADER + '</div>';
-    for (const c of G2.nodes) if (wtMine(G2, c.id)) h += '<button data-a="create" data-i="' + c.id + '">' + txtWtCreate(wm3TurnTile(c.id), batList('player').length ? WT.newSoldiers * WT.soldierPrice : 0) + '</button>';
-    h += '<button data-a="begin">' + TXT_WT_BEGIN + '</button>';
-  } else {
-    h += '<div>' + txtWtActions(w.left, w.pool) + '</div>';
-    batList('player').forEach((b, i) => { h += '<button data-a="sw" data-i="' + b.id + '"' + (b.id === w.act ? ' class="on"' : '') + '>' + txtWtBat(i + 1, wm3TurnTile(wtNode(b.tile)), batTotal(b), b.id === w.act) + '</button>' });
-    if (w.enc) {
-      h += '<div class="wm3-warn">⚔ ' + txtWtEncTitle(w.enc.layout, w.enc.n) + '</div><button data-a="auto">' + TXT_WT_ENC_AUTO + '</button>';
-    } else if (w.inTile !== null) h += '<div class="wm3-sub">' + txtWtInTile(wm3TurnTile(w.inTile)) + '</div><button data-a="leave">' + TXT_WT_LEAVE + '</button>';
-    else h += (w.left > 0 ? '<button data-a="explore">' + TXT_WT_EXPLORE + '</button>' : '') + '<button data-a="end">' + TXT_WT_END + '</button>';
-  }
-  if (wm3TurnState.note) h += '<div class="wm3-warn">' + wm3TurnState.note + '</div>';
+  const el = WM.turnEl, w = wtX(); if (w.turn === 'leader') { el.style.display = 'none'; return }
+  let h = '<div>' + txtWtActions(w.left, w.pool) + '</div>';
+  if (w.enc) h += '<div class="wm3-warn">⚔ ' + txtWtEncTitle(w.enc.layout, w.enc.n) + '</div><button data-a="auto">' + TXT_WT_ENC_AUTO + '</button>';
+  else if (w.inTile !== null) h += '<div class="wm3-sub">' + txtWtInTile(wm3TurnTile(w.inTile)) + '</div><button data-a="leave">' + TXT_WT_LEAVE + '</button>';
   el.innerHTML = h; el.style.display = 'block';
 }
-function wm3TurnClick(a, i) {
-  const w = wtX(), G2 = WM.built.G; wm3TurnState.note = '';
-  if (a === 'speed') { const L = WT.speeds, n = L[(L.indexOf(WM.speed) + 1) % L.length]; WM.speed = n; localStorage.setItem('wm3speed', n); wm3TurnHud(); return }
-  if (WM.walk || WM.seq) return;
-  if (a === 'begin') { wtCommanderBegin(G2) }
-  else if (a === 'create') { const r = wtCreate(G2, i); wm3TurnState.note = r.ok ? '' : TXT_WT_WHY_CREATE[r.why] || '' }
-  else if (a === 'sw') { if (wtSwitch(i)) { WM.at = wtNode(wtActive().tile); wm3TokenPlace(WM.at); WM.walk = null } }
-  else if (a === 'explore') { const r = wtExplore(G2); wm3TurnState.note = r.ok ? '' : TXT_WT_WHY[r.why] || '' }
+// Ações do turno (caixa de Ações e menus): explore, leave, auto, skip (pula uma ação), end (encerra o turno). Recusas ficam em silêncio (o contador de ações basta).
+function wm3TurnClick(a) {
+  const w = wtX(), G2 = WM.built.G; if (WM.walk || WM.seq) return;
+  if (a === 'explore') wtExplore(G2);
   else if (a === 'leave') { const r = wtLeave(G2); if (wm3TurnSeqStart(r && r.steps)) return }
   else if (a === 'auto') { const r = wtAutoBattle(G2); if (r && r.fim) wtEnd(G2); else if (r && wm3TurnSeqStart(r.steps)) return }
+  else if (a === 'skip') { const r = wtSkip(G2); if (r.ok) WM.spent += 1; if (r.ok && wm3TurnSeqStart(r.steps)) return }   // o tempo passa como numa ação
   else if (a === 'end') { const r = wtEnd(G2); if (wm3TurnSeqStart(r.steps)) return }
   wm3TurnSync();
 }
+// Pode encerrar as ações / explorar o tile agora? (turno do Comandante, sem encontro e fora do tile; explorar ainda pede uma ação.)
+const wm3CanEnd = () => { const w = wtX(); return w.turn === 'commander' && !w.enc && w.inTile === null };
+const wm3CanExplore = () => wm3CanEnd() && wtX().left > 0 && !!wtActive();
 // Reposiciona o boneco no batalhão ativo e refaz marcadores e painel (depois de trocar de batalhão, lutar ou encerrar).
 function wm3TurnSync() {
   const b = wtActive(); if (b) { WM.at = wtNode(b.tile); wm3TokenPlace(WM.at) }
-  WM.built.token.visible = !!b; wm3TurnActors(); wm3TurnHud();
+  WM.built.token.visible = !!b; wm3TurnActors(); wm3TurnHud(); wm3ArmRing();
 }
 
-// ---- menu do tile (clique esquerdo): o que há no tile (batalhões, bandos, caravanas) e as informações de quem for escolhido ----
+// ---- menu do tile (clique direito): o que há no tile (batalhões, bandos, caravanas) e as informações de quem for escolhido ----
 function wm3Ents(id) {
   const w = wtX(), out = [];
   for (const b of batAt(wtKey(id))) out.push({ k: 'bat', b });
@@ -170,23 +165,41 @@ function wm3EntInfo(e, i) {
   const a = e.a, r = a.route, from = a.dir > 0 ? r[0] : r[r.length - 1], to = a.dir > 0 ? r[r.length - 1] : r[0];
   return txtWtEntInfo({ titulo: 'Caravana', dono: wm3CaravanOwner(a), linhas: [['🏙️', 'Saiu de', nm(from)], ['🧭', 'Rumo a', nm(to)], ['📦', 'Levando', TXT_WT_CARGO[a.cargo] || '—']] });
 }
-function wm3EntMenu(mx, my, tile) {
-  const L = wm3Ents(tile); wm3EntClose(); if (!L.length) return;
+// Caixa pequena de escolhas ao lado do mouse. items = [{t: texto, on: função}]; escolher um item executa e fecha a caixa.
+function wm3Pop(mx, my, items) {
   wm3TurnHudMake(); let el = WM.pickEl;
   if (!el) {
     el = WM.pickEl = document.createElement('div'); el.id = 'wm3pick';
     el.style.cssText = 'position:fixed;pointer-events:auto;background:rgba(30,21,11,.97);border:2px solid #c9a24a;border-radius:10px;padding:6px;z-index:40;font:13px Georgia,serif;color:#f4ecd8';
     WM.hud.el.appendChild(el);
-    el.addEventListener('click', e => {
-      const b = e.target.closest('button'); if (!b) return; const t = WM.pickTile, E = wm3Ents(t)[+b.dataset.i];
-      if (!E) return; if (E.k === 'bat' && E.b.dono === 'player' && E.b.id !== wtX().act) wtSwitch(E.b.id) && wm3TurnSync();
-      WM.hud.info.innerHTML = wm3Info(t) + wm3EntInfo(E, 1 + batList('player').findIndex(x => E.b && x.id === E.b.id)); WM.hud.info.style.display = '';
-      wm3EntMenu(+el.style.left.slice(0, -2) - 8, +el.style.top.slice(0, -2) - 8, t, +b.dataset.i);
-    });
+    el.addEventListener('click', e => { const b = e.target.closest('button'), it = b && WM.popItems[+b.dataset.i]; if (!it) return; wm3EntClose(); it.on() });
   }
-  WM.pickTile = tile; const sel = arguments[3];
-  el.innerHTML = L.map((e, i) => '<button data-i="' + i + '" style="display:block;width:100%;margin:2px 0;cursor:pointer;padding:6px 10px;border:2px solid #c9a24a;border-radius:8px;background:'
-    + (i === sel ? '#6a4a1c' : '#3a2810') + ';color:#f4ecd8;font:bold 13px Georgia,serif;text-align:left">' + wm3EntLabel(e, 1 + batList('player').findIndex(x => e.b && x.id === e.b.id)) + '</button>').join('');
-  el.style.left = Math.min(mx + 8, innerWidth - 260) + 'px'; el.style.top = Math.min(my + 8, innerHeight - 40 - L.length * 36) + 'px'; el.style.display = 'block';
+  WM.popItems = items;
+  el.innerHTML = items.map((it, i) => '<button data-i="' + i + '" style="display:block;width:100%;margin:2px 0;cursor:pointer;padding:6px 10px;border:2px solid #c9a24a;border-radius:8px;'
+    + 'background:#3a2810;color:#f4ecd8;font:bold 13px Georgia,serif;text-align:left">' + it.t + '</button>').join('');
+  el.style.left = Math.min(mx + 8, innerWidth - 260) + 'px'; el.style.top = Math.min(my + 8, innerHeight - 40 - items.length * 36) + 'px'; el.style.display = 'block';
 }
 const wm3EntClose = () => { if (WM.pickEl) WM.pickEl.style.display = 'none' };
+// Botão direito sem nada selecionado e sem nada a listar: oferece encerrar UMA ação (o jogador não age e os NPCs dão um passo); sem ações sobrando, encerrar o turno.
+function wm3EndMenu(mx, my) {
+  if (WM.armed || !wm3CanEnd()) return;
+  const skip = wtX().left > 0; wm3Pop(mx, my, [{ t: skip ? TXT_WT_SKIP : TXT_WT_END, on: () => wm3TurnClick(skip ? 'skip' : 'end') }]);
+}
+// Botão direito num tile: lista o que há nele (com um só item, abre direto). Sem nada no tile e sem batalhão selecionado, oferece encerrar as ações.
+function wm3EntMenu(mx, my, tile) {
+  const L = wm3Ents(tile); wm3EntClose();
+  if (!L.length) { wm3EndMenu(mx, my); return }
+  wm3Select(tile);
+  const mine = e => 1 + batList('player').findIndex(x => e.b && x.id === e.b.id);
+  if (L.length === 1) { wm3EntPick(tile, L[0], mine(L[0])); return }
+  wm3Pop(mx, my, L.map(e => ({ t: wm3EntLabel(e, mine(e)), on: () => wm3EntPick(tile, e, mine(e)) })));
+}
+// Escolha de uma entrada do tile: batalhão seu = seleciona (o já selecionado abre o menu dele); o resto mostra a informação sob a do tile.
+function wm3EntPick(tile, E, i) {
+  if (E.k === 'bat' && E.b.dono === 'player') {
+    if (E.b.id === wtX().act && WM.armed) { wm3MenuOpen(); return }
+    if (E.b.id !== wtX().act && !(wtSwitch(E.b.id) && (wm3TurnSync(), true))) return;
+    WM.armed = true; wm3ArmRing();
+  }
+  wm3Select(tile); WM.hud.info.innerHTML += wm3EntInfo(E, i);
+}

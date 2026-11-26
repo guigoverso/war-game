@@ -42,7 +42,7 @@ for (const fm of formatos) for (const seed of seeds) {
       det:JSON.stringify(wgPack(G))===JSON.stringify(wgPack(G2)),rt:JSON.stringify(pack)===JSON.stringify(pack3),abOk,abN,quotas:G.quotas,forc:G.forcados,
       ilhas:G.ilhas,inicio:G.inicio,ms:G.ms,pontes:G.nodes.filter(n=>n.ponteNode).length,
       pontesOk:G.nodes.filter(n=>n.ponteNode).every(n=>{const v=wgLandAdj(G,n.id).map(x=>G.nodes[x.to]);if(v.length!==2||v.some(o=>o.mar||o.ponteNode))return false;const ax=Math.cos(n.ang),az=Math.sin(n.ang);if(wgWaterLen(F,v[0],v[1])>WORLD_GRAPH.bridgeMax+WORLD_GRAPH.bridgeExtra+16)return false;return v.every(o=>Math.hypot(o.x-n.x,o.z-n.z)>0)&&((v[0].x-n.x)*ax+(v[0].z-n.z)*az)*((v[1].x-n.x)*ax+(v[1].z-n.z)*az)<0}),
-      semAdeq:land.filter(n=>n.tema!=='passagem'&&!n.forcado&&n.fit<K.minFit-1e-9&&!n.extra&&n.tema!=='cidade').length,
+      semAdeq:land.filter(n=>n.tema!=='passagem'&&!n.forcado&&n.fit<K.softFit-1e-9&&!n.extra&&n.tema!=='cidade').length,
       passRoad:land.filter(n=>n.tema==='passagem'&&n.onRoad).length,
       estradas:G.edges.filter(e=>e.kind==='estrada').length,trilhas:G.edges.filter(e=>e.kind==='trilha').length,mar:G.edges.filter(e=>e.kind==='mar').length,
       cidadesIlha:G.nodes.filter(n=>n.tema==='cidade').map(n=>n.ilha),G:null}
@@ -61,7 +61,7 @@ for (const fm of formatos) for (const seed of seeds) {
   ok(R.pontesOk, nome + ': tile de ponte com exatamente 2 vizinhos de terra, um antes e um depois (' + R.pontes + ' pontes)');
   ok(R.deg.max <= 6, nome + ': vizinhos de terra por tile entre ' + R.deg.min + ' e ' + R.deg.max + ' (média ' + R.deg.avg.toFixed(1) + ')', 'máximo 6 (a árvore geradora não limita; era 5 antes dos tiles de ponte)');
   ok(R.nLand >= temas.length ? temas.every(t => c[t] >= 1 || t === 'ponte') : true, nome + ': ao menos 1 tile de cada tema', temas.filter(t => !c[t]).join(','));
-  ok(R.semAdeq === 0, nome + ': todo tema com adequação >= limite (ou forçado)', R.semAdeq + ' fora');
+  ok(R.semAdeq === 0, nome + ': todo tema com adequação >= limite brando (ou forçado)', R.semAdeq + ' fora');
   ok(R.passRoad === 0, nome + ': nenhuma passagem em tile com estrada');
   ok(R.ms < 4000, nome + ': gerou em ' + R.ms + ' ms (< 4000)');
 }

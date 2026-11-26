@@ -39,7 +39,7 @@ const TILE_THEME_BIOMES = { cidade: [], vila: [], fazenda: [0, 2], mina: [3, 4],
 // 2 a 3 fortalezas, 2 a 3 pontes, 1 a 2 ruínas). Padrão: cidade 6, vila 8, fazenda 4, mina 3, serraria 3, animais 2, ponte 2.5, fortaleza 2.5, ruínas 1.5
 const TILE_THEME_WEIGHT = { cidade: 6, vila: 8, fazenda: 4, mina: 3, serraria: 3, animais: 2, ponte: 2.5, fortaleza: 2.5, ruinas: 1.5 };
 // Porcentagem de tiles COM tema (o resto é passagem) quando o jogador não escolhe. Opção da criação do mundo; por enquanto ?temas=N na URL. Limites 0 a 100. Padrão: 70
-const TILE_THEMED_PCT = { def: 70, min: 0, max: 100 };
+const TILE_THEMED_PCT = { def: 94, min: 0, max: 100 };
 // Composição de POIs por tema (tabela aprovada da feature 8): principal, tema (min a max entre as opções) e ambiente (min a max entre as opções);
 // baús escondidos em todo tile. As opções são ids de POI (ou 'qualquer' = qualquer POI, com peso pelo terreno). Só dados: o gerador (4E) lê.
 const TILE_CHESTS = [6, 10];
@@ -217,6 +217,9 @@ const WORLD_GRAPH = {
   themeLandMin: { cidade: 0.6, vila: 0.45, fazenda: 0.5, mina: 0.5, serraria: 0.5, animais: 0.5, ponte: 0.2, fortaleza: 0.4, ruinas: 0.3 },
   // Adequação mínima ao terreno (tileFit, 0 a 1) para o tema valer; o 1º tile de cada tema é FORÇADO (melhor adequação disponível) se nenhum chega. Padrão: 0.5
   minFit: 0.5,
+  // Adequação mínima "branda": se nenhum tile livre chega a minFit, o tema aceita o melhor acima deste valor em vez de deixar a cota vazia
+  // (menos tiles de passagem). Padrão: 0.25
+  softFit: 0.25,
   // Peso que um vizinho do MESMO tema tira do tile (0 = livre, 1 = proíbe). Padrão: 0.5
   sameNeighbor: 0.5,
   // Ilha inicial: mínimo de tiles de terra e de cidades alcançáveis a pé; abaixo disso a cidade inicial vira porto (navio grátis). Padrão: 6 e 2

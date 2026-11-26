@@ -18,27 +18,17 @@ const txtWtDead = (nome, ouro) => '💀 O comandante caiu em ' + nome + '. O bat
 const txtWtCreated = nome => '🪖 Um novo batalhão se formou em ' + nome + '.';
 // Painel do mapa mundi: contador de ações e botão de encerrar o turno.
 const txtWtActions = (left, max) => '⏳ Ações: <b>' + left + '</b> / ' + max;
-const TXT_WT_END = 'Encerrar turno';
-const TXT_WT_LEADER = 'Turno do Líder: crie ou reforce batalhões nas suas cidades.';
-// Painel do mapa mundi: lista de batalhões (nome do tile, soldados).
-const txtWtBat = (i, nome, n, ativo) => (ativo ? '▶ ' : '') + 'Batalhão ' + i + ' — ' + nome + ' (' + n + ')';
+// Opções do menu de clique direito no mapa (sem nada selecionado): pular UMA ação do jogador (os NPCs agem) e, sem ações sobrando, encerrar o turno.
+const TXT_WT_SKIP = '⏭ Encerrar ação';
+const TXT_WT_END = '⏭ Encerrar turno';
 // Painel do encontro: título e botões (a luta de verdade no tile vem na etapa 8; por ora dá para resolver por número, para teste).
 const txtWtEncTitle = (layout, n) => (layout === 'defesa' ? 'Defesa da cidade' : layout === 'invasao' ? 'Invasão' : 'Encontro no campo') + ' — ' + n + ' inimigos';
 const TXT_WT_ENC_AUTO = 'Resolver por número (teste)';
 
-// Painel do turno (mapa mundi 3D): recusas de movimento (nota no painel, sem toast), botões do turno do Líder e do Comandante.
-const TXT_WT_WHY = { 'sem-acao': 'Sem ações para andar.', 'sem-caminho': 'Não há caminho por terra até lá.', turno: 'Agora não dá.', 'sem-batalhao': 'Sem batalhão para mandar.' };
-const TXT_WT_BEGIN = 'Começar o turno do Comandante';
-const txtWtCreate = (nome, preco) => '＋ Batalhão em ' + nome + (preco ? ' (◉' + preco + ')' : ' (grátis)');
-const TXT_WT_WHY_CREATE = { teto: 'Batalhões demais para o nível da facção.', ouro: 'Falta ouro.', cidade: 'Só em cidade sua.', turno: 'Só no turno do Líder.' };
-
-// Botão de configuração do mapa mundi: velocidade das marchas (batalhão e NPCs). x = multiplicador.
-const txtWtSpeed = x => '⚙ Velocidade: ' + x + 'x';
 
 // Resumo do livro: o batalhão explorou o tile (nome do tile).
 const txtWtExplored = nome => '🔍 O batalhão vasculhou os arredores de ' + nome + '.';
-// Painel do turno: botão de explorar o tile e, dentro dele, o de sair (a exploração de verdade, no mapa local, liga na etapa 8).
-const TXT_WT_EXPLORE = '🔍 Explorar o tile';
+// Painel de Ações: aviso de que o batalhão está dentro do tile e o botão de sair (a exploração de verdade, no mapa local, liga na etapa 8).
 const txtWtInTile = nome => '📍 No tile: ' + nome;
 const TXT_WT_LEAVE = 'Sair do tile';
 
