@@ -8,13 +8,13 @@
 const BATTLE_MOD = {
   // Máximo de soldados inimigos vivos ao mesmo tempo, somando todos os geradores (definido em 2026-11-25). Padrão: 30
   liveCap: 30,
-  // Máximo de soldados do jogador em campo ao mesmo tempo (valor próprio, 4B-11; o doc não fixa o número: proposta, igual às 10 elites, como no exemplo do
+  // Máximo de soldados do jogador em campo ao mesmo tempo (valor próprio, 4B-11; o doc não fixa o número: proposta, independente do número de elites (BAT.elite), como no exemplo do
   // placar, para a reposição vir "à medida que morrem"). Padrão: 10
   allyLiveCap: 10,
   // Reserva inicial do inimigo (soldados ainda não lançados; 4A). Padrão: 100
   enemyReserve: 100,
   // Tamanho do batalhão do jogador: TETO que não pode ser ultrapassado (elites + comuns em campo e na reserva). A reserva dele é este total menos as elites
-  // (50 = 10 elites + 40 comuns, decisão de 2026-11-25). ?reserva=N pode só diminuir a reserva. Padrão: 50
+  // (50 = 5 elites + 45 comuns; eram 10 + 40 até 2026-11-26). ?reserva=N pode só diminuir a reserva. Padrão: 50
   allyTotal: 50,
   // Tamanho do lote de reposição: sorteio inteiro entre mín e máx, refeito a cada lote (4A). Padrão: [3, 5]
   lot: [3, 5],
@@ -60,8 +60,8 @@ const BATTLE_MOD = {
     satTemp: [[-25, 105], [0, 125], [25, 105]], retakeR: 45, engage: 40, hold: 10 },
   // Cenário ?modo=pequena (4B-7 e 4B-16), coordenadas do mapa de teste de 320: POI principal do tile (mesmo ponto do Ataque; o jogador nasce na sua cidade); defesa local fixa
   // (?guarnicao=N força) com vida multiplicada (POI principal mais forte, 1,5 a 2x); só as elites entram (até `elites`), sem reposição; raio de alerta da defesa
-  // (vale até a conquista); conquista = defesa morta. Padrão: alvo 150,55; defesa 10 com vida x1,75; elites 10; alerta 40
-  pequena: { center: { x: 150, z: 55 }, garrison: 10, hpMul: 1.75, elites: 10, alert: 40 },
+  // (vale até a conquista); conquista = defesa morta. Padrão: alvo 150,55; defesa 10 com vida x1,75; elites 5; alerta 40
+  pequena: { center: { x: 150, z: 55 }, garrison: 10, hpMul: 1.75, elites: 5, alert: 40 },
   // Meia-largura, em blocos, da área onde os soldados patrulham quando deixam de seguir o jogador (fim da batalha, ou antes de a defesa acordar na pequena); o
   // círculo de patrulha fica a half+5 do ponto. Padrão: 4
   standHalf: 4,

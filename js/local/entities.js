@@ -464,11 +464,24 @@ function enemyShoot(e){
   sfx(def.sfx||'rifle',Math.hypot(e.x-P.x,e.z-P.z),e.x,e.z);   // o volume vem da distância até VOCÊ (não até o alvo do tiro)
 }
 let EUID=0;
+// Tiro sofrido (não de outro bicho): o grupo fica provocado (coleira esticada, gerador de batalha acorda) e alguns atiradores viram contra-atiradores:
+// alcance maior e param para revidar de longe (PROVOKE em provoke-modifiers.js).
+function provokeEnemy(e){
+  const c=e.city,g=e.btl,grp=g?BATTLE.area.enemies.filter(o=>o.btl===g):c.enemies;
+  e.provokeT=PROVOKE.secs;if(g)battleProvoke(g);
+  let n=grp.filter(o=>o.alive&&o.counter).length;if(n>=PROVOKE.counterN)return;
+  const cand=grp.filter(o=>o.alive&&!o.counter&&o.def.ranged&&!o.sentry).sort((a,b)=>Math.hypot(a.x-P.x,a.z-P.z)-Math.hypot(b.x-P.x,b.z-P.z));
+  for(const o of cand){
+    if(n++>=PROVOKE.counterN)break;
+    const r=o.def.range*PROVOKE.counterRangeMul;o.counter=true;o.provokeT=PROVOKE.secs;
+    o.def=Object.assign({},o.def,{range:r,pref:r*PROVOKE.counterHold});   // def própria: o EDEF do tipo não muda (a cobertura usa o pref original de EDEF)
+  }
+}
 // animais e bandidos: só atacam se te virem perto da área deles; o bando/matilha avisa os vizinhos
 function wildAggro(e){
   e.aggro=true;e.unseenT=99;const c=e.city;
   if(c.state!=='attacking'){c.state='attacking';if(c.kind==='poi'&&typeof poiBattleStart==='function')poiBattleStart(c)}   // batalha num POI: seus soldados aparecem (poigame.js)
-  for(const o of c.enemies)if(o.alive&&!o.aggro&&Math.hypot(o.x-e.x,o.z-e.z)<16){o.aggro=true;o.unseenT=99}
+  for(const o of c.enemies)if(o.alive&&!o.aggro&&Math.hypot(o.x-e.x,o.z-e.z)<16){o.aggro=true;o.unseenT=99;o.provokeT=e.provokeT||0}
 }
 // tempo de reação ao notar o alvo: maior nos níveis baixos; rank 6 (dourado) = reação padrão (0)
 function reactDelay(e){return Math.max(0,6-e.city.rank)*0.28}
@@ -606,7 +619,8 @@ function updateEnemy(e,dt){  const def=e.def,m=e.model;
   let active=c.state==='attacking'&&!P.dead&&d<140;
   if(e.btl)active=battleEnemyActive(e);   // soldado lançado por um gerador de batalha: coleira e retorno (battle.js)
   if(c.kind==='cave'||c.kind==='camp'||c.kind==='pack'||c.kind==='dungeon'||c.kind==='poi'){
-    const dc=Math.hypot(P.x-c.cx,P.z-c.cz),leash=c.leash||(c.kind==='cave'?24:30);
+    e.provokeT=(e.provokeT||0)-dt;   // provocado (levou tiro): a coleira é esticada (PROVOKE) para perseguir quem atira de longe
+    const dc=Math.hypot(P.x-c.cx,P.z-c.cz),leash=(c.leash||(c.kind==='cave'?24:30))*(e.provokeT>0?PROVOKE.leashMul:1);
     e.wildT=(e.wildT||0)-dt;
     if(e.wildT<=0){
       e.wildT=0.25;const dp=Math.hypot(P.x-e.x,P.z-e.z);
@@ -699,6 +713,7 @@ function updateEnemy(e,dt){  const def=e.def,m=e.model;
 function damageEnemy(e,amount,head,byAlly,src){   // src: outro bicho/soldado que causou o dano (briga entre eles, sem envolver o jogador)
   if(!e.alive)return;
   if(e.city.kind==='pack'||src){e.revenge=src||P;e.revengeT=src?8:10;e.tgT=0}   // quem feriu o animal vira o alvo dele
+  if(!src&&e.def.ranged&&(e.btl||e.city.kind==='camp'||e.city.kind==='poi'))provokeEnemy(e);   // só batalha no tile e POIs com bandidos
   if(!src){if(e.city.kind){if(!e.aggro)wildAggro(e)}else if(byAlly){if(e.city.state!=='attacking')startAttack(e.city)}else facHostileAct(e.city)}
   if(e.armor>0){const ab=Math.min(e.armor,amount*0.6);e.armor-=ab;amount-=ab}
   // o tiro é sentido: o inimigo se encolhe e a ação dele atrasa por instantes (golem, urso e brutamonte aguentam melhor)

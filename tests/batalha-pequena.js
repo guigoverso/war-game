@@ -31,9 +31,9 @@ async function open(browser, base, qs) {
     const { page, errs } = await open(browser, base, 'cenario=batalha&modo=pequena&mute=1');
     let s = await page.evaluate(() => ({ gar: ENEMIES.filter(e => e.alive && e.btl).length, hp: ENEMIES.find(e => e.btl).maxhp / EDEF.soldier.hp, al: ALLIES.length,
       res: BATTLE.ally.reserve, gens: BATTLE.gens.length, hud: !!document.getElementById('btlhud') }));
-    ok(s.gar === 10 && Math.abs(s.hp / 1 - s.hp) < 1e-9 && s.hp >= 1.5 && s.al === 10 && s.res === 0 && s.gens === 1 && !s.hud, 'defesa 10 com vida x' + s.hp.toFixed(2) + ', 10 elites, sem reserva, sem placar ' + JSON.stringify(s));
+    ok(s.gar === 10 && Math.abs(s.hp / 1 - s.hp) < 1e-9 && s.hp >= 1.5 && s.al === 5 && s.res === 0 && s.gens === 1 && !s.hud, 'defesa 10 com vida x' + s.hp.toFixed(2) + ', 5 elites, sem reserva, sem placar ' + JSON.stringify(s));
     let q = await page.evaluate(() => ({ st: ALLIES.filter(a => a.alive).map(a => a.state), far: Math.hypot(ALLIES[0].x - BATTLE.target.x, ALLIES[0].z - BATTLE.target.z) }));
-    ok(q.st.length === 10 && q.st.every(v => v === 'patrol'), 'antes de lutar os soldados patrulham, não seguem: ' + q.st[0]);
+    ok(q.st.length === 5 && q.st.every(v => v === 'patrol'), 'antes de lutar os soldados patrulham, não seguem: ' + q.st[0]);
     await page.evaluate(() => { P.x = BATTLE.target.x + 30; P.z = BATTLE.target.z; }); await page.waitForTimeout(1200);
     q = await page.evaluate(() => ({ st: ALLIES.filter(a => a.alive).map(a => a.state), d: Math.hypot(ALLIES[0].x - P.x, ALLIES[0].z - P.z) }));
     ok(q.st.every(v => v === 'assault') && q.d < 20, 'defesa acordou: soldados teleportados para perto do jogador (' + q.d.toFixed(0) + ') em assalto');

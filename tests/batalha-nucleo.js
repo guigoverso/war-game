@@ -34,7 +34,7 @@ const snap = page => page.evaluate(() => ({ c: battleCounts(), t: BATTLE.t, awak
   {   // 1) lotes, cota e coleira
     const { page, errs } = await open(browser, base, 'cenario=batalha&modo=nucleo&mute=1&semente=7');
     let s = await snap(page);
-    ok(s.c.e.f === 0 && s.c.e.r === 100 && s.c.p.f === 10 && s.c.p.r === 40, 'início: inimigo 0 em campo/100 reserva; jogador 10 em campo/40 reserva (batalhão de 50) ' + JSON.stringify(s.c));
+    ok(s.c.e.f === 0 && s.c.e.r === 100 && s.c.p.f === 5 && s.c.p.r === 45, 'início: inimigo 0 em campo/100 reserva; jogador 5 em campo/45 reserva (batalhão de 50) ' + JSON.stringify(s.c));
     ok(!s.awake, 'o gerador começa dormindo (jogador fora do raio)');
     await page.evaluate(() => { const g = BATTLE.gens[0]; P.x = g.x - g.radius + 6; P.z = g.z; P.y = tH(P.x, P.z) + 0.1; P.camY = P.y; });
     await page.waitForTimeout(600);

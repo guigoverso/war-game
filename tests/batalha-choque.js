@@ -32,7 +32,7 @@ async function open(browser, base, qs) {
     const { page, errs } = await open(browser, base, 'cenario=batalha&modo=choque&mute=1&semente=5');
     let s = await page.evaluate(() => ({ c: battleCounts(), gens: BATTLE.gens.map(g => [g.side, g.kind, g.reserve]), cover: BATTLE.cover, C: BATTLE_MOD.choque }));
     ok(s.gens.length === 6 && s.gens.filter(g => g[0] === 'enemy').length === 3, '3 postos por lado ' + JSON.stringify(s.gens));
-    ok(s.c.e.r + s.c.e.f === 100 && s.c.p.r === 40 && s.c.p.f === 10, 'inimigo 100 no total; jogador 10 em campo + 40 de reserva ' + JSON.stringify(s.c));
+    ok(s.c.e.r + s.c.e.f === 100 && s.c.p.r === 45 && s.c.p.f === 5, 'inimigo 100 no total; jogador 5 em campo + 45 de reserva ' + JSON.stringify(s.c));
     ok(s.cover.length >= 8 && s.cover.length <= 15, 'peças de cobertura 8 a 15 (' + s.cover.length + ')');
     const cx = s.C.center.x, left = s.cover.filter(o => o.x < cx - 0.5).length, right = s.cover.filter(o => o.x > cx + 0.5).length;
     ok(left === right, 'cobertura igual dos dois lados (' + left + ' x ' + right + ')');

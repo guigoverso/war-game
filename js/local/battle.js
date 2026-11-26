@@ -72,11 +72,16 @@ function battleSpawnFrom(g) {
 // (e.recall) e só deixa de voltar ao chegar perto (ou ao raio de ativação, se o gerador estiver acordado). Devolve se está ativo (em combate).
 function battleEnemyActive(e) {
   if (e.btl.kind === 'post') return battlePostActive(e);
-  const g = e.btl, dg = Math.hypot(e.x - g.x, e.z - g.z), home = BATTLE_MOD.homeDist;
+  const g = e.btl, dg = Math.hypot(e.x - g.x, e.z - g.z), home = BATTLE_MOD.homeDist, prov = battleProvoked(g);
+  if (prov && e.sees) g.provokedUntil = BATTLE.t + PROVOKE.secs;   // enquanto algum atirador enxerga o jogador, a provocação não acaba
   if (e.recall && dg <= (g.awake ? g.radius : home)) { e.recall = null; e.spreadT = 0; }
-  if (!e.recall && (!g.awake || dg > g.radius * BATTLE_MOD.leashMul) && dg > home) { e.recall = g; e.spreadT = 0; }
+  if (!e.recall && (!g.awake || dg > g.radius * BATTLE_MOD.leashMul * (prov ? PROVOKE.leashMul : 1)) && dg > home) { e.recall = g; e.spreadT = 0; }
   return !e.recall && !P.dead && !BATTLE.over;
 }
+
+// Provocação (tiro sofrido, ver provokeEnemy): o gerador acorda e só volta a dormir quando a provocação acaba, mesmo com o jogador longe do raio de alerta.
+const battleProvoked = g => (g.provokedUntil || 0) > BATTLE.t;
+function battleProvoke(g) { if (g.kind === 'post') return; g.awake = true; g.provokedUntil = BATTLE.t + PROVOKE.secs; }
 
 // Soldado de posto (Choque): luta quando o alvo (você ou um soldado seu) está a menos de `engage`; senão marcha ao centro e fica por lá (recall = centro).
 function battlePostActive(e) {
@@ -92,7 +97,7 @@ function battleTickGens() {
   for (const g of BATTLE.gens) {
     if (g.kind !== 'post') {
       const dp = P.dead ? 1e9 : Math.hypot(P.x - g.x, P.z - g.z);
-      if (!g.awake && dp < g.radius) g.awake = true; else if (g.awake && dp > g.radius * lm) g.awake = false;
+      if (!g.awake && dp < g.radius) g.awake = true; else if (g.awake && dp > g.radius * lm && !battleProvoked(g)) g.awake = false;
     }
     if (!g.awake || g.reserve <= 0 || BATTLE.t < g.nextAt || (g.side === 'player' && P.dead)) continue;
     const cap = g.side === 'player' ? BATTLE.allyCap : BATTLE.liveCap, n = Math.min(battleLotOf(g), g.reserve, cap);
@@ -253,7 +258,7 @@ function battleStartNucleo() {
   P.yaw = Math.atan2(-(N.gen.x - P.x), -(N.gen.z - P.z)); P.pitch = -0.05;
   battleConfig('nucleo');
   BATTLE.base = { x: P.x, z: P.z };
-  const n = Math.min(tileTestCount('alia', TILE_TEST.allies), BATTLE_MOD.allyTotal), er = battleParam('inim', BATTLE_MOD.enemyReserve), pr = Math.max(0, Math.min(battleParam('reserva', 1e9), BATTLE_MOD.allyTotal - n));   // o batalhão (elites + reserva) nunca passa de allyTotal
+  const n = Math.min(tileTestCount('alia', TILE_TEST.allies), BAT.elite), er = battleParam('inim', BATTLE_MOD.enemyReserve), pr = Math.max(0, Math.min(battleParam('reserva', 1e9), BATTLE_MOD.allyTotal - n));   // o batalhão (elites + reserva) nunca passa de allyTotal
   for (let i = 0; i < n; i++) spawnAlly(P.x + (i - n / 2) * 1.5, P.z + 3, home);
   BATTLE.gens = [battleAddGen(N.gen.x, N.gen.z, er)];
   BATTLE.total0 = er; BATTLE.ally.reserve = pr; BATTLE.ally.total0 = n + pr;
@@ -319,7 +324,7 @@ function battleStartChoque() {
   P.yaw = Math.atan2(-(C.center.x - P.x), -(C.center.z - P.z)); P.pitch = -0.05;
   battleConfig('choque');
   BATTLE.center = { x: C.center.x, z: C.center.z }; BATTLE.centerR = C.centerR; BATTLE.postCfg = C; BATTLE.base = { x: P.x, z: P.z };
-  const n = Math.min(tileTestCount('alia', TILE_TEST.allies), BATTLE_MOD.allyTotal), er = battleParam('inim', BATTLE_MOD.enemyReserve);
+  const n = Math.min(tileTestCount('alia', TILE_TEST.allies), BAT.elite), er = battleParam('inim', BATTLE_MOD.enemyReserve);
   const pr = Math.max(0, Math.min(battleParam('reserva', 1e9), BATTLE_MOD.allyTotal - n));
   for (let i = 0; i < n; i++) spawnAlly(P.x + (i - n / 2) * 1.5, P.z + 3, home);
   battleSplit(er, C.enemyPosts.length).forEach((r, i) => battleAddGen(C.enemyPosts[i].x, C.enemyPosts[i].z, r, { side: 'enemy', kind: 'post' }));
@@ -374,7 +379,7 @@ function battleStartDefesa() {
   battleOrigemCerco();
   BATTLE.center = { x: c.x, z: c.z }; BATTLE.centerR = R; BATTLE.postCfg = D; BATTLE.base = { x: c.x, z: c.z };
   BATTLE.limit = { x: c.x, z: c.z, r: R, gray: D.gray };
-  const n = Math.min(tileTestCount('alia', TILE_TEST.allies), BATTLE_MOD.allyTotal), er = battleParam('inim', BATTLE_MOD.enemyReserve);
+  const n = Math.min(tileTestCount('alia', TILE_TEST.allies), BAT.elite), er = battleParam('inim', BATTLE_MOD.enemyReserve);
   const pr = Math.max(0, Math.min(battleParam('reserva', 1e9), BATTLE_MOD.allyTotal - n));
   for (let i = 0; i < n; i++) spawnAlly(P.x + (i - n / 2) * 1.5, P.z + 3, home);
   const dist = R + D.postDist;
@@ -454,7 +459,7 @@ function battleStartAtaque(opts) {
   BATTLE.base = { x: A.start.x, z: A.start.z };   // a reposição do seu lado nasce na abertura da trilha, perto do alvo (4B-11)
   const bat = battleParam('batalhao', 1) !== 0, er = bat ? battleParam('inim', BATTLE_MOD.enemyReserve) : 0, base = battleParam('guarnicao', A.garrison);
   const fill = bat ? clamp(A.garrisonBattalion - base, 0, er) : 0, gar = base + fill;   // o batalhão completa a guarnição com soldados da reserva (não cria novos)
-  const n = Math.min(tileTestCount('alia', TILE_TEST.allies), BATTLE_MOD.allyTotal), pr = Math.max(0, Math.min(battleParam('reserva', 1e9), BATTLE_MOD.allyTotal - n));
+  const n = Math.min(tileTestCount('alia', TILE_TEST.allies), BAT.elite), pr = Math.max(0, Math.min(battleParam('reserva', 1e9), BATTLE_MOD.allyTotal - n));
   for (let i = 0; i < n; i++) spawnAlly(P.x + (i - n / 2) * 1.5, P.z + 3, home);
   const name = opts.poi && typeof POI_DEFS !== 'undefined' && POI_DEFS[opts.poi.type] ? POI_DEFS[opts.poi.type].n : TXT_BATTLE_TARGET_NAME;
   const T = { x: c.x, z: c.z, flag, name, captured: false, owner: 'enemy', poi: opts.poi || null, sats: [], pois: [] };
@@ -494,7 +499,7 @@ function battleTickAtaque() {
 }
 
 // ---------- Modo pequena (passo 7; ?cenario=batalha&modo=pequena; 4B-3, 4B-7 e 4B-16) ----------
-// Tile inimigo SEM batalhão: o jogador e só as elites (até 10) contra uma defesa local de número fixo, sem reposição de nenhum lado e sem placar. O POI principal é mais
+// Tile inimigo SEM batalhão: o jogador e só as elites (até 5) contra uma defesa local de número fixo, sem reposição de nenhum lado e sem placar. O POI principal é mais
 // forte (a defesa tem mais vida: hpMul). A defesa acorda no raio de alerta e tem coleira (como a guarnição do Ataque). Conquista = matar a defesa (decisão de 2026-11-25: sem tempo
 // no centro); o raio de alerta e a coleira valem até a conquista; a vitória sai logo depois da anexação. Derrota branda: o comandante cai e perde só o que morreu na luta (protótipo: tela com Reiniciar).
 // opts (integração, passo 10): { poi } = POI real do alvo (passa ao jogador junto com o tile).
@@ -507,7 +512,7 @@ function battleStartPequena(opts) {
   P.yaw = Math.atan2(-(c.x - P.x), -(c.z - P.z)); P.pitch = -0.05;
   battleConfig('pequena');
   BATTLE.base = { x: P.x, z: P.z };
-  const n = Math.min(tileTestCount('alia', TILE_TEST.allies), A.elites), gar = Math.round(battleParam('guarnicao', A.garrison));
+  const n = Math.min(tileTestCount('alia', TILE_TEST.allies), Math.min(BAT.elite, A.elites)), gar = Math.round(battleParam('guarnicao', A.garrison));
   for (let i = 0; i < n; i++) spawnAlly(P.x + (i - n / 2) * 1.5, P.z + 3, home);
   const name = opts.poi && typeof POI_DEFS !== 'undefined' && POI_DEFS[opts.poi.type] ? POI_DEFS[opts.poi.type].n : TXT_BATTLE_TARGET_NAME;
   const T = { x: c.x, z: c.z, flag, name, captured: false, owner: 'enemy', poi: opts.poi || null, sats: [], pois: opts.poi ? [opts.poi] : [], capT: 0 };

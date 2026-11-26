@@ -7,10 +7,10 @@ const ROOT = path.resolve(__dirname, '..');
 const CENARIOS = [
   { passo: 1, status: 'pronto', t: 'Núcleo: um gerador, lote ajustável, FPS com 100', q: 'cenario=batalha&modo=nucleo',
     d: 'Um gerador inimigo (raio vermelho no chão; coleira laranja). Entre no raio e ele lança lotes de 3 a 5 até 30 vivos; ao sair do raio x 1,3 eles voltam. '
-      + 'Reserva inimiga 100; seu batalhão 50 (10 elites + 40 de reserva). Teclas: [ ] lote, - = atraso, V/X ordem aos soldados. Parâmetros: &inim= &reserva= &alia= &vivos= &vivosalia= &lote=4 &atraso=2 &semente=7 &raios=0' },
+      + 'Reserva inimiga 100; seu batalhão 50 (5 elites + 45 de reserva). Teclas: [ ] lote, - = atraso, V/X ordem aos soldados. Parâmetros: &inim= &reserva= &alia= &vivos= &vivosalia= &lote=4 &atraso=2 &semente=7 &raios=0' },
   { passo: 2, status: 'pronto', t: 'Choque: 3 postos por lado e centro', q: 'cenario=batalha&modo=choque',
     d: '3 postos seus (azul, oeste) e 3 do inimigo (vermelho, leste) mandam lotes de 3 a 5 ao centro (círculo branco), com 8 a 15 peças de cobertura espelhadas fora das rotas. '
-      + 'Reserva inimiga 100 (dividida nos postos); seu batalhão 50 (10 elites + 40 nos postos). Teclas: [ ] lote, - = atraso, V/X ordem. Parâmetros: &inim= &reserva= &alia= &vivos= &vivosalia= &lote= &atraso= &semente= &cobertura=N &raios=0' },
+      + 'Reserva inimiga 100 (dividida nos postos); seu batalhão 50 (5 elites + 45 nos postos). Teclas: [ ] lote, - = atraso, V/X ordem. Parâmetros: &inim= &reserva= &alia= &vivos= &vivosalia= &lote= &atraso= &semente= &cobertura=N &raios=0' },
   { passo: 3, status: 'pronto', t: 'Defesa: teleporte, barreira, 3 postos atacantes', q: 'cenario=batalha&modo=defesa',
     d: 'Você nasce no centro do POI defendido (bandeira). 3 postos inimigos fora da área (círculo azul) mandam lotes de 3 a 5. Zona cinza de 20 blocos além da borda: aviso ao entrar, fuga (derrota) ao atravessar. Ordem V só vale dentro da área. Parâmetros: &inim= &reserva= &alia= &vivos= &vivosalia= &lote= &atraso= &semente= &raios=0' },
   { passo: 4, status: 'pronto', t: 'Ataque: POI alvo e 3 satélites', q: 'cenario=batalha&modo=ataque',
@@ -21,7 +21,7 @@ const CENARIOS = [
   { passo: 6, status: 'pronto', t: 'Aliados: carregador e cobertura', q: 'cenario=ia&aliados=1',
     d: 'Como o passo 5, mas com 5 soldados seus (&alia=N) em assalto contra os 7 atiradores. Os soldados usam o carregador da arma (4 a 12 tiros, recarga 2 a 3 s) e, em combate, procuram abrigo num raio curto (9); nunca durante a ordem V nem em posto fixo. Comparar: &abrigo=0 e &carregador=0' },
   { passo: 7, status: 'pronto', t: 'Batalha pequena: defesa local, POI mais forte', q: 'cenario=batalha&modo=pequena',
-    d: 'Só você e as 10 elites contra a defesa fixa do POI (10 soldados com vida x1,75), sem reposição e sem placar. A defesa acorda no raio de alerta (40). Conquista = matar toda a defesa. Derrota branda (tela com Reiniciar no protótipo). Parâmetros: &guarnicao= &alia= &semente= &raios=0' },
+    d: 'Só você e as 5 elites contra a defesa fixa do POI (10 soldados com vida x1,75), sem reposição e sem placar. A defesa acorda no raio de alerta (40). Conquista = matar toda a defesa. Derrota branda (tela com Reiniciar no protótipo). Parâmetros: &guarnicao= &alia= &semente= &raios=0' },
   { passo: 8, status: 'pronto', t: 'Arredores de defesa: fortaleza de facção em guerra', q: 'cenario=tile&tema=fortaleza&seed=11&forma=pangeia&auto=1&dono=faccao&guerra=1',
     d: 'Principal (forte) de facção com trincheira em quadrado em volta e barricadas na estrada (guerra com você): uma onde ela cruza a trincheira e duas em pontos intermediários entre o forte e a abertura. Trechos sem chão firme (água, desnível > 5) ficam de fora. Variações: &guerra=0 (estrada livre, só trincheira), &dono=bandit ou &dono=player (sem arredores). Teste: node tests/batalha-arredores.js' },
   { passo: 10, status: 'pronto', t: 'Defesa vinda do cerco (origem=cerco)', q: 'cenario=batalha&modo=defesa&origem=cerco&acoes=2',

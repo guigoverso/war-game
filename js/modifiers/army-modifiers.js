@@ -47,3 +47,7 @@ function recruitCount(c) {
 
 // Tamanho (px) da foto do modelo da arma usada como ícone na barra, na bolsa e nas lojas (weapons.js, weaponIconUrl). Padrão 96.
 const WEAPON_ICON_PX=96;
+
+// Soldados do jogador também miram inimigos de POI, de acampamento e de matilha (lobos, cães) que estejam em combate (aggro, ou mirando você ou um soldado)
+// a esta distância (blocos) do soldado. Antes só mirava inimigos de raid/cidade e ignorava os demais. Padrão 40.
+const ALLY_THREAT_RANGE=40;

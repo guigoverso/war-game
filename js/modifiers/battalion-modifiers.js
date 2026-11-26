@@ -5,8 +5,8 @@
 const BAT = {
   // Teto de soldados de um batalhão (4B-4): nunca é ultrapassado; ganhos além dele se perdem. Padrão: 50
   max: 50,
-  // Quantos dos soldados são "de elite" (entram em qualquer luta; o resto são comuns, só na batalha grande). Padrão: 10
-  elite: 10,
+  // Quantos dos soldados são "de elite" (entram em qualquer luta; o resto são comuns, só na batalha grande). Padrão: 5
+  elite: 5,
   // Máximo de batalhões do jogador por nível da facção (índice 0 = nível 1; o último vale para os níveis acima). Padrão: 1, 2 e 3
   countByLevel: [1, 2, 3],
   // Tipos de soldado aceitos (os de ALLY_KINDS em allies.js). Padrão: soldier, heavy, sniper e gunner

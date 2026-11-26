@@ -123,7 +123,7 @@ function allyFindTarget(a,w){
     if(!e.alive)continue;
     const raidish=e.city.state==='attacking'&&(!e.city.kind||e.city.kind==='raid'||e.city.kind==='contest');   // aliados também combatem os bandidos de raid
     // numa batalha de rebelião, lobos, bandidos e outros que entrem no meio e ataquem você ou seus soldados também são alvo
-    const intruder=!raidish&&typeof REBB!=='undefined'&&REBB.active&&e.tg&&(e.tg.isAlly||e.tg===P)&&Math.hypot(e.x-a.x,e.z-a.z)<40;
+    const intruder=!raidish&&(e.aggro||(e.tg&&(e.tg.isAlly||e.tg===P)))&&!e.def.bomb&&Math.hypot(e.x-a.x,e.z-a.z)<ALLY_THREAT_RANGE;   // POI, acampamento, matilha e intrusos em combate (também na rebelião)
     if(!raidish&&!intruder)continue;
     const d=Math.hypot(e.x-a.x,e.z-a.z);
     if(d<sd){sd=d;seek=e}

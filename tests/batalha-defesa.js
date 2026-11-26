@@ -35,7 +35,7 @@ async function open(browser, base, qs) {
     ok(s.L.r === 45 && s.L.gray === 20, 'raio 45 e zona cinza 20 ' + JSON.stringify(s.L));
     ok(s.gens.length === 3 && s.gens.every(g => g[0] === 'enemy' && Math.abs(g[3] - 85) < 1), '3 postos inimigos a ~40 além do raio ' + JSON.stringify(s.gens));
     ok(s.d < 6, 'jogador começa no centro do POI (' + s.d.toFixed(1) + ')');
-    ok(s.c.e.r + s.c.e.f === 100 && s.c.p.r === 40 && s.c.p.f === 10, 'reservas ' + JSON.stringify(s.c));
+    ok(s.c.e.r + s.c.e.f === 100 && s.c.p.r === 45 && s.c.p.f === 5, 'reservas ' + JSON.stringify(s.c));
     await page.waitForTimeout(20000);
     s = await page.evaluate(() => ({ c: battleCounts(), d: ENEMIES.filter(e => e.alive && e.btl).map(e => Math.hypot(e.x - BATTLE.center.x, e.z - BATTLE.center.z)) }));
     ok(s.c.e.f > 0 && s.c.e.f <= 30 && s.c.e.r < 100, 'lotes saem dos postos sob a cota (' + s.c.e.f + ', reserva ' + s.c.e.r + ')');

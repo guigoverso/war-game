@@ -37,7 +37,7 @@ const killGarrison = page => page.evaluate(() => { for (const e of ENEMIES) if (
     ok(d0.home < 40 && d0.tg > 80 && d0.base === 100, 'jogador nasce na cidade, longe do alvo (' + d0.tg.toFixed(0) + '), reposição na trilha');
     ok(s.gar === 30, 'com batalhão a guarnição é de 30 (' + s.gar + ')');
     ok(s.sats.length === 3 && s.sats.every(q => q[2] >= 99 && q[2] <= 151 && q[1] === 'post') && s.sats.reduce((a, q) => a + q[0], 0) === 82, '3 satélites a 100-150 com reserva 82 (100 - 18 que completaram a guarnição) ' + JSON.stringify(s.sats));
-    ok(s.c.e.f === 30 && s.c.e.r === 82 && s.c.e.d === 0 && s.c.p.r === 40 && s.c.p.f === 10, 'placar inicial ' + JSON.stringify(s.c));
+    ok(s.c.e.f === 30 && s.c.e.r === 82 && s.c.e.d === 0 && s.c.p.r === 45 && s.c.p.f === 5, 'placar inicial ' + JSON.stringify(s.c));
     await page.waitForTimeout(5000);
     s = await page.evaluate(() => ({ r: battleCounts().e.r, live: BATTLE.area.aliveEnemies }));
     ok(s.r === 82 && s.live === 30, 'cota cheia: satélites ainda não mandam reforço');

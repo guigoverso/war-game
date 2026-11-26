@@ -51,7 +51,7 @@ const TXT_BATTLE_HELP = {
     + 'Ordem aos soldados (V, X) só vale dentro da área. Ajuste: [ ] lote, - = atraso.',
   ataque: 'Ataque: conquiste o POI alvo (bandeira vermelha) matando a guarnição. Com batalhão no tile (padrão) a guarnição é completada até 30 com soldados da reserva (total 112) e 3 satélites vermelhos mandam '
     + 'reforços em lotes à medida que morrem; com &batalhao=0 só a guarnição (12). Conquistado o alvo, vença zerando os reforços. Ordem aos soldados: V e X. Ajuste: [ ] lote, - = atraso.',
-  pequena: 'Batalha pequena: só você e os soldados de elite (10) contra a defesa fixa do POI (bandeira vermelha), sem reposição e sem placar; o POI é mais forte (vida x1,75). '
+  pequena: 'Batalha pequena: só você e os soldados de elite (5) contra a defesa fixa do POI (bandeira vermelha), sem reposição e sem placar; o POI é mais forte (vida x1,75). '
     + 'A defesa acorda no raio de alerta. Matar toda a defesa conquista o POI (o raio de alerta vale até lá). Ordem aos soldados: V e X.'
 };
 

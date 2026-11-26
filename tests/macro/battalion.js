@@ -8,7 +8,7 @@ ok(run('JSON.stringify(STATE.bat)')==='{"seq":0,"list":[]}','resetState: sem bat
 // criar e teto de 50
 run('var b1=batCreate("player","3,4",{soldier:30,heavy:15,sniper:10,xyz:5},{pistol:20},1)');
 ok(run('batTotal(b1)')===50&&run('b1.sold.sniper')===5&&run('"xyz" in b1.sold')===false,'teto 50: excesso cortado, tipo desconhecido ignorado');
-ok(run('batElites(b1)')===10&&run('batCommons(b1)')===40,'10 elites + 40 comuns');
+ok(run('batElites(b1)')===5&&run('batCommons(b1)')===45,'5 elites + 45 comuns');
 ok(run('batGain(b1,"soldier",3)')===0,'cheio: ganho além do teto se perde');
 // limite de batalhões por nível
 ok(run('batCreate("player","5,5",{soldier:5},{},1)')===null,'nível 1: só 1 batalhão do jogador');
