@@ -109,7 +109,7 @@ Pré-requisito do passo 1: o `?cenario=batalha` atual (30 x 10) foi jogado em 20
 **Como testar:** `node tests/provocacao.js` (atira a 90 do alvo; a defesa acorda, 2 contra-atiradores, volta a dormir sem provocação). À mão: `?cenario=batalha&modo=pequena`, afaste-se uns 90 blocos e acerte um soldado com um fuzil.
 
 ## Soldados do jogador miram bandidos de POI e lobos (2026-11-26)
-**Regra:** `allyFindTarget` (`allies.js`) agora também escolhe inimigos de POI, acampamento e matilha que estejam em combate (aggro, ou mirando você ou um soldado) a até `ALLY_THREAT_RANGE` (40, `army-modifiers.js`). Antes só mirava raid/cidade e ficava parado (tremendo na formação) quando sobravam só esses inimigos.
+**Regra:** `allyFindTarget` (`allies.js`) agora também escolhe inimigos de POI, acampamento e matilha que estejam em combate (aggro) a até `ALLY_THREAT_RANGE` (40, `army-modifiers.js`). Antes só mirava raid/cidade e ficava parado (tremendo na formação) quando sobravam só esses inimigos.
 **Como testar:** `?cenario=tile&tema=vila&seed=12&auto=1&recrutar=sua`: leve os soldados a um POI de bandidos com cães e acerte um inimigo; eles devem atirar nos cães e nos soldados.
 
 ## Tecla H: soltar os soldados para caçar (2026-11-26)
