@@ -331,16 +331,25 @@ function tcSurround(S) {
     WORLD.micros.push(d); S.taken.push({ x, z, r: 7, zone: true, surr: true }); dormBuild(d);
   };
   for (const vert of [false, true]) {   // vert: lados leste e oeste (o trecho gira 90 graus e não pega os cantos)
-    const len = vert ? 2 * h - 6 : 2 * h, count = Math.ceil(len / B_.step), st = len / count, hx = vert ? 3 : 7, hz = vert ? 7 : 3;
-    for (const s of [-1, 1]) for (let k = 0; k < count; k++) {
-      const u = -len / 2 + (k + 0.5) * st, x = Math.round(m.x + (vert ? s * h : u)), z = Math.round(m.z + (vert ? u : s * h)), rot = vert ? 1 : 0;
-      if (x < 12 || z < 12 || x > W - 13 || z > W - 13) { out.rej.borda++; continue }
-      if (roadIn(x, z, hx + B_.roadClear, hz + B_.roadClear)) {   // estrada: passagem livre, ou barricada em guerra
-        if (war && firm(x, z, hx, hz) && free(x, z)) { put('barricada_defesa', x, z, rot); out.barricada++ } else out.rej.estrada++;
-        continue;
+    const len = vert ? 2 * h - 6 : 2 * h, count = Math.ceil(len / B_.step), st = len / count, hx = vert ? 3 : 7, hz = vert ? 7 : 3, rot = vert ? 1 : 0;
+    for (const s of [-1, 1]) {
+      const segs = [];
+      for (let k = 0; k < count; k++) {
+        const u = -len / 2 + (k + 0.5) * st, x = Math.round(m.x + (vert ? s * h : u)), z = Math.round(m.z + (vert ? u : s * h));
+        segs.push({ x, z, road: roadIn(x, z, hx + B_.roadClear, hz + B_.roadClear) });
       }
-      if (!firm(x, z, hx, hz)) out.rej.chao++; else if (!free(x, z)) out.rej.ocupado++;
-      else { put('trincheira_defesa', x, z, rot); out.trincheira++ }
+      for (const g of segs) {
+        if (g.x < 12 || g.z < 12 || g.x > W - 13 || g.z > W - 13) { out.rej.borda++; continue }
+        if (g.road) continue;   // estrada: passagem livre (a barricada vem abaixo, uma por travessia)
+        if (!firm(g.x, g.z, hx, hz)) out.rej.chao++; else if (!free(g.x, g.z)) out.rej.ocupado++;
+        else { put('trincheira_defesa', g.x, g.z, rot); out.trincheira++ }
+      }
+      for (let k = 0; k < count; k++) {   // uma barricada por estrada: no meio de cada sequência de trechos com estrada (a estrada que corre junto ao lado não vira parede)
+        if (!segs[k].road || (k && segs[k - 1].road)) continue;
+        let e = k; while (e + 1 < count && segs[e + 1].road) e++;
+        const g = segs[(k + e) >> 1];
+        if (war && firm(g.x, g.z, hx, hz) && free(g.x, g.z)) { put('barricada_defesa', g.x, g.z, rot); out.barricada++ } else out.rej.estrada++;
+      }
     }
   }
 }
