@@ -23,15 +23,15 @@ const wfBox = (a, b) => Math.pow(Math.pow(Math.abs(a), 4) + Math.pow(Math.abs(b)
 function wfCreate(seed, opts) {
   opts = opts || {};
   const fm = WORLD_FIELD.formats, fmt = fm.includes(opts.format) ? opts.format : fm[new RNG((seed * 7 + 3) >>> 0).int(0, fm.length - 1)];
-  const S = WORLD_FIELD.tiles * WORLD_FIELD.spacing, rg = new RNG((seed * 131 + 17) >>> 0);
+  const N = WORLD_FIELD.worldTiles[fmt] || WORLD_FIELD.tiles, S = N * WORLD_FIELD.spacing, rg = new RNG((seed * 131 + 17) >>> 0);
   const F = {
-    seed, S, fmt, fmtName: WF_NAMES[fmt] || fmt, dominant: WF_CUT[opts.dominant] ? opts.dominant : 'plains',
+    seed, S, N, fmt, fmtName: WF_NAMES[fmt] || fmt, dominant: WF_CUT[opts.dominant] ? opts.dominant : 'plains',
     nz: new Noise(seed), nt: new Noise(seed + 11), nm: new Noise(seed + 23), nr: new Noise(seed + 37), nd: new Noise(seed + 51),
     nj: new Noise(seed + 77), wn: new Noise(seed + 131), ln: new Noise(seed + 211), blobs: [], lake: null
   };
   if (fmt === 'continentes') {   // 3 massas de terra separadas por mar, em volta do centro
     const a0 = rg.range(0, 6.283);
-    for (let k = 0; k < 3; k++) { const a = a0 + k * 2.094 + rg.range(-0.35, 0.35), R = rg.range(0.5, 0.56); F.blobs.push({ u: Math.cos(a) * R, v: Math.sin(a) * R, r: rg.range(0.4, 0.47) }) }
+    for (let k = 0; k < 3; k++) { const a = a0 + k * 2.094 + rg.range(-0.35, 0.35), R = rg.range(0.5, 0.56); F.blobs.push({ u: Math.cos(a) * R, v: Math.sin(a) * R, r: rg.range(WORLD_FIELD.blobR[0], WORLD_FIELD.blobR[1]) }) }
   } else if (fmt === 'lago') {   // um lago grande perto do centro
     const a = rg.range(0, 6.283), R = rg.range(0, 0.22);
     F.lake = { u: Math.cos(a) * R, v: Math.sin(a) * R, r: rg.range(0.26, 0.34) };
@@ -103,7 +103,7 @@ function wfLandFrac(F, ox, oz, size, step) {
 }
 
 // ---------- Grade provisória de tiles e trilhas (a etapa 5 troca por um grafo; a interface fica) ----------
-const wfNodeOk = i => i >= 0 && i < WORLD_FIELD.tiles;
+const wfNodeOk = (F, i) => i >= 0 && i < F.N;   // F.N = tiles de lado do mundo (S / spacing)
 // Centro do tile (i, j) da grade: centro da célula + deslocamento sorteado pela semente.
 function wfNode(F, i, j) {
   const sp = WORLD_FIELD.spacing, jt = WORLD_FIELD.jitter;
@@ -112,7 +112,7 @@ function wfNode(F, i, j) {
 const wfLandAt = (F, x, z) => wfHeight(F, x, z) >= wfSea() + 1;
 // Existe trilha entre dois tiles vizinhos? Sorteio pela ARESTA (mesmo resultado dos dois lados); exige terra nos dois centros e no meio.
 function wfHasTrail(F, i, j, ni, nj) {
-  if (!wfNodeOk(i) || !wfNodeOk(j) || !wfNodeOk(ni) || !wfNodeOk(nj)) return false;
+  if (!wfNodeOk(F, i) || !wfNodeOk(F, j) || !wfNodeOk(F, ni) || !wfNodeOk(F, nj)) return false;
   const a = wfNode(F, i, j), b = wfNode(F, ni, nj);
   if (!wfLandAt(F, a.x, a.z) || !wfLandAt(F, b.x, b.z) || !wfLandAt(F, (a.x + b.x) / 2, (a.z + b.z) / 2)) return false;
   return hash2(Math.min(i, ni), Math.min(j, nj), F.seed * 3 + (i !== ni ? 0 : 1) + 101) < WORLD_FIELD.trailProb;
@@ -173,8 +173,8 @@ function tileOpenPenalty(F, w, i, j) {
 // Escolhe o tile padrão da grade para o cenário: com terra perto de landTarget, ao menos uma trilha e o mais perto do centro do mundo.
 // Devolve { i, j }. Se ti/tj vierem da URL, só confere que existem.
 function wfPickTile(F, size, ti, tj) {
-  const N = WORLD_FIELD.tiles;
-  if (wfNodeOk(ti) && wfNodeOk(tj)) return { i: ti, j: tj };
+  const N = F.N;
+  if (wfNodeOk(F, ti) && wfNodeOk(F, tj)) return { i: ti, j: tj };
   let best = null, bs = 1e9;
   for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
     const n = wfNode(F, i, j), w = wfWindow(F, n.x, n.z, size), f = wfLandFrac(F, w.ox, w.oz, size, WORLD_FIELD.sampleStep * 2);
@@ -202,7 +202,7 @@ function wfPickWindow(F, size) {
 function wfAscii(F, step) {
   step = step || 32;
   const rows = [], nodes = new Set();
-  for (let j = 0; j < WORLD_FIELD.tiles; j++) for (let i = 0; i < WORLD_FIELD.tiles; i++) { const n = wfNode(F, i, j); nodes.add(Math.floor(n.x / step) + ',' + Math.floor(n.z / step)) }
+  for (let j = 0; j < F.N; j++) for (let i = 0; i < F.N; i++) { const n = wfNode(F, i, j); nodes.add(Math.floor(n.x / step) + ',' + Math.floor(n.z / step)) }
   for (let z = 0; z < F.S; z += step) {
     let s = '';
     for (let x = 0; x < F.S; x += step) {

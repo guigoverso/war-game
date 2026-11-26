@@ -156,7 +156,7 @@ const tileCaravanRoad = win => win.openings.length >= 2;
 const TILE_WAR = { openDist: 40, openR: 16, ringW: 24, plazaR: 18, siteRange: 8, improv: { abertura: ['fortcamp', 'lookout'], pLookout: 0.4, praca: 'barricade' },
   sides: { conquista: ['player', 'main'], defesa: ['bandit', 'player'], choque: ['player', 'bandit'] } };
 // Cicatrizes de batalha (passo 10): micro-POIs de guerra que ficam no tile onde houve luta (guardados em STATE.tiles[chave].cicatriz; só cenário, sem dono). kinds = ids de
-// LEGO_MICRO.list sorteados por tipo de batalha; grande/pequena = quantas nascem por luta (2 e 1); max = teto por tile (o mais antigo sai, 6). Padrão: ver abaixo
+// LEGO_MICRO.list sorteados por tipo de batalha; grande/pequena = quantas nascem por luta (2 e 1); max = teto por tile (o mais antigo sai, 6). Padrão: continentes 14, pangeia 12, arquipélagos 13, lago 12 (medido: 38 a 57 tiles de terra em 16 sementes cada) e [0.46, 0.52]
 const TILE_SCAR = { kinds: { ataque: ['campo_batalha', 'vala_comum', 'palicada'], defesa: ['campo_batalha', 'barricada', 'palicada'], choque: ['campo_batalha', 'trincheira', 'vala_comum'],
   pequena: ['campo_batalha', 'vala_comum'] }, grande: 2, pequena: 1, max: 6 };
 
@@ -169,8 +169,11 @@ const TILE_MARK = { main: '#00e5ff', player: '#2a7aff', enemy: '#ff2a2a', mini: 
 // O mundo é uma FUNÇÃO de posição (js/macro/worldfield.js); o mapa local é uma janela dessa função. Valores = ponto de partida, a calibrar.
 const WORLD_FIELD = {
   // Grade PROVISÓRIA de tiles (a etapa 5 troca por um grafo): quantos tiles de lado, distância entre centros e quanto cada centro pode sair do lugar
-  // (em blocos). Mundo = tiles x spacing de lado. A distância é o TILE_SIZE (tiles vizinhos se encostam). Padrão: 7, TILE_SIZE (384), 48
-  tiles: 7, spacing: TILE_SIZE, jitter: 48,
+  // (em blocos). Mundo = tiles x spacing de lado (grade provisória; o mundo do grafo usa worldTiles abaixo). Padrão: 10, TILE_SIZE (384), 48
+  tiles: 10, spacing: TILE_SIZE, jitter: 48,
+  // Tamanho do mundo por formato, em tiles de lado (etapa 5: o grafo precisa de ao menos 40 tiles de TERRA por mundo, decisão de 2026-11-26; `tiles` acima
+  // (10) vale só para a grade provisória e para formato sem entrada aqui) e raio das massas do formato 'continentes' (fração do meio mundo). Padrão: ver abaixo
+  worldTiles: { continentes: 14, pangeia: 12, arquipelagos: 13, lago: 12 }, blobR: [0.46, 0.52],
   // Formatos do mundo (landMask em escala de mundo). Padrão: continentes, pangeia, arquipélagos e grande lago
   formats: ['continentes', 'pangeia', 'arquipelagos', 'lago'],
   // Largura da transição terra-mar em unidades do mundo (1 = metade do mundo, ~1000 blocos). Menor = costa mais curta. Padrão: 0.12
@@ -187,6 +190,36 @@ const WORLD_FIELD = {
   gapHalf: 5, gapDepth: 24,
   // Detalhe fino do relevo (1 = igual ao mapa antigo; menor = terreno mais liso). Padrão: 0.8
   detail: 0.8
+};
+// ---------- Etapa 5 do plano: o grafo do mapa mundi (js/macro/graph.js; decisões de 2026-11-26, rodada 15 de 5_mapa-mundi.md) ----------
+// Pontos com distância mínima, vizinhos por triangulação, trilhas e estradas, tema de cada tile por adequação ao terreno. Valores = ponto de partida.
+const WORLD_GRAPH = {
+  // Distância mínima entre dois pontos (o tile tem 384: as janelas vizinhas mal se tocam), tentativas de sorteio por passada (terra, depois mar)
+  // e margem até a borda do mundo (metade do tile). Padrão: TILE_SIZE, 6000, TILE_SIZE / 2
+  minDist: TILE_SIZE, tries: 6000, edgeMargin: TILE_SIZE / 2,
+  // Passo (blocos) da grade grossa de terra e da amostragem do terreno do tile. Padrão: 32 e 32
+  gridStep: 32, terrStep: 32,
+  // Fração mínima de terra da janela para o ponto ser tile de TERRA (abaixo disso é tile de MAR, só para navegar). Padrão: 0.3
+  landMin: 0.3,
+  // Vizinhança: aresta máxima (em múltiplos de minDist), passo da sonda de terreno (blocos), água de rio (até aqui a estrada passa com ponte local),
+  // vão de água que ainda vira travessia (acima disso a aresta de terra não existe; só por mar) e custo por bioma (planície, floresta, deserto, neve, rocha)
+  // e da água. Padrão: 1.9, 8, 28, 96, [2, 3, 3, 3, 4], 6
+  maxEdge: 1.9, probeStep: 8, riverMax: 28, bridgeMax: 96, biomeCost: [2, 3, 3, 3, 4], waterCost: 6,
+  // Trilhas: máximo de vizinhos por terra, chance de uma aresta além da árvore geradora entrar e custo de uma aresta de mar (por minDist). Padrão: 4, 0.55, 2
+  maxDeg: 4, extraProb: 0.55, seaCost: 2,
+  // Estradas: cada cidade liga-se às N cidades mais próximas (em custo) da mesma massa de terra. Padrão: 2
+  roadLinks: 2,
+  // Cidades: faixa pedida (limitada a esta fração dos tiles temáticos) e terra mínima da janela por tema (fração; 0 = qualquer). Padrão: [5, 7], 0.3
+  cities: [5, 7], cityMaxFrac: 0.3,
+  themeLandMin: { cidade: 0.6, vila: 0.45, fazenda: 0.5, mina: 0.5, serraria: 0.5, animais: 0.5, ponte: 0.2, fortaleza: 0.4, ruinas: 0.3 },
+  // Adequação mínima ao terreno (tileFit, 0 a 1) para o tema valer; o 1º tile de cada tema é FORÇADO (melhor adequação disponível) se nenhum chega. Padrão: 0.5
+  minFit: 0.5,
+  // Peso que um vizinho do MESMO tema tira do tile (0 = livre, 1 = proíbe). Padrão: 0.5
+  sameNeighbor: 0.5,
+  // Ilha inicial: mínimo de tiles de terra e de cidades alcançáveis a pé; abaixo disso a cidade inicial vira porto (navio grátis). Padrão: 6 e 2
+  startIsland: { tiles: 6, cities: 2 },
+  // Abertura do tile: quanto desliza pela borda atrás de terra (blocos). Padrão: 80
+  openSlide: 80
 };
 // ?cenario=tile mostra um tile da grade: ?ti=&tj= escolhe; ?tema=fazenda o tema (sem ele sai do sorteio por ?temas=70); ?tam=384 o lado; ?forma= o formato do mundo;
 // ?pos=borda começa na primeira abertura; ?batalha=defesa&entrada=L descreve uma batalha (conquista|defesa|choque; &entrada2=O segundo lado do choque;

@@ -294,12 +294,12 @@ function tileWorldImage() {
   }
   g.putImageData(img, 0, 0);
   g.strokeStyle = '#d8c08a'; g.lineWidth = 1;
-  for (let j = 0; j < WORLD_FIELD.tiles; j++) for (let i = 0; i < WORLD_FIELD.tiles; i++) for (const t of wfTrails(F, i, j)) {
+  for (let j = 0; j < F.N; j++) for (let i = 0; i < F.N; i++) for (const t of wfTrails(F, i, j)) {
     if (t.i < i || (t.i === i && t.j < j)) continue;
     g.beginPath(); wfTrailPath(F, i, j, t.i, t.j).forEach((p, k) => k ? g.lineTo(p.x / st, p.z / st) : g.moveTo(p.x / st, p.z / st)); g.stroke();
   }
   g.fillStyle = '#fff';
-  for (let j = 0; j < WORLD_FIELD.tiles; j++) for (let i = 0; i < WORLD_FIELD.tiles; i++) { const q = wfNode(F, i, j); g.fillRect(q.x / st - 1, q.z / st - 1, 3, 3) }
+  for (let j = 0; j < F.N; j++) for (let i = 0; i < F.N; i++) { const q = wfNode(F, i, j); g.fillRect(q.x / st - 1, q.z / st - 1, 3, 3) }
   g.strokeStyle = '#e03030'; g.lineWidth = 2; g.strokeRect(win.ox / st, win.oz / st, win.size / st, win.size / st);
   return win.mapUrl = cv.toDataURL();
 }

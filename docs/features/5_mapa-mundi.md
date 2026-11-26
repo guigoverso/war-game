@@ -415,6 +415,14 @@ Grade perfeita descartada. Proposta:
 | `save` | novo `SAVE_VERSION`: grafo, atores, diferenças por tile |
 | `entities`, `allies`, `weapons`, `ambient` | quase intactos; vivem dentro do mapa local ativo |
 
+## Rodada 15 (2026-11-26): etapa 5, o grafo
+- **[DECIDIDO]** Limite mínimo de adequação ao terreno (`tileFit`) para um tema valer: **0,5** (`WORLD_GRAPH.minFit`). Temas sem terreno próprio (cidade, vila, fortaleza, ruínas) usam só uma terra mínima da janela (`themeLandMin`).
+- **[DECIDIDO]** Mundo sem tile bom para um tema: **o mundo tem no mínimo 1 tile de cada tema**; se nenhum chega ao limite, o 1º do tema é forçado no tile de maior adequação (`G.forcados`, borda vermelha no SVG de teste).
+- **[DECIDIDO]** Mesmo tema em vizinhos: **pode, com penalidade** (peso x0,5 por vizinho igual, `sameNeighbor`).
+- **[DECIDIDO]** Distância mínima entre pontos: **384** (um tile; janelas vizinhas não se sobrepõem).
+- **[CONSEQUÊNCIA, a confirmar]** Com 384 de distância, o mundo de 7x7 tiles (2688) só comportava 12 a 21 tiles de terra (continentes com 4 tiles e 1 cidade cada). o usuário pediu **no mínimo 40 tiles de terra por mapa**: o tamanho do mundo agora é por formato (`WORLD_FIELD.worldTiles`: continentes 14, pangeia 12, arquipélagos 13, lago 12 = 5376 a 4608 blocos) e as massas dos continentes cresceram (`blobR`). Medido: 43 a 58 tiles de terra, geração ~1,3 s. Em continentes e arquipélagos a cidade inicial vira porto em ~1 de cada 6 mundos.
+- **[IMPLEMENTADO]** `js/macro/graph.js`: pontos, Delaunay, trilhas (árvore + extras), estradas entre cidades, ponte = aresta com vão de água 28 a 96 blocos, temas, ilha inicial/porto, aberturas, `wgPack/wgUnpack`. Fora do escopo desta rodada: salvar no `STATE`, ligar ao mapa local, desenho 3D (etapa 6).
+
 ## Próximos passos (propostos)
 1. Responder as perguntas abertas (principalmente 1 a 5).
 2. Fechar o desenho das mecânicas (atores, encontros, pontos, guerra por batalhão).

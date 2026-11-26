@@ -34,7 +34,8 @@ ok(run(`tileEntrance([],'L')`)===null,'sem aberturas, sem entrada');
 const mp=run(`(()=>{const out={n:0,bad:[],arq:{},um:0,umFundo:0,det:true,bigBad:0,big:0,semMain:0};
   for(const sd of [3,11])for(const fmt of ['continentes','pangeia']){
     const F=wfCreate(sd,{format:fmt});
-    for(let j=1;j<5;j++)for(let i=1;i<5;i++){
+    const c0=Math.floor(F.N/2)-2;   // em volta do centro do mundo (o tamanho varia por formato)
+    for(let j=c0;j<c0+4;j++)for(let i=c0;i<c0+4;i++){
       const n=wfNode(F,i,j),w=wfWindow(F,n.x,n.z,384,{tile:true,ti:i,tj:j,neighbors:[],openings:[]});w.openings=wfOpenings(F,w,i,j);
       for(const tema of ['cidade','vila','fazenda','mina','serraria','animais','ponte','fortaleza','ruinas','passagem']){
         const big=tema==='cidade'?100:tema==='vila'?55:0,p=tileMainPlan(F,w,tema,{half:big});

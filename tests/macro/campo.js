@@ -33,7 +33,7 @@ ok(run(`(()=>{const F=wfCreate(${seed},{format:'continentes'}),a=wfWindow(F,900,
   for(let z=b.oz;z<b.oz+b.size;z+=5)for(let x=b.ox;x<b.ox+b.size;x+=5){if(x<a.ox||z<a.oz||x>=a.ox+a.size||z>=a.oz+a.size)continue;
     const ha=wfHeight(F,a.ox+(x-a.ox),a.oz+(z-a.oz)),hb=wfHeight(F,b.ox+(x-b.ox),b.oz+(z-b.oz));if(ha!==hb)return false}return true})()`),'continuidade: janelas sobrepostas têm o mesmo terreno');
 // trilhas: simétricas (A liga B se e só se B liga A) e o traçado é o mesmo dos dois lados
-const tr=run(`(()=>{const F=wfCreate(${seed},{format:'pangeia'}),N=WORLD_FIELD.tiles;let n=0,sim=true,path=true;
+const tr=run(`(()=>{const F=wfCreate(${seed},{format:'pangeia'}),N=F.N;let n=0,sim=true,path=true;
   for(let j=0;j<N;j++)for(let i=0;i<N;i++)for(const t of wfTrails(F,i,j)){n++;
     if(!wfTrails(F,t.i,t.j).some(u=>u.i===i&&u.j===j))sim=false;
     const p=wfTrailPath(F,i,j,t.i,t.j),q=wfTrailPath(F,t.i,t.j,i,j).reverse();
