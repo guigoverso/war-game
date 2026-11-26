@@ -312,7 +312,8 @@ function slotTitle(it,loc){
 }
 function renderInventory(){
   const inv=STATE.inv;if(!inv||!document.getElementById('invinfo'))return;
-  $('invinfo').textContent='◉ '+P.coins+'  •  Bolsa: '+invUsed()+'/'+inv.size+(P.coins<0?'  •  ⚠ em dívida':'');
+  $('invinfo').textContent='Bolsa: '+invUsed()+'/'+inv.size;
+  renderInvStat();
   const sel=G.invSel,isSel=(k,i)=>sel&&sel.k===k&&sel.i===i;
   const grid=(el,k,arr,cols,keyBase)=>UI.slotGrid(el,{cols,slots:arr,
     render:(s,i)=>{
@@ -348,12 +349,16 @@ function renderInventory(){
     det.innerHTML='<div style="font-size:30px">'+itemIconHtml(d)+'</div><b>'+(d.weapon!==undefined?wName(d.weapon):d.name)+'</b>'+(s.n>1?' ×'+s.n:'')+'<p class="st">'+d.desc+'<br>Valor: ◉'+d.value+(d.noSell?' (não vendável)':'')+extra+'</p>';
     const fromBag=sel.k==='bag';
     if(d.use){
-      det.appendChild(UI.button('Usar','gold',()=>{if(sel.k==='cbar')useBar(sel.i);else invUse(s.id);G.invSel=null;renderInventory()}));
+      det.appendChild(UI.button('Usar','gold',()=>{
+        G.useCd=0;   // o jogo fica parado com a bolsa aberta: sem isto o tempo de espera do item nunca acabava e o botão parava de funcionar
+        if(sel.k==='cbar')useBar(sel.i);else invUse(s.id);
+        if(!getLoc(sel))G.invSel=null;   // só desmarca quando o estoque acabou
+        renderInventory()}));
     }
     if(d.type==='weapon'&&sel.k==='wbar')det.appendChild(UI.button('Equipar','gold',()=>{selectSlot(sel.i);renderInventory()}));
     const lastWeapon=d.weapon!==undefined&&weaponsOwnedCount()<=1;
     if(!d.key&&!lastWeapon)det.appendChild(UI.button('Descartar','red',()=>UI.confirm('Descartar '+d.name+(s.n>1?' ×'+s.n:'')+'? Esta ação não pode ser desfeita.',()=>{setLoc(sel,null);G.invSel=null;afterMove()},'Descartar')));
-  }else det.innerHTML='<p class="st">Clique em um item para ver os detalhes e <b>arraste</b> os itens entre a bolsa, a barra de armas (1–6) e os atalhos de cura (7–9). O que está nas barras não ocupa espaço na bolsa.</p>';
+  }
   // itens pendentes (bolsa cheia)
   const pe=$('invpending');pe.innerHTML='';
   if(inv.pending.length){
@@ -367,5 +372,13 @@ function renderInventory(){
     });
     pe.appendChild(h);
   }
-  if(typeof renderDeposit==='function')renderDeposit();   // botão de depositar suprimentos no estoque (book.js)
+}
+// Ouro (grande, dourado alaranjado) e, embaixo, a vida do jogador: a barra mostra quanto uma cura recuperou (embaixo dos detalhes do item).
+function renderInvStat(){
+  const el=$('invstat');if(!el)return;
+  const pct=Math.round(clamp(P.hp/P.maxhp,0,1)*100);
+  el.innerHTML='<div style="margin-top:12px;font-size:'+INV_GOLD_SIZE+'px;font-weight:bold;color:'+INV_GOLD_COLOR+'">◉ '+P.coins+'</div>'
+    +(P.coins<0?'<div class="st" style="color:#ff6a6a">⚠ em dívida</div>':'')
+    +'<div style="margin-top:6px;height:16px;background:#2a1414;border:1px solid #000;position:relative"><div style="height:100%;width:'+pct+'%;background:'+INV_LIFE_COLOR+';transition:width .3s"></div>'
+    +'<span style="position:absolute;inset:0;text-align:center;font-size:12px;line-height:16px;color:#fff">❤ '+Math.ceil(P.hp)+' / '+P.maxhp+'</span></div>';
 }

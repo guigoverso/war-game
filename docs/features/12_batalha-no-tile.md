@@ -111,3 +111,10 @@ Pré-requisito do passo 1: o `?cenario=batalha` atual (30 x 10) foi jogado em 20
 ## Soldados do jogador miram bandidos de POI e lobos (2026-11-26)
 **Regra:** `allyFindTarget` (`allies.js`) agora também escolhe inimigos de POI, acampamento e matilha que estejam em combate (aggro, ou mirando você ou um soldado) a até `ALLY_THREAT_RANGE` (40, `army-modifiers.js`). Antes só mirava raid/cidade e ficava parado (tremendo na formação) quando sobravam só esses inimigos.
 **Como testar:** `?cenario=tile&tema=vila&seed=12&auto=1&recrutar=sua`: leve os soldados a um POI de bandidos com cães e acerte um inimigo; eles devem atirar nos cães e nos soldados.
+
+## Tecla H: soltar os soldados para caçar (2026-11-26)
+**Regra:** depois de posicionar os soldados (V), eles ficam no ponto mesmo sem inimigos. **H** cancela a ordem e os libera: cada soldado vai atrás do inimigo vivo mais perto (até `ALLY_HUNT_RANGE`, 90 blocos, em `army-modifiers.js`) e o ataca. Vale até a próxima ordem (V) ou X (`orderHunt`, `allies.js`).
+**Como testar:** `?cenario=batalha&modo=pequena` ou o tile com POIs: dê V longe, mate os inimigos perto do ponto e aperte H.
+
+## Bolsa (2026-11-26)
+Sem o texto de ajuda quando nada está selecionado e sem a nota do armazém; **Usar** mantém o item selecionado enquanto houver estoque e funciona várias vezes (o tempo de espera do item não corre com a bolsa aberta e travava o botão); o ouro (dourado alaranjado, grande) e a barra de vida ficam abaixo dos detalhes do item e a barra atualiza ao curar.

@@ -42,17 +42,17 @@ const TXT_BATTLE_DEF_WARN = 'Você está abandonando a posição! Volte, seus so
 // Explicação curta do cenário (painel de testes da pausa), por modo de batalha.
 const TXT_BATTLE_HELP = {
   nucleo: 'Núcleo da batalha: um gerador inimigo (raio vermelho no chão) acorda quando você entra no raio e lança soldados em lotes, '
-    + 'até a cota de vivos; ao sair do raio x 1,3 eles voltam. Ordem aos soldados: V (ponto mirado) e X (cancelar). '
+    + 'até a cota de vivos; ao sair do raio x 1,3 eles voltam. Ordem aos soldados: V (ponto mirado), X (cancelar) e H (soltar para caçar). '
     + 'Ajuste em tempo real: [ ] muda o lote, - = muda o atraso.',
   choque: 'Choque: 3 postos seus (azul, oeste) e 3 do inimigo (vermelho, leste) mandam soldados em lotes ao centro (círculo branco), onde estão as peças de '
-    + 'cobertura. Vence quem zerar a reserva e os vivos do outro lado. Ordem aos soldados: V e X. Ajuste: [ ] lote, - = atraso.',
+    + 'cobertura. Vence quem zerar a reserva e os vivos do outro lado. Ordem aos soldados: V, X e H (caçar). Ajuste: [ ] lote, - = atraso.',
   defesa: 'Defesa: você foi levado ao centro do POI defendido (bandeira). Os atacantes saem de 3 postos vermelhos fora da área (círculo azul) e vêm em lotes. '
     + 'Além da borda azul há uma zona cinza: ao entrar nela aparece o aviso; ao atravessá-la você foge e perde. Vence zerando reserva e vivos dos atacantes. '
-    + 'Ordem aos soldados (V, X) só vale dentro da área. Ajuste: [ ] lote, - = atraso.',
+    + 'Ordem aos soldados (V, X, H) só vale dentro da área. Ajuste: [ ] lote, - = atraso.',
   ataque: 'Ataque: conquiste o POI alvo (bandeira vermelha) matando a guarnição. Com batalhão no tile (padrão) a guarnição é completada até 30 com soldados da reserva (total 112) e 3 satélites vermelhos mandam '
-    + 'reforços em lotes à medida que morrem; com &batalhao=0 só a guarnição (12). Conquistado o alvo, vença zerando os reforços. Ordem aos soldados: V e X. Ajuste: [ ] lote, - = atraso.',
+    + 'reforços em lotes à medida que morrem; com &batalhao=0 só a guarnição (12). Conquistado o alvo, vença zerando os reforços. Ordem aos soldados: V, X e H (caçar). Ajuste: [ ] lote, - = atraso.',
   pequena: 'Batalha pequena: só você e os soldados de elite (5) contra a defesa fixa do POI (bandeira vermelha), sem reposição e sem placar; o POI é mais forte (vida x1,75). '
-    + 'A defesa acorda no raio de alerta. Matar toda a defesa conquista o POI (o raio de alerta vale até lá). Ordem aos soldados: V e X.'
+    + 'A defesa acorda no raio de alerta. Matar toda a defesa conquista o POI (o raio de alerta vale até lá). Ordem aos soldados: V, X e H (caçar).'
 };
 
 // Explicação do cenário ?cenario=ia (painel de testes da pausa): atiradores com cobertura e carregador (passo 5).

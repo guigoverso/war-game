@@ -51,3 +51,9 @@ const WEAPON_ICON_PX=96;
 // Soldados do jogador também miram inimigos de POI, de acampamento e de matilha (lobos, cães) que estejam em combate (aggro, ou mirando você ou um soldado)
 // a esta distância (blocos) do soldado. Antes só mirava inimigos de raid/cidade e ignorava os demais. Padrão 40.
 const ALLY_THREAT_RANGE=40;
+
+// Tecla que LIBERA os soldados (cancela a ordem V) para saírem à caça: vão atrás do inimigo vivo mais perto, sem ficar parados no ponto da ordem. Vale até a próxima
+// ordem V ou X. Padrão: 'KeyH'
+const ORDER_KEY_HUNT = 'KeyH';
+// Na caça, até que distância (blocos) do soldado ele procura inimigos para atacar. Padrão: 90
+const ALLY_HUNT_RANGE = 90;

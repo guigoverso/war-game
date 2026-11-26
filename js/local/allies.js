@@ -103,7 +103,7 @@ function damageAlly(a,dmg){
   if(a.hp<=0){a.alive=false;a.deadT=0;if(!a.temp&&!BATTLE.on&&!(typeof REBB!=='undefined'&&REBB.active))toast('☠ Um soldado seu caiu! Recrute outro no Quartel.',3000)}   // sem aviso nas batalhas de rebelião (o contador de aliados mostra)
 }
 function armyAssault(c,msg,only){   // only: filtro opcional (quais soldados)
-  if(!only)orderCancel();   // a invasão manda os soldados atrás de você: a ordem antiga cai
+  if(!only){const h=ORDER.hunt;orderCancel();ORDER.hunt=h}   // (a caça liberada continua) a invasão manda os soldados atrás de você: a ordem antiga cai
   let n=0;const sy=Math.sin(P.yaw),cy=Math.cos(P.yaw),tot=allyCount();
   for(const a of ALLIES){if(!a.alive||(only&&!only(a)))continue;
     // aparecem atrás do jogador, em formação escalonada
@@ -124,7 +124,8 @@ function allyFindTarget(a,w){
     const raidish=e.city.state==='attacking'&&(!e.city.kind||e.city.kind==='raid'||e.city.kind==='contest');   // aliados também combatem os bandidos de raid
     // numa batalha de rebelião, lobos, bandidos e outros que entrem no meio e ataquem você ou seus soldados também são alvo
     const intruder=!raidish&&(e.aggro||(e.tg&&(e.tg.isAlly||e.tg===P)))&&!e.def.bomb&&Math.hypot(e.x-a.x,e.z-a.z)<ALLY_THREAT_RANGE;   // POI, acampamento, matilha e intrusos em combate (também na rebelião)
-    if(!raidish&&!intruder)continue;
+    const hunted=ORDER.hunt&&!e.def.bomb&&(e.city.kind||e.city.state==='attacking')&&Math.hypot(e.x-a.x,e.z-a.z)<ALLY_HUNT_RANGE;   // caça: qualquer inimigo (não de cidade em paz)
+    if(!raidish&&!intruder&&!hunted)continue;
     const d=Math.hypot(e.x-a.x,e.z-a.z);
     if(d<sd){sd=d;seek=e}
     if(d<Math.min(w.range,60)&&d<bd&&losClear(a.x,ey,a.z,e.x,e.y+e.lift+e.def.h*0.6,e.z)){bd=d;best=e}
@@ -133,7 +134,7 @@ function allyFindTarget(a,w){
 }
 // ---------- ordem de movimento (temporária, não é salva; números em modifiers/army-modifiers.js) ----------
 // Com a ordem ativa, todos os soldados soltos vão ao ponto, formam em volta e atiram; só perseguem inimigos perto dele.
-const ORDER={on:false,x:0,z:0,mark:null,t:0};
+const ORDER={on:false,x:0,z:0,mark:null,t:0,hunt:false};   // hunt: soldados liberados para caçar (tecla ORDER_KEY_HUNT)
 function orderMarker(){   // anel azul no chão, criado na primeira ordem
   if(!ORDER.mark){
     const g=new THREE.Mesh(new THREE.RingGeometry(0.9,1.3,24),new THREE.MeshBasicMaterial({color:ORDER_MARK_COLOR,transparent:true,opacity:0.8,side:THREE.DoubleSide,depthWrite:false}));
@@ -146,13 +147,18 @@ function orderGo(){   // mira do jogador -> ponto do chão
   const d=new THREE.Vector3(),o=new THREE.Vector3();camera.getWorldDirection(d);camera.getWorldPosition(o);
   rayWorld(o.x,o.y,o.z,d.x,d.y,d.z,ORDER_MAX_DIST);
   if(RAY.kind===0)return;
-  ORDER.x=o.x+d.x*RAY.t;ORDER.z=o.z+d.z*RAY.t;battleClampOrder(ORDER);ORDER.on=true;   // na Defesa o ponto fica dentro da área
+  ORDER.x=o.x+d.x*RAY.t;ORDER.z=o.z+d.z*RAY.t;battleClampOrder(ORDER);ORDER.on=true;ORDER.hunt=false;   // na Defesa o ponto fica dentro da área
   const m=orderMarker();m.position.set(ORDER.x,tH(ORDER.x,ORDER.z)+0.15,ORDER.z);
   for(const a of ALLIES)if(a.alive)a.path=null;   // recalcula o caminho já no destino novo
   if(orderInBattle())sfx('coin',0);
 }
+// Libera os soldados: a ordem cai e eles saem atrás do inimigo vivo mais perto (allyFindTarget/updateAlly), em vez de ficar parados no ponto.
+function orderHunt(){
+  if(!canOrderAllies())return;
+  orderCancel();ORDER.hunt=true;
+}
 function orderCancel(){
-  if(!ORDER.on)return;ORDER.on=false;if(ORDER.mark)ORDER.mark.visible=false;
+  ORDER.hunt=false;if(!ORDER.on)return;ORDER.on=false;if(ORDER.mark)ORDER.mark.visible=false;
   for(const a of ALLIES)a.path=null;
 }
 function orderInBattle(){return ALLIES.some(a=>a.alive&&a.state==='assault')}   // em batalha, com os soldados invocados: só então há marcador e som
@@ -222,6 +228,8 @@ function updateAlly(a,dt){
       }
     }
   }else if(ord){a.cov=null;moving=orderStep(a,dt)
+  }else if(ORDER.hunt&&a.seekE&&a.seekE.alive&&!a.post){   // caça: vai atrás do inimigo mais perto
+    navMove(a,a.seekE.x,a.seekE.z,4.2,dt,a.r,1.8,1.05);a.yaw=Math.atan2(a.seekE.x-a.x,a.seekE.z-a.z);moving=true;
   }else if(a.state==='assault'){
     const c=a.assaultCity,dc=Math.hypot(c.cx-a.x,c.cz-a.z);
     const fm=a.form||{ang:0,r:0};let tx=c.cx+Math.cos(fm.ang)*fm.r,tz=c.cz+Math.sin(fm.ang)*fm.r;

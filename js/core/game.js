@@ -419,6 +419,7 @@ window.addEventListener('keydown',e=>{
   else if(e.code==='KeyB')openInventory();
   else if(e.code===ORDER_KEY_GO)orderGo();          // ordem: soldados vão ao ponto mirado (allies.js)
   else if(e.code===ORDER_KEY_CANCEL)orderCancel();
+  else if(e.code===ORDER_KEY_HUNT)orderHunt();   // libera os soldados para caçar inimigos
   else if(e.code==='Digit7'||e.code==='Digit8'||e.code==='Digit9')useBar(+e.code.slice(5)-7);
   else if(e.code.startsWith('Digit')){const i=+e.code.slice(5)-1;if(i>=0&&i<WBAR)selectSlot(i)}
 });

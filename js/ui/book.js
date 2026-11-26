@@ -1,13 +1,12 @@
 'use strict';
 // ---------- Caderno (painel ldbook): bolsa, livro do prefeito e suas abas ----------
 // Separado de rounds.js. A aba Mapa e a escolha de caravana ficam em bookmap.js.
-function renderDeposit(){const el=document.getElementById('invdeposit');if(el)el.innerHTML='<p class="st">Madeira, minério e comida são itens: entregue-os à cidade no <b>armazém</b>.</p>'}
 // ---------- livro: bolsa + livro do prefeito (tecla B) ----------
 const LB={top:'book',tab:'resumo',city:null,ra:null,rb:null,fac:0};
 const mapOpen=()=>G.panel==='ldbook'&&LB.top==='map';   // o mapa agora é uma aba do caderno (tecla M)
 const LSUBS=[['resumo','📜 Resumo'],['cidades','🏘 Cidades'],['capital','🚩 Facção'],['missoes','📋 Missões'],['caravanas','🛒 Caravanas'],['facs','🏴 Facções'],['guerra','⚔ Guerra'],['diplo','🕊 Diplomacia'],['buffs','✨ Efeitos']];
 const INV_L='<h3>🎒 Bolsa</h3><div id="invinfo" class="ldsm"></div><b class="st">Armas e vara — teclas 1–6</b><div id="invwbar"></div><b class="st" style="display:block;margin-top:8px">Curas — teclas 7–9</b><div id="invcbar"></div><b class="st" style="display:block;margin-top:8px">Bolsa</b><div id="invgrid"></div>';
-const INV_R='<div id="invdetail"></div><div id="invpending"></div><div id="invdeposit"></div>';
+const INV_R='<div id="invdetail"></div><div id="invpending"></div><div id="invstat"></div>';
 function openBook(top,tab){
   if(G.office&&top==='inv')top='book';   // no escritório não há bolsa (o mapa e o livro sim)
   LB.top=top||'book';if(tab)LB.tab=tab;   // sem pedido explícito abre no Livro (mesmo que tenha sido fechado no Mapa)
