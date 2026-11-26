@@ -81,3 +81,13 @@ const BATTLE_MOD = {
 };
 // Verdadeiro quando o cenário de teste está no modo de batalha pedido por ?modo= (nucleo, choque, defesa, ataque, pequena).
 const battleMode = () => tileTestOn() ? (new URLSearchParams(location.search).get('modo') || '') : '';
+
+// Arredores de defesa do POI principal do tile (feature 12, passo 8; tilecompose.js `tcSurround`). Só tile de FACÇÃO (dono numérico) cujo principal é de um tipo
+// de `types`: ganha uma trincheira em quadrado em volta (cenário permanente, cobertura e ambiente, sem dono nem serviço) e, onde uma estrada cruza o quadrado, uma
+// barricada (só se `tileSurrWar()`; sem guerra a estrada fica livre). Tile de bandidos, neutro ou do jogador não ganha nada.
+// types: tipos de principal que valem (padrão fort, fortcamp); gap: distância do quadrado à borda do POI, em blocos (9; o anel vai até 24); step: comprimento de um
+// trecho (14 = os dois micro-POIs `trincheira_defesa` e `barricada_defesa`); slope: desnível máximo do chão sob um trecho (5; acima disso o trecho não nasce);
+// roadClear: folga em blocos em volta de uma estrada onde o trecho vira passagem (2); testFaction: dono de facção de ?dono=faccao (1, só para testar).
+const BATTLE_SURR = { types: ['fort', 'fortcamp'], gap: 9, step: 14, slope: 5, roadClear: 2, testFaction: 1 };
+// Há guerra entre o dono do tile e o jogador? ?guerra=1|0 força (testes); sem o parâmetro, vale a guerra ativa (warActive); a camada macro entra no passo 10.
+const tileSurrWar = () => { const q = new URLSearchParams(location.search).get('guerra'); return q ? q === '1' : typeof warActive === 'function' && warActive() };

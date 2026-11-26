@@ -19,6 +19,7 @@ function tileZoneNear(px, pz) {
 function tcOwner(type, main) {
   if (type === 'ruins') return 'none';
   const q = new URLSearchParams(location.search).get('dono');
+  if (main && q === 'faccao') return BATTLE_SURR.testFaction;   // ?dono=faccao: principal de facção (testa os arredores de defesa)
   return main ? (q === 'player' || q === 'bandit' ? q : TILE_OWNER.main) : TILE_OWNER.other;
 }
 // Mapa de distância (blocos) até a estrada mais próxima e lista de pontos de estrada (de 3 em 3), fora da cidade, para sortear lugares "perto da estrada".
@@ -309,6 +310,41 @@ function tcAmbient(S) {
   }
 }
 
+// 6) Arredores de defesa (feature 12, passo 8; BATTLE_SURR em battle-modifiers.js): principal de FACÇÃO de tipo forte ganha trincheira em quadrado em volta e, nas estradas
+// que a cruzam, barricada (só em guerra com o jogador; sem guerra a estrada fica livre). São micro-POIs de cenário permanentes (WORLD.micros, kind trincheira_defesa e
+// barricada_defesa, d.rot fixo). Trecho sem chão firme (água, desnível) ou em cima de outro POI/zona não nasce. Contagem em WORLD.surround = {trincheira, barricada}.
+function tcSurround(S) {
+  const B_ = BATTLE_SURR, m = S.main, out = { trincheira: 0, barricada: 0, rej: { borda: 0, estrada: 0, chao: 0, ocupado: 0 } };
+  WORLD.surround = out;
+  if (!m || !m.poi || typeof m.owner !== 'number' || !B_.types.includes(m.type)) return;
+  const h = m.r + B_.gap, war = tileSurrWar();
+  const scan = (x, z, hx, hz, f) => { for (let pz = Math.round(z - hz); pz <= z + hz; pz += 2) for (let px = Math.round(x - hx); px <= x + hx; px += 2) f(px, pz) };
+  const roadIn = (x, z, hx, hz) => { let r = false; scan(x, z, hx, hz, (px, pz) => { const t = T[pz * W + px]; if (t === T_ROAD || t === T_BRIDGE) r = true }); return r };
+  const firm = (x, z, hx, hz) => {
+    let lo = 1e9, hi = -1e9, dry = true;
+    scan(x, z, hx, hz, (px, pz) => { const y = H[pz * W + px]; if (y < SEA + 0.5) dry = false; lo = Math.min(lo, y); hi = Math.max(hi, y) });
+    return dry && hi - lo <= B_.slope;
+  };
+  const free = (x, z) => !S.taken.some(t => !t.ring && !t.surr && Math.hypot(t.x - x, t.z - z) < t.r + 7) && !S.win.openings.some(o => Math.hypot(o.x - x, o.z - z) < 12);
+  const put = (kind, x, z, rot) => {
+    const d = { i: WORLD.micros.length, x, z, y: H[z * W + x], kind, r: 7, rot };
+    WORLD.micros.push(d); S.taken.push({ x, z, r: 7, zone: true, surr: true }); dormBuild(d);
+  };
+  for (const vert of [false, true]) {   // vert: lados leste e oeste (o trecho gira 90 graus e não pega os cantos)
+    const len = vert ? 2 * h - 6 : 2 * h, count = Math.ceil(len / B_.step), st = len / count, hx = vert ? 3 : 7, hz = vert ? 7 : 3;
+    for (const s of [-1, 1]) for (let k = 0; k < count; k++) {
+      const u = -len / 2 + (k + 0.5) * st, x = Math.round(m.x + (vert ? s * h : u)), z = Math.round(m.z + (vert ? u : s * h)), rot = vert ? 1 : 0;
+      if (x < 12 || z < 12 || x > W - 13 || z > W - 13) { out.rej.borda++; continue }
+      if (roadIn(x, z, hx + B_.roadClear, hz + B_.roadClear)) {   // estrada: passagem livre, ou barricada em guerra
+        if (war && firm(x, z, hx, hz) && free(x, z)) { put('barricada_defesa', x, z, rot); out.barricada++ } else out.rej.estrada++;
+        continue;
+      }
+      if (!firm(x, z, hx, hz)) out.rej.chao++; else if (!free(x, z)) out.rej.ocupado++;
+      else { put('trincheira_defesa', x, z, rot); out.trincheira++ }
+    }
+  }
+}
+
 // Ponto de entrada (chamado por worldNatureStage, world.js, depois de tileTrailLinks e tileBorderPlan). cities = as cidades do mapa (a do tile ou a âncora vazia).
 function tileCompose(cities) {
   const win = WORLD.win, t0 = performance.now(), tema = win.tema;
@@ -322,7 +358,7 @@ function tileCompose(cities) {
   tcTheme(S);
   const sn = WORLD.snap;   // o mapa (makeMapCanvas) usa a cópia de antes dos extras: estradas e nivelamento dos POIs entram nela (como em genPOIs)
   if (sn) for (let k = 0; k < W * W; k++) if (H[k] !== h0[k] || T[k] !== tt0[k]) { sn.H[k] = H[k]; sn.T[k] = T[k]; sn.B[k] = B[k] }
-  tcAmbient(S); tcLife(S);
+  tcAmbient(S); tcLife(S); tcSurround(S);
   WORLD.areas = cities.concat(WORLD.camps, WORLD.caves, WORLD.packs);
   tileWarAssemble(win.battle);
   poiApply();

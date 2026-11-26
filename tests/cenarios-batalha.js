@@ -22,6 +22,8 @@ const CENARIOS = [
     d: 'Como o passo 5, mas com 5 soldados seus (&alia=N) em assalto contra os 7 atiradores. Os soldados usam o carregador da arma (4 a 12 tiros, recarga 2 a 3 s) e, em combate, procuram abrigo num raio curto (9); nunca durante a ordem V nem em posto fixo. Comparar: &abrigo=0 e &carregador=0' },
   { passo: 7, status: 'pronto', t: 'Batalha pequena: defesa local, POI mais forte', q: 'cenario=batalha&modo=pequena',
     d: 'Só você e as 10 elites contra a defesa fixa do POI (10 soldados com vida x1,75), sem reposição e sem placar. A defesa acorda no raio de alerta (40). Conquista = matar toda a defesa. Derrota branda (tela com Reiniciar no protótipo). Parâmetros: &guarnicao= &alia= &semente= &raios=0' },
+  { passo: 8, status: 'pronto', t: 'Arredores de defesa: fortaleza de facção em guerra', q: 'cenario=tile&tema=fortaleza&seed=11&forma=pangeia&auto=1&dono=faccao&guerra=1',
+    d: 'Principal (forte) de facção com trincheira em quadrado em volta e barricada onde a estrada cruza (guerra com você). Trechos sem chão firme (água, desnível > 5) ficam de fora. Variações: &guerra=0 (estrada livre, só trincheira), &dono=bandit ou &dono=player (sem arredores). Teste: node tests/batalha-arredores.js' },
   { passo: 11, status: 'pendente', t: 'Recrutamento com regras e limites', q: 'cenario=recrutamento', d: '' }
 ];
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');

@@ -20,6 +20,40 @@ function microGrave(c, rng, x, z, mound) {
 }
 
 const MICRO_PIECES = {
+  // Trecho de trincheira de defesa (arredores do principal, tilecompose.js `tcSurround`): vala de 14 x 2,4 ao longo de x, parapeitos de terra com sacos dos dois lados,
+  // tábuas no fundo, escoras e arame farpado na frente (z negativo, para fora). Os trechos vizinhos se encostam em uma só vala.
+  trincheira_defesa(c, rng) {
+    pBc(c, -7, 0, -1.2, 7, 0.05, 1.2, 0x2a2218, false, { j: 0.02 });   // fundo escuro da vala
+    for (const [z0, z1] of [[-2.6, -1.2], [1.2, 2.6]]) {
+      pBc(c, -7, 0, z0, 7, 0.9, z1, 0x5a4a34, true, { j: 0.06 });
+      for (let x = -6.6; x < 6.4; x += 2.2) pBc(c, x, 0.9, z0 + 0.1, x + 1.9, 1.3, z1 - 0.1, rng.pick([0xb8a06a, 0xa8905a, 0xc0a878]), false, { j: 0.08 });   // sacos no topo
+    }
+    for (let k = 0; k < 6; k++) pBc(c, -6.8 + k * 2.3, 0.06, -1.0, -5.0 + k * 2.3, 0.12, 1.0, rng.pick([0x5a4a38, 0x4a3a2a, 0x6a5a40]), false, { j: 0.03 });   // tábuas
+    for (const x of [-5, 0, 5]) { pBc(c, x - 0.1, 0, -1.2, x + 0.1, 1.6, -1.0, 0x4a3320, false, { j: 0 }); pBc(c, x - 0.1, 0, 1.0, x + 0.1, 1.6, 1.2, 0x4a3320, false, { j: 0 }) }   // escoras
+    for (let x = -6.5; x < 6.5; x += 2.6) {   // arame farpado
+      pBc(c, x - 0.06, 0, -3.5, x + 0.06, 1.4, -3.4, 0x4a3320, true, { j: 0 });
+      pBc(c, x, 0.4, -3.5, x + 2.6, 0.48, -3.4, 0x6a6a72, false, { j: 0 }); pBc(c, x, 0.9, -3.5, x + 2.6, 0.98, -3.4, 0x6a6a72, false, { j: 0 });
+    }
+    if (rng.chance(0.5)) crate(c, rng.range(-5, 5), 0.2, 0.8, 0.8);
+  },
+  // Barricada de estrada de defesa (arredores do principal): a estrada corre ao longo de z e a barricada a cruza em x. Duas fileiras de sacos e toras desencontradas
+  // (chicana: o caminho faz um S, vão de 2,4 blocos), cavalos de frisa e arame na frente, braseiro e caixas.
+  barricada_defesa(c, rng) {
+    const row = (x0, x1, z, col) => {
+      pBc(c, x0, 0, z - 0.8, x1, 1.4, z + 0.8, col, true, { j: 0.05 });
+      for (let x = x0 + 0.4; x < x1 - 1; x += 1.5) pBc(c, x, 1.4, z - 0.55, x + 1.2, 1.9, z + 0.55, 0x6a4a2e, true, { j: 0.06 });
+    };
+    row(-7, 1.2, -1.8, 0xb8a06a); row(-1.2, 7, 1.8, 0xa89460);
+    for (const x of [-5.5, -1.8, 1.8, 5.5]) {   // cavalos de frisa
+      pBc(c, x - 0.9, 0.4, -4.7, x + 0.9, 0.6, -4.5, 0x5a5a62, true, { j: 0.02 }); pBc(c, x - 0.1, 0.4, -5.5, x + 0.1, 0.6, -3.7, 0x5a5a62, true, { j: 0.02 });
+      pBc(c, x - 0.1, 0, -4.7, x + 0.1, 1.2, -4.5, 0x5a5a62, true, { j: 0.02 });
+    }
+    for (let x = -6.6; x < 6.6; x += 2.6) {   // arame
+      pBc(c, x - 0.06, 0, -6.3, x + 0.06, 1.5, -6.2, 0x4a3320, true, { j: 0 });
+      pBc(c, x, 0.4, -6.3, x + 2.6, 0.48, -6.2, 0x6a6a72, false, { j: 0 }); pBc(c, x, 0.9, -6.3, x + 2.6, 0.98, -6.2, 0x6a6a72, false, { j: 0 });
+    }
+    crate(c, 5.2, 4.2, 1, 1.0); crate(c, 5.8, 5.4, 1, 0.9); poiBrazier(c, -5, 3.6);
+  },
   // Carroça quebrada: caixa caída de lado, uma roda de pé e outra no chão, o varal partido e a carga espalhada.
   carroca(c, rng) {
     pBc(c, -2.2, 0.15, -0.9, -0.5, 0.5, 0.9, 0x7a5632, true, { j: 0.03 }); pBc(c, -0.5, 0.45, -0.9, 1.6, 0.8, 0.9, 0x6a4a2a, true, { j: 0.03 });
@@ -190,7 +224,7 @@ function microHelmet(c, x, z, y) {   // capacete de aço (cúpula em dois blocos
 // Construtor de cada micro-POI (lido por dormBuild, pois.js): sorteia giro e espelho pela semente e desenha pelo gancho BC_XF (como o POI lego).
 const MICRO_BUILD = {};
 for (const id of Object.keys(MICRO_PIECES)) MICRO_BUILD[id] = (c, rng, d) => {
-  const f = legoXf(rng.int(0, 3), rng.chance(0.5));
+  const f = d && d.rot !== undefined ? legoXf(d.rot, false) : legoXf(rng.int(0, 3), rng.chance(0.5));   // d.rot (0 a 3): giro fixo, sem espelho (arredores de defesa, tilecompose.js)
   BC_XF = (x0, z0, x1, z1) => { const a = f(x0, z0), b = f(x1, z1); return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])] };
   try { MICRO_PIECES[id](c, rng, d) } finally { BC_XF = null }
 };
