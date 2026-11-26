@@ -92,6 +92,16 @@ Retomar `docs/features/3_*` e `4_*` como movimento de batalhões pela trilha at�
 ## Etapa 11: revisão geral (M)
 Percorrer **todas as mecânicas** (tabela em `5_mapa-mundi.md`) para ver o que ainda muda ou vale adicionar, e calibrar números (`ECON`, `POIX`, `REB`, `FEV`, pool de ações, preço do navio).
 
+## Etapa 12: retratos dos recrutas e ícones das armas com os modelos reais (M; sessão nova, independente do mapa mundi)
+Pedido do usuário em 2026-11-25: o rosto dos recrutas e o ícone das armas devem ser os **do próprio jogo**, não desenhos simplificados nem emoji. Ambos se resolvem com uma função que **fotografa um modelo 3D e guarda a imagem** (render fora da tela + `toDataURL`, com cache).
+- **Decisões do usuário:** (1) os recrutas **não precisam ter o mesmo rosto** que terão como soldados (sem identidade por soldado; `spawnAlly` continua sorteando); (2) para as armas, **primeiro tentar os modelos já existentes** (`buildViewmodels`, `weapons.js`); só criar poses ou modelos de ícone se o resultado não prestar.
+- **Retratos (A):** hoje `recruitFace` (`poigame.js`, tela do alistamento da vila, `svcRecruit`) desenha um rosto em CSS. Trocar por foto da cabeça de um NPC montado com `buildHuman` (`voxel.js:148`; rosto = `faceMaterial` + `FACE_GEO` na `headPart`), com a mesma tabela de pele, cabelo e chapéu (`SKINS`, `HAIRS`). Aparência estável por vila (semente de `c.id` + índice), como hoje; cache da imagem por semente. Os quadrados continuam sumindo ao recrutar.
+- **Ícones das armas (B):** hoje o ícone é um emoji por arma (`data.js:71`, 🔫 x4, 🎯, 🚀). Trocar por foto do modelo de `buildViewmodels`, de lado e sem mãos e mangas (o modelo foi feito para ser visto por trás: se a vista lateral ficar torta, tentar câmera de 3/4 antes de criar pose própria). Uma função única de "ícone da arma" para trocar tudo de uma vez; revisar **cada tela** que mostra o ícone (barra 1 a 6, bolsa, Armeiro, caixas de loja, aviso "adquirida") porque algumas montam o ícone como texto e outras como imagem. São 6 imagens.
+- **Técnica:** um renderizador pequeno fora da tela (ou alvo de renderização no renderizador existente se houver conflito de contexto WebGL); luz fixa; fundo transparente; tamanho ~96 px; gerar sob demanda e guardar em cache. Nada vai para o save.
+- **Testa na tela:** `?cenario=tile&tema=vila&seed=12&auto=1&recrutar=sua` (retratos) e a barra/Armeiro/bolsa (armas). Teste em Node: as imagens geram sem erro e a mesma semente dá a mesma imagem.
+- **Notificações e textos:** nenhuma nova.
+- **Sessão:** **nova**, com contexto limpo: só precisa do repositório e destes docs; mexe em `voxel.js`, `weapons.js`, `data.js`, `poigame.js` e nas telas de inventário/loja, e não conflita com as etapas 5 a 11. Prompt: "Leia docs/ESTADO.md e a Etapa 12 de docs/features/6_plano-mapa-mundi.md e implemente".
+
 ## Como conduzir as sessões
 - Uma sessão nova por etapa (a 2 e a 8 em várias), todas na branch `mapa-mundi-update`, com `git pull` no início e `/encerrar-sessao` no fim.
 - Prompt de abertura sugerido: "Leia docs/ESTADO.md, docs/features/5_mapa-mundi.md e docs/features/6_plano-mapa-mundi.md e comece a etapa N".
