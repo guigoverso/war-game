@@ -5,7 +5,7 @@
 // (buildHuman) que anda pela trilha ao clicar duas vezes. Câmera livre com inércia. Cena própria (sceneUse, render.js); a câmera do jogo é emprestada e
 // devolvida ao fechar. Números em WORLD3D (map-modifiers.js), textos em map-texts.js (txtWm3*).
 // Abre com J (jogo), pelo botão do modo criativo ou com ?cenario=mundo3d (&seed=N &forma=pangeia|continentes|arquipelagos|lago &dom=plains|forest|...).
-const WM = { time: 0.36, run: true, names: false, open: false, built: null, saved: null, hud: null, hover: -1, sel: -1, at: 0, mx: 0, my: 0, drag: null, walk: null, follow: false, standalone: false,
+const WM = { time: 0.3, spent: 0, names: false, open: false, built: null, saved: null, hud: null, hover: -1, sel: -1, at: 0, mx: 0, my: 0, drag: null, walk: null, follow: false, standalone: false,
   yaw: 0, pitch: 0.9, dist: 150, tx: 0, tz: 0, c: { yaw: 0, pitch: 0.9, dist: 150, tx: 0, ty: 0, tz: 0 } };
 const WM_BOX = new THREE.BoxGeometry(1, 1, 1), WM_MATS = new Map();
 // Todo voxel de modelo marca o stencil onde aparece (ZPass): as linhas dos caminhos não desenham nesses pixels (o modelo tem preferência sobre a estrada).
@@ -174,7 +174,7 @@ function wm3TerrainGeo(T) {
     quad([[x0, y, z0], [x0, y, z1], [x1, y, z1], [x1, y, z0]], [0, 1, 0], c, k);
     const sides = [[x0, z1, x0, z0, -1, 0], [x1, z0, x1, z1, 1, 0], [x0, z0, x1, z0, 0, -1], [x1, z1, x0, z1, 0, 1]];
     for (const [ax, az, bx, bz, di, dj] of sides) {
-      const a = i + di, b = j + dj, lo = a < 0 || b < 0 || a >= n || b >= n ? K.baseY : T.Y[b * n + a];
+      const a = i + di, b = j + dj, lo = a < 0 || b < 0 || a >= n || b >= n ? -2 * K.vScale : T.Y[b * n + a];   // fora do mundo: o fundo do mar segue (sem parede)
       if (lo >= y - 1e-6) continue;
       const mid = Math.max(lo, y - 0.5), dirt = land && T.B[id] !== WF_BIO.ROCK ? WM_DIRT : WM_STONE;
       if (y - mid > 1e-6) quad([[ax, y, az], [ax, mid, az], [bx, mid, bz], [bx, y, bz]], [di, 0, dj], dirt, 0.88);
@@ -458,27 +458,18 @@ function wm3Port(g, G, T, n) {
 // ---------- montagem ----------
 function wm3Build(F, G) {
   const K = WORLD3D, sc = new THREE.Scene(), T = wm3Terrain(F, G), S = F.S / K.unit, SKY = 0xa9d2f2;
-  sc.background = new THREE.Color(SKY); sc.fog = new THREE.Fog(SKY, 380, 1300);
+  sc.background = new THREE.Color(0x2a1e14);   // cor de espera até a imagem de fundo (a mesa) carregar; sem névoa nem céu
   const hemi = new THREE.HemisphereLight(0xdcecff, 0x6a7a50, 0.4), sun = new THREE.DirectionalLight(0xfff0d0, 1), moon = new THREE.DirectionalLight(0x8aa6ff, 0.3);
   sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.25; sc.add(hemi, sun, sun.target, moon);
-  const sv = new Float32Array(900);
-  for (let k = 0; k < 300; k++) {   // estrelas: pontos no hemisfério de cima
-    const a = wmHash(k, 1) * 6.283, e = 0.15 + wmHash(k, 2) * 1.35, r = 1400;
-    sv[k * 3] = Math.cos(a) * Math.cos(e) * r; sv[k * 3 + 1] = Math.sin(e) * r; sv[k * 3 + 2] = Math.sin(a) * Math.cos(e) * r;
-  }
-  const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(sv, 3));
-  const stars = new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xffffff, size: 2.2, sizeAttenuation: false, transparent: true, fog: false, depthWrite: false }));
-  stars.position.set(S / 2, 0, S / 2); sc.add(stars);
   const edgePts = G.edges.map(e => wm3EdgePts(T, G, e)), carve = wm3Carve(T, G, edgePts);
   const land = new THREE.Mesh(wm3TerrainGeo(T), new THREE.MeshLambertMaterial({ vertexColors: true })); land.castShadow = land.receiveShadow = true; sc.add(land);
-  const wy = 0.1, wmat = new THREE.MeshLambertMaterial({ color: 0x2f86d0, transparent: true, opacity: 0.68, depthWrite: false });
-  const wbox = new THREE.Mesh(new THREE.BoxGeometry(S - 0.1, wy - 0.06 - K.baseY, S - 0.1), wmat);   // 0,05 para dentro: a lateral não coincide com a parede do terreno (z-fighting na borda)   // volume do mar (a superfície ondulada vem por cima)
-  wbox.position.set(S / 2, (wy - 0.06 + K.baseY) / 2, S / 2); wbox.renderOrder = 2; sc.add(wbox);
+  const wy = 0.1, wmat = new THREE.MeshLambertMaterial({ color: 0x2f86d0, transparent: true, opacity: 0.55, depthWrite: false });   // mesma opacidade da superfície ondulada: a borda do mundo não aparece
   const wgeo = new THREE.PlaneGeometry(S, S, 110, 110); wgeo.rotateX(-Math.PI / 2);
   wgeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(wgeo.attributes.position.count * 3).fill(1), 3));
   const wave = new THREE.Mesh(wgeo, new THREE.MeshLambertMaterial({ color: 0x2f86d0, transparent: true, opacity: 0.55, depthWrite: false, flatShading: true, vertexColors: true }));
   wave.position.set(S / 2, wy, S / 2); wave.renderOrder = 2; sc.add(wave);
   sc.add(carve); sc.add(wm3Trees(T));
+  const clouds = wm3Clouds(S), ships = wm3Ships(T, G, wy); sc.add(clouds.group, ships.group, wm3Slab(S));
   const pick = [], nodeY = [], labels = [];
   for (const n of G.nodes) {
     const g = new THREE.Group(), p = T.pos[n.id], y = n.mar || n.ponteNode ? wy : T.Y[wm3Col(T, p.x, p.z)];
@@ -498,8 +489,8 @@ function wm3Build(F, G) {
     m.rotation.x = -Math.PI / 2; m.renderOrder = 10; m.visible = false; sc.add(m); return m;
   };
   const B = { scene: sc, T, G, F, S, edgePts, pick, nodeY, hoverRing: ring(6.2, 6.8, 0xffffff), selRing: ring(6.9, 7.8, 0xffd23a),
-    path: new THREE.Group(), token: null, hemi, sun, moon, stars, wmat, wave, labels };
-  sc.add(B.path); return B;
+    path: new THREE.Group(), token: null, hemi, sun, moon, wmat, wave, labels, clouds, ships };
+  sc.add(B.path); wm3Backdrop(B); return B;
 }
 
 // ---------- herói ----------
@@ -584,6 +575,7 @@ function wm3Go(id) {
   const B = WM.built, p = wm3Path(B.G, WM.at, id); if (!p || p.mar || WM.walk) return;
   const pts = wm3PathPts(p).slice(), a = wm3Anchor(id), t = B.token.position;
   WM.walk = { pts: [{ x: t.x, y: t.y, z: t.z }].concat(pts, [{ x: a.x, y: a.y, z: a.z }]), k: 0, f: 0, dest: id }; WM.follow = true;
+  WM.spent += p.acoes;   // gastar ações passa o tempo (dia e noite)
   B.path.children.slice().forEach(c => B.path.remove(c)); WM.hud.info.style.display = 'none'; B.selRing.visible = false;
 }
 function wm3WalkStep(dt) {
@@ -610,22 +602,101 @@ function wm3PickAt(mx, my) {
   const h = WM_RAY.intersectObjects(WM.built.pick, false)[0]; return h ? h.object.userData.id : -1;
 }
 
+// ---------- vida em volta: nuvens e navios ----------
+// MESA do mundo: uma laje sólida sob o mar com o corte em camadas (terra, pedra, magma incandescente), uma MOLDURA dourada e de madeira em volta do mar, quatro
+// colunas nos cantos e um PEDESTAL de pedra em degraus mais largo que a laje, tudo acima do oceano de fora, que fica mais baixo (ver wm3Build).
+function wm3Slab(S) {
+  const K = WORLD3D, g = new THREE.Group(), fw = K.frameW, bY = K.baseY, top = -2 * K.vScale - 0.6, a = -fw, b = S + fw, rim = K.frameH;
+  const mt = (c, e) => new THREE.MeshLambertMaterial(e ? { color: c, emissive: e, emissiveIntensity: 0.75 } : { color: c });
+  const box = (x0, x1, y0, y1, z0, z1, mat) => {
+    const m = new THREE.Mesh(WM_BOX, mat); m.scale.set(x1 - x0, y1 - y0, z1 - z0); m.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
+    m.castShadow = m.receiveShadow = true; g.add(m); return m;
+  };
+  const y1 = top - 1.5, y2 = top - 4.2;   // limites das camadas
+  box(a, b, y1, top, a, b, mt(0x7d5d3a)); box(a, b, y2, y1, a, b, mt(0x7d766c)); box(a, b, bY, y2, a, b, mt(0xc0501c, 0x8a2a0c));
+  for (const [y, c] of [[y1, 0x4a3520], [y2, 0x4a463f]]) box(a - 0.06, b + 0.06, y - 0.12, y + 0.12, a - 0.06, b + 0.06, mt(c));   // filetes entre as camadas
+  for (const [pad, h] of [[K.plinth[0], 1.9], [K.plinth[1], 1.1]]) box(a - pad, b + pad, bY, bY + h, a - pad, b + pad, mt(0x5a554e));   // pedestal em degraus
+  const gold = mt(0xd4af50), wood = mt(0x7a5230), dark = mt(0x3e2a16);
+  for (const [x0, x1, z0, z1] of [[a - 0.15, b + 0.15, a - 0.15, 0], [a - 0.15, b + 0.15, S, b + 0.15], [a - 0.15, 0, 0, S], [S, b + 0.15, 0, S]]) box(x0, x1, top, top + 0.35, z0, z1, dark);   // base da moldura (só em volta)
+  const strip = (x0, x1, z0, z1) => {   // moldura: blocos alternados de ouro e madeira, entalhados
+    const alongX = x1 - x0 > z1 - z0, len = alongX ? x1 - x0 : z1 - z0;
+    for (let q = 0, i = 0; q < len; q += 2.4, i++) {
+      const e = Math.min(q + 2.4, len), c = i % 2 ? wood : gold;
+      if (alongX) box(x0 + q, x0 + e, top + 0.35, rim, z0, z1, c); else box(x0, x1, top + 0.35, rim, z0 + q, z0 + e, c);
+    }
+  };
+  strip(a, b, a, 0); strip(a, b, S, b); strip(a, 0, 0, S); strip(S, b, 0, S);
+  for (const [x, z] of [[a, a], [S, a], [a, S], [S, S]]) {   // colunas dos cantos
+    box(x - 0.2, x + fw + 0.2, top, rim + 1.6, z - 0.2, z + fw + 0.2, gold); box(x - 0.45, x + fw + 0.45, rim + 1.6, rim + 2.1, z - 0.45, z + fw + 0.45, wood);
+    box(x + fw / 2 - 0.25, x + fw / 2 + 0.25, rim + 2.1, rim + 3.1, z + fw / 2 - 0.25, z + fw / 2 + 0.25, gold);
+  }
+  return g;
+}
+// Nuvens de voxel: poucas e esparsas (para não esconder o mapa de longe), andam com o vento, voltam do outro lado e fazem sombra no mar e na terra.
+function wm3Clouds(S) {
+  const K = WORLD3D, group = new THREE.Group(), list = [], mat = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
+  for (let k = 0; k < K.clouds; k++) {
+    const c = new THREE.Group(), nb = 5 + Math.floor(wmHash(k, 1) * 5), w = 6 + wmHash(k, 2) * 8;
+    for (let q = 0; q < nb; q++) {
+      const m = new THREE.Mesh(WM_BOX, mat), sx = 3 + wmHash(k, q + 3) * 5, sz = 3 + wmHash(k, q + 20) * 4, lay = wmHash(k, q + 40) < 0.4 ? 1 : 0;
+      m.scale.set(sx, 1.5 + lay * 0.8, sz); m.position.set((wmHash(k, q + 60) - 0.5) * w, lay * 1.1, (wmHash(k, q + 80) - 0.5) * w * 0.6); m.castShadow = true; c.add(m);
+    }
+    c.position.set(wmHash(k, 100) * (S + 160) - 80, K.cloudY[0] + wmHash(k, 101) * (K.cloudY[1] - K.cloudY[0]), wmHash(k, 102) * S);
+    list.push({ c, sp: K.cloudSpeed * (0.6 + wmHash(k, 103) * 0.8) }); group.add(c);
+  }
+  return { group, list, S };
+}
+// Navios: velejam de ponta a ponta de rotas de mar do grafo (só no trecho inteiro de água da reta, sem cruzar terra), viram nas pontas e balançam nas ondas.
+function wm3Ships(T, G, wy) {
+  const K = WORLD3D, group = new THREE.Group(), list = [], lanes = [];
+  for (const e of G.edges) {
+    if (e.kind !== 'mar') continue;
+    const A = T.pos[e.a], B = T.pos[e.b], len = Math.hypot(B.x - A.x, B.z - A.z), n = Math.ceil(len);
+    let run = 0, best = 0, end = 0;
+    for (let k = 0; k <= n; k++) {
+      const x = A.x + (B.x - A.x) * k / n, z = A.z + (B.z - A.z) * k / n;
+      run = T.H[wm3Col(T, x, z)] < T.sea + 1 ? run + 1 : 0; if (run > best) { best = run; end = k }
+    }
+    if (best < 30) continue;
+    const k0 = end - best + 1 + 4, k1 = end - 4, f = k => ({ x: A.x + (B.x - A.x) * k / n, z: A.z + (B.z - A.z) * k / n });
+    lanes.push({ a: f(k0), b: f(k1), len: Math.hypot(f(k1).x - f(k0).x, f(k1).z - f(k0).z) });
+  }
+  for (let k = 0; k < Math.min(K.ships, lanes.length); k++) {
+    const ln = lanes[Math.floor(wmHash(k, 7) * lanes.length)], g = new THREE.Group(), s = new THREE.Group(); g.add(s);
+    wmBox(s, 0, 0, 0, 4.2, 0.8, 1.5, 0x7a4a24); wmBox(s, 2.4, 0.3, 0, 1, 0.5, 1.0, 0x7a4a24); wmBox(s, -2.3, 0.8, 0, 0.8, 0.5, 1.3, 0x5a3a1e);   // casco, proa e popa
+    wmBox(s, 0, 0.8, 0, 0.18, 4.2, 0.18, 0x4a3a2a); wmBox(s, 0.2, 1.6, 0, 0.1, 2.4, 2.6, 0xf4ecd8); wmBox(s, 1.0, 1.4, 0, 0.1, 1.4, 1.6, 0xe8dcc0);   // mastro e velas
+    wmBox(s, 0, 5.0, 0, 0.1, 0.1, 0.9, 0xc0392b);
+    g.scale.setScalar(K.shipScale); group.add(g);
+    list.push({ g, s, ln, t: wmHash(k, 9), dir: wmHash(k, 11) < 0.5 ? 1 : -1, ph: wmHash(k, 13) * 6.28, yaw: 0 });
+  }
+  return { group, list, wy };
+}
+function wm3Life(dt, tm) {
+  const B = WM.built, K = WORLD3D;
+  for (const c of B.clouds.list) { c.c.position.x += c.sp * dt; if (c.c.position.x > B.clouds.S + 80) c.c.position.x = -80 }
+  for (const sh of B.ships.list) {
+    sh.t += sh.dir * K.shipSpeed * dt / sh.ln.len; if (sh.t > 1) { sh.t = 1; sh.dir = -1 } else if (sh.t < 0) { sh.t = 0; sh.dir = 1 }
+    const a = sh.ln.a, b = sh.ln.b, x = a.x + (b.x - a.x) * sh.t, z = a.z + (b.z - a.z) * sh.t, want = Math.atan2(-(b.z - a.z) * sh.dir, (b.x - a.x) * sh.dir);
+    let d = want - sh.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); sh.yaw += d * Math.min(1, dt * 1.5);   // vira devagar nas pontas
+    sh.g.position.set(x, B.ships.wy + 0.1 + Math.sin(tm * 1.8 + sh.ph) * 0.1, z); sh.g.rotation.y = sh.yaw; sh.s.rotation.z = Math.sin(tm * 1.4 + sh.ph) * 0.05;
+  }
+}
+
 // ---------- dia e noite, ondas e sombras ----------
 const wmLerpC = (a, b, t) => new THREE.Color(a).lerp(new THREE.Color(b), t);
 // Aplica a hora do dia (0 a 1: 0,25 nascer do sol, 0,5 meio-dia, 0,75 pôr do sol): céu, névoa, luzes, estrelas e cor do mar.
 function wm3Env() {
   const B = WM.built, K = WORLD3D, a = Math.PI * 2 * (WM.time - 0.25), e = Math.sin(a), sm = (x, y, t) => { const u = clamp((t - x) / (y - x), 0, 1); return u * u * (3 - 2 * u) };
   const day = sm(-0.12, 0.3, e), dusk = Math.exp(-Math.pow(e / 0.25, 2));
-  const sky = wmLerpC(K.skyNight, K.skyDay, day).lerp(new THREE.Color(K.skyDusk), dusk * 0.6);
-  B.scene.background.copy(sky); B.scene.fog.color.copy(sky);
+  const sky = wmLerpC(K.skyNight, K.skyDay, day).lerp(new THREE.Color(K.skyDusk), dusk * 0.6);   // cor do céu: só tinge a luz ambiente
+  if (B.bgDraw) B.bgDraw(wmLerpC(K.bgNight, 0xffffff, day).lerp(new THREE.Color(K.bgDusk), dusk * 0.35));   // a mesa escurece à noite e esquenta no entardecer
   B.hemi.intensity = K.ambNight + (K.ambDay - K.ambNight) * day; B.hemi.color.copy(sky).lerp(new THREE.Color(0xffffff), 0.4);
   const c = WM.c, dir = new THREE.Vector3(Math.cos(a), Math.max(e, 0.12) + 0.1, 0.5).normalize(), ext = clamp(c.dist * 0.9, 45, 280);
   B.sun.visible = e > -0.05; B.sun.intensity = K.sunPower * day; B.sun.color.set(0xfff0d0).lerp(new THREE.Color(0xff9a50), dusk * 0.8);
   B.sun.target.position.set(c.tx, c.ty, c.tz); B.sun.position.set(c.tx + dir.x * 220, c.ty + dir.y * 220, c.tz + dir.z * 220);
   const sc = B.sun.shadow.camera; if (Math.abs(sc.right - ext) > 1) { sc.left = -ext; sc.right = ext; sc.top = ext; sc.bottom = -ext; sc.near = 1; sc.far = 520; sc.updateProjectionMatrix() }
   B.moon.intensity = K.moonPower * (1 - day); B.moon.position.set(c.tx - dir.x * 220, c.ty + 180, c.tz - dir.z * 220); B.moon.target.position.set(c.tx, c.ty, c.tz);
-  B.stars.material.opacity = clamp(1 - day * 1.4, 0, 1); B.stars.visible = B.stars.material.opacity > 0.02;
-  B.wmat.color.copy(wmLerpC(K.seaNight, K.seaDay, day)); B.wave.material.color.copy(B.wmat.color);
+  B.wave.material.color.copy(wmLerpC(K.seaNight, K.seaDay, day)); B.wmat.color.copy(B.wave.material.color).multiplyScalar(0.94);   // o anel de fora sem o brilho médio das ondas
 }
 // Ondas: a superfície do mar sobe e desce em ondas largas que andam.
 function wm3Waves(tm) {
@@ -677,6 +748,29 @@ function wm3Cam(dt) {
   const cp = Math.cos(c.pitch), sp = Math.sin(c.pitch);
   camera.position.set(c.tx + Math.sin(c.yaw) * cp * c.dist, Math.max(0.6, c.ty + sp * c.dist), c.tz + Math.cos(c.yaw) * cp * c.dist);
   camera.lookAt(c.tx, c.ty, c.tz);
+  const nr = clamp(c.dist * 0.04, 1, 30); if (Math.abs(nr - camera.near) > 0.4) { camera.near = nr; camera.updateProjectionMatrix() }   // de longe, mais precisão: some o tremor
+  wm3BackdropFit();
+}
+// ---------- imagem de fundo (a mesa) ----------
+// Fundo de tela de verdade (scene.background): fica parado, não gira nem inclina com a câmera. A imagem passa por uma tela (canvas) para poder ser tingida à noite e no
+// entardecer (multiplica a cor, no máximo a cada 250 ms) e é cortada para cobrir a tela sem esticar (wm3BackdropFit).
+const WM_BGW = 1280, WM_BGH = 714;
+function wm3Backdrop(B) {
+  const cv = document.createElement('canvas'); cv.width = WM_BGW; cv.height = WM_BGH;
+  const g = cv.getContext('2d'), tex = new THREE.CanvasTexture(cv), im = new Image(); let last = '', at = 0;
+  tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false; B.bgTex = tex;
+  B.bgDraw = (col, force) => {
+    const k = col.getHexString(), now = performance.now();
+    if (!im.complete || !im.naturalWidth || (!force && (k === last || now - at < 250))) return;
+    last = k; at = now; g.globalCompositeOperation = 'source-over'; g.drawImage(im, 0, 0, WM_BGW, WM_BGH);
+    g.globalCompositeOperation = 'multiply'; g.fillStyle = '#' + k; g.fillRect(0, 0, WM_BGW, WM_BGH); tex.needsUpdate = true;
+  };
+  im.onload = () => { B.bgDraw(new THREE.Color(0xffffff), true); B.scene.background = tex };
+  im.src = WORLD3D.backdrop;
+}
+function wm3BackdropFit() {   // "cover": enche a tela cortando o excesso, sem esticar
+  const t = WM.built.bgTex, ia = WM_BGW / WM_BGH, a = innerWidth / innerHeight;
+  if (a > ia) { t.repeat.set(1, ia / a); t.offset.set(0, (1 - ia / a) / 2) } else { t.repeat.set(a / ia, 1); t.offset.set((1 - a / ia) / 2, 0) }
 }
 // Visões prontas: 'geral' enquadra o mundo; 'heroi' vai ao herói e o segue.
 function wm3View(v) {
@@ -696,8 +790,8 @@ function wm3Frame(dt) {
   if (k.KeyQ) WM.yaw -= dt * 1.4; if (k.KeyE) WM.yaw += dt * 1.4;
   if (WM.walk) wm3WalkStep(dt); else if (B.token) B.token.position.y = B.tokenY + Math.abs(Math.sin(performance.now() / 700)) * 0.05;
   wm3Cam(dt);
-  if (WM.run) WM.time = (WM.time + dt / K.dayLen) % 1;
-  wm3Env(); wm3Waves(performance.now() / 1000);
+  WM.time += (K.dayStart + WM.spent / K.actionsPerDay - WM.time) * (1 - Math.exp(-dt * 0.9));   // a hora só anda quando se gastam ações; a luz acompanha devagar
+  wm3Env(); wm3Waves(performance.now() / 1000); wm3Life(dt, performance.now() / 1000);
   if (WM.menuOn) wm3MenuPlace();
   const h = WM.drag || WM.walk || G.panel !== 'mundo3d' ? -1 : wm3PickAt(WM.mx, WM.my);
   document.body.style.cursor = h >= 0 ? 'pointer' : '';

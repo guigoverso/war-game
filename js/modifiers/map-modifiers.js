@@ -255,18 +255,28 @@ const tileFillOn = () => mapTileOn() && new URLSearchParams(location.search).get
 // unit: blocos do mundo por unidade da cena. cell: lado de cada coluna em blocos (= unit, então 1 coluna = 1 voxel). vScale: altura de cada bloco de relevo.
 // terrace: blocos de relevo por degrau. smooth: passadas de suavização do relevo (mais = ilha mais lisa). baseY: fundo do diorama.
 // plateau: raio (em colunas) do pedestal plano sob cada tile (a cidade usa cityPlateau = 9; a placa do tile tem essa meia largura); pedMax: altura máxima do pedestal acima do mar (blocos).
-// minIsland / minPond: ilhotas e lagoas com menos colunas que isso são apagadas (só ruído). Padrões: 16, 16, 0.25, 4, 4, -7, 6, 14, 150, 100
-const WORLD3D = { unit: 16, cell: 16, vScale: 0.25, terrace: 4, smooth: 4, baseY: -7, plateau: 6, cityPlateau: 9, pedMax: 14, minIsland: 150, minPond: 100,
+// minIsland / minPond: ilhotas e lagoas com menos colunas que isso são apagadas (só ruído). Padrões: 16, 16, 0.25, 4, 4, -8, 6, 14, 150, 100
+const WORLD3D = { unit: 16, cell: 16, vScale: 0.25, terrace: 4, smooth: 4, baseY: -8, plateau: 6, cityPlateau: 9, pedMax: 14, minIsland: 150, minPond: 100,
   // Câmera livre (arrastar com o botão direito gira em volta, esquerdo passeia, roda aproxima): distância inicial e limites (unidades), inclinação inicial e
   // limites (rad), giro máximo para cada lado (rad; 99 = livre), velocidade do passeio com WASD (por unidade de distância por segundo) e suavidade da
   // inércia (maior = mais ágil). Padrões: 150, [18, 700], 0.9, [0.2, 1.5], 99, 0.9, 9
   dist: 150, distLim: [18, 700], pitch: 0.9, pitchLim: [0.2, 1.5], yawMax: 99, panSpeed: 0.9, damp: 9,
-  // Dia e noite: duração de um dia (s), cores do céu (dia, entardecer, noite) e do mar (dia, noite), luz ambiente (dia, noite), força do sol e da lua. Mar:
-  // altura e velocidade das ondas. Padrões: 150, 0xa9d2f2, 0xf2a070, 0x16244c, 0x2f86d0, 0x244f86, 0.3, 0.4, 1.15, 0.6, 0.07, 1.4
-  dayLen: 150, skyDay: 0xa9d2f2, skyDusk: 0xf2a070, skyNight: 0x16244c, seaDay: 0x2f86d0, seaNight: 0x244f86, ambDay: 0.3, ambNight: 0.4,
+  // Dia e noite: o tempo só passa quando o jogador GASTA AÇÕES no mapa mundi (nada automático). actionsPerDay = ações para um dia inteiro; dayStart = hora ao abrir
+  // (0 a 1: 0,25 nascer do sol, 0,5 meio-dia, 0,75 pôr do sol). Cores do céu (dia, entardecer, noite) e do mar (dia, noite), luz ambiente (dia, noite), força do sol e da lua. Mar:
+  // altura e velocidade das ondas. Padrões: 12, 0.3, 0xa9d2f2, 0xf2a070, 0x16244c, 0x2f86d0, 0x244f86, 0.3, 0.4, 1.15, 0.6, 0.07, 1.4
+  actionsPerDay: 12, dayStart: 0.3, skyDay: 0xa9d2f2, skyDusk: 0xf2a070, skyNight: 0x16244c, seaDay: 0x2f86d0, seaNight: 0x244f86, ambDay: 0.3, ambNight: 0.4,
   sunPower: 1.15, moonPower: 0.6, waveAmp: 0.07, waveSpeed: 1.4,
   // Caminhos: largura (unidades) da linha da estrada e da trilha e transparência (0 a 1); passam por cima de tudo, menos dentro do tile. Padrões: 0.9, 0.55, 0.6
   roadW: 1, trailW: 0.55, lineAlpha: 0.6,
+  // Mesa do mundo: largura e altura da moldura (unidades; altura acima do fundo do mar), degraus do pedestal (quanto saem além da laje). A profundidade da laje e a
+  // altura do oceano de fora vêm de baixo (`baseY`, no começo desta tabela). Padrões: 1.1, 1.3 e [2.2, 4.4]
+  frameW: 1.1, frameH: 1.3, plinth: [2.2, 4.4],
+  // Imagem de fundo do mapa mundi (a mesa), relativa ao index.html, e cores com que ela é tingida à noite e no entardecer (multiplicam a imagem).
+  // Padrão: 'images/map_background.jpg', 0x3a4466, 0xffc890
+  backdrop: 'images/map_background.jpg', bgNight: 0x3a4466, bgDusk: 0xffc890,
+  // Em volta do mundo: nuvens (quantidade, altura [min, máx] e velocidade) e navios (quantidade, escala e velocidade em unidades por
+  // segundo). Padrões: 26, [26, 42], 1.2, 8, 1.5, 3
+  clouds: 26, cloudY: [26, 42], cloudSpeed: 1.2, ships: 8, shipScale: 1.5, shipSpeed: 3,
   // TAMANHO DO BATALHÃO do jogador no mapa (escala do boneco com a bandeira; 1 = um humano normal, ~1,95 de altura). Mude e recarregue a página. Padrão: 3.2
   heroScale: 5,
   // Escala dos modelos dos tiles e velocidade do herói andando pela trilha (unidades por segundo). Padrões: 1.3 e 16
