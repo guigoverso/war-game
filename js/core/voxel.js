@@ -96,6 +96,40 @@ function faceMaterial(o){
 }
 const FACE_GEO=new THREE.PlaneGeometry(8*VS,8*VS);
 
+// ---------- foto de um modelo 3D (retratos e ícones) ----------
+// Fotografa `obj` (fora da cena do jogo) com câmera ortográfica, luz fixa e fundo transparente; devolve um dataURL (PNG).
+// Usa um alvo de render no renderizador principal (sem segundo contexto WebGL) e restaura o estado dele. Cache por `key`; nada vai para o save.
+// o: {size (px, padrão 96), dir:[x,y,z] (de onde a câmera olha), box:Box3 opcional (enquadramento), pad (folga, padrão 1.08)}
+const SNAP_CACHE=new Map();
+function snapModel(key,obj,o){
+  if(SNAP_CACHE.has(key))return SNAP_CACHE.get(key);
+  o=o||{};const N=o.size||96,sc=new THREE.Scene();
+  sc.add(new THREE.HemisphereLight(0xffffff,0x8a8a90,0.75));const dl=new THREE.DirectionalLight(0xffffff,0.7);dl.position.set(0.6,1,0.8);sc.add(dl);
+  sc.add(obj);obj.updateMatrixWorld(true);
+  const box=o.box||new THREE.Box3().setFromObject(obj),ctr=box.getCenter(new THREE.Vector3()),sz=box.getSize(new THREE.Vector3());
+  const r=Math.max(sz.x,sz.y,sz.z)*0.5*(o.pad||1.08)+1e-4,d=new THREE.Vector3().fromArray(o.dir||[0,0,1]).normalize();
+  const cam=new THREE.OrthographicCamera(-r,r,r,-r,0.01,100);cam.position.copy(ctr).addScaledVector(d,10);cam.lookAt(ctr);
+  const rt=new THREE.WebGLRenderTarget(N,N),prevRT=renderer.getRenderTarget(),prevCol=renderer.getClearColor(new THREE.Color()),prevA=renderer.getClearAlpha();
+  const px=new Uint8Array(N*N*4);
+  renderer.setRenderTarget(rt);renderer.setClearColor(0x000000,0);renderer.clear();renderer.render(sc,cam);renderer.readRenderTargetPixels(rt,0,0,N,N,px);
+  renderer.setRenderTarget(prevRT);renderer.setClearColor(prevCol,prevA);rt.dispose();sc.remove(obj);
+  const cv=document.createElement('canvas');cv.width=cv.height=N;const g=cv.getContext('2d'),im=g.createImageData(N,N);
+  for(let y=0;y<N;y++)im.data.set(px.subarray((N-1-y)*N*4,(N-y)*N*4),y*N*4);   // o buffer vem de cabeça para baixo
+  g.putImageData(im,0,0);const url=cv.toDataURL('image/png');SNAP_CACHE.set(key,url);return url;
+}
+// retrato de um recruta: cabeça de um NPC montado com buildHuman, de frente com leve giro; aparência estável pela semente (id da vila + índice)
+function recruitPortrait(seed,size){
+  const h=seed>>>0,pick=(a,s)=>a[(h>>>s)%a.length];
+  return snapModel('face|'+h+'|'+(size||64),(()=>{
+    const m=buildHuman({skin:pick(SKINS,0),hair:pick(HAIRS,3),hairStyle:pick(RECRUIT_STYLES,6),hat:pick(RECRUIT_HATS,9),
+      shirt:0x4a5a6a,pants:0x2a2a3a,beard:(h>>>12)%4===0?pick(HAIRS,3):undefined,blush:(h>>>14)%7===0});
+    const hd=m.head;for(const c of hd.parent.children)if(c!==hd)c.visible=false;
+    m.group.rotation.y=0.45;return m.group})(),{size:size||64,dir:[0,0.1,1],pad:1.05,box:RECRUIT_PHOTO_BOX});
+}
+const RECRUIT_STYLES=['short','short','long','cap','bandana','helmet','hat','none'];
+const RECRUIT_HATS=[0x6a5a3a,0x4a5a2a,0x8a9ab0,0x7a2a22,0x3a3a44];
+const RECRUIT_PHOTO_BOX=new THREE.Box3(new THREE.Vector3(-9*VS,27.5*VS,-9*VS),new THREE.Vector3(9*VS,40.5*VS,9*VS));   // cabeça (com cabelo e chapéu), no espaço do grupo raiz
+
 // ---------- peças do corpo humano ----------
 function legPart(parent,sx,pants,shoes,extra){
   const x0=sx<0?-5:1;

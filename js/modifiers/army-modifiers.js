@@ -44,3 +44,6 @@ function recruitCount(c) {
   if (!ARMY.recr || ARMY.recr.r !== STATE.round) ARMY.recr = { r: STATE.round, n: {} };
   ARMY.recr.n[c.id] = (ARMY.recr.n[c.id] || 0) + 1;
 }
+
+// Tamanho (px) da foto do modelo da arma usada como ícone na barra, na bolsa e nas lojas (weapons.js, weaponIconUrl). Padrão 96.
+const WEAPON_ICON_PX=96;

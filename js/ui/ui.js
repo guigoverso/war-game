@@ -38,7 +38,7 @@ const UI={
     opts.slots.forEach((slot,i)=>{
       const d=document.createElement('div'),r=opts.render(slot,i)||{};
       d.className='slot'+(r.cls?' '+r.cls:'');
-      if(r.label){const s=document.createElement('span');s.textContent=r.label;d.appendChild(s)}
+      if(r.label||r.html){const s=document.createElement('span');if(r.html)s.innerHTML=r.html;else s.textContent=r.label;d.appendChild(s)}   // html = ícone de item (foto da arma)
       if(r.key!==undefined&&r.key!==''){const k=document.createElement('i');k.textContent=r.key;d.appendChild(k)}
       if(r.count>1){const c=document.createElement('b');c.textContent=r.count;d.appendChild(c)}
       if(r.title)UI.tip(d,()=>r.title);

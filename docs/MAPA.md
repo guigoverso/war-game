@@ -103,6 +103,7 @@ Código no topo de um arquivo só pode usar o que veio antes; dentro de funçõe
 **Entidades e combate**
 - `entities` — NPCs, inimigos e IA: `NPCS`, `EDEF`, `spawnNpc`, `updateNpc`, `npcTalk`, `updateEnemy`, `damageEnemy`, `populateCities`.
 - `weapons` — armas e tiro: `WEAPONS`, `initWeapons`, `selectWeapon`, `fireWeapon`, `updateWeapons`, `noiseAt`.
+- `voxel.js` (foto de modelo): `snapModel`, `recruitPortrait` (retratos dos recrutas); `weapons.js`: `weaponIconUrl`, `itemIconHtml` (ícones das armas, `WEAPON_ICON_PX`). Teste `tests/fotos.js`.
 - `allies` — soldados do jogador e exército: `ALLIES`, `ARMY`, `pickTarget`, `recruitAlly`, `recruitPlace`/`recruitLeft` (`army-modifiers.js`), `svcRecruit` (`poigame.js`), textos em `texts/army-texts.js`, `updateAllies`, `openBarracks`, reparo do colete do jogador no Quartel (`vestRepairQuote`, `vestRepair`; números em `POIX.vest`).
 - `poi` — POIs antigos (acampamentos, cavernas, baús, matilhas) e dia/noite: `genPOIs` (chama `genWorldPois` antes dos acampamentos, grutas e baús e atualiza `WORLD.snap`, a cópia do terreno usada pelo mapa, com o que os POIs mudaram), `spotOK` (parâmetro `wet`: água aceita), `flattenArea` (rampa `F`), `openChest`, `openCage`, `updateCamps`, `genPacks`, `updateDayNight`.
 - `quests` — emboscadas de gangues: `QUEST`, `GANGS`, `spawnAmbush`, `updateAmbushes`.

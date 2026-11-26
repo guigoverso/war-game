@@ -197,7 +197,7 @@ function whSummaryHtml(c){
 }
 function whItemSlot(s,key,title){
   const d=s&&itemDef(s.id);
-  return{label:d?d.icon:'',count:s?s.n:0,title:s?d.name+' ×'+s.n:title,cls:(s?itemSlotCls(s.id):'')+(WHU.sel&&WHU.sel.area===key.area&&WHU.sel.i===key.i?' sel':'')};
+  return{html:d?itemIconHtml(d):'',count:s?s.n:0,title:s?d.name+' ×'+s.n:title,cls:(s?itemSlotCls(s.id):'')+(WHU.sel&&WHU.sel.area===key.area&&WHU.sel.i===key.i?' sel':'')};
 }
 function renderWarehouse(){
   const c=WHU.city;if(!c)return;
@@ -248,7 +248,7 @@ function renderWarehouse(){
   if(!s){det.innerHTML='<p class="st"><b>Arraste</b> os itens entre a bolsa, o armazenamento e os slots de suprimento. Madeira (troncos), minério e comida contam 1 unidade por item. Clique em um item para mover em lote.</p>'}
   else{
     const d=itemDef(s.id),sp=supplyOf(s.id);
-    det.innerHTML='<div style="font-size:26px">'+d.icon+'</div><b>'+d.name+'</b> ×'+s.n+'<p class="st">'+d.desc+'</p><p class="st">Em lote:</p>';
+    det.innerHTML='<div style="font-size:26px">'+itemIconHtml(d)+'</div><b>'+d.name+'</b> ×'+s.n+'<p class="st">'+d.desc+'</p><p class="st">Em lote:</p>';
     const addRow=(label,kind)=>{
       const r=document.createElement('div');r.appendChild(document.createTextNode(label+' '));
       for(const n of[1,5,s.n])r.appendChild(UI.button(n===s.n&&s.n>5?'tudo':String(n),'gold',()=>{whMove(c,sel,kind,n);if(!refGet(c,sel))WHU.sel=null;renderWarehouse()}));

@@ -387,11 +387,9 @@ function svcMerc(p){
 // edifício de alistamento da vila (4B-19f): só recruta (upgrades só no Quartel das cidades). Vila sua: gente leal à facção; vila neutra: gente atrás de emprego.
 // Embaixo, um quadrado com o rosto de cada recruta que sobra; ao recrutar, o último some.
 function recruitFace(c,i){
-  const h=((c.id+1)*2654435761+i*40503)>>>0,sk='#'+SKINS[h%SKINS.length].toString(16).padStart(6,'0'),hr='#'+HAIRS[(h>>>3)%HAIRS.length].toString(16).padStart(6,'0');
-  return '<div style="display:inline-block;position:relative;width:44px;height:44px;margin:3px;background:#3a3f48;border:2px solid #666;box-sizing:border-box;overflow:hidden">'
-    +'<div style="position:absolute;left:9px;top:8px;width:22px;height:26px;background:'+sk+'"></div><div style="position:absolute;left:8px;top:6px;width:24px;height:9px;background:'+hr+'"></div>'
-    +'<div style="position:absolute;left:13px;top:20px;width:4px;height:4px;background:#111"></div><div style="position:absolute;left:23px;top:20px;width:4px;height:4px;background:#111"></div>'
-    +'<div style="position:absolute;left:15px;top:29px;width:10px;height:2px;background:#6a3a2a"></div></div>';
+  const h=((c.id+1)*2654435761+i*40503)>>>0;
+  let img='';try{img='<img src="'+recruitPortrait(h,64)+'" style="width:100%;height:100%;image-rendering:pixelated;display:block" alt="">'}catch(e){}   // foto da cabeça de um NPC (voxel.js)
+  return '<div style="display:inline-block;position:relative;width:44px;height:44px;margin:3px;background:#3a3f48;border:2px solid #666;box-sizing:border-box;overflow:hidden">'+img+'</div>';
 }
 function svcRecruit(c){
   ARMY.city=c;
@@ -464,14 +462,14 @@ function postSellTab(p,c,body){
   const left=document.createElement('div'),right=document.createElement('div');right.style.cssText='min-width:240px;max-width:300px';
   wrap.append(left,right);body.appendChild(wrap);
   UI.slotGrid(left,{cols:5,slots:inv.slots.slice(0,inv.size),
-    render:(s,i)=>{const d=s&&itemDef(s.id);return{label:d?d.icon:'',count:s?s.n:0,
+    render:(s,i)=>{const d=s&&itemDef(s.id);return{html:d?itemIconHtml(d):'',count:s?s.n:0,
       title:d?d.name+(s.n>1?' ×'+s.n:'')+(d.noSell?' (não vendável)':' — ◉'+sellUnitPrice(s.id,c)+' cada'):'Vazio',
       cls:(G.postSel===i?'sel':'')+(s?' '+itemSlotCls(s.id):'')}},
     onClick:(s,i)=>{G.postSel=i;svcRender()}});
   const s=G.postSel!==null&&G.postSel!==undefined?inv.slots[G.postSel]:null;
   if(!s){right.innerHTML='<p class="st">'+TXT_POST_SELL_HINT+'</p>';return}
   const d=itemDef(s.id),n=s.n,ex=sellEffects(s.id,c);
-  right.innerHTML='<div style="font-size:30px">'+d.icon+'</div><b>'+d.name+'</b> ×'+n+'<p class="st">'+d.desc+'<br>'
+  right.innerHTML='<div style="font-size:30px">'+itemIconHtml(d)+'</div><b>'+d.name+'</b> ×'+n+'<p class="st">'+d.desc+'<br>'
     +(d.noSell?TXT_POST_NO_SELL:txtPostSellPrice(sellUnitPrice(s.id,c),d.value)+' '
       +(ex.length?whyTag(priceMulOf(ex),'','data-why="sell" data-c="'+c.id+'" data-i="'+s.id+'"',true):''))+'</p>';
   if(d.noSell)return;
@@ -511,7 +509,7 @@ function svcInn(p){
       const shop=G.innTab==='heal'?'clinic':'tavern',kind=G.innTab==='heal'?'heal':'tavern';
       for(const d of Object.values(DATA.items).filter(d=>d.shop===shop&&!d.rod)){
         const pr=price(d.price,kind);
-        cards.push({icon:d.icon,name:d.name,desc:d.desc,tag:tag(kind),label:'Comprar ◉'+pr,disabled:debt||P.coins<pr,onBuy:()=>{
+        cards.push({icon:itemIconHtml(d),name:d.name,desc:d.desc,tag:tag(kind),label:'Comprar ◉'+pr,disabled:debt||P.coins<pr,onBuy:()=>{
           if(invRoomFor(d.id)<1)toast('Bolsa cheia! Descarte algo antes de comprar.',2000);
           else if(Ledger.spend({gold:pr})){invGive([[d.id,1]]);innCashAdd(p,pr);sfx('coin',0)}
           svcRender()}});
@@ -533,14 +531,14 @@ function innSellTab(p,c,body){
   const lf=document.createElement('div'),right=document.createElement('div');right.style.cssText='min-width:240px;max-width:300px';
   wrap.append(lf,right);body.appendChild(wrap);
   UI.slotGrid(lf,{cols:5,slots:inv.slots.slice(0,inv.size),
-    render:(s,i)=>{const d=s&&itemDef(s.id);return{label:d?d.icon:'',count:s?s.n:0,
+    render:(s,i)=>{const d=s&&itemDef(s.id);return{html:d?itemIconHtml(d):'',count:s?s.n:0,
       title:d?d.name+(s.n>1?' ×'+s.n:'')+(d.noSell?' (não vendável)':' — ◉'+sellUnitPrice(s.id,c)+' cada'):'Vazio',
       cls:(G.innSel===i?'sel':'')+(s?' '+itemSlotCls(s.id):'')}},
     onClick:(s,i)=>{G.innSel=i;svcRender()}});
   const s=G.innSel!==null&&G.innSel!==undefined?inv.slots[G.innSel]:null;
   if(!s){right.innerHTML='<p class="st">'+TXT_POST_SELL_HINT+'</p>';return}
   const d=itemDef(s.id),n=s.n,pr=sellUnitPrice(s.id,c);
-  right.innerHTML='<div style="font-size:30px">'+d.icon+'</div><b>'+d.name+'</b> ×'+n+'<p class="st">'+d.desc+'<br>'
+  right.innerHTML='<div style="font-size:30px">'+itemIconHtml(d)+'</div><b>'+d.name+'</b> ×'+n+'<p class="st">'+d.desc+'<br>'
     +(d.noSell?TXT_POST_NO_SELL:txtPostSellPrice(pr,d.value)+' '+whyTag(priceMulOf(sellEffects(s.id,c)),'','data-why="sell" data-c="'+c.id+'" data-i="'+s.id+'"',true))+'</p>';
   if(d.noSell)return;
   const sell=q=>{

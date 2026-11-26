@@ -17,12 +17,15 @@ function initWeapons(){
 }
 // Armas em primeira pessoa: voxels de 2 cm numa única malha (arma + mãos + antebraços) por arma.
 // Em cada receita: x = direita, y = cima, z = para trás (a frente é z negativo).
+// Sem câmera (`buildViewmodels(null)`) devolve só as armas, sem mãos, mangas nem clarão: serve para fotografar os ícones (`weaponIconUrl`).
 function buildViewmodels(camera){
+  const ICON=!camera,OUT=[];
   const SK=0xe8b48a,SKS=0xcf9a72,SL=0x4a5a30,SL2=0x3c4a26,GL=0x2a2a2a;
   const D=0x24262a,M=0x4a4f56,MH=0x6a7078,L=0x8a9098,O=0x4a5a30,GR=(x,y,z)=>((x+y+z)&1)?0x2c2e32:0x383a40,
         WD=(x,y,z)=>((z>>1)&1)?0x6b4a2a:0x7a5632;
   // mão + antebraço (dx: inclinação lateral do antebraço rumo à câmera)
   const hand=(b,x,y,z,dx)=>{
+    if(ICON)return;
     b.box(x-3,y-3,z-3,x+3,y+2,z+3,SK);b.box(x-3,y+2,z-3,x+3,y+3,z+3,SKS);
     b.box(x-4,y,z-3,x-3,y+3,z+1,SK);                         // polegar
     ARMS.push([x,y-1,z+3,dx]);
@@ -31,6 +34,7 @@ function buildViewmodels(camera){
   const mk=(build,tipY,tipZ)=>{ARMS.length=0;
     const vb=new VB();build(vb);
     const g=new THREE.Group(),mesh=new THREE.Mesh(vb.geo(0,0,0),VOX_MAT);mesh.scale.setScalar(0.02/VS);g.add(mesh);
+    if(ICON){OUT.push(g);return}
     for(const a of ARMS){const dir=new THREE.Vector3(a[3]*0.22,-0.42,1).normalize(),st=new THREE.Vector3(a[0]*0.02,a[1]*0.02,a[2]*0.02);
       const sl=new THREE.Mesh(GEO_BOX,new THREE.MeshLambertMaterial({color:SL}));sl.scale.set(0.115,0.115,0.9);sl.position.copy(st).addScaledVector(dir,0.45);sl.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),dir);g.add(sl);
       const cf=new THREE.Mesh(GEO_BOX,new THREE.MeshLambertMaterial({color:GL}));cf.scale.set(0.125,0.125,0.07);cf.position.copy(st).addScaledVector(dir,0.035);cf.quaternion.copy(sl.quaternion);g.add(cf)}
@@ -112,7 +116,7 @@ function buildViewmodels(camera){
     b.box(0,RODTIP[0]-2,RODTIP[1]-1,1,RODTIP[0],RODTIP[1]+2,RD);         // ponteira vermelha
     hand(b,0,0,2,1);                                                     // uma mão só, segurando o cabo
   },RODTIP[0],RODTIP[1]);
-  {
+  if(!ICON){
     // linha pendurada na ponta, com boia e anzol (some quando a linha é lançada)
     const rv=WS.vm[WS.vm.length-1],dg=new THREE.Group();dg.position.set(0,RODTIP[0]*0.02,RODTIP[1]*0.02);
     const ln=new THREE.Mesh(GEO_BOX,new THREE.MeshBasicMaterial({color:0xf0f0f0}));ln.scale.set(0.006,0.34,0.006);ln.position.set(0,-0.17,0);dg.add(ln);
@@ -122,6 +126,21 @@ function buildViewmodels(camera){
     const hk2=new THREE.Mesh(GEO_BOX,new THREE.MeshLambertMaterial({color:0x9aa0a8}));hk2.scale.set(0.03,0.01,0.01);hk2.position.set(0.012,-0.38,0);dg.add(hk2);
     rv.add(dg);WS.rodDangle=dg;WS.rodTip=new THREE.Vector3(0,RODTIP[0]*0.02,RODTIP[1]*0.02);
   }
+  return OUT;
+}
+// Ícone de uma arma (0 a 5): foto do modelo em primeira pessoa, de lado e sem mãos (voxel.js, snapModel); cache. Falha = null (as telas usam o emoji).
+let ICON_MODELS=null;
+function weaponIconUrl(i){
+  try{
+    if(!ICON_MODELS)ICON_MODELS=buildViewmodels(null);
+    const m=ICON_MODELS[i];if(!m)return null;
+    return snapModel('wicon|'+i,m,{size:WEAPON_ICON_PX,dir:[1,0.12,0.25],pad:1.04});
+  }catch(e){return null}
+}
+// HTML do ícone de um item: foto do modelo se for arma, senão o emoji dele (`d.icon`)
+function itemIconHtml(d){
+  const u=d&&d.weapon!==undefined?weaponIconUrl(d.weapon):null;
+  return u?'<img class="wic" src="'+u+'" alt="">':(d?d.icon:'');
 }
 // equipa uma arma (ela precisa estar na barra 1–6)
 function selectWeapon(i){

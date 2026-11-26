@@ -95,8 +95,9 @@ function updateMusic(dt){
   }
 }
 
-function toast(msg,ms){
-  const d=document.createElement('div');d.className='toast';d.textContent=msg;const box=$('toasts');box.appendChild(d);
+// iconHtml (opcional): ícone em HTML antes do texto (foto da arma)
+function toast(msg,ms,iconHtml){
+  const d=document.createElement('div');d.className='toast';if(iconHtml){d.innerHTML=iconHtml+' ';d.appendChild(document.createTextNode(msg))}else d.textContent=msg;const box=$('toasts');box.appendChild(d);
   while(box.children.length>4)box.removeChild(box.firstChild);
   setTimeout(()=>{if(d.parentNode)d.parentNode.removeChild(d)},ms||2500);
 }
@@ -214,7 +215,7 @@ function renderShop(){
   const c=G.shopCity;
   const weaponsHtml=WEAPONS.map((w,i)=>{
     const own=WS.owned[i],pr=pc(w.price,c,'weapon'),pk=pc(w.packCost,c,'ammo');
-    return '<div class="card'+(own?'':' locked')+'"><b>'+(i+1)+'. '+w.name+'</b><div class="st">'+w.desc+'<br>Dano '+w.dmg+(w.pellets>1?' ×'+w.pellets:'')+' • '+w.rpm+' dpm • Pente '+w.mag+'</div>'+
+    return '<div class="card'+(own?'':' locked')+'"><b>'+itemIconHtml(itemDef(wItemId(i)))+' '+(i+1)+'. '+w.name+'</b><div class="st">'+w.desc+'<br>Dano '+w.dmg+(w.pellets>1?' ×'+w.pellets:'')+' • '+w.rpm+' dpm • Pente '+w.mag+'</div>'+
       (own?'<div class="st">Munição reserva: '+WS.reserve[i]+'<br>Durabilidade: '+(weaponBroken(i)?'<b style="color:#ff6a6a">QUEBRADA</b>':Math.round(durOf(i))+'%')+'</div>'+tagLine(priceTag(c,'ammo','Munição')+(durOf(i)<100?' '+priceTag(c,'repair','Conserto'):''))+'<button data-a="ammo" data-i="'+i+'" '+(P.coins<pk&&!pistolDebtOk(i,pk)?'disabled':'')+'>+'+w.pack+' munição ◉'+pk+'</button>'+(durOf(i)<100?'<button data-a="repair" data-i="'+i+'">🔧 Consertar ◉'+repairCost(i,c)+(P.coins<repairCost(i,c)?' (gera dívida)':'')+'</button>':'')
           :tagLine(priceTag(c,'weapon'))+'<button class="gold" data-a="buy" data-i="'+i+'" '+(P.coins<pr?'disabled':'')+'>Comprar ◉'+pr+'</button>')+'</div>';
   }).join('');
@@ -547,7 +548,7 @@ function updateHUD(dt){
   }
   if(!wlistBuilt){$('wlist').innerHTML=[0,1,2,3,4,5].map(i=>'<div class="ws" id="ws'+i+'">'+(i+1)+'</div>').join('');wlistBuilt=true}
   const eq=equippedSlot();
-  STATE.inv.wbar.forEach((id,i)=>{const d=id&&itemDef(id);$('ws'+i).className='ws'+(id?' own':'')+(i===eq?' cur':'');$('ws'+i).textContent=d?d.icon:(i+1)});
+  STATE.inv.wbar.forEach((id,i)=>{const d=id&&itemDef(id);$('ws'+i).className='ws'+(id?' own':'')+(i===eq?' cur':'');$('ws'+i).innerHTML=d?itemIconHtml(d):(i+1)});
   $('god').classList.toggle('hidden',!G.god);$('invis').classList.toggle('hidden',!G.invis);
   $('crouchtag').classList.toggle('hidden',!P.crouch);
   let inCover=false;

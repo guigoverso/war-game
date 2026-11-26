@@ -73,7 +73,7 @@ function renderStore(){
       const own=d.rod&&invCount(d.id)>0;
       const card=document.createElement('div');card.className='card';
       const left=(d.supply&&d.shop==='store'&&typeof shopLeft==='function')?shopLeft(c,d.id):null;   // estoque limitado pela produção da cidade
-      card.innerHTML='<b>'+d.icon+' '+d.name+'</b><div class="st">'+d.desc+'<br>Preço: <b>◉'+price+'</b> '+priceTag(c,kind==='tavern'?'tavern':'buy')+(left!==null?'<br>Em estoque: <b>'+left+'</b> (reabastece a cada rodada, conforme a produção da cidade)':'')+(own?'<br>Você já tem esta vara.':'')+'</div>';
+      card.innerHTML='<b>'+itemIconHtml(d)+' '+d.name+'</b><div class="st">'+d.desc+'<br>Preço: <b>◉'+price+'</b> '+priceTag(c,kind==='tavern'?'tavern':'buy')+(left!==null?'<br>Em estoque: <b>'+left+'</b> (reabastece a cada rodada, conforme a produção da cidade)':'')+(own?'<br>Você já tem esta vara.':'')+'</div>';
       const btn=UI.button('Comprar ◉'+price,'gold',()=>{
         if(Ledger.anyDebt()){toast('Você está em dívida: compras bloqueadas.',2000);return}
         const need=d.type==='weapon'?(STATE.inv.wbar.includes(null)||invRoomFor(d.id)>=1):invRoomFor(d.id)>=1;
@@ -81,7 +81,7 @@ function renderStore(){
         if(left!==null&&shopLeft(c,d.id)<=0){toast('Esgotado nesta cidade até a próxima rodada.',2200);return}
         if(!Ledger.spend({gold:price})){toast('Ouro insuficiente.',1800);return}
         if(left!==null)shopTake(c,d.id,1);
-        invGive([[d.id,1]]);sfx('coin',0);toast(d.icon+' '+d.name+' comprado'+(d.type==='weapon'?' — coloque na barra 1–6 e equipe':''),2500);renderStore();
+        invGive([[d.id,1]]);sfx('coin',0);toast(d.name+' comprado'+(d.type==='weapon'?' — coloque na barra 1–6 e equipe':''),2500,itemIconHtml(d));renderStore();
       });
       btn.disabled=own||Ledger.anyDebt()||P.coins<price||(left!==null&&left<=0);
       card.appendChild(btn);grid.appendChild(card);
@@ -96,12 +96,12 @@ function renderStore(){
   wrap.append(left,right);body.appendChild(wrap);
   const inv=STATE.inv;
   UI.slotGrid(left,{cols:5,slots:inv.slots.slice(0,inv.size),
-    render:(s,i)=>{const d=s&&itemDef(s.id);return{label:d?d.icon:'',count:s?s.n:0,title:d?d.name+(s.n>1?' ×'+s.n:'')+(d.noSell?' (não vendável)':' — ◉'+sellUnitPrice(s.id,c)+' cada'):'Vazio',cls:(G.storeSel===i?'sel':'')+(s?' '+itemSlotCls(s.id):'')}},
+    render:(s,i)=>{const d=s&&itemDef(s.id);return{html:d?itemIconHtml(d):'',count:s?s.n:0,title:d?d.name+(s.n>1?' ×'+s.n:'')+(d.noSell?' (não vendável)':' — ◉'+sellUnitPrice(s.id,c)+' cada'):'Vazio',cls:(G.storeSel===i?'sel':'')+(s?' '+itemSlotCls(s.id):'')}},
     onClick:(s,i)=>{G.storeSel=i;renderStore()}});
   const s=G.storeSel!==null&&G.storeSel!==undefined?inv.slots[G.storeSel]:null;
   if(s){
     const d=itemDef(s.id),n=s.n,p=sellUnitPrice(s.id,c),st=v.stock[s.id]||0;
-    right.innerHTML='<div style="font-size:30px">'+d.icon+'</div><b>'+d.name+'</b> ×'+n+'<p class="st">'+d.desc+'<br>'+(d.noSell?'Este item não pode ser vendido.':'Preço agora: <b>◉'+p+'</b> cada (valor base ◉'+d.value+') '+(sellEffects(s.id,c).length?whyTag(priceMulOf(sellEffects(s.id,c)),'','data-why="sell" data-c="'+c.id+'" data-i="'+s.id+'"',true):''))+'</p>';
+    right.innerHTML='<div style="font-size:30px">'+itemIconHtml(d)+'</div><b>'+d.name+'</b> ×'+n+'<p class="st">'+d.desc+'<br>'+(d.noSell?'Este item não pode ser vendido.':'Preço agora: <b>◉'+p+'</b> cada (valor base ◉'+d.value+') '+(sellEffects(s.id,c).length?whyTag(priceMulOf(sellEffects(s.id,c)),'','data-why="sell" data-c="'+c.id+'" data-i="'+s.id+'"',true):''))+'</p>';
     if(!d.noSell){
       const sell=(q)=>{const r=sellItem(c,s.id,q);if(r.sold>0){sfx('coin',0);toast('Vendido: '+r.sold+'× '+d.name+'  +◉'+r.earned+(r.broke?'  •  o vendedor ficou sem ouro':''),2200)}else if(r.broke)toast('O vendedor está sem ouro para este item.',2200);renderStore()};
       right.appendChild(UI.button('Vender 1','gold',()=>sell(1)));

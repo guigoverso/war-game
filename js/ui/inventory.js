@@ -143,7 +143,7 @@ function giveWeapon(i,silent){
   if(slot<0&&invRoomFor(id)<1){toast('Bolsa e barra de armas cheias! Descarte algo antes.',2500);return false}
   WS.mag[i]=w.mag;WS.reserve[i]=Math.max(WS.reserve[i]||0,w.pack);STATE.dur[i]=100;
   if(slot>=0){inv.wbar[slot]=id;syncOwned();selectWeapon(i)}else{invAdd(id,1);syncOwned()}
-  invChanged();if(!silent)toast('🔫 '+w.name+' adquirida'+(slot>=0?' (barra '+(slot+1)+')':' (na bolsa: coloque-a na barra 1–6)'),2500);
+  invChanged();if(!silent)toast(w.name+' adquirida'+(slot>=0?' (barra '+(slot+1)+')':' (na bolsa: coloque-a na barra 1–6)'),2500,itemIconHtml(itemDef(id)));
   return true;
 }
 // ao carregar: garante que cada arma "possuída" exista como item (barra ou bolsa)
@@ -317,7 +317,7 @@ function renderInventory(){
   const grid=(el,k,arr,cols,keyBase)=>UI.slotGrid(el,{cols,slots:arr,
     render:(s,i)=>{
       const d=s&&itemDef(s.id);
-      return{label:d?d.icon:'',count:s&&k!=='wbar'?s.n:0,key:keyBase?(i+keyBase):'',title:s?slotTitle(s,{k,i}):(k==='wbar'?'Barra de armas '+(i+1)+' (vazia)':k==='cbar'?'Atalho '+(i+7)+' (vazio)':'Vazio'),
+      return{html:d?itemIconHtml(d):'',count:s&&k!=='wbar'?s.n:0,key:keyBase?(i+keyBase):'',title:s?slotTitle(s,{k,i}):(k==='wbar'?'Barra de armas '+(i+1)+' (vazia)':k==='cbar'?'Atalho '+(i+7)+' (vazio)':'Vazio'),
         cls:(isSel(k,i)?'sel':'')+(G.pendSel!==null&&G.pendSel!==undefined&&k==='bag'&&s?' target':'')+(s?' '+itemSlotCls(s.id):'')};
     },
     dnd:{
@@ -345,7 +345,7 @@ function renderInventory(){
     let extra='';
     if(d.weapon!==undefined){const i=d.weapon;extra='<br>Durabilidade: '+(weaponBroken(i)?'<b style="color:#ff6a6a">QUEBRADA</b>':Math.round(durOf(i))+'%')+'<br>Munição reserva: '+WS.reserve[i]}
     if(d.weapon!==undefined&&STATE.legend[d.weapon])extra+='<br><b style="color:#ffd23a">★ Lendária: +50% de dano e desgaste pela metade</b>';
-    det.innerHTML='<div style="font-size:30px">'+d.icon+'</div><b>'+(d.weapon!==undefined?wName(d.weapon):d.name)+'</b>'+(s.n>1?' ×'+s.n:'')+'<p class="st">'+d.desc+'<br>Valor: ◉'+d.value+(d.noSell?' (não vendável)':'')+extra+'</p>';
+    det.innerHTML='<div style="font-size:30px">'+itemIconHtml(d)+'</div><b>'+(d.weapon!==undefined?wName(d.weapon):d.name)+'</b>'+(s.n>1?' ×'+s.n:'')+'<p class="st">'+d.desc+'<br>Valor: ◉'+d.value+(d.noSell?' (não vendável)':'')+extra+'</p>';
     const fromBag=sel.k==='bag';
     if(d.use){
       det.appendChild(UI.button('Usar','gold',()=>{if(sel.k==='cbar')useBar(sel.i);else invUse(s.id);G.invSel=null;renderInventory()}));
