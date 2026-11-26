@@ -103,9 +103,11 @@ function damageAlly(a,dmg){
   if(a.hp<=0){a.alive=false;a.deadT=0;if(!a.temp&&!BATTLE.on&&!(typeof REBB!=='undefined'&&REBB.active))toast('☠ Um soldado seu caiu! Recrute outro no Quartel.',3000)}   // sem aviso nas batalhas de rebelião (o contador de aliados mostra)
 }
 function armyAssault(c,msg,only){   // only: filtro opcional (quais soldados)
-  if(!only){const h=ORDER.hunt;orderCancel();ORDER.hunt=h}   // (a caça liberada continua) a invasão manda os soldados atrás de você: a ordem antiga cai
   let n=0;const sy=Math.sin(P.yaw),cy=Math.cos(P.yaw),tot=allyCount();
   for(const a of ALLIES){if(!a.alive||(only&&!only(a)))continue;
+    // quem já está perto de você ou cumprindo a ordem V não é teleportado (antes voltava para trás de você sempre que a batalha recomeçava)
+    const dp=Math.hypot(a.x-P.x,a.z-P.z),ordered=ORDER.on&&!a.post;
+    if(a.state==='assault'||dp<ALLY_SUMMON_DIST||ordered){a.state='assault';a.assaultCity=c;continue}
     // aparecem atrás do jogador, em formação escalonada
     let back=5+Math.floor(n/2)*2.4+Math.random(),x=0,z=0;const side=(n%2?1:-1)*(1.8+(n>>1)*1.7);
     for(let k=0;k<6;k++){
@@ -146,7 +148,7 @@ function orderGo(){   // mira do jogador -> ponto do chão
   if(!canOrderAllies())return;   // sem avisos: notificação nova só com aprovação do usuário (CLAUDE.md)
   const d=new THREE.Vector3(),o=new THREE.Vector3();camera.getWorldDirection(d);camera.getWorldPosition(o);
   rayWorld(o.x,o.y,o.z,d.x,d.y,d.z,ORDER_MAX_DIST);
-  if(RAY.kind===0)return;
+  if(RAY.kind===0&&d.y>-0.02)return;   // mirando o céu: nada a ordenar; olhando para baixo sem acertar nada (além do alcance), vale o ponto no limite do alcance
   ORDER.x=o.x+d.x*RAY.t;ORDER.z=o.z+d.z*RAY.t;battleClampOrder(ORDER);ORDER.on=true;ORDER.hunt=false;   // na Defesa o ponto fica dentro da área
   const m=orderMarker();m.position.set(ORDER.x,tH(ORDER.x,ORDER.z)+0.15,ORDER.z);
   for(const a of ALLIES)if(a.alive)a.path=null;   // recalcula o caminho já no destino novo

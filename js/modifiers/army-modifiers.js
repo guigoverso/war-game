@@ -57,3 +57,7 @@ const ALLY_THREAT_RANGE=40;
 const ORDER_KEY_HUNT = 'KeyH';
 // Na caça, até que distância (blocos) do soldado ele procura inimigos para atacar. Padrão: 90
 const ALLY_HUNT_RANGE = 90;
+
+// Quando a batalha começa (armyAssault), só é chamado para perto de você (teleporte) o soldado que está mais longe que isto (blocos) e que não está cumprindo uma ordem
+// V. Quem já está por perto, ou foi mandado a um ponto (porta, prédio), continua onde está. Padrão: 30
+const ALLY_SUMMON_DIST = 30;

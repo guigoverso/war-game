@@ -44,7 +44,7 @@ const snap = page => page.evaluate(() => ({ c: battleCounts(), t: BATTLE.t, awak
     s = await snap(page);
     ok(s.c.e.f <= 30, 'cota de vivos respeitada (' + s.c.e.f + ' <= 30)');
     ok(s.c.e.r < 100 - 5, 'reserva diminuiu com os lotes (' + s.c.e.r + ')');
-    await page.evaluate(() => { const g = BATTLE.gens[0]; P.x = g.x - g.radius * 2.2; P.z = g.z; P.y = tH(P.x, P.z) + 0.1; P.camY = P.y; });
+    await page.evaluate(() => { const g = BATTLE.gens[0]; PROVOKE.secs = 0; P.x = g.x - g.radius * 2.2; P.z = g.z; P.y = tH(P.x, P.z) + 0.1; P.camY = P.y; });   // a provocação (tiro sofrido) tem teste próprio (provocacao.js); aqui vale só o raio
     await page.waitForTimeout(12000);
     s = await snap(page);
     ok(!s.awake, 'ao sair do raio x 1,3 o gerador dorme');

@@ -118,3 +118,8 @@ Pré-requisito do passo 1: o `?cenario=batalha` atual (30 x 10) foi jogado em 20
 
 ## Bolsa (2026-11-26)
 Sem o texto de ajuda quando nada está selecionado e sem a nota do armazém; **Usar** mantém o item selecionado enquanto houver estoque e funciona várias vezes (o tempo de espera do item não corre com a bolsa aberta e travava o botão); o ouro (dourado alaranjado, grande) e a barra de vida ficam abaixo dos detalhes do item e a barra atualiza ao curar.
+
+## Ordem V: botão do meio e teleporte (2026-11-26)
+**Problemas:** (1) a ordem era ignorada em silêncio quando a mira não acertava nada (céu ou além de `ORDER_MAX_DIST`); (2) a cada começo de batalha (`armyAssault`, que também roda quando um POI volta ao combate ou a defesa reacorda) os soldados eram teleportados para trás do jogador e a ordem V caía, o que atrapalhava mandá-los a uma porta ou prédio.
+**Regra:** olhando para baixo sem acertar nada, a ordem vale no limite do alcance. `armyAssault` só teleporta o soldado que está a mais de `ALLY_SUMMON_DIST` (30) do jogador e sem ordem V ativa; a ordem não cai mais no começo da batalha (cancele com X).
+**Como testar:** dê V numa porta a ~60 blocos e provoque o POI: os soldados seguem para lá em vez de voltar para trás de você.
