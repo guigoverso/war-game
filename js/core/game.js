@@ -427,7 +427,7 @@ window.addEventListener('blur',()=>{G.keys={};G.fireHeld=false;G.aiming=false});
 function doInteract(){
   const t=G.target;if(!t)return;
   if(t.c&&raidLocked(t.c))return;
-  if(t.type==='dgcage')gevCageOpen();else if(t.type==='hall')openQuests(t.c);else if(t.type==='barracks')openBarracks(t.c);else if(t.type==='shop')openShop(t.c);else if(t.type==='clinic')openClinic(t.c);else if(t.type==='portal'){if(RAID.active&&!RAID.engaged)toast('Há um ataque em andamento! Defenda a cidade antes.',2500);else if(t.p.golden&&CONTEST.active)toast('⚔ A batalha pelo portal dourado ainda não terminou!',2500);else enterDungeon(t.p)}else if(t.type==='dgexit')leaveDungeon();else if(t.type==='store')openStore(t.c,'store');else if(t.type==='tavern')openStore(t.c,'tavern');else if(t.type==='stove')openCooking('tavern');else if(t.type==='fire')openCooking('fire');else if(t.type==='npc')npcTalk(t.n);else if(t.type==='chest')openChest(t.ch);else if(t.type==='vein')mineVein();else if(t.type==='cage')openCage(t.c);else if(t.type==='book')openBook();else if(t.type==='leader')hallRoundAction(t.c);else if(t.type==='warehouse')openWarehouse(t.c);else if(t.type==='loot')lootCaravan(t.car);else if(t.type==='msdeliver')msDeliver(t.m);else if(String(t.type).indexOf('poi')===0)poiAct(t);
+  if(t.type==='dgcage')gevCageOpen();else if(t.type==='hall')openQuests(t.c);else if(t.type==='barracks')openBarracks(t.c);else if(t.type==='recruit')svcRecruit(t.c);else if(t.type==='shop')openShop(t.c);else if(t.type==='clinic')openClinic(t.c);else if(t.type==='portal'){if(RAID.active&&!RAID.engaged)toast('Há um ataque em andamento! Defenda a cidade antes.',2500);else if(t.p.golden&&CONTEST.active)toast('⚔ A batalha pelo portal dourado ainda não terminou!',2500);else enterDungeon(t.p)}else if(t.type==='dgexit')leaveDungeon();else if(t.type==='store')openStore(t.c,'store');else if(t.type==='tavern')openStore(t.c,'tavern');else if(t.type==='stove')openCooking('tavern');else if(t.type==='fire')openCooking('fire');else if(t.type==='npc')npcTalk(t.n);else if(t.type==='chest')openChest(t.ch);else if(t.type==='vein')mineVein();else if(t.type==='cage')openCage(t.c);else if(t.type==='book')openBook();else if(t.type==='leader')hallRoundAction(t.c);else if(t.type==='warehouse')openWarehouse(t.c);else if(t.type==='loot')lootCaravan(t.car);else if(t.type==='msdeliver')msDeliver(t.m);else if(String(t.type).indexOf('poi')===0)poiAct(t);
 }
 function updateInteract(){
   G.target=null;G.attackCity=null;G.curCity=null;const lines=[];
@@ -445,6 +445,7 @@ function updateInteract(){
     }
     if(c.shop){const ds=Math.hypot(P.x-c.shop.x,P.z-c.shop.z);if(ds<4.5){G.target={type:'shop',c};lines.push('[E] Comprar armas e munição')}}
     if(c.barracks){const ds=Math.hypot(P.x-c.barracks.x,P.z-c.barracks.z);if(ds<4.5){G.target={type:'barracks',c};lines.push('[E] Quartel: recrutar e equipar soldados')}}
+    if(c.recruit&&recruitPlace(c)){const ds=Math.hypot(P.x-c.recruit.x,P.z-c.recruit.z);if(ds<4.5){G.target={type:'recruit',c};lines.push(TXT_RECRUIT_PROMPT)}}   // alistamento da vila: só vila sua ou neutra
     if(c.clinic){const ds=Math.hypot(P.x-c.clinic.x,P.z-c.clinic.z);if(ds<4.5){G.target={type:'clinic',c};lines.push('[E] Clínica: curar ferimentos')}}
     if(c.store){const ds=Math.hypot(P.x-c.store.x,P.z-c.store.z);if(ds<4.5){G.target={type:'store',c};lines.push('[E] Loja: vender e comprar itens')}}
     if(c.tavern){const ds=Math.hypot(P.x-c.tavern.x,P.z-c.tavern.z);if(ds<3.2){G.target={type:'tavern',c};lines.push('[E] Taverneiro: comprar comida pronta')}}
@@ -630,6 +631,7 @@ function cityIcons(c){
   if(c.tavern)l.push({x:c.tavern.x,z:c.tavern.z,t:'T',col:'#c8873a'});
   if(c.clinic)l.push({x:c.clinic.x,z:c.clinic.z,t:'+',col:'#4ac05a'});
   if(c.barracks)l.push({x:c.barracks.x,z:c.barracks.z,t:'Q',col:'#3a8aff'});
+  if(c.recruit)l.push({x:c.recruit.x,z:c.recruit.z,t:'R',col:'#3a8aff'});
   if(c.hall)l.push({x:c.hall.x,z:c.hall.z,t:'P',col:'#ffd23a'});
   if(c.warehouse)l.push({x:c.warehouse.x,z:c.warehouse.z,t:'Z',col:'#d8a85a'});
   if(c.chapel)l.push({x:c.chapel.x,z:c.chapel.z,t:'†',col:'#c8a0ff'});

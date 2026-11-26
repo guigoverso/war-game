@@ -139,8 +139,8 @@ gdef('mercenarios','Mercenários sem contrato',2,{
   make:rng=>({}),
   text:()=>'Um bando de mercenários sem contrato oferece seus serviços a quem pagar.',
   options:[
-    {k:'A',label:'Contratar os mercenários',type:'buff',cost:()=>({gold:GEV.merc.gold}),eff:()=>'Paga ◉'+GEV.merc.gold+'. Você ganha +'+GEV.merc.n+' soldados (o que passar do limite vai para a reserva).',
-      apply:x=>{const g=armyGain(GEV.merc.n);gnews('Mercenários: você contratou '+GEV.merc.n+' soldados'+(g.res?' ('+g.res+' na reserva)':'')+'.')}},
+    {k:'A',label:'Contratar os mercenários',type:'buff',cost:()=>({gold:GEV.merc.gold}),eff:()=>'Paga ◉'+GEV.merc.gold+'. Você ganha +'+GEV.merc.n+' soldados (o que passar do limite se perde).',
+      apply:x=>{const g=armyGain(GEV.merc.n);gnews('Mercenários: você contratou '+GEV.merc.n+' soldados'+(g.lost?' ('+g.lost+' não couberam)':'')+'.')}},
     {k:'B',label:'Recusar',type:'neutral',eff:()=>'Nada muda.',apply:x=>{gnews('Mercenários: você recusou a oferta.')}},
     {k:'C',label:'Contratar para sabotar outra facção',type:'both',cost:()=>({gold:GEV.mercSab}),can:()=>gfacs().length?null:'Não há alvo.',eff:()=>'Paga ◉'+GEV.mercSab+'. Você escolhe uma cidade de outra facção: a relação cai −2, a cidade perde humor e a facção perde suprimento por '+GEV.dur+' rodadas.',
       apply:x=>{gevPickCity(c=>{const e=ec(c);gRel(c.fid,-2,'seus mercenários sabotaram '+c.name);if(typeof joyShift==='function')joyShift(c,-1);if(e)e.ups=(e.ups||0)+1;fsupHit(c.fid,GEV.sabShock,GEV.dur,null,'mercenários');gnews('Mercenários: seus homens sabotaram '+c.name+' ('+gnm(c.fid)+').')})}},

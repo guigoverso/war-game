@@ -852,7 +852,7 @@ function buildCity(c,rng){  const Hc=c.half,hg=!!c.huge,vl=!!c.vila,tBuild=perfo
   corners.forEach((cn,idx)=>{
     const sx=cn[0],sz=cn[1],kind=vl?vlKinds[idx]:kinds[idx];
     if(!kind)return;   // vila: sem o 3º e o 4º prédio de serviço
-    const dims={shop:[9,7],clinic:[8,7],chapel:[7,8],barracks:[9,7]}[kind];
+    const dims={shop:[9,7],clinic:[8,7],chapel:[7,8],barracks:[9,7],recruit:[8,6]}[kind];
     const w=dims[0],d=dims[1];
     const lot=c.foot?spreadLot(w,d):null;   // com pegada: o prédio vai para um lote longe da praça; sem lote, fica no canto dela
     let r,D,doorU;
@@ -878,8 +878,8 @@ function buildCity(c,rng){  const Hc=c.half,hg=!!c.huge,vl=!!c.vila,tBuild=perfo
       barrel(c,sx>0?r.x1-1.5:r.x0+0.5,sz>0?r.z1-1.5:r.z0+0.5);
       return;
     }
-    const wallC=kind==='barracks'?0x7a8268:kind==='clinic'?0xf0f0ee:kind==='chapel'?(c.biome===BIO_DESERT?0xefe1b8:0xe6e2d8):rng.pick(c.pal.walls);
-    const o={h:kind==='chapel'?5:4,wall:wallC,roof:kind==='clinic'?0xd8d8d8:kind==='shop'?c.pal.roofs[0]:kind==='barracks'?0x3f4a3a:0x5a4a6a,roofT:kind==='clinic'?'flat':'gable',glass:kind==='chapel'?[0xd03a3a,0x3a5ad0,0xe0c03a,0x3aa05a]:0x9ed4ff,tall:kind==='chapel',chimney:kind==='shop',base:kind==='chapel'?0x888880:undefined};
+    const wallC=kind==='recruit'?0xcdbf93:kind==='barracks'?0x7a8268:kind==='clinic'?0xf0f0ee:kind==='chapel'?(c.biome===BIO_DESERT?0xefe1b8:0xe6e2d8):rng.pick(c.pal.walls);
+    const o={h:kind==='chapel'?5:4,wall:wallC,roof:kind==='clinic'?0xd8d8d8:kind==='shop'?c.pal.roofs[0]:kind==='barracks'?0x3f4a3a:kind==='recruit'?0x8a2a2a:0x5a4a6a,roofT:kind==='clinic'?'flat':'gable',glass:kind==='chapel'?[0xd03a3a,0x3a5ad0,0xe0c03a,0x3aa05a]:0x9ed4ff,tall:kind==='chapel',chimney:kind==='shop',base:kind==='chapel'?0x888880:undefined};
     const f=makeBuilding(c,r,D,doorU,o,rng);houses.push(r);
     if(lot)(c.doors=c.doors||[]).push(f.map(doorU+1,-0.5));
     const wx=(u,v)=>{const m=f.map(u,v);return[c.cx+m[0],c.cz+m[1]]};
@@ -908,6 +908,15 @@ function buildCity(c,rng){  const Hc=c.half,hg=!!c.huge,vl=!!c.vila,tBuild=perfo
       const p=wx(mid,3.2);c.barracks={x:p[0],z:p[1]};
       const k=wx(mid,2.0);c.keepers=c.keepers||[];c.keepers.push({role:'guard',x:k[0],z:k[1],yaw:(()=>{const o={N:[0,-1],S:[0,1],E:[1,0],W:[-1,0]}[D];return Math.atan2(o[0],o[1])})()});
       const sp=wx(doorU+1,-0.22);makeSign('QUARTEL',3,0.85,0x2a3a5a,0xe8e8e8,sp[0],cityYat(c,sp[0],sp[1])+3.25,sp[1],D);
+      const cm=f.map(f.U/2,f.V/2);addFlag(c,cm[0],4.4,cm[1],3.2);
+    }else if(kind==='recruit'){   // vila (4B-19f): barraca de alistamento = mesa de registro, armeiro com rack de armas, estandarte; só recruta
+      const mid=f.U/2,tu=doorU<f.U/2?f.U-3.4:1.4;
+      FB(c,f,mid-1.5,f.V-3.2,mid+1.5,f.V-2.2,0,0.9,0x6b4a2a,true);FB(c,f,mid-1.1,f.V-3,mid+1.1,f.V-2.4,0.9,0.95,0xd8d0a8,false,{j:0});
+      for(let k=0;k<3;k++){const u=1.2+k*1.4;if(Math.abs(u-doorU)<1.6)continue;FB(c,f,u,f.V-1.25,u+1.1,f.V-1.05,1.7,1.85,0x333333,false,{j:0});FB(c,f,u,f.V-1.25,u+0.4,f.V-1.05,1.45,1.7,0x6b4a2a,false,{j:0})}
+      FB(c,f,tu,1.4,tu+1,2.4,0,1.1,0x5a4a3a,true);
+      const p=wx(mid,3.2);c.recruit={x:p[0],z:p[1]};
+      const k=wx(mid,2.0);c.keepers=c.keepers||[];c.keepers.push({role:'guard',x:k[0],z:k[1],yaw:(()=>{const o={N:[0,-1],S:[0,1],E:[1,0],W:[-1,0]}[D];return Math.atan2(o[0],o[1])})()});
+      const sp=wx(doorU+1,-0.22);makeSign(TXT_RECRUIT_SIGN,3.6,0.85,0x6a1f1f,0xe8e8e8,sp[0],cityYat(c,sp[0],sp[1])+3.25,sp[1],D);
       const cm=f.map(f.U/2,f.V/2);addFlag(c,cm[0],4.4,cm[1],3.2);
     }else{
       // capela: pews, altar, torre

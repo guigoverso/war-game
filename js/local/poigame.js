@@ -375,13 +375,24 @@ function svcSmith(p){
 function svcMerc(p){
   const c=WORLD.home;ARMY.city=c;
   svcOpen('⚔ MERCENÁRIO',(txt,body)=>{
-    const cost=bp(ARMY.recruitCost,'recruit'),full=armyTotal()>=ARMY.max;
+    const cost=bp(ARMY.recruitCost,'recruit'),full=armyTotal()>=ARMY.max,left=recruitLeft(c);
     txt.innerHTML='— Espada de aluguel, a seu serviço. Soldados: <b>'+armyTotal()+'/'+ARMY.max+'</b> • Moedas: <b>◉ '+P.coins+'</b>';
-    body.insertAdjacentHTML('beforeend',tagLine(priceTag(c,'recruit')));
-    const b=UI.button(full?'Exército completo':'Recrutar soldado ◉'+cost,'gold',()=>{
+    body.insertAdjacentHTML('beforeend','<div class="st">'+txtRecruitDesc(ARMY.max,left,RECRUIT_ROUND_CAP.city)+'</div>'+tagLine(priceTag(c,'recruit')));
+    const b=UI.button(txtRecruitBtn(cost,full,left),'gold',()=>{
       if(recruitAlly(c))toast('⚔ Um mercenário se juntou ao seu exército.',2500);else toast('Não foi possível recrutar.',2000);svcRender();
     });
-    b.disabled=full||P.coins<cost;body.appendChild(b);
+    b.disabled=full||left<=0||P.coins<cost;body.appendChild(b);
+  });
+}
+// edifício de alistamento da vila (4B-19f): só recruta (upgrades só no Quartel das cidades); vila sua ou neutra, limite 15 por rodada
+function svcRecruit(c){
+  ARMY.city=c;
+  svcOpen(TXT_RECRUIT_TITLE,(txt,body)=>{
+    const cost=bp(ARMY.recruitCost,'recruit'),full=armyTotal()>=ARMY.max,left=recruitLeft(c);
+    txt.innerHTML=txtRecruitGreeting(armyTotal(),ARMY.max,P.coins);
+    body.insertAdjacentHTML('beforeend','<div class="st">'+txtRecruitDesc(ARMY.max,left,RECRUIT_ROUND_CAP.village)+'</div>'+tagLine(priceTag(c,'recruit')));
+    const b=UI.button(txtRecruitBtn(cost,full,left),'gold',()=>{recruitAlly(c);svcRender()});
+    b.disabled=full||left<=0||P.coins<cost;body.appendChild(b);
   });
 }
 // lojista do entreposto: comida, munição, remédios e materiais, 10% acima (soma com a relação da cidade de referência, se o dono for outra facção)

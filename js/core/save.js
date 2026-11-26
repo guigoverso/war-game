@@ -60,7 +60,8 @@ function migrateSave(d){
   if(d.v<23){d.v=23}   // v23: state.tiles (por tile: dono, diferenças da semente, POIs de guerra, estoque); ausente = nada
   if(d.v<24){d.v=24}
   if(d.v<25){d.v=25}   // v25: STATE.tiles[chave].cerco/cicatriz/tomado (cerco e cicatrizes de batalha); ausente = nenhum   // v24: state.bat (batalhões: id, tile, dono, soldados por tipo, munição); ausente = nenhum
-  // if(d.v<25){ ...ajustes...; d.v=25 }
+  if(d.v<26){if(d.army){d.army.max=ARMY_MAX_SOLDIERS;delete d.army.reserve}d.v=26}   // v26: teto único de 50 soldados e fim da reserva antiga (army.reserve some); army.recr = recrutados por lugar na rodada (ausente = nenhum)
+  // if(d.v<27){ ...ajustes...; d.v=27 }
   return d;
 }
 
@@ -149,7 +150,7 @@ function applySave(d){
   reconcileWeapons();   // as armas viram itens (barra 1–6 ou bolsa) se o salvamento for antigo; depois equipa uma válida
   if(STATE.inv.wbar.includes(wItemId(w.cur)))selectWeapon(w.cur);
   // exército
-  Object.assign(ARMY,d.army||{});ARMY.city=null;
+  Object.assign(ARMY,d.army||{});ARMY.city=null;ARMY.max=ARMY_MAX_SOLDIERS;delete ARMY.reserve;
   const hm=WORLD.home,bk=hm.barracks||{x:hm.cx,z:hm.cz};
   for(let i=0;i<(d.allies||0);i++){const a=spawnAlly(bk.x,bk.z,hm);if(ARMY.vest)giveAllyVest(a)}
   applyArmyStats();

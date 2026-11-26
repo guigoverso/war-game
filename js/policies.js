@@ -304,8 +304,8 @@ definePolicy({id:'refugiados',name:'Refugiados',city:true,cool:4,
       apply:x=>x.fx({t:'need',p:{mul:1.5,sel:'food'},txt:'Necessidade de comida +50% em '+x.city.name+' (refugiados)'}),
       onStart:x=>{
         const c=x.city,bk=c.barracks||{x:c.cx,z:c.cz};let n=0;
-        const g=armyGain(2);n=g.spawned+g.res;   // o excesso vai para a reserva
-        x.toast(n?'🪖 '+n+' refugiado(s) se alistaram'+(g.res?' ('+g.res+' na reserva)':'')+'.':'Seu exército e a reserva estão cheios: ninguém se alistou.',4000);
+        const g=armyGain(2);n=g.spawned;   // o excesso se perde (4B-4)
+        x.toast(n?'🪖 '+n+' refugiado(s) se alistaram'+(g.lost?' ('+g.lost+' não couberam)':'')+'.':'Seu exército está cheio: ninguém se alistou.',4000);
       }},
     {k:'B',label:'Recusar a entrada',type:'neutral',eff:()=>'Nada muda.'},
     {k:'C',label:'Encaminhá-los a outra cidade',type:'debuff',cost:{gold:60},eff:()=>'−◉60.'}

@@ -18,3 +18,27 @@ const ORDER_CHASE = 25;
 const ORDER_MARK_COLOR = 0x4ab0ff;
 // Regra: dá para ordenar? Só com soldados vivos e sem posto fixo (batalha de rebelião manda neles). Padrão: pelo menos 1 solto
 function canOrderAllies() { return ALLIES.some(a => a.alive && !a.post); }
+
+// ---------- Recrutamento com regras e limites (feature 12, passo 11; 4B-4 e 4B-19) ----------
+// Teto de soldados do jogador (sem reserva: ganho além do teto se perde; quem morre sai do exército). Padrão: 50
+const ARMY_MAX_SOLDIERS = 50;
+// Teto de soldados recrutados por RODADA em cada lugar (renova a cada rodada): cidade e vila. O teto do exército vale por cima. Padrão: 50 e 15
+const RECRUIT_ROUND_CAP = { city: 50, village: 15 };
+// Onde dá para recrutar: 'city' = cidade sua (Quartel); 'village' = vila sua ou neutra (não dominada por facção; edifício de alistamento); null = em lugar nenhum.
+// Cidade de outra facção e vila dominada por facção não recrutam.
+function recruitPlace(c) {
+  if (!c) return null;
+  if (!c.vila) return c.owner === 'player' ? 'city' : null;
+  return c.owner === 'player' || !c.fid ? 'village' : null;
+}
+// Quantos soldados ainda dá para recrutar em c nesta rodada (teto do lugar menos o que já foi recrutado; o teto do exército não entra aqui)
+function recruitLeft(c) {
+  const k = recruitPlace(c), R = ARMY.recr;
+  if (!k) return 0;
+  return Math.max(0, RECRUIT_ROUND_CAP[k] - (R && R.r === STATE.round && R.n[c.id] || 0));
+}
+// Conta um recrutamento em c na rodada atual (zera a conta quando a rodada muda)
+function recruitCount(c) {
+  if (!ARMY.recr || ARMY.recr.r !== STATE.round) ARMY.recr = { r: STATE.round, n: {} };
+  ARMY.recr.n[c.id] = (ARMY.recr.n[c.id] || 0) + 1;
+}

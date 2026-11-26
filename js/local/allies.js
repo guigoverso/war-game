@@ -2,12 +2,11 @@
 // ---------- Exército: soldados recrutados no Quartel ----------
 const ALLIES=[];
 const VEST_HP=40;
-const ARMY={vest:false,dmg:0,hp:0,weapon:0,owned:[true,false,false,false,false,false],max:5,maxLvl:8,recruitCost:100,city:null,reserve:0};   // reserve: soldados em excesso (8/5 = 5 em campo + 3 na reserva)
+const ARMY={vest:false,dmg:0,hp:0,weapon:0,owned:[true,false,false,false,false,false],max:ARMY_MAX_SOLDIERS,maxLvl:8,recruitCost:100,city:null,recr:null};   // max: teto único (army-modifiers.js); recr: recrutados por lugar na rodada (recruitLeft)
 const allyMaxHp=()=>45+12*ARMY.hp;
 const allyDmgMul=()=>1+0.25*ARMY.dmg;
 const allyCount=()=>ALLIES.filter(a=>a.alive&&!a.temp).length;
-const armyTotal=()=>allyCount()+(ARMY.reserve||0);   // o que o contador mostra: em campo + reserva
-const ARMY_RESERVE_MAX=5;   // a.temp: reforços de uma batalha (rebelião): não contam para o limite do exército nem são salvos
+const armyTotal=allyCount;   // o que o contador mostra (a.temp: reforços de batalha de rebelião não contam nem são salvos)
 const upCost=l=>120+80*l;
 const bp=(b,k)=>pc(b,ARMY.city,k);   // preço ajustado pela cidade do quartel
 
@@ -81,26 +80,19 @@ function spawnAlly(x,z,city,col,kind){
   if(K.hp){a.maxhp*=K.hp;a.hp=a.maxhp}if(K.armor)giveAllyVest(a);
   scene.add(a.group);ALLIES.push(a);return a;
 }
-// ganhar soldados (reféns, mercenários, refugiados...): as vagas livres viram soldados no quartel; o EXCESSO vai para a reserva (não dá para comprar a reserva).
-// Quando um soldado cai, a reserva manda um substituto (em batalha, ele chega atrás de você); fora de batalha, o quartel repõe sozinho.
+// ganhar soldados (reféns, mercenários, refugiados...): as vagas livres viram soldados no quartel; o EXCESSO se perde (4B-4: sem reserva do exército).
 function armyGain(n){
-  let spawned=0,res=0;const hm=WORLD.home,bk=hm.barracks||{x:hm.cx,z:hm.cz};
+  let spawned=0,lost=0;const hm=WORLD.home,bk=hm.barracks||{x:hm.cx,z:hm.cz};
   for(let i=0;i<n;i++){
     if(allyCount()<ARMY.max){const a=spawnAlly(bk.x+(Math.random()-0.5)*1.5,bk.z+(Math.random()-0.5)*1.5,hm);if(ARMY.vest)giveAllyVest(a);spawned++}
-    else if((ARMY.reserve||0)<ARMY_RESERVE_MAX){ARMY.reserve=(ARMY.reserve||0)+1;res++}
+    else lost++;
   }
-  return{spawned,res};
-}
-function armyReinforce(){
-  if(!(ARMY.reserve>0)||allyCount()>=ARMY.max||P.dead)return;
-  ARMY.reserve--;const hm=WORLD.home,bk=hm.barracks||{x:hm.cx,z:hm.cz},a=spawnAlly(bk.x,bk.z,hm);if(ARMY.vest)giveAllyVest(a);
-  const fight=RAID.active?RAID.area:WORLD.areas.find(c=>c.state==='attacking'&&c.aliveEnemies>0&&Math.hypot(c.cx-P.x,c.cz-P.z)<c.half+120);
-  if(fight)armyAssault(fight,'',x=>x===a);   // em batalha: chega atrás de você e entra na luta
+  return{spawned,lost};
 }
 function recruitAlly(c){
   if(c&&polFlag('noRecruit',c.id)){toast('Não é possível recrutar em '+c.name+' agora (política em vigor).',2500);return false}
-  if(c.owner!=='player'||armyTotal()>=ARMY.max||P.coins<bp(ARMY.recruitCost,'recruit'))return false;   // a reserva conta: o excesso não se compra
-  P.coins-=bp(ARMY.recruitCost,'recruit');
+  if(!recruitPlace(c)||recruitLeft(c)<=0||armyTotal()>=ARMY.max||P.coins<bp(ARMY.recruitCost,'recruit'))return false;   // 4B-19: cidade sua ou vila sua/neutra, com limite por rodada
+  P.coins-=bp(ARMY.recruitCost,'recruit');recruitCount(c);
   const bk=c.barracks||{x:c.cx,z:c.cz};
   spawnAlly(bk.x+(Math.random()-0.5)*1.5,bk.z+(Math.random()-0.5)*1.5,c);
   sfx('coin',0);return true;
@@ -108,7 +100,7 @@ function recruitAlly(c){
 function damageAlly(a,dmg){
   if(!a.alive)return;if(a.armor>0){const ab=Math.min(a.armor,dmg*0.6);a.armor-=ab;dmg-=ab}
   a.hp-=dmg;burst(a.x,a.y+1,a.z,0x2a5ac0,6,4,0.1);
-  if(a.hp<=0){a.alive=false;a.deadT=0;if(!a.temp&&!BATTLE.on&&!(typeof REBB!=='undefined'&&REBB.active)&&!(ARMY.reserve>0))toast('☠ Um soldado seu caiu! Recrute outro no Quartel.',3000)}   // com reserva, um substituto já vem a caminho   // sem aviso nas batalhas de rebelião (o contador de aliados mostra)
+  if(a.hp<=0){a.alive=false;a.deadT=0;if(!a.temp&&!BATTLE.on&&!(typeof REBB!=='undefined'&&REBB.active))toast('☠ Um soldado seu caiu! Recrute outro no Quartel.',3000)}   // sem aviso nas batalhas de rebelião (o contador de aliados mostra)
 }
 function armyAssault(c,msg,only){   // only: filtro opcional (quais soldados)
   if(!only)orderCancel();   // a invasão manda os soldados atrás de você: a ordem antiga cai
@@ -294,7 +286,6 @@ function updateCitySentries(dt){
 }
 function updateAllies(dt){
   updateCitySentries(dt);updateOrderMarker(dt);
-  ARMY.rt=(ARMY.rt||0)-dt;if(ARMY.rt<=0){ARMY.rt=2;armyReinforce()}   // a cada 2 s a reserva repõe uma vaga aberta
   for(let i=ALLIES.length-1;i>=0;i--){const a=ALLIES[i];if(a.gone){ALLIES.splice(i,1);continue}updateAlly(a,dt)}
 }
 function applyArmyStats(){
@@ -305,9 +296,10 @@ function applyArmyStats(){
 function openBarracks(c){ARMY.city=c;openPanel('barracks');renderBarracks()}
 function renderBarracks(){
   const n=allyCount();
-  $('bkinfo').innerHTML='◉ '+P.coins+' moedas  •  Soldados: '+armyTotal()+'/'+ARMY.max+(ARMY.reserve?' (em campo '+n+', reserva '+ARMY.reserve+')':'');
+  $('bkinfo').innerHTML=txtBarracksInfo(P.coins,n,ARMY.max);
   let h='<div class="grid">';
-  if(ARMY.city&&ARMY.city.owner==='player')h+='<div class="card"><b>Recrutar soldado</b><div class="st">Máx. '+ARMY.max+' vivos. Munição infinita. Teleportam até você quando a invasão começa.</div>'+tagLine(priceTag(ARMY.city,'recruit'))+'<button class="gold" data-a="rec" '+(armyTotal()>=ARMY.max||P.coins<bp(ARMY.recruitCost,'recruit')?'disabled':'')+'>Recrutar ◉'+bp(ARMY.recruitCost,'recruit')+'</button></div>';
+  if(recruitPlace(ARMY.city)){const left=recruitLeft(ARMY.city),full=n>=ARMY.max;   // só cidade sua recruta no Quartel (4B-19)
+    h+='<div class="card"><b>Recrutar soldado</b><div class="st">'+txtRecruitDesc(ARMY.max,left,RECRUIT_ROUND_CAP[recruitPlace(ARMY.city)])+'</div>'+tagLine(priceTag(ARMY.city,'recruit'))+'<button class="gold" data-a="rec" '+(full||left<=0||P.coins<bp(ARMY.recruitCost,'recruit')?'disabled':'')+'>'+txtRecruitBtn(bp(ARMY.recruitCost,'recruit'),full,left)+'</button></div>'}
   const dl=ARMY.dmg,hl=ARMY.hp;
   h+='<div class="card"><b>Dano dos soldados</b><div class="st">Nível '+dl+'/'+ARMY.maxLvl+' • +25% de dano por nível (atual ×'+allyDmgMul().toFixed(2)+')</div>'+tagLine(priceTag(ARMY.city,'soldierup'))+'<button data-a="dmg" '+(dl>=ARMY.maxLvl||P.coins<bp(upCost(dl),'soldierup')?'disabled':'')+'>'+(dl>=ARMY.maxLvl?'Máximo':'Evoluir ◉'+bp(upCost(dl),'soldierup'))+'</button></div>';
   h+='<div class="card"><b>Vida dos soldados</b><div class="st">Nível '+hl+'/'+ARMY.maxLvl+' • +12 de vida por nível (atual '+allyMaxHp()+')</div>'+tagLine(priceTag(ARMY.city,'soldierup'))+'<button data-a="hp" '+(hl>=ARMY.maxLvl||P.coins<bp(upCost(hl),'soldierup')?'disabled':'')+'>'+(hl>=ARMY.maxLvl?'Máximo':'Evoluir ◉'+bp(upCost(hl),'soldierup'))+'</button></div>';

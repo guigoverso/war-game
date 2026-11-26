@@ -236,6 +236,15 @@ function tileAfter() {
   if (win && win.empty) tilePlaceFree(o && q.get('pos') !== 'centro' ? o : null);
   else if (q.get('pos') === 'borda' && o) tilePlaceAt(o);
   tileHugeGarrison();
+  tileRecruitScenario();
+}
+// ?recrutar=sua|neutra|inimiga (feature 12, passo 11): muda o dono da vila (ou da cidade) do tile e põe o jogador diante do alistamento/Quartel, para testar 4B-19.
+function tileRecruitScenario() {
+  const m = new URLSearchParams(location.search).get('recrutar'), c = WORLD.cities.find(k => k.vila) || WORLD.home;
+  if (!m || !c) return;
+  c.owner = m === 'sua' ? 'player' : m === 'neutra' ? 'neutral' : 'enemy'; c.ofid = m === 'inimiga' ? 1 : null;
+  const b = c.recruit || c.barracks || { x: c.cx, z: c.cz }, f = freeSpot(b.x + 2, b.z + 2, 0.5, 1.8, 0.45);
+  P.x = f[0]; P.z = f[1]; P.y = tH(P.x, P.z) + 0.1; P.vx = P.vz = P.vy = 0; P.camY = P.y; P.yaw = Math.atan2(b.x - P.x, b.z - P.z);
 }
 // Cidade enorme do jogador (4B): CITY_HUGE.soldiers soldados seus patrulham a cidade, saindo do quartel (nas cidades de outra facção o populateCities põe os inimigos).
 function tileHugeGarrison() {

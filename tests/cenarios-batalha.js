@@ -28,7 +28,10 @@ const CENARIOS = [
     d: 'Como a Defesa do passo 3, mas abrindo pelo cerco: o tile de teste é cercado (cidade: 5 ações), você gasta &acoes=N (padrão 2) e o batalhão chega a tempo (siegeArrive vira Defesa). Ao vencer ou perder, o macro registra fadiga (só com guerra), baixas e cicatriz (tileBattleEnd). Testes: node tests/macro/tilewar.js e node tests/batalha-defesa.js' },
   { passo: 10, status: 'pronto', t: 'Improviso de guerra: acampamento do atacante na abertura', q: 'cenario=tile&tema=fortaleza&seed=11&forma=pangeia&auto=1&dono=faccao&guerra=1&batalha=defesa&entrada=W',
     d: 'Substitui os POIs de teste: só o atacante improvisa (acampamento fortificado ou atalaia na zona da sua abertura; sacos na estrada, na praça, no Choque); o defensor não tem POI no anel (o principal de facção tem os arredores permanentes). Sem &batalha= (e sem cerco ou batalhão no tile) nada é montado.' },
-  { passo: 11, status: 'pendente', t: 'Recrutamento com regras e limites', q: 'cenario=recrutamento', d: '' }
+  { passo: 11, status: 'pronto', t: 'Recrutamento: vila sua (alistamento, limite 15)', q: 'cenario=tile&tema=vila&seed=12&auto=1&recrutar=sua',
+    d: 'Vila sua com a barraca de alistamento (placa ALISTAMENTO; só recruta, sem upgrades): [E] perto da mesa; limite de 15 por rodada, teto 50 do exército. Troque &recrutar= por neutra (também recruta) ou inimiga (não recruta). Cidade sua: ?cenario=tile&tema=cidade&auto=1 (Quartel, limite 50 por rodada). Teste em Node: cd tests && node recrutamento.js' },
+  { passo: 11, status: 'pronto', t: 'Recrutamento: vila neutra', q: 'cenario=tile&tema=vila&seed=12&auto=1&recrutar=neutra', d: 'Vila não dominada por facção: recruta como a sua (15 por rodada).' },
+  { passo: 11, status: 'pronto', t: 'Recrutamento: vila inimiga', q: 'cenario=tile&tema=vila&seed=12&auto=1&recrutar=inimiga', d: 'Vila de facção: o alistamento não aparece (nem recruta).' }
 ];
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 const card = c => c.status === 'pronto'
