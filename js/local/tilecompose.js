@@ -317,7 +317,7 @@ function tcSurround(S) {
   const B_ = BATTLE_SURR, m = S.main, out = { trincheira: 0, barricada: 0, rej: { borda: 0, estrada: 0, chao: 0, ocupado: 0 } };
   WORLD.surround = out;
   if (!m || !m.poi || typeof m.owner !== 'number' || !B_.types.includes(m.type)) return;
-  const h = m.r + B_.gap, war = tileSurrWar();
+  const h = m.r + B_.gap, war = tileSurrWar(), posts = [];   // posts: barricadas já postas (o espaçamento entre elas vale também para as da estrada)
   const scan = (x, z, hx, hz, f) => { for (let pz = Math.round(z - hz); pz <= z + hz; pz += 2) for (let px = Math.round(x - hx); px <= x + hx; px += 2) f(px, pz) };
   const roadIn = (x, z, hx, hz) => { let r = false; scan(x, z, hx, hz, (px, pz) => { const t = T[pz * W + px]; if (t === T_ROAD || t === T_BRIDGE) r = true }); return r };
   const firm = (x, z, hx, hz) => {
@@ -329,6 +329,7 @@ function tcSurround(S) {
   const put = (kind, x, z, rot) => {
     const d = { i: WORLD.micros.length, x, z, y: H[z * W + x], kind, r: 7, rot };
     WORLD.micros.push(d); S.taken.push({ x, z, r: 7, zone: true, surr: true }); dormBuild(d);
+    if (kind === 'barricada_defesa') posts.push([x, z]);
   };
   for (const vert of [false, true]) {   // vert: lados leste e oeste (o trecho gira 90 graus e não pega os cantos)
     const len = vert ? 2 * h - 6 : 2 * h, count = Math.ceil(len / B_.step), st = len / count, hx = vert ? 3 : 7, hz = vert ? 7 : 3, rot = vert ? 1 : 0;
@@ -352,6 +353,28 @@ function tcSurround(S) {
       }
     }
   }
+  if (war) tcSurroundRoads(S, m, h, posts, { firm, free, put });
+}
+// Barricadas de estrada em pontos intermediários (só em guerra): cada abertura tem a sua estrada até o principal; em cada uma, nas frações BATTLE_SURR.roadPosts do trecho
+// entre a trincheira e a abertura, a barricada vai no ponto de estrada mais perto dessa fração que tenha chão firme, esteja livre e fique a BATTLE_SURR.postGap das outras.
+// O giro segue a direção local da estrada (a barricada a cruza).
+function tcSurroundRoads(S, m, h, posts, f) {
+  const B_ = BATTLE_SURR, ops = S.win.openings, out = WORLD.surround, dm = c => Math.hypot(c[0] - m.x, c[1] - m.z), dir = c => {
+    const r = (dx, dz) => T[(c[1] + dz) * W + c[0] + dx] === T_ROAD ? 1 : 0;
+    return r(-3, 0) + r(3, 0) >= r(0, -3) + r(0, 3) ? 1 : 0;   // estrada corre em x: giro 1; em z: giro 0
+  };
+  const cells = S.roadCells.filter(c => T[c[1] * W + c[0]] === T_ROAD && dm(c) > h + B_.roadMin);
+  ops.forEach(o => {
+    const mine = cells.filter(c => ops.every(q => q === o || Math.hypot(c[0] - o.x, c[1] - o.z) <= Math.hypot(c[0] - q.x, c[1] - q.z)));
+    if (mine.length < 4) return;
+    const far = Math.max(...mine.map(dm)), near = h + B_.roadMin;
+    for (const fr of B_.roadPosts) {
+      const want = near + fr * (far - near);
+      const cand = mine.slice().sort((a, b) => Math.abs(dm(a) - want) - Math.abs(dm(b) - want)).slice(0, 12);
+      const c = cand.find(q => posts.every(p => Math.hypot(p[0] - q[0], p[1] - q[1]) >= B_.postGap) && f.firm(q[0], q[1], 7, 7) && f.free(q[0], q[1]));
+      if (c) { f.put('barricada_defesa', c[0], c[1], dir(c)); out.barricada++; out.estrada = (out.estrada || 0) + 1 } else out.rej.estrada++;
+    }
+  });
 }
 
 // Ponto de entrada (chamado por worldNatureStage, world.js, depois de tileTrailLinks e tileBorderPlan). cities = as cidades do mapa (a do tile ou a âncora vazia).

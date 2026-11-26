@@ -88,6 +88,9 @@ const battleMode = () => tileTestOn() ? (new URLSearchParams(location.search).ge
 // types: tipos de principal que valem (padrão fort, fortcamp); gap: distância do quadrado à borda do POI, em blocos (9; o anel vai até 24); step: comprimento de um
 // trecho (14 = os dois micro-POIs `trincheira_defesa` e `barricada_defesa`); slope: desnível máximo do chão sob um trecho (5; acima disso o trecho não nasce);
 // roadClear: folga em blocos em volta de uma estrada onde o trecho vira passagem (2); testFaction: dono de facção de ?dono=faccao (1, só para testar).
-const BATTLE_SURR = { types: ['fort', 'fortcamp'], gap: 9, step: 14, slope: 5, roadClear: 2, testFaction: 1 };
+// Barricadas de estrada intermediárias (só em guerra; tcSurroundRoads): roadPosts = frações do trecho entre a trincheira e a abertura onde cada estrada ganha uma (0.35 e 0.7,
+// ou seja, 2 por estrada); postGap = distância mínima entre duas barricadas, em blocos (36); roadMin = folga da trincheira ao primeiro ponto possível (10).
+const BATTLE_SURR = { types: ['fort', 'fortcamp'], gap: 9, step: 14, slope: 5, roadClear: 2, testFaction: 1,
+  roadPosts: [0.35, 0.7], postGap: 36, roadMin: 10 };
 // Há guerra entre o dono do tile e o jogador? ?guerra=1|0 força (testes); sem o parâmetro, vale a guerra ativa (warActive); a camada macro entra no passo 10.
 const tileSurrWar = () => { const q = new URLSearchParams(location.search).get('guerra'); return q ? q === '1' : typeof warActive === 'function' && warActive() };
