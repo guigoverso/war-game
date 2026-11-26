@@ -71,9 +71,25 @@ Os POIs de guerra por zona foram descartados (`8_tiles-e-vilas.md`, Pendente): c
 - Mar: tiles de mar entre ilhas; **ilha inicial** conferida e, se pequena, a cidade inicial vira **porto**.
 - Estrutura salva do grafo (rascunho do `SAVE_VERSION`), testes em Node.
 
-## Etapa 6: mapa mundi em 3D (G)
+## Etapa 6: mapa mundi em 3D (G) — CÓDIGO PRONTO em 2026-11-26 (`js/ui/mundo3d.js`; abre com J ou `?cenario=mundo3d`; falta o usuário olhar na tela; ver `docs/MAPA.md`)
+- (Feito em 2026-11-26, com várias rodadas de ajuste visual do usuário: ilha limpa em degraus, linhas translúcidas, placa sob o modelo, dia e noite, ondas, câmera livre, herói que anda; **tiles de ponte** passaram a nascer no meio do vão de água, no grafo, e o formato continentes sorteia de 2 a 5 massas.)
 - Diorama em voxels (terreno em colunas, penhascos laterais, mar, estrada clara, trilha tracejada), modelos por tipo de tile, bonecos (batalhão com cor da facção), câmera inclinada com giro e zoom limitados, clique por raio, prévia do caminho com o custo em ações.
 - Só visual e seleção; sem atores ainda. Abre pelo livro/atalho e sai para o mapa local.
+
+## Etapa 6A: gerador de nomes dos tiles (P; pedido do usuário em 2026-11-26; depois do mapa mundi 3D e antes da etapa 7)
+Hoje o rótulo do tile é só o tema ("Fazenda", "Fortaleza"). Passa a ter um **nome próprio**, por exemplo "Fazenda de Santa Maria", "Mina do Corvo", "Serraria do Pinhal", "Ponte do Rio Fundo".
+- **Determinístico:** o nome sai da semente do mundo e do id do tile (`RNG` já usado em `graph.js`), então não vai para o save e a mesma semente dá os mesmos nomes; a etapa 8 só grava o nome se o jogador puder renomear.
+- **Usa o terreno** (decidido: sim): bioma dominante, costa, altura e água do tile (`n.terr`, `n.costa`, `n.agua` do grafo). Ex.: serraria em floresta -> "do Pinhal/Bosque/Carvalhal"; mina em rocha -> "da Pedra/Serra/Rochedo"; vila de costa -> "do Porto/Cais/Maré"; ponte sobre vão -> "do Vão/Estreito"; deserto -> "da Areia/Oásis"; neve -> "do Gelo/Neve".
+- **Padrão por tema** (listas em `js/texts/map-texts.js`, constantes com comentário; nada de string solta na lógica): cidade e vila = nome próprio (santo, sobrenome, sufixo de lugar: "Vila Trovão", "São Jorge do Vale"); recursos = "<Tema> <preposição> <nome do terreno ou santo/família>"; fortaleza = "Forte <nome>"; ruínas = "Ruínas de <nome>"; passagem = "Passo do <acidente>". Nunca repetir nome no mesmo mundo (reroll por tentativa).
+- **Onde aparece:** rótulo no mapa mundi 3D (`wm3Label`), painel do tile (`txtWm3Info`), resumo da rodada no livro e, mais tarde, no cabeçalho do mapa local. Integra com os nomes de cidade já existentes (`c.name` das cidades do jogo atual) na etapa 8.
+- **Função:** `tileName(G, n)` na camada macro (`js/macro/`, sem Three.js/DOM) + teste em Node (`tests/macro/`: determinismo, unicidade, todos os temas e biomas cobertos).
+- **Custo:** uma sessão curta, só texto e uma função; nenhum risco de regressão.
+
+| Passo | Sessão | Por quê |
+|---|---|---|
+| 6A (gerador de nomes) | **Nova**, com contexto limpo | Só precisa do repositório e deste doc; não depende do que foi lido no mapa mundi 3D. |
+
+> **Pendência da ponte (pedido do usuário, 2026-11-26; fica para depois, junto da etapa 8 / POIs viram sítios):** no mapa mundi 3D a ponte do tile é **reta, com arcos nas pontas** (`wm3BridgeBuild`; as bifurcações foram descartadas por ficarem quebradas). O **tile local** de ponte (`tcBridge`, `tilecompose.js`) ainda tem uma ponte simples: deve ganhar o mesmo modelo com ramos, um por abertura/estrada que chega ao vão.
 
 ## Etapa 7: batalhões, ações e turno alternado (G)
 - Pool de **ações** por rodada (cresce com o nível da facção), custo por terreno, **até 3 batalhões**, **comandante único** que troca de batalhão de graça, criação de batalhões no **turno do Líder** (primeiro grátis, depois guarnição cheia, com doação de soldados em cidade), morte (perde soldados, ouro, munição; nunca dívida), kit do comandante.

@@ -29,9 +29,12 @@ function wfCreate(seed, opts) {
     nz: new Noise(seed), nt: new Noise(seed + 11), nm: new Noise(seed + 23), nr: new Noise(seed + 37), nd: new Noise(seed + 51),
     nj: new Noise(seed + 77), wn: new Noise(seed + 131), ln: new Noise(seed + 211), blobs: [], lake: null
   };
-  if (fmt === 'continentes') {   // 3 massas de terra separadas por mar, em volta do centro
-    const a0 = rg.range(0, 6.283);
-    for (let k = 0; k < 3; k++) { const a = a0 + k * 2.094 + rg.range(-0.35, 0.35), R = rg.range(0.5, 0.56); F.blobs.push({ u: Math.cos(a) * R, v: Math.sin(a) * R, r: rg.range(WORLD_FIELD.blobR[0], WORLD_FIELD.blobR[1]) }) }
+  if (fmt === 'continentes') {   // de 2 a 5 massas de terra separadas por mar, em volta do centro
+    const cn = rg.int(WORLD_FIELD.continents[0], WORLD_FIELD.continents[1]), a0 = rg.range(0, 6.283), shrink = Math.sqrt(3 / cn);   // mais massas = cada uma menor
+    for (let k = 0; k < cn; k++) {
+      const a = a0 + k * 6.283 / cn + rg.range(-0.35, 0.35) * 3 / cn, R = rg.range(0.5, 0.56);
+      F.blobs.push({ u: Math.cos(a) * R, v: Math.sin(a) * R, r: rg.range(WORLD_FIELD.blobR[0], WORLD_FIELD.blobR[1]) * shrink });
+    }
   } else if (fmt === 'lago') {   // um lago grande perto do centro
     const a = rg.range(0, 6.283), R = rg.range(0, 0.22);
     F.lake = { u: Math.cos(a) * R, v: Math.sin(a) * R, r: rg.range(0.26, 0.34) };

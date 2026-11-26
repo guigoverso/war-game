@@ -107,3 +107,38 @@ const txtTileWar = tw => !tw.battle ? '' : 'POIs de guerra (' + tw.battle.tipo +
 const txtPlayerPos = p => 'X ' + p.x.toFixed(1) + '  Y ' + p.y.toFixed(1) + '  Z ' + p.z.toFixed(1);
 // Rótulos do botão de copiar a posição: normal, depois de copiar (volta ao normal em 1,5 s) e se o navegador recusou.
 const TXT_POS_COPY = '📋 Copiar', TXT_POS_COPIED = '✔ Copiado', TXT_POS_FAIL = '✖ Falhou';
+
+// ---------- Mapa mundi em 3D (js/ui/mundo3d.js) ----------
+
+// Rótulo de cada tema de tile no mapa mundi (inclui o mar).
+const TXT_WM3_THEME = Object.assign({ mar: 'Mar aberto' }, TXT_TILE_THEME);
+// Nome do bioma, na ordem de WF_BIO (planície, floresta, deserto, neve, rocha).
+const TXT_WM3_BIOME = ['campos', 'mata', 'areia', 'neve', 'rocha'];
+// Painel do tile no mapa mundi (canto superior direito). n = ponto do grafo, d = {prod: texto|null, owner: {name, css}|null, aqui, cost: {acoes, mar}|null, sem}.
+// Mostra o nome, a produção (se houver), a facção (ou neutro) e, se há um caminho prévio, o custo.
+const txtWm3Info = (n, d) => {
+  let s = '<div class="wm3-head">' + TXT_WM3_THEME[n.tema] + (n.home ? ' ★' : '') + (n.porto ? ' ⚓' : '') + '</div><div class="wm3-body">';
+  if (d.prod) s += '<div class="wm3-row"><i>⚒️</i><span>Produção</span><b>' + d.prod + '</b></div>';
+  s += '<div class="wm3-row"><i>🏴</i><span>Facção</span><b>' + (d.owner ? '<span class="wm3-sw" style="background:' + d.owner.css + '"></span>' + d.owner.name : 'Neutro') + '</b></div>';
+  if (d.aqui) s += '<div class="wm3-row"><i>🛡️</i><span>Seu batalhão está aqui</span></div>';
+  else if (d.sem) s += '<div class="wm3-row"><i>🧭</i><span>Sem caminho até lá</span></div>';
+  else if (d.cost) s += '<div class="wm3-row"><i>🧭</i><span>Caminho</span><b>' + d.cost.acoes + (d.cost.acoes === 1 ? ' ação' : ' ações') + (d.cost.mar ? ' • navio' : '') + '</b></div>';
+  return s + '</div>';
+};
+// Produção por tipo de recurso (TILE_PROD.res) e o imposto de vila/cidade (aparece no painel do tile).
+const TXT_WM3_PROD = { food: 'Alimentos', ore: 'Minério', wood: 'Madeira', imposto: 'Impostos' };
+// Nome provisório de uma facção NPC só pela cor (até o grafo ter as facções reais). c = nome da cor ("Vermelho").
+const txtWm3FacName = c => 'Facção ' + c;
+// Nome da facção do jogador quando ele ainda não deu um.
+const TXT_WM3_YOURS = 'Sua facção';
+// Botões do canto superior direito (mostrar/ocultar nomes dos tiles; abrir o livro) e a dica do canto inferior direito.
+const TXT_WM3_VIEW = { nomes: '🏷️ Nomes', livro: '📖 Livro (L)' };
+const TXT_WM3_BOOKHINT = '📖 L — abrir o livro';
+// Menu do batalhão (clique DIREITO nele): título e opções. ok = já funciona; as outras só existem por enquanto (etapas 7 e 8).
+const TXT_WM3_MENU_TITLE = 'Batalhão';
+const TXT_WM3_MENU = [{ id: 'entrar', ic: '🚪', t: 'Entrar no tile', ok: false }, { id: 'acampar', ic: '⛺', t: 'Acampar', ok: false },
+  { id: 'soldados', ic: '🛡️', t: 'Soldados', ok: false }, { id: 'suprimentos', ic: '🎒', t: 'Suprimentos', ok: false }, { id: 'fechar', ic: '✖️', t: 'Fechar', ok: true }];
+// Aviso enquanto o mundo é montado (tela de carregamento do mapa mundi).
+const TXT_WM3_LOADING = 'Desenhando o mundo...';
+// Botão do modo criativo (aba Mundo) que abre o mapa mundi.
+const TXT_WM3_BUTTON = '🌍 Mapa mundi 3D';

@@ -396,6 +396,7 @@ window.addEventListener('keydown',e=>{
     else if(!G.panel)openBook('book');
     return;
   }
+  if(e.code==='KeyJ'&&!G.panel&&!e.repeat){wm3Open();return}   // J abre o mapa mundi em 3D (ui/mundo3d.js)
   if(e.code==='KeyM'){   // M abre o caderno na aba Mapa (com o caderno aberto, troca para o mapa; no mapa, fecha)
     if(G.panel==='ldbook'){if(LB.top==='map')closePanel();else{LB.top='map';renderBook()}}
     else if(!G.panel)openBook('map');
@@ -741,8 +742,9 @@ function frame(){
   const dt=Math.min(0.05,clock.getDelta());
   updateMusic(dt);
   const t0=performance.now();
-  if(G.running&&!G.panel){if(G.frozen)camera.rotation.set(P.pitch,P.yaw,0);else update(dt)}
+  if(G.running&&!G.panel&&!(typeof WM!=='undefined'&&WM.open)){if(G.frozen)camera.rotation.set(P.pitch,P.yaw,0);else update(dt)}
   const t1=performance.now();
+  if(typeof wm3Frame==='function')wm3Frame(dt);   // mapa mundi 3D (ui/mundo3d.js): câmera e seleção quando aberto
   renderer.render(scene,camera);
   if(typeof tileTestSample==='function')tileTestSample(t1-t0,performance.now()-t1,G.running&&!G.panel);   // tempos do quadro (só mede no cenário ?cenario=batalha)
 }
@@ -788,7 +790,7 @@ $('playbtn').onclick=()=>startGame(false);$('createbtn').onclick=()=>startGame(t
   let ls=null;try{ls=sessionStorage.getItem('fc_loadslot');sessionStorage.removeItem('fc_loadslot')}catch(e){}
   if(ls)setTimeout(()=>startFromSave(+ls),200);          // carregar de dentro do jogo: a página recarregou e inicia direto do salvamento
   else if(q.get('load'))setTimeout(()=>startFromSave(+q.get('load')),200);   // ?load=1 carrega o espaço 1 (testes)
-  else if(q.get('cenario'))setTimeout(()=>startGame(true),200);   // ?cenario=caravanas: modo criativo, sem tela de criação
+  else if(q.get('cenario')&&q.get('cenario')!=='mundo3d')setTimeout(()=>startGame(true),200);   // ?cenario=caravanas: modo criativo, sem tela de criação
   else if(q.get('auto'))setTimeout(()=>startGame(q.get('auto')!=='normal'),200);   // ?auto=1 inicia no modo criativo (testes); ?auto=normal inicia o normal
 })();
 frame();

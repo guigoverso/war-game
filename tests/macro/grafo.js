@@ -32,7 +32,7 @@ for (const fm of formatos) for (const seed of seeds) {
   const R = run(`(()=>{
     const F=wfCreate(${seed},{format:'${fm}',dominant:'plains'}),G=wgBuild(F,${opt}),G2=wgBuild(wfCreate(${seed},{format:'${fm}',dominant:'plains'}),${opt});
     const K=WORLD_GRAPH,N=G.nodes.length,land=G.nodes.filter(n=>!n.mar);
-    let minD=1e9;for(let a=0;a<N;a++)for(let b=a+1;b<N;b++)minD=Math.min(minD,Math.hypot(G.nodes[a].x-G.nodes[b].x,G.nodes[a].z-G.nodes[b].z));
+    let minD=1e9;for(let a=0;a<N;a++)for(let b=a+1;b<N;b++){const d=Math.hypot(G.nodes[a].x-G.nodes[b].x,G.nodes[a].z-G.nodes[b].z);minD=Math.min(minD,(G.nodes[a].ponteNode||G.nodes[b].ponteNode)?d/WORLD_GRAPH.bridgeDist:d)}
     // conectividade do grafo inteiro e das cidades por terra dentro de cada ilha
     const seen=new Set([0]),q=[0];for(let i=0;i<q.length;i++)for(const x of G.adj[q[i]])if(!seen.has(x.to)){seen.add(x.to);q.push(x.to)}
     const deg=land.map(n=>wgLandAdj(G,n.id).length),cont={};for(const n of G.nodes)cont[n.tema]=(cont[n.tema]||0)+1;
@@ -40,7 +40,8 @@ for (const fm of formatos) for (const seed of seeds) {
     let abOk=true,abN=0;for(const n of land)for(const o of wgOpenings(G,F,n.id)){abN++;if(!(o.x>=0&&o.x<=TILE_SIZE&&o.z>=0&&o.z<=TILE_SIZE)||!['E','W','N','S'].includes(o.side))abOk=false}
     return {N,nLand:land.length,minD:Math.round(minD),conn:seen.size===N,deg:{min:Math.min(...deg),max:Math.max(...deg),avg:deg.reduce((a,b)=>a+b,0)/deg.length},cont,
       det:JSON.stringify(wgPack(G))===JSON.stringify(wgPack(G2)),rt:JSON.stringify(pack)===JSON.stringify(pack3),abOk,abN,quotas:G.quotas,forc:G.forcados,
-      ilhas:G.ilhas,inicio:G.inicio,ms:G.ms,
+      ilhas:G.ilhas,inicio:G.inicio,ms:G.ms,pontes:G.nodes.filter(n=>n.ponteNode).length,
+      pontesOk:G.nodes.filter(n=>n.ponteNode).every(n=>{const v=wgLandAdj(G,n.id).map(x=>G.nodes[x.to]);if(v.length!==2||v.some(o=>o.mar||o.ponteNode))return false;const ax=Math.cos(n.ang),az=Math.sin(n.ang);if(wgWaterLen(F,v[0],v[1])>WORLD_GRAPH.bridgeMax+WORLD_GRAPH.bridgeExtra+16)return false;return v.every(o=>Math.hypot(o.x-n.x,o.z-n.z)>0)&&((v[0].x-n.x)*ax+(v[0].z-n.z)*az)*((v[1].x-n.x)*ax+(v[1].z-n.z)*az)<0}),
       semAdeq:land.filter(n=>n.tema!=='passagem'&&!n.forcado&&n.fit<K.minFit-1e-9&&!n.extra&&n.tema!=='cidade').length,
       passRoad:land.filter(n=>n.tema==='passagem'&&n.onRoad).length,
       estradas:G.edges.filter(e=>e.kind==='estrada').length,trilhas:G.edges.filter(e=>e.kind==='trilha').length,mar:G.edges.filter(e=>e.kind==='mar').length,
@@ -52,13 +53,14 @@ for (const fm of formatos) for (const seed of seeds) {
   const c = R.cont, linha = temas.concat(['passagem', 'mar']).map(t => t + ' ' + (c[t] || 0)).join(', ');
   if (resumo) console.log(`\n[${nome}] ${R.N} pontos (${R.nLand} terra), arestas: ${R.estradas} estrada, ${R.trilhas} trilha, ${R.mar} mar; ${R.ms} ms\n   ${linha}\n   forçados: ${R.forc.join(',') || '-'}; ilha inicial: ${R.inicio ? R.inicio.tiles + ' tiles, ' + R.inicio.cidades + ' cidades' + (R.inicio.porto ? ' (PORTO)' : '') : '-'}`);
   ok(R.nLand >= 40, nome + ': ao menos 40 tiles de terra', R.nLand + ' de terra');
-  ok(R.minD >= 384, nome + ': distância mínima ' + R.minD + ' >= 384');
+  ok(R.minD >= run('WORLD_GRAPH.minDist') - 1, nome + ': distância mínima (arredondada) ' + R.minD + ' >= ' + run('WORLD_GRAPH.minDist'));
   ok(R.conn, nome + ': grafo inteiro conectado');
   ok(R.det, nome + ': determinístico');
   ok(R.rt, nome + ': salvar -> carregar -> salvar igual');
   ok(R.abOk, nome + ': aberturas na borda (' + R.abN + ')');
-  ok(R.deg.max <= 5, nome + ': vizinhos de terra por tile entre ' + R.deg.min + ' e ' + R.deg.max + ' (média ' + R.deg.avg.toFixed(1) + ')', 'máximo 5');
-  ok(R.nLand >= temas.length ? temas.every(t => c[t] >= 1) : true, nome + ': ao menos 1 tile de cada tema', temas.filter(t => !c[t]).join(','));
+  ok(R.pontesOk, nome + ': tile de ponte com exatamente 2 vizinhos de terra, um antes e um depois (' + R.pontes + ' pontes)');
+  ok(R.deg.max <= 6, nome + ': vizinhos de terra por tile entre ' + R.deg.min + ' e ' + R.deg.max + ' (média ' + R.deg.avg.toFixed(1) + ')', 'máximo 6 (a árvore geradora não limita; era 5 antes dos tiles de ponte)');
+  ok(R.nLand >= temas.length ? temas.every(t => c[t] >= 1 || t === 'ponte') : true, nome + ': ao menos 1 tile de cada tema', temas.filter(t => !c[t]).join(','));
   ok(R.semAdeq === 0, nome + ': todo tema com adequação >= limite (ou forçado)', R.semAdeq + ' fora');
   ok(R.passRoad === 0, nome + ': nenhuma passagem em tile com estrada');
   ok(R.ms < 4000, nome + ': gerou em ' + R.ms + ' ms (< 4000)');

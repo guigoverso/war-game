@@ -173,7 +173,9 @@ const WORLD_FIELD = {
   tiles: 10, spacing: TILE_SIZE, jitter: 48,
   // Tamanho do mundo por formato, em tiles de lado (etapa 5: o grafo precisa de ao menos 40 tiles de TERRA por mundo, decisão de 2026-11-26; `tiles` acima
   // (10) vale só para a grade provisória e para formato sem entrada aqui) e raio das massas do formato 'continentes' (fração do meio mundo). Padrão: ver abaixo
-  worldTiles: { continentes: 14, pangeia: 12, arquipelagos: 13, lago: 12 }, blobR: [0.46, 0.52],
+  // Quantas massas de terra tem o formato 'continentes' (sorteado entre os dois valores pela semente; mais massas = cada uma menor). Padrão: [2, 5]
+  continents: [2, 5],
+  worldTiles: { continentes: 18, pangeia: 15, arquipelagos: 16, lago: 15 }, blobR: [0.46, 0.52],
   // Formatos do mundo (landMask em escala de mundo). Padrão: continentes, pangeia, arquipélagos e grande lago
   formats: ['continentes', 'pangeia', 'arquipelagos', 'lago'],
   // Largura da transição terra-mar em unidades do mundo (1 = metade do mundo, ~1000 blocos). Menor = costa mais curta. Padrão: 0.12
@@ -194,9 +196,10 @@ const WORLD_FIELD = {
 // ---------- Etapa 5 do plano: o grafo do mapa mundi (js/macro/graph.js; decisões de 2026-11-26, rodada 15 de 5_mapa-mundi.md) ----------
 // Pontos com distância mínima, vizinhos por triangulação, trilhas e estradas, tema de cada tile por adequação ao terreno. Valores = ponto de partida.
 const WORLD_GRAPH = {
-  // Distância mínima entre dois pontos (o tile tem 384: as janelas vizinhas mal se tocam), tentativas de sorteio por passada (terra, depois mar)
-  // e margem até a borda do mundo (metade do tile). Padrão: TILE_SIZE, 6000, TILE_SIZE / 2
-  minDist: TILE_SIZE, tries: 6000, edgeMargin: TILE_SIZE / 2,
+  // Distância mínima entre dois pontos (o tile tem 384; com 1,25 x há folga entre as janelas vizinhas: pedido do usuário em 2026-11-26, tiles muito juntos),
+  // tentativas de sorteio por passada (terra, depois mar) e margem até a borda do mundo (metade do tile). O mundo (WORLD_FIELD.worldTiles) cresce junto para
+  // manter 40+ tiles de terra. Padrão: TILE_SIZE * 1.25, 6000, TILE_SIZE / 2
+  minDist: Math.round(TILE_SIZE * 1.25), tries: 6000, edgeMargin: TILE_SIZE / 2,
   // Passo (blocos) da grade grossa de terra e da amostragem do terreno do tile. Padrão: 32 e 32
   gridStep: 32, terrStep: 32,
   // Fração mínima de terra da janela para o ponto ser tile de TERRA (abaixo disso é tile de MAR, só para navegar). Padrão: 0.3
@@ -218,6 +221,10 @@ const WORLD_GRAPH = {
   sameNeighbor: 0.5,
   // Ilha inicial: mínimo de tiles de terra e de cidades alcançáveis a pé; abaixo disso a cidade inicial vira porto (navio grátis). Padrão: 6 e 2
   startIsland: { tiles: 6, cities: 2 },
+  // Tile de PONTE: liga duas massas de terra por UM vão de água curto (de bridgeTile a bridgeMax blocos, quase sem mais água entre os dois tiles; vão grande demais, ou mar
+  // aberto, não vira ponte). Nasce no meio do vão, tem sempre um tile de terra antes e outro depois (só liga esses dois, sem bifurcação) e fica a bridgeDist x minDist
+  // de todos os outros tiles (0,5 = 240 blocos: dois tiles de 480 com um rio no meio). No máximo `bridges[1]` por mundo (sorteadas).   // `bridgeExtra` = água a mais (riachos) tolerada na reta entre os dois tiles além do vão da ponte. Padrão: 40, [3, 5], 0.5, 96
+  bridgeTile: 40, bridges: [3, 5], bridgeDist: 0.5, bridgeExtra: 96,
   // Abertura do tile: quanto desliza pela borda atrás de terra (blocos). Padrão: 80
   openSlide: 80
 };
@@ -241,3 +248,31 @@ const mapTileSize = () => {
 const TILE_POI_TEST = { types: ['farm', 'tavern', 'post', 'mine', 'fort', 'sawmill', 'sanctuary', 'hunters', 'tower', 'ruins', 'inn', 'lodge', 'ruinvil'], cityGap: 24, poiGap: 4, range: 8, step: 4 };
 // Verdadeiro com ?pois=max no cenário de tile.
 const tileFillOn = () => mapTileOn() && new URLSearchParams(location.search).get('pois') === 'max';
+
+// ---------- Etapa 6 do plano: mapa mundi em 3D (js/ui/mundo3d.js; diorama em voxels sobre o campo e o grafo do mundo) ----------
+// ?cenario=mundo3d abre só o mapa mundi (sem gerar o mapa local); no jogo, a tecla J ou o botão do modo criativo (aba Mundo) abre o mapa do mundo atual.
+// Visual de referência: ilha limpa, relevo em degraus, regiões grandes de bioma, poucos adereços grandes, trilha esculpida no chão (pedido do usuário, 2026-11-26).
+// unit: blocos do mundo por unidade da cena. cell: lado de cada coluna em blocos (= unit, então 1 coluna = 1 voxel). vScale: altura de cada bloco de relevo.
+// terrace: blocos de relevo por degrau. smooth: passadas de suavização do relevo (mais = ilha mais lisa). baseY: fundo do diorama.
+// plateau: raio (em colunas) do pedestal plano sob cada tile (a cidade usa cityPlateau = 9; a placa do tile tem essa meia largura); pedMax: altura máxima do pedestal acima do mar (blocos).
+// minIsland / minPond: ilhotas e lagoas com menos colunas que isso são apagadas (só ruído). Padrões: 16, 16, 0.25, 4, 4, -7, 6, 14, 150, 100
+const WORLD3D = { unit: 16, cell: 16, vScale: 0.25, terrace: 4, smooth: 4, baseY: -7, plateau: 6, cityPlateau: 9, pedMax: 14, minIsland: 150, minPond: 100,
+  // Câmera livre (arrastar com o botão direito gira em volta, esquerdo passeia, roda aproxima): distância inicial e limites (unidades), inclinação inicial e
+  // limites (rad), giro máximo para cada lado (rad; 99 = livre), velocidade do passeio com WASD (por unidade de distância por segundo) e suavidade da
+  // inércia (maior = mais ágil). Padrões: 150, [18, 700], 0.9, [0.2, 1.5], 99, 0.9, 9
+  dist: 150, distLim: [18, 700], pitch: 0.9, pitchLim: [0.2, 1.5], yawMax: 99, panSpeed: 0.9, damp: 9,
+  // Dia e noite: duração de um dia (s), cores do céu (dia, entardecer, noite) e do mar (dia, noite), luz ambiente (dia, noite), força do sol e da lua. Mar:
+  // altura e velocidade das ondas. Padrões: 150, 0xa9d2f2, 0xf2a070, 0x16244c, 0x2f86d0, 0x244f86, 0.3, 0.4, 1.15, 0.6, 0.07, 1.4
+  dayLen: 150, skyDay: 0xa9d2f2, skyDusk: 0xf2a070, skyNight: 0x16244c, seaDay: 0x2f86d0, seaNight: 0x244f86, ambDay: 0.3, ambNight: 0.4,
+  sunPower: 1.15, moonPower: 0.6, waveAmp: 0.07, waveSpeed: 1.4,
+  // Caminhos: largura (unidades) da linha da estrada e da trilha e transparência (0 a 1); passam por cima de tudo, menos dentro do tile. Padrões: 0.9, 0.55, 0.6
+  roadW: 1, trailW: 0.55, lineAlpha: 0.6,
+  // TAMANHO DO BATALHÃO do jogador no mapa (escala do boneco com a bandeira; 1 = um humano normal, ~1,95 de altura). Mude e recarregue a página. Padrão: 3.2
+  heroScale: 5,
+  // Escala dos modelos dos tiles e velocidade do herói andando pela trilha (unidades por segundo). Padrões: 1.3 e 16
+  modelScale: 1.3, walkSpeed: 16,
+  // Custo de caminho de uma aresta (WORLD_GRAPH, campo custo) por ação do mapa: ações = máx(1, teto(custo / costPerAction)). PROVISÓRIO: a etapa 7 define o
+  // custo real por terreno. Padrão: 2.5
+  costPerAction: 2.5,
+  // Árvores por coluna de terra (0 a 1) em bosques: floresta, planície, deserto (cacto), neve (pinheiro), rocha. Padrão: 0.22, 0.01, 0.015, 0.12, 0
+  treeProb: [0.22, 0.01, 0.015, 0.12, 0] };
