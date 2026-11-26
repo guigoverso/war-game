@@ -22,14 +22,14 @@ function canOrderAllies() { return ALLIES.some(a => a.alive && !a.post); }
 // ---------- Recrutamento com regras e limites (feature 12, passo 11; 4B-4 e 4B-19) ----------
 // Teto de soldados do jogador (sem reserva: ganho além do teto se perde; quem morre sai do exército). Padrão: 50
 const ARMY_MAX_SOLDIERS = 50;
-// Teto de soldados recrutados por RODADA em cada lugar (renova a cada rodada): cidade e vila. O teto do exército vale por cima. Padrão: 50 e 15
-const RECRUIT_ROUND_CAP = { city: 50, village: 15 };
-// Onde dá para recrutar: 'city' = cidade sua (Quartel); 'village' = vila sua ou neutra (não dominada por facção; edifício de alistamento); null = em lugar nenhum.
+// Teto de soldados recrutados por RODADA em cada lugar (renova a cada rodada): cidade, vila sua e vila neutra. O teto do exército vale por cima. Padrão: 50, 15 e 5
+const RECRUIT_ROUND_CAP = { city: 50, village: 15, neutral: 5 };
+// Onde dá para recrutar: 'city' = cidade sua (Quartel); 'village' = vila sua; 'neutral' = vila neutra (não dominada por facção); null = em lugar nenhum.
 // Cidade de outra facção e vila dominada por facção não recrutam.
 function recruitPlace(c) {
   if (!c) return null;
   if (!c.vila) return c.owner === 'player' ? 'city' : null;
-  return c.owner === 'player' || !c.fid ? 'village' : null;
+  return c.owner === 'player' ? 'village' : !c.fid ? 'neutral' : null;
 }
 // Quantos soldados ainda dá para recrutar em c nesta rodada (teto do lugar menos o que já foi recrutado; o teto do exército não entra aqui)
 function recruitLeft(c) {

@@ -377,22 +377,33 @@ function svcMerc(p){
   svcOpen('⚔ MERCENÁRIO',(txt,body)=>{
     const cost=bp(ARMY.recruitCost,'recruit'),full=armyTotal()>=ARMY.max,left=recruitLeft(c);
     txt.innerHTML='— Espada de aluguel, a seu serviço. Soldados: <b>'+armyTotal()+'/'+ARMY.max+'</b> • Moedas: <b>◉ '+P.coins+'</b>';
-    body.insertAdjacentHTML('beforeend','<div class="st">'+txtRecruitDesc(ARMY.max,left,RECRUIT_ROUND_CAP.city)+'</div>'+tagLine(priceTag(c,'recruit')));
+    body.insertAdjacentHTML('beforeend','<div class="st">'+txtRecruitQueue(left)+'</div>'+tagLine(priceTag(c,'recruit')));
     const b=UI.button(txtRecruitBtn(cost,full,left),'gold',()=>{
       if(recruitAlly(c))toast('⚔ Um mercenário se juntou ao seu exército.',2500);else toast('Não foi possível recrutar.',2000);svcRender();
     });
     b.disabled=full||left<=0||P.coins<cost;body.appendChild(b);
   });
 }
-// edifício de alistamento da vila (4B-19f): só recruta (upgrades só no Quartel das cidades); vila sua ou neutra, limite 15 por rodada
+// edifício de alistamento da vila (4B-19f): só recruta (upgrades só no Quartel das cidades). Vila sua: gente leal à facção; vila neutra: gente atrás de emprego.
+// Embaixo, um quadrado com o rosto de cada recruta que sobra; ao recrutar, o último some.
+function recruitFace(c,i){
+  const h=((c.id+1)*2654435761+i*40503)>>>0,sk='#'+SKINS[h%SKINS.length].toString(16).padStart(6,'0'),hr='#'+HAIRS[(h>>>3)%HAIRS.length].toString(16).padStart(6,'0');
+  return '<div style="display:inline-block;position:relative;width:44px;height:44px;margin:3px;background:#3a3f48;border:2px solid #666;box-sizing:border-box;overflow:hidden">'
+    +'<div style="position:absolute;left:9px;top:8px;width:22px;height:26px;background:'+sk+'"></div><div style="position:absolute;left:8px;top:6px;width:24px;height:9px;background:'+hr+'"></div>'
+    +'<div style="position:absolute;left:13px;top:20px;width:4px;height:4px;background:#111"></div><div style="position:absolute;left:23px;top:20px;width:4px;height:4px;background:#111"></div>'
+    +'<div style="position:absolute;left:15px;top:29px;width:10px;height:2px;background:#6a3a2a"></div></div>';
+}
 function svcRecruit(c){
   ARMY.city=c;
   svcOpen(TXT_RECRUIT_TITLE,(txt,body)=>{
     const cost=bp(ARMY.recruitCost,'recruit'),full=armyTotal()>=ARMY.max,left=recruitLeft(c);
-    txt.innerHTML=txtRecruitGreeting(armyTotal(),ARMY.max,P.coins);
-    body.insertAdjacentHTML('beforeend','<div class="st">'+txtRecruitDesc(ARMY.max,left,RECRUIT_ROUND_CAP.village)+'</div>'+tagLine(priceTag(c,'recruit')));
-    const b=UI.button(txtRecruitBtn(cost,full,left),'gold',()=>{recruitAlly(c);svcRender()});
-    b.disabled=full||left<=0||P.coins<cost;body.appendChild(b);
+    txt.innerHTML=txtRecruitGreeting(recruitPlace(c),facOf(0).name,left);
+    if(left>0){
+      body.insertAdjacentHTML('beforeend','<div class="st">'+txtRecruitQueue(left)+'</div>'+tagLine(priceTag(c,'recruit')));
+      const b=UI.button(txtRecruitBtn(cost,full,left),'gold',()=>{recruitAlly(c);svcRender()});
+      b.disabled=full||P.coins<cost;body.appendChild(b);
+      let h='<div>';for(let k=0;k<left;k++)h+=recruitFace(c,k);body.insertAdjacentHTML('beforeend',h+'</div>');
+    }
   });
 }
 // lojista do entreposto: comida, munição, remédios e materiais, 10% acima (soma com a relação da cidade de referência, se o dono for outra facção)

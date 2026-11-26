@@ -299,7 +299,7 @@ function renderBarracks(){
   $('bkinfo').innerHTML=txtBarracksInfo(P.coins,n,ARMY.max);
   let h='<div class="grid">';
   if(recruitPlace(ARMY.city)){const left=recruitLeft(ARMY.city),full=n>=ARMY.max;   // só cidade sua recruta no Quartel (4B-19)
-    h+='<div class="card"><b>Recrutar soldado</b><div class="st">'+txtRecruitDesc(ARMY.max,left,RECRUIT_ROUND_CAP[recruitPlace(ARMY.city)])+'</div>'+tagLine(priceTag(ARMY.city,'recruit'))+'<button class="gold" data-a="rec" '+(full||left<=0||P.coins<bp(ARMY.recruitCost,'recruit')?'disabled':'')+'>'+txtRecruitBtn(bp(ARMY.recruitCost,'recruit'),full,left)+'</button></div>'}
+    h+='<div class="card"><b>Recrutar soldado</b><div class="st">'+txtRecruitQueue(left)+'</div>'+tagLine(priceTag(ARMY.city,'recruit'))+'<button class="gold" data-a="rec" '+(full||left<=0||P.coins<bp(ARMY.recruitCost,'recruit')?'disabled':'')+'>'+txtRecruitBtn(bp(ARMY.recruitCost,'recruit'),full,left)+'</button></div>'}
   const dl=ARMY.dmg,hl=ARMY.hp;
   h+='<div class="card"><b>Dano dos soldados</b><div class="st">Nível '+dl+'/'+ARMY.maxLvl+' • +25% de dano por nível (atual ×'+allyDmgMul().toFixed(2)+')</div>'+tagLine(priceTag(ARMY.city,'soldierup'))+'<button data-a="dmg" '+(dl>=ARMY.maxLvl||P.coins<bp(upCost(dl),'soldierup')?'disabled':'')+'>'+(dl>=ARMY.maxLvl?'Máximo':'Evoluir ◉'+bp(upCost(dl),'soldierup'))+'</button></div>';
   h+='<div class="card"><b>Vida dos soldados</b><div class="st">Nível '+hl+'/'+ARMY.maxLvl+' • +12 de vida por nível (atual '+allyMaxHp()+')</div>'+tagLine(priceTag(ARMY.city,'soldierup'))+'<button data-a="hp" '+(hl>=ARMY.maxLvl||P.coins<bp(upCost(hl),'soldierup')?'disabled':'')+'>'+(hl>=ARMY.maxLvl?'Máximo':'Evoluir ◉'+bp(upCost(hl),'soldierup'))+'</button></div>';

@@ -23,9 +23,9 @@ const rep = (ok, n, w) => { if (!ok) fails++; console.log((ok ? 'OK    ' : 'FALH
       STATE.round++; out.leftNext = recruitLeft(c); out.total = armyTotal();
       return out;
     });
-    const want = m === 'inimiga' ? 0 : 15;
+    const want = m === 'inimiga' ? 0 : m === 'neutra' ? 5 : 15;
     rep(r.vila && r.post && !r.barr, m + ': vila tem alistamento e não tem Quartel', JSON.stringify(r));
-    rep(r.n === want && (m === 'inimiga' || (r.left === 0 && r.leftNext === 15)), m + ': recruta ' + want + ' na rodada e renova na seguinte', JSON.stringify(r));
+    rep(r.n === want && (m === 'inimiga' || (r.left === 0 && r.leftNext === want)), m + ': recruta ' + want + ' na rodada e renova na seguinte', JSON.stringify(r));
     rep(r.max === 50 && !errs.length, m + ': teto 50 e sem erros', errs.join('|'));
     await page.close();
   }
