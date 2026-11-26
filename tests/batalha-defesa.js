@@ -89,6 +89,17 @@ async function open(browser, base, qs) {
     ok(errs.length === 0, errs.length ? 'ERROS: ' + errs.slice(0, 4).join(' | ') : 'sem erros no console');
     await page.close();
   }
+  {   // passo 10: Defesa vinda do cerco (&origem=cerco), fadiga registrada e cicatriz ao vencer
+    const { page, errs } = await open(browser, base, 'cenario=batalha&modo=defesa&mute=1&origem=cerco&acoes=2');
+    const a = await page.evaluate(() => ({ o: BATTLE.origem, ficha: siegeGet('teste'), fat0: STATE.war ? STATE.war.fat : null, whyOk: typeof tileWarWhy === 'function' }));
+    ok(a.o && a.o.tipo === 'defesa' && a.o.origem === 'cerco' && a.o.acoesGastas === 2 && a.ficha === null, 'origem=cerco: o batalhão chegou a tempo, o cerco virou Defesa: ' + JSON.stringify(a.o));
+    await page.evaluate(() => { facDeclareWar(tileTestFoe().fid); battleWin(); });   // sem guerra a fadiga não mexe (testado em macro/tilewar.js)
+    const b = await page.evaluate(() => ({ rel: relStatus(tileTestFoe().fid), fim: BATTLE.fim, scars: tileScars('teste'), fat: STATE.war ? STATE.war.fat : null }));
+    ok(b.fim && b.fim.tile === null && b.scars.length === 2, 'defesa vencida: tile continua seu e deixa 2 cicatrizes: ' + JSON.stringify(b.scars));
+    ok(b.fat === a.fat0 + 0.25, 'fadiga da defesa vencida: +0,25 (só com guerra ativa): ' + a.fat0 + ' -> ' + b.fat + ' rel=' + b.rel + ' fim=' + JSON.stringify(b.fim));
+    ok(errs.length === 0, errs.length ? 'ERROS: ' + errs.slice(0, 4).join(' | ') : 'sem erros no console');
+    await page.close();
+  }
   await browser.close(); srv.close();
   console.log(fails ? fails + ' FALHA(S)' : 'tudo OK'); process.exit(fails ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });

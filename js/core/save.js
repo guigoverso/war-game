@@ -58,7 +58,8 @@ function migrateSave(d){
   if(d.v<21){d.v=21}   // v21: state.poiX (POIs limpos à espera de decisão, adiamentos, vigia e quarto da taverna); ausente = nada
   if(d.v<22){d.v=22}   // v22: state.war (fadiga, campanhas, operações e ataques pendentes da guerra); ausente = sem guerra
   if(d.v<23){d.v=23}   // v23: state.tiles (por tile: dono, diferenças da semente, POIs de guerra, estoque); ausente = nada
-  if(d.v<24){d.v=24}   // v24: state.bat (batalhões: id, tile, dono, soldados por tipo, munição); ausente = nenhum
+  if(d.v<24){d.v=24}
+  if(d.v<25){d.v=25}   // v25: STATE.tiles[chave].cerco/cicatriz/tomado (cerco e cicatrizes de batalha); ausente = nenhum   // v24: state.bat (batalhões: id, tile, dono, soldados por tipo, munição); ausente = nenhum
   // if(d.v<25){ ...ajustes...; d.v=25 }
   return d;
 }

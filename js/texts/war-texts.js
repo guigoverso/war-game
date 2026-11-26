@@ -91,3 +91,10 @@ const txtWarRingFail = (lado, nome, d) => '⚠ Nenhum terreno livre perto de ' +
 
 // Aba Efeitos (buffs): bônus de pontos de líder durante a guerra. n = WAR.leaderPointsBonus.
 const txtWarBuffLeader = n => '⚔️ Em guerra: +' + n + ' ponto' + (n > 1 ? 's' : '') + ' de líder enquanto durar o conflito';
+
+// Resumo da rodada (rdNow; nenhum toast, 4B-18): cerco ao tile (início, aviso a cada ação) e queda do tile. Aparece no relatório da rodada. rotulo = nome ou chave do tile.
+const txtSiegeStart = (rotulo, left) => '🏰 Cerco ao tile ' + rotulo + ': ' + left + ' ação' + (left > 1 ? 'ões' : '') + ' para o seu batalhão chegar.';
+const txtSiegeTick = (rotulo, left) => '🏰 Cerco ao tile ' + rotulo + ': restam ' + left + ' ação' + (left > 1 ? 'ões' : '') + '.';
+const txtSiegeFall = rotulo => '🏴 O tile ' + rotulo + ' caiu: o cerco não foi rompido a tempo e os POIs dele passaram ao atacante.';
+// Marca no tile cercado (mapa mundi, etapa 6/7): a contagem.
+const txtSiegeMark = left => '🏰 ' + left;

@@ -177,10 +177,18 @@ function battleSquadStand(x, z) {
   for (const a of ALLIES) if (a.alive) { a.state = 'patrol'; a.patrolCity = spot; a.assaultCity = null; a.tgtE = null; a.path = null; a.form = null; }
 }
 
+// Fim da batalha (passo 10): grava no macro (tileBattleEnd, js/macro/tilewar.js) fadiga, baixas, dono do tile e cicatriz. O cenário de teste não tem tile nem batalhão no
+// estado: usa a chave 'teste' e só a fadiga/cicatriz importam (ver ?origem=cerco em battleStartDefesa). Resumo em BATTLE.fim.
+function battleRecord(res) {
+  if (BATTLE.mode === 'nucleo') return;
+  const foe = typeof tileTestFoe === 'function' ? tileTestFoe() : null, c = battleCounts();
+  BATTLE.fim = tileBattleEnd({ key: BATTLE.key || 'teste', modo: BATTLE.mode, res, grande: !BATTLE.small, mortos: c.p.d, fid: foe ? foe.fid : undefined, war: warX(), guerra: !!foe && relStatus(foe.fid) === 'war' });
+}
+
 // Vitória: só uma notificação verde na hora (sem pop-up), com a mensagem do modo; o jogo continua para o jogador andar pelo campo.
 function battleWin() {
   if (BATTLE.over) return;
-  BATTLE.over = true; BATTLE.area.state = 'cleared';
+  BATTLE.over = true; battleRecord('vitoria'); BATTLE.area.state = 'cleared';
   battleSquadStand();   // os soldados deixam de seguir o jogador e patrulham onde a batalha terminou
   toast(TXT_BATTLE_WIN.titulo + ': ' + (TXT_BATTLE_WIN[BATTLE.mode] || TXT_BATTLE_WIN.nucleo), 8000);
   const t = $('toasts').lastChild; if (t) { t.style.background = 'rgba(20,90,40,.92)'; t.style.borderColor = '#2a8a3a'; t.style.color = '#b8ffc8'; }
@@ -188,7 +196,7 @@ function battleWin() {
 }
 // Derrota (chamada por die() em game.js): morte do comandante. No protótipo: tela de derrota com Reiniciar (recarrega o cenário).
 function battleDefeat(key) {
-  BATTLE.over = true; BATTLE.area.state = 'cleared'; battleWarn(false);
+  BATTLE.over = true; battleRecord('derrota'); BATTLE.area.state = 'cleared'; battleWarn(false);
   $('dead').innerHTML = '<div class="panel"><h1 style="color:#ff6a6a">' + TXT_BATTLE_LOSE.titulo + '</h1><p>' + (TXT_BATTLE_LOSE[key || BATTLE.mode] || TXT_BATTLE_LOSE.nucleo)
     + '</p><button id="btlre" class="red">' + TXT_BATTLE_LOSE.botao + '</button></div>';
   $('btlre').onclick = () => location.reload();
@@ -227,6 +235,7 @@ document.addEventListener('keydown', e => {
 function battleConfig(mode) {
   const q = new URLSearchParams(location.search), lt = (q.get('lote') || '').split('-').map(Number).filter(n => !isNaN(n) && n > 0);
   BATTLE.gens = []; BATTLE.cover = []; BATTLE.center = null; BATTLE.centerR = 0; BATTLE.limit = null; BATTLE.target = null; BATTLE.ally.reserve = 0;   // o cenário pode ser montado de novo (mundo refeito)
+  BATTLE.key = null; BATTLE.origem = null; BATTLE.fim = null; batSnapshot();   // foto do batalhão antes da luta (4B-17)
   BATTLE.mode = mode; BATTLE.small = mode === 'pequena'; BATTLE.over = false; BATTLE.t = 0; BATTLE.stuckT = 0; BATTLE.last = performance.now();
   BATTLE.lot = lt.length ? [lt[0], lt[lt.length - 1]] : BATTLE_MOD.lot.slice();
   BATTLE.delay = battleParam('atraso', BATTLE_MOD.lotDelay);
@@ -362,6 +371,7 @@ function battleStartDefesa() {
   const f = freeSpot(c.x + 3, c.z + 3, 0.5, 1.8, 0.45);
   P.x = f[0]; P.z = f[1]; P.y = tH(P.x, P.z) + 0.1; P.vx = P.vz = P.vy = 0; P.camY = P.y; P.yaw = 0; P.pitch = -0.05;
   battleConfig('defesa');
+  battleOrigemCerco();
   BATTLE.center = { x: c.x, z: c.z }; BATTLE.centerR = R; BATTLE.postCfg = D; BATTLE.base = { x: c.x, z: c.z };
   BATTLE.limit = { x: c.x, z: c.z, r: R, gray: D.gray };
   const n = Math.min(tileTestCount('alia', TILE_TEST.allies), BATTLE_MOD.allyTotal), er = battleParam('inim', BATTLE_MOD.enemyReserve);
@@ -376,6 +386,15 @@ function battleStartDefesa() {
   BATTLE.total0 = er; BATTLE.ally.total0 = n + pr; BATTLE.ally.reserve = pr;
   armyAssault(BATTLE.area, '');
   BATTLE.on = true; battleHudDraw();
+}
+
+// ?origem=cerco (passo 10): a Defesa vem de um cerco. Abre o cerco no tile de teste (cidade: prazo de WAR.siege.city), o jogador gasta ações (?acoes=N, padrão 2) e o batalhão
+// chega a tempo: siegeArrive devolve o descritor da Defesa (BATTLE.origem). Se as ações zerarem o prazo o tile cairia (sem Defesa); aqui o teste sempre chega a tempo.
+function battleOrigemCerco() {
+  const q = new URLSearchParams(location.search); if (q.get('origem') !== 'cerco') return;
+  const foe = typeof tileTestFoe === 'function' ? tileTestFoe() : null, key = BATTLE.key = 'teste', ac = Math.min(+q.get('acoes') || 2, WAR.siege.city - 1);
+  siegeStart(key, foe ? foe.fid : 'bandit', true, 'W'); siegeTick(key, ac);
+  BATTLE.origem = siegeArrive(key); BATTLE.origem.acoesGastas = ac;
 }
 
 // Soldado de posto preso (Choque e Defesa): marchando ao centro e fora da área sem sair do lugar por `time` s -> teleporte logo além da borda da área, na direção em

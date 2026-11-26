@@ -5,7 +5,7 @@
 // depois": o principal e as estradas vêm antes, depois as zonas de guerra (clareiras vazias), só então o resto, que desvia de tudo isso.
 // Tudo atrás de tileComposeOn() (map-modifiers.js; ?compor=0 volta ao tile vazio). Tabelas e folgas: TILE_COMPOSE, TILE_POI_MAP, TILE_PLACE, TILE_WAR.
 // Resultado em WORLD.tileCompose (contagens e falhas) e WORLD.tileWar = {zones, pois, battle} (zonas de guerra e POIs de guerra montados).
-// Os POIs de guerra desta etapa são de TESTE (TILE_WAR.test); os tipos e a quantidade de verdade são da etapa 10.
+// POIs de guerra (passo 10 da batalha no tile): improviso (acampamento/atalaia na abertura do atacante, sacos na praça) só com batalha, cerco ou batalhão no tile; cicatrizes de luta (tcScars).
 
 const tcInward = o => [o.side === 'W' ? 1 : o.side === 'E' ? -1 : 0, o.side === 'N' ? 1 : o.side === 'S' ? -1 : 0];
 // Verdadeiro se (px,pz) está dentro de uma zona de guerra: o terreno de guerra fica sem árvores (genDecor, world.js). O anel só limpa a faixa de fora do POI.
@@ -377,6 +377,29 @@ function tcSurroundRoads(S, m, h, posts, f) {
   });
 }
 
+// 7) Cicatrizes de batalha (passo 10): micro-POIs de guerra do estado do tile (STATE.tiles[chave].cicatriz, macro/tilewar.js). Só onde houve luta; nascem como os da vida (tcLife).
+function tcScars(S) {
+  const w = S.win, ids = w.tile && w.ti >= 0 ? tileScars(tileKey(w.ti, w.tj)) : [];
+  WORLD.scars = 0; WORLD.micros = WORLD.micros || [];
+  for (const id of ids) {
+    const m = LEGO_MICRO.list.find(e => e.id === id); if (!m) continue;
+    const s = tcPick(S, { type: 'micro', def: { r: m.r }, place: TILE_MICRO_PLACE[id] || 'free', range: 5, gap: TILE_LEGO.microGap, cityGap: TILE_LEGO.microGap, edge: TILE_LEGO.microEdge, big: 1 });
+    if (!s) { S.falhas.push('cicatriz ' + id); continue }
+    S.taken.push({ x: s.x, z: s.z, r: m.r });
+    const d = { i: WORLD.micros.length, x: s.x, z: s.z, y: s.y, kind: id, r: m.r }; WORLD.micros.push(d); dormBuild(d); WORLD.scars++;
+  }
+}
+// Batalha pedida pelo estado do tile (sem ?batalha=): descritor guardado da última montagem, cerco (a Defesa vem por onde o inimigo chegou) ou batalhão inimigo no tile
+// (idem, pela primeira abertura). O atacante é o dono real (donoAtacante). Sem nada disso: null (o tile fica sem improviso).
+function tileWarFromState(win) {
+  if (!win.tile || win.ti < 0) return null;
+  const key = tileKey(win.ti, win.tj), c = siegeGet(key), bt = c ? null : batAt(key).find(b => b.dono !== 'player'), who = c ? c.ataq : bt ? bt.dono : null;
+  if (!who) return null;
+  const b = tileBattle(win.openings, 'defesa', c && c.entrada ? c.entrada : win.openings[0] ? win.openings[0].dir : 'W');
+  if (b) b.donoAtacante = who;
+  return b;
+}
+
 // Ponto de entrada (chamado por worldNatureStage, world.js, depois de tileTrailLinks e tileBorderPlan). cities = as cidades do mapa (a do tile ou a âncora vazia).
 function tileCompose(cities) {
   const win = WORLD.win, t0 = performance.now(), tema = win.tema;
@@ -390,9 +413,11 @@ function tileCompose(cities) {
   tcTheme(S);
   const sn = WORLD.snap;   // o mapa (makeMapCanvas) usa a cópia de antes dos extras: estradas e nivelamento dos POIs entram nela (como em genPOIs)
   if (sn) for (let k = 0; k < W * W; k++) if (H[k] !== h0[k] || T[k] !== tt0[k]) { sn.H[k] = H[k]; sn.T[k] = T[k]; sn.B[k] = B[k] }
-  tcAmbient(S); tcLife(S); tcSurround(S);
+  tcAmbient(S); tcLife(S); tcSurround(S); tcScars(S);
   WORLD.areas = cities.concat(WORLD.camps, WORLD.caves, WORLD.packs);
-  tileWarAssemble(win.battle);
+  const bt = win.battle || tileWarFromState(win);   // batalha da URL; sem ela, a que o estado pede (cerco ou batalhão inimigo no tile)
+  WORLD.tileWar.why = tileWarWhy(win.ti >= 0 ? tileKey(win.ti, win.tj) : '', win.battle);   // batalha (URL), cerco ou batalhão
+  tileWarAssemble(bt);
   poiApply();
   const pois = WORLD.pois.filter(p => !p.war);
   WORLD.tileCompose = {
@@ -429,34 +454,38 @@ function tileWarClear() {
   for (const p of tw.pois) wfUnmake(p);
   tw.pois.length = 0; tw.battle = null;
 }
-// Monta os POIs de guerra de uma batalha (descritor de tileBattle) nas zonas: conquista/defesa = atacante na zona da sua abertura e defensor no anel do principal;
+// Improviso de guerra (TILE_WAR.improv): tipo do POI montado numa zona: abertura = acampamento fortificado ou atalaia (sorteio fixo pela semente e posição), praça = barricada.
+function tcWarType(z) {
+  const I = TILE_WAR.improv;
+  return z.kind === 'praca' ? I.praca : hash2(z.x, z.z, WORLD.seed * 7 + 3) < I.pLookout ? I.abertura[1] : I.abertura[0];
+}
+// Monta os POIs de guerra de uma batalha (descritor de tileBattle) nas zonas: conquista/defesa = só o atacante, na zona da sua abertura;
 // choque = cada lado na zona da própria abertura e uma barricada na praça (quem já estava no tile, `estacionado`, fica na praça). Chamar de novo com outra batalha
 // REPOSICIONA (desmonta e remonta). Devolve a lista [{tipo, zona, dono, lado}] (a mesma de WORLD.tileWar.pois) para a camada macro guardar (4F).
 function tileWarAssemble(battle) {
   const tw = WORLD.tileWar; if (!tw) return [];
   tileWarClear();
   if (!battle) { tcWarSave([], null); return [] }
-  const Z = tw.zones, byDir = d => Z.find(z => z.kind === 'abertura' && z.dir === d), ring = Z.find(z => z.kind === 'anel'), plaza = Z.find(z => z.kind === 'praca');
+  const Z = tw.zones, byDir = d => Z.find(z => z.kind === 'abertura' && z.dir === d), plaza = Z.find(z => z.kind === 'praca');
   tw.battle = battle;   // (tcRingAngle lê a batalha)
   const sides = TILE_WAR.sides[battle.tipo] || ['player', 'bandit'], mainOwner = tcMainOwner();
-  const own = s => s === 'main' ? mainOwner : s;
+  const own = s => s === 'main' ? mainOwner : s, atk = battle.donoAtacante !== undefined ? battle.donoAtacante : own(sides[0]);
   const jobs = [];
   if (battle.tipo === 'choque') {
     let za = byDir(battle.entradaAtacante), zd = byDir(battle.entradaDefensor);
     if (battle.estacionado === 'atacante' && plaza) za = plaza;
     if (battle.estacionado === 'defensor' && plaza) zd = plaza;
-    if (za) jobs.push({ zone: za, lado: 'atacante', dono: own(sides[0]) });
+    if (za) jobs.push({ zone: za, lado: 'atacante', dono: atk });
     if (zd) jobs.push({ zone: zd, lado: 'defensor', dono: own(sides[1]) });
     if (plaza && za !== plaza && zd !== plaza) jobs.push({ zone: plaza, lado: 'praca', dono: own(sides[1]) });
   } else {
     const za = byDir(battle.entradaAtacante);
-    if (za) jobs.push({ zone: za, lado: 'atacante', dono: own(sides[0]) });
-    if (ring) jobs.push({ zone: ring, lado: 'defensor', dono: own(sides[1]) });
+    if (za) jobs.push({ zone: za, lado: 'atacante', dono: atk });   // sem POI do defensor no anel: o principal tem os arredores permanentes (tcSurround)
   }
   const used = new Set(WORLD.pois.map(p => p.id)); let id = 700;
   for (const j of jobs) {
     while (used.has(id)) id++; used.add(id);
-    const type = TILE_WAR.test[j.zone.kind], z = j.zone;
+    const z = j.zone, type = tcWarType(z);
     let x = z.x, zz = z.z, y = z.y;
     if (z.kind === 'anel') { const a = tcRingAngle(z); x = Math.round(z.x + Math.cos(a) * (z.rIn + (z.r - z.rIn) * 0.5)); zz = Math.round(z.z + Math.sin(a) * (z.rIn + (z.r - z.rIn) * 0.5)); y = Math.max(SEA + 1, H[zz * W + x]) }
     const p = { id, type, cx: x, cz: zz, y, biome: B[zz * W + x], owner: j.dono, adapt: true, tile: true, war: true, zona: z.id, lado: j.lado, axis: z.axis || 'x' };

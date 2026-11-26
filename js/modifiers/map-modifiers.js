@@ -147,11 +147,18 @@ const TILE_OWNER = { main: 'bandit', other: 'bandit' };
 const tileCaravanRoad = win => win.openings.length >= 2;
 // Zonas de guerra (rodada 8): clareiras reservadas na geração, vazias até haver batalha. openDist: distância da abertura ao centro da zona de abertura (40);
 // openR: raio dela (16); ringW: largura da faixa do anel em volta do principal, além do raio do POI (24); plazaR: raio da praça de encontro (18);
-// siteRange: desnível máximo aceito no chão de uma zona (8); trees: as zonas ficam sem árvores. test: POIs de teste montados por zona (a etapa 10 define os de verdade):
-// abertura -> acampamento fortificado, anel -> trincheira, praça -> barricada. Padrão: 40, 16, 24, 18, 8
-// sides: donos [atacante, defensor] dos POIs de teste de cada batalha ('main' = dono do POI principal): conquista = você ataca, defesa = você defende, choque = você contra bandidos.
-const TILE_WAR = { openDist: 40, openR: 16, ringW: 24, plazaR: 18, siteRange: 8, test: { abertura: 'fortcamp', anel: 'trench', praca: 'barricade' },
+// siteRange: desnível máximo aceito no chão de uma zona (8); trees: as zonas ficam sem árvores.
+// Improviso de guerra (passo 10 da batalha no tile; no lugar dos POIs de teste da 4E): só com batalhão, cerco ou batalha no tile. improv.abertura = POIs que o atacante improvisa na
+// zona da sua abertura (acampamento fortificado ou atalaia; pLookout = chance de ser atalaia, 0,4); improv.praca = sacos de areia na estrada, na praça (barricada). Não há mais POI do
+// defensor no anel: o principal de facção já tem os arredores permanentes (BATTLE_SURR). Padrão: fortcamp/lookout 0.4, barricade
+// sides: donos [atacante, defensor] de cada batalha ('main' = dono do POI principal): conquista = você ataca, defesa = você defende, choque = você contra bandidos. Em batalha
+// vinda do estado (cerco, batalhão) o atacante é o dono real (battle.donoAtacante).
+const TILE_WAR = { openDist: 40, openR: 16, ringW: 24, plazaR: 18, siteRange: 8, improv: { abertura: ['fortcamp', 'lookout'], pLookout: 0.4, praca: 'barricade' },
   sides: { conquista: ['player', 'main'], defesa: ['bandit', 'player'], choque: ['player', 'bandit'] } };
+// Cicatrizes de batalha (passo 10): micro-POIs de guerra que ficam no tile onde houve luta (guardados em STATE.tiles[chave].cicatriz; só cenário, sem dono). kinds = ids de
+// LEGO_MICRO.list sorteados por tipo de batalha; grande/pequena = quantas nascem por luta (2 e 1); max = teto por tile (o mais antigo sai, 6). Padrão: ver abaixo
+const TILE_SCAR = { kinds: { ataque: ['campo_batalha', 'vala_comum', 'palicada'], defesa: ['campo_batalha', 'barricada', 'palicada'], choque: ['campo_batalha', 'trincheira', 'vala_comum'],
+  pequena: ['campo_batalha', 'vala_comum'] }, grande: 2, pequena: 1, max: 6 };
 
 // Marcas no mapa e no minimapa do cenário de tile (só com ?cenario=tile composto): círculo CIANO no POI/cidade PRINCIPAL do tile; círculo AZUL nos POIs e cidades do jogador e
 // VERMELHO nos de outros donos (bandidos ou facções; ruínas sem dono e POIs livres ficam sem círculo). main/own: cores; r: raio em pixels do minimapa (principal 10, dono 7)

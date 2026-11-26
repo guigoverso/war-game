@@ -101,6 +101,12 @@ const WAR = {
     dormTries: 60, dormMax: 36, dormStep: 65, dormWidth: 45, ringSites: 3, ringRadius: 110, banditChance: 0.4, banditMax: 2,
     revert: { fortcamp: false, trench: false, hospital: true, depot: true, lookout: true, barricade: true } }
 };
+// Cerco (passo 10 da batalha no tile, 4B-18): prazo, em AÇÕES do jogador (cada ação dele = um passo dos NPCs), para o batalhão do jogador chegar a um tile seu cercado
+// antes de ele cair. city: tile de cidade; other: qualquer outro tile. Vale só dentro do turno do Comandante (o que sobra do prazo no fim do turno derruba o tile). Padrão: 5 e 3
+WAR.siege = { city: 5, other: 3 };
+// Fadiga registrada ao fim de uma batalha no tile (4B-13; só com guerra ativa entre as facções, e só registra em STATE.war.fat): atacar soma fatigue.gain.attackPoi; defesa
+// vencida soma fatigue.gain.defendPoi; derrota soma fatigue.gain.opFailed. O inimigo (nfat): vencer soma enemyLoss (ataque: fatigue.npc.lostPoi; outros: lostBattle). Padrão: ver acima
+WAR.tileFat = { enemyLoss: { ataque: 'lostPoi', defesa: 'lostBattle', choque: 'lostBattle', pequena: 'lostPoi' } };
 
 // POIs de guerra novos (só visuais, sem efeitos). Raios em POI_DEFS (pois.js): Acampamento 12, Trincheira 11, Hospital 10, Depósito 10,
 // Atalaia 6, Barricada 7 (só em estrada). Hospital de campanha: patients = pacientes deitados nas macas (a construção tem 7: 6 na tenda

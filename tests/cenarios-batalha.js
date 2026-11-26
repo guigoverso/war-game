@@ -24,6 +24,10 @@ const CENARIOS = [
     d: 'Só você e as 10 elites contra a defesa fixa do POI (10 soldados com vida x1,75), sem reposição e sem placar. A defesa acorda no raio de alerta (40). Conquista = matar toda a defesa. Derrota branda (tela com Reiniciar no protótipo). Parâmetros: &guarnicao= &alia= &semente= &raios=0' },
   { passo: 8, status: 'pronto', t: 'Arredores de defesa: fortaleza de facção em guerra', q: 'cenario=tile&tema=fortaleza&seed=11&forma=pangeia&auto=1&dono=faccao&guerra=1',
     d: 'Principal (forte) de facção com trincheira em quadrado em volta e barricadas na estrada (guerra com você): uma onde ela cruza a trincheira e duas em pontos intermediários entre o forte e a abertura. Trechos sem chão firme (água, desnível > 5) ficam de fora. Variações: &guerra=0 (estrada livre, só trincheira), &dono=bandit ou &dono=player (sem arredores). Teste: node tests/batalha-arredores.js' },
+  { passo: 10, status: 'pronto', t: 'Defesa vinda do cerco (origem=cerco)', q: 'cenario=batalha&modo=defesa&origem=cerco&acoes=2',
+    d: 'Como a Defesa do passo 3, mas abrindo pelo cerco: o tile de teste é cercado (cidade: 5 ações), você gasta &acoes=N (padrão 2) e o batalhão chega a tempo (siegeArrive vira Defesa). Ao vencer ou perder, o macro registra fadiga (só com guerra), baixas e cicatriz (tileBattleEnd). Testes: node tests/macro/tilewar.js e node tests/batalha-defesa.js' },
+  { passo: 10, status: 'pronto', t: 'Improviso de guerra: acampamento do atacante na abertura', q: 'cenario=tile&tema=fortaleza&seed=11&forma=pangeia&auto=1&dono=faccao&guerra=1&batalha=defesa&entrada=W',
+    d: 'Substitui os POIs de teste: só o atacante improvisa (acampamento fortificado ou atalaia na zona da sua abertura; sacos na estrada, na praça, no Choque); o defensor não tem POI no anel (o principal de facção tem os arredores permanentes). Sem &batalha= (e sem cerco ou batalhão no tile) nada é montado.' },
   { passo: 11, status: 'pendente', t: 'Recrutamento com regras e limites', q: 'cenario=recrutamento', d: '' }
 ];
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');

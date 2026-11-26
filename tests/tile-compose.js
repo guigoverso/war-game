@@ -84,15 +84,15 @@ const MEASURE = () => {
         rep(!why && !errs.length, nome + ': carrega sem erros (' + ms + ' ms)', why || errs.slice(0, 2).join(' | '));
         if (why) { await page.close(); continue }
         const r = await page.evaluate(MEASURE);
-        const want = tipo === 'choque' ? 3 : 2;   // choque: um por lado + barricada na praça; conquista/defesa: atacante + defensor
-        rep(r.warPois.length >= (tipo === 'choque' ? 2 : 2) && r.warPois.length <= want, nome + ': ' + r.warPois.length + ' POI(s) de guerra', JSON.stringify(r.warPois));
-        if (tipo !== 'choque') rep(r.warPois.some(p => p[1] === 'anel') && r.warPois.some(p => p[1].startsWith('abertura')), nome + ': atacante na abertura, defensor no anel');
+        const want = tipo === 'choque' ? 3 : 1;   // passo 10: choque: um por lado + barricada na praça; conquista/defesa: só o improviso do atacante (o defensor tem os arredores do principal)
+        rep(r.warPois.length >= (tipo === 'choque' ? 2 : 1) && r.warPois.length <= want, nome + ': ' + r.warPois.length + ' POI(s) de guerra', JSON.stringify(r.warPois));
+        if (tipo !== 'choque') rep(r.warPois.length === 1 && r.warPois[0][1].startsWith('abertura') && ['fortcamp', 'lookout'].includes(r.warPois[0][0]), nome + ': só o acampamento/atalaia do atacante na abertura');
         const ow = r.warPois.map(p => p[3]);
-        if (tipo === 'defesa') rep(r.warPois.find(p => p[2] === 'defensor')[3] === 'player', nome + ': você é o defensor');
+        if (tipo === 'defesa') rep(r.warPois.find(p => p[2] === 'atacante')[3] !== 'player', nome + ': o atacante não é você');
         if (tipo === 'conquista') rep(r.warPois.find(p => p[2] === 'atacante')[3] === 'player', nome + ': você é o atacante');
         // reposicionar: outra batalha desmonta e remonta
         const re = await page.evaluate(() => { const n0 = WORLD.pois.length; tileWarAssemble({ tipo: 'conquista', entradaAtacante: WORLD.win.openings[WORLD.win.openings.length - 1].dir, entradaDefensor: null, estacionado: null }); const a = WORLD.pois.filter(p => p.war).length; tileWarAssemble(null); return { a, b: WORLD.pois.filter(p => p.war).length, n0, n1: WORLD.pois.length } });
-        rep(re.a === 2 && re.b === 0 && re.n1 === re.n0 - r.warPois.length, nome + ': reposicionar e desmontar', JSON.stringify(re));
+        rep(re.a === 1 && re.b === 0 && re.n1 === re.n0 - r.warPois.length, nome + ': reposicionar e desmontar', JSON.stringify(re));
         await page.close();
       }
     }
