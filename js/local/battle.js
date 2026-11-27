@@ -137,6 +137,16 @@ function battleTickAllies() {
   R.reserve -= n; R.lot = null; R.nextAt = BATTLE.t + BATTLE.delay;
 }
 
+// Lugar de cada soldado na formação da batalha: ATRÁS do jogador (em fileiras de 5), na direção em que ele andou por último. O rumo (BATTLE.head) só muda enquanto o jogador anda;
+// parado, girar a câmera não mexe com ninguém: os soldados ficam onde estão, olhando para onde já olhavam.
+function battleFormSpot(a) {
+  const h = BATTLE.head, sl = a.slot || 0, back = BATTLE_MOD.formBack + Math.floor(sl / 5) * BATTLE_MOD.formGap, side = ((sl % 5) - 2) * BATTLE_MOD.formGap;   // grade de 5 por fileira, um lugar por soldado
+  return { x: P.x + Math.sin(h) * back + Math.cos(h) * side, z: P.z + Math.cos(h) * back - Math.sin(h) * side };
+}
+function battleHeadTick() {
+  if (Math.hypot(P.x - BATTLE.lx, P.z - BATTLE.lz) > 0.4) { BATTLE.head = P.yaw; BATTLE.lx = P.x; BATTLE.lz = P.z }
+}
+
 // Números do placar: do jogador (soldados em campo = vivos; reserva; mortos = o que falta para o total inicial) e do inimigo.
 function battleCounts() {
   const res = side => BATTLE.gens.reduce((s, g) => s + (g.side === side ? g.reserve : 0), 0);
@@ -232,7 +242,7 @@ function updateBattle(dt) {
   if (d > 0 && d < 0.5) BATTLE.fps += (1 / d - BATTLE.fps) * 0.05;
   BATTLE.t += dt;
   const A = BATTLE.area; A.cx = P.x; A.cz = P.z; A.y = P.y;
-  battleTickGens(); battleTickAllies(); battleTickLimit(); battleTickStuck(); battleTickAtaque(); battleTickPequena();
+  battleHeadTick(); battleTickGens(); battleTickAllies(); battleTickLimit(); battleTickStuck(); battleTickAtaque(); battleTickPequena();
   if (BATTLE.over) return;
   BATTLE.scanT -= dt;
   if (BATTLE.scanT <= 0) {
@@ -259,6 +269,7 @@ function battleConfig(mode) {
   BATTLE.gens = []; BATTLE.cover = []; BATTLE.center = null; BATTLE.centerR = 0; BATTLE.limit = null; BATTLE.target = null; BATTLE.ally.reserve = 0;   // o cenário pode ser montado de novo (mundo refeito)
   BATTLE.key = null; BATTLE.origem = null; BATTLE.fim = null; batSnapshot();   // foto do batalhão antes da luta (4B-17)
   BATTLE.real = BATTLE.geo ? BATTLE.geo.real : null;   // tile real: o fim da luta volta ao mapa mundi (tbWin/tbLose)
+  BATTLE.head = P.yaw; BATTLE.lx = P.x; BATTLE.lz = P.z;   // rumo da formação (battleFormSpot)
   BATTLE.mode = mode; BATTLE.small = mode === 'pequena'; BATTLE.over = false; BATTLE.t = 0; BATTLE.stuckT = 0; BATTLE.last = performance.now();
   BATTLE.lot = lt.length ? [lt[0], lt[lt.length - 1]] : BATTLE_MOD.lot.slice();
   BATTLE.delay = battleParam('atraso', BATTLE_MOD.lotDelay);

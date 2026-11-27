@@ -235,8 +235,9 @@ function updateAlly(a,dt){
   }else if(a.state==='assault'){
     const c=a.assaultCity,dc=Math.hypot(c.cx-a.x,c.cz-a.z);
     const fm=a.form||{ang:0,r:0};let tx=c.cx+Math.cos(fm.ang)*fm.r,tz=c.cz+Math.sin(fm.ang)*fm.r;
-    if(dc<7&&a.seekE&&!c.btl){tx=a.seekE.x;tz=a.seekE.z}   // (na batalha do tile não: o inimigo mais perto está longe e quem tem lugar a menos de 7 do centro ia e voltava sem parar)
-    if(Math.hypot(tx-a.x,tz-a.z)>1.4){navMove(a,tx,tz,dc>40?6:4,dt,a.r,1.8,1.05);a.yaw=Math.atan2(tx-a.x,tz-a.z);moving=true}   // chegou ao seu lugar da formação: para (sem isso girava de frente para trás sem sair do lugar)
+    if(c.btl){const f=battleFormSpot(a);tx=f.x;tz=f.z}   // batalha do tile: ficam atrás do jogador (não o cercam)
+    else if(dc<7&&a.seekE){tx=a.seekE.x;tz=a.seekE.z}   // (na batalha do tile não: o inimigo mais perto está longe e quem tem lugar a menos de 7 do centro ia e voltava sem parar)
+    if(Math.hypot(tx-a.x,tz-a.z)>(c.btl?2:1.4)){navMove(a,tx,tz,dc>40?6:4,dt,a.r,1.8,1.05);a.yaw=Math.atan2(tx-a.x,tz-a.z);moving=true}   // chegou ao seu lugar da formação: para (sem isso girava de frente para trás sem sair do lugar)
   }else{
     const c=a.patrolCity||WORLD.home;
     if(a.post){   // posto fixo dentro da cidade (batalha de rebelião): anda até ele, para e olha para fora (sem rodar em volta)

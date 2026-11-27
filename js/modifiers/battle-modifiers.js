@@ -62,6 +62,10 @@ const BATTLE_MOD = {
   // (?guarnicao=N força) com vida multiplicada (POI principal mais forte, 1,5 a 2x); só as elites entram (até `elites`), sem reposição; raio de alerta da defesa
   // (vale até a conquista); conquista = defesa morta. Padrão: alvo 150,55; defesa 10 com vida x1,75; elites 5; alerta 40
   pequena: { center: { x: 150, z: 55 }, garrison: 10, hpMul: 1.75, elites: 5, alert: 40 },
+  // Distância mínima, em blocos, atrás do jogador onde os soldados ficam parados na batalha (a 1ª fileira; cada fileira de 5 soldados recua mais formGap). Padrão: 3
+  formBack: 3,
+  // Distância, em blocos, entre soldados da formação (lado a lado e entre fileiras). Padrão: 2.6
+  formGap: 2.6,
   // Meia-largura, em blocos, da área onde os soldados patrulham quando deixam de seguir o jogador (fim da batalha, ou antes de a defesa acordar na pequena); o
   // círculo de patrulha fica a half+5 do ponto. Padrão: 4
   standHalf: 4,

@@ -88,6 +88,11 @@ srv.listen(0, '127.0.0.1', async () => {
     const flips = await page.evaluate(async () => { const A = ALLIES.filter(a => a.alive); const y = A.map(a => a.yaw); await new Promise(r => setTimeout(r, 1500));
       return A.filter((a, i) => Math.abs(Math.atan2(Math.sin(a.yaw - y[i]), Math.cos(a.yaw - y[i]))) > 1.5).length });
     ok(flips === 0, 'formação: parados, os soldados não ficam virando', String(flips));
+    const f = await page.evaluate(async () => { for (const e of BATTLE.area.enemies) if (e.alive) { e.hp = 1e9 } P.yaw += 2; await new Promise(r => setTimeout(r, 4000));   // gira a câmera parado: ninguém pode se mexer
+      const A = ALLIES.filter(a => a.alive), p0 = A.map(a => [a.x, a.z]); await new Promise(r => setTimeout(r, 2500));
+      const mov = A.filter((a, i) => Math.hypot(a.x - p0[i][0], a.z - p0[i][1]) > 0.6).length, fx = -Math.sin(BATTLE.head), fz = -Math.cos(BATTLE.head);
+      const front = A.filter(a => (a.x - P.x) * fx + (a.z - P.z) * fz > 1).length; const dbg = A.map(a => { const q = battleFormSpot(a); return [Math.hypot(q.x - a.x, q.z - a.z).toFixed(1), a.state, !!a.path].join(':') }).join(' '); return { dbg, n: A.length, mov, tg: A.filter(a => a.tgtE).length, front, d: A.map(a => Math.hypot(a.x - P.x, a.z - P.z) | 0).join(',') } });
+    ok(f.mov === 0 && f.front === 0, 'formação: parados ficam atrás do jogador e não se mexem quando ele gira a câmera', JSON.stringify(f));
     await page.evaluate(() => { for (const g of BATTLE.gens) if (g.side === 'enemy') g.reserve = 0; for (const e of BATTLE.area.enemies) if (e.alive) { e.alive = false; e.gone = true; BATTLE.area.aliveEnemies-- } });
     await page.waitForFunction(() => BATTLE.over, null, { timeout: 30000 });
     const c = await page.evaluate(() => (WORLD.pois || []).filter(p => !p.show && !p.war && p.type !== 'ruins' && p.owner !== 'player' && p.owner !== 'free').length);
