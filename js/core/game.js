@@ -762,7 +762,7 @@ async function startGame(creative,loadData){
   $('playbtn').disabled=true;$('createbtn').disabled=true;
   if(loadData){if(loadData.state&&loadData.state.fac)STATE.fac=Object.assign(STATE.fac||{},loadData.state.fac)   // save: identidade do jogador e cores das NPC já valem na geração do mundo
     if(loadData.state&&mapMundoOn()){   // mundo novo: o grafo e o tile carregado (STATE.wt.local) também
-      if(loadData.state.wg)STATE.wg=loadData.state.wg;wtApply(loadData.state.wt)}}
+      if(loadData.state.wg)STATE.wg=loadData.state.wg;wtApply(loadData.state.wt);STATE.tiles=loadData.state.tiles||{}}}   // (o dono de cada tile já vale na geração: STATE.tiles)
   else if((!q.get('auto')&&!q.get('cenario'))||q.get('fac'))await facCreateScreen();   // partida nova: tela de criação da facção antes de gerar o mundo (?auto=1 pula; ?fac=1 força)
   const msg=m=>{$('loadmsg').textContent=m};
   try{
@@ -770,7 +770,7 @@ async function startGame(creative,loadData){
     msg('Populando cidades...');await tick();
     msg('Calculando rotas...');await tick();buildNav();initWeapons();buildViewmodels(camera);initFx();initSky();initDayNight();populateCities();populateWild();placePlayerHome();
     syncOwned();ensureEquipped();genFishSpots();
-    if(loadData){applySave(loadData);applyFishGone();rebuildPortals();rebuildSmoke()}
+    if(loadData){applySave(loadData);if(mapMundoOn())mundoCityRestore();applyFishGone();rebuildPortals();rebuildSmoke()}
     else{RAID.active=false;RAID.area=null;STATE.rd.hallCity=WORLD.home.id;G.introBook=true}   // partida nova: começa dentro da prefeitura (rodada 0) com o livro aberto no resumo
     prepThin();refreshHotbar();refreshBuffs();fishClean();
     G.running=true;$('hud').classList.remove('hidden');initEconomy();scenarioApply();cityWallSync();rebuildCaravans();refreshRoundHud();   // scenarioApply: só com ?cenario=caravanas (scenario.js)

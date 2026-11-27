@@ -117,12 +117,14 @@ function cityTypePlan(cities,seed,done){
   if(!hasPort&&cand&&!done[cand.id])assign[cand.id]='port';
   return assign;
 }
+// Semente da economia: no mundo novo cada tile tem a sua (a cidade de cada tile é a de índice 0; sem isto todas teriam o mesmo tipo e as mesmas necessidades).
+const econSeed=seed=>seed+(mapMundoOn()&&WORLD.win&&typeof WORLD.win.node==='number'?(WORLD.win.node+1)*7919:0);
 function initEconomy(){
   const rd=STATE.rd;if(!rd.cities)rd.cities={};
-  const assign=cityTypePlan(WORLD.cities,WORLD.seed,rd.cities);
+  const assign=cityTypePlan(WORLD.cities,econSeed(WORLD.seed),rd.cities);
   for(const c of WORLD.cities){
     if(rd.cities[c.id])continue;
-    const rng=new RNG((WORLD.seed*31+c.id*977+5)>>>0);
+    const rng=new RNG((econSeed(WORLD.seed)*31+c.id*977+5)>>>0);
     const type=assign[c.id];
     const e={type,pct:{},pf:type==='port'?rng.pick(RES4):type,ps:'',got:{},carry:{}};
     if(type==='port'){do{e.ps=rng.pick(NEEDS)}while(e.ps===e.pf);e.pct=portPct(e.pf,e.ps)}

@@ -26,6 +26,8 @@ const TXT_WT_END = '⏭ Encerrar turno';
 // Painel do encontro: título e botões (a luta de verdade no tile vem na etapa 8; por ora dá para resolver por número, para teste).
 const txtWtEncTitle = (layout, n) => (layout === 'defesa' ? 'Defesa da cidade' : layout === 'invasao' ? 'Invasão' : 'Encontro no campo') + ' — ' + n + ' inimigos';
 const TXT_WT_ENC_AUTO = 'Resolver por número (teste)';
+// Modo criativo, mapa mundi (etapa 8.4): botões que anexam ou desanexam o tile selecionado do jogador (para testar renda, armazém e independência).
+const TXT_WT_ANNEX = '⚑ Anexar este tile (teste)', TXT_WT_DETACH = '⚐ Desanexar este tile (teste)';
 
 
 // Resumo do livro: o batalhão explorou o tile (nome do tile).

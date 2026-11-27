@@ -248,7 +248,7 @@ function wgBuild(F, opts) {
   wgPickThemes(G, q);
   wgRoadFill(G);
   for (const n of land) if (!n.tema) n.tema = 'passagem';
-  wgCoast(G); wgStart(G);
+  wgCoast(G); wgStart(G); wgRanks(G);
   G.ms = Date.now() - t0;
   return G;
 }
@@ -328,6 +328,14 @@ function wgRoadFill(G) {
     n.tema = best; n.fit = wgFit(n, best); n.extra = true;
   }
 }
+// Rank (1 a 3) de cada tile de VILA, sorteado por semente e id (não vai no save: sai igual ao regerar; pesos em TILE_ECON.vilaRanks). Afeta o imposto e o armazém.
+function wgVilaRank(G, n) {
+  const w = TILE_ECON.vilaRanks, tot = w.reduce((a, b) => a + b, 0);
+  let r = new RNG((G.seed * 6151 + n.id * 389 + 17) >>> 0).next() * tot;
+  for (let i = 0; i < w.length; i++) { r -= w[i]; if (r <= 0) return i + 1 }
+  return w.length;
+}
+function wgRanks(G) { for (const n of G.nodes) n.rank = n.tema === 'vila' ? wgVilaRank(G, n) : 0 }
 // Tiles de terra que tocam o mar (n.costa): lugar de porto e de embarque.
 function wgCoast(G) {
   for (const n of G.nodes) n.costa = !n.mar && G.adj[n.id].some(x => G.nodes[x.to].mar);
@@ -377,6 +385,7 @@ function wgUnpack(d, F) {
   wgIslands(G);
   for (const n of nodes) if (n.tema === 'cidade') G.ilhas[n.ilha].cidades++;
   wgCoast(G);
+  wgRanks(G);
   const h = nodes.find(n => n.home); G.inicio = h ? { id: h.id, ilha: h.ilha, tiles: G.ilhas[h.ilha].tiles, cidades: G.ilhas[h.ilha].cidades, porto: h.porto } : null;
   return G;
 }

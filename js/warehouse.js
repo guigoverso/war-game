@@ -11,6 +11,11 @@ const FOOD_TYPES=['carne','tilapia','lambari','bagre','truta','ervas'];   // ali
 const RES_ITEM={wood:'tora',ore:'minerio',leather:'couro'};
 const supplyOf=id=>{const d=itemDef(id);if(!d)return null;if(d.supply)return d.supply;if(d.tags&&d.tags.includes('fish'))return{res:'food'};return null};
 
+// Ouro (etapa 8.4): no mundo novo o ouro é UM saldo geral (Ledger/P.coins; imposto e renda entram direto nele) e o cofre do armazém some; no mundo antigo
+// o ouro de imposto e produção continua indo para o cofre. goldIn(n) = entra ouro; goldStock() = o que há para gastar de uma vez (cofre ou saldo); goldTake(n) = tira.
+function goldIn(n){if(mapMundoOn()){Ledger.add('gold',n);whGainGold(n)}else shOf().vault+=n}
+const goldStock=()=>mapMundoOn()?Math.max(0,P.coins):shOf().vault;
+function goldTake(n){const t=Math.max(0,Math.min(n,goldStock()));if(mapMundoOn())Ledger.add('gold',-t);else shOf().vault-=t;return t}
 // armazenamento e cofre compartilhados por todos os armazéns do jogador
 function shOf(){
   const rd=STATE.rd;
@@ -20,6 +25,7 @@ function shOf(){
       if(w.store)for(const s of w.store)if(s)storeAddTo(rd.shared,s.id,s.n);
       rd.shared.vault+=w.vault||0;delete w.store;w.vault=0}
   }
+  if(mapMundoOn()&&rd.shared.vault){P.coins+=rd.shared.vault;rd.shared.vault=0}   // mundo novo: o cofre antigo vira saldo geral
   return rd.shared;
 }
 // suprimentos e produção de uma cidade
@@ -49,7 +55,7 @@ function consumeSupply(c,res,n){
 // produção em abundância da rodada (cidade-foco sem caravana)
 function prodAdd(c,res,amt){
   const w=whOf(c);
-  if(res==='gold'){shOf().vault+=amt;return amt}   // ouro vai direto para o cofre
+  if(res==='gold'){goldIn(amt);return amt}   // ouro vai direto para o cofre (mundo novo: para o saldo geral)
   let id=RES_ITEM[res];
   if(res==='food'){id=w.prod&&supplyOf(w.prod.id)&&supplyOf(w.prod.id).res==='food'?w.prod.id:FOOD_TYPES[Math.floor(Math.random()*FOOD_TYPES.length)]}   // sorteia o tipo; enquanto não for retirado, continua somando
   if(w.prod&&w.prod.id!==id){moveProdToStore(c)}
@@ -63,7 +69,7 @@ function moveProdToStore(c){
   const lost=s.n-put;return lost>0?lost+' '+itemDef(s.id).name+' destruído(s) por falta de espaço':'';
 }
 function storeAddTo(sh,id,n){
-  const cap=itemDef(id).stack;let left=n;
+  const cap=mapMundoOn()?Math.min(itemDef(id).stack,TILE_ECON.storeStack):itemDef(id).stack;let left=n;   // mundo novo: pilha de até 99 no armazém único
   for(let i=0;i<WH_SLOTS&&left>0;i++){const s=sh.store[i];if(s&&s.id===id&&s.n<cap){const t=Math.min(left,cap-s.n);s.n+=t;left-=t}}
   for(let i=0;i<WH_SLOTS&&left>0;i++){if(!sh.store[i]){const t=Math.min(left,cap);sh.store[i]={id,n:t};left-=t}}
   return n-left;
@@ -162,7 +168,7 @@ function whDrop(c,from,to){
   afterMove();return true;
 }
 // ouro: cofre do jogador (o mesmo em todos os armazéns)
-function vaultMove(delta){   // delta>0 guarda do bolso; delta<0 tira para o bolso
+function vaultMove(delta){   // delta>0 guarda do bolso; delta<0 tira para o bolso (só no mundo antigo: no novo o ouro é um saldo só)
   const sh=shOf();
   if(delta>0){const t=Math.min(delta,Math.max(0,P.coins));sh.vault+=t;P.coins-=t;return t}
   const t=Math.min(-delta,sh.vault);sh.vault-=t;P.coins+=t;return -t;
@@ -193,7 +199,7 @@ function whSummaryHtml(c){
     const tag=need===0&&st===0?'<span style="color:#9fe89f">não precisa</span>':m>0?'<span style="color:#ff8a8a">falta '+m+'</span>':bonus?'<span style="color:#ffd23a">★ bônus</span>':'<span style="color:#9fe89f">✔</span>';
     return '<div>'+resIcon(r)+' '+resName(r)+': <b>'+st+'</b> / '+need+' '+tag+'</div>';
   }).join('');
-  return '<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:8px"><div class="card" style="flex:1;min-width:250px"><b>Produção de '+c.name+'</b><div class="st">'+prodTxt+'<br>Humor: '+moodHtml(c)+' • imposto por rodada: ◉'+taxOf(c)+'<br>Cofre (de todos os armazéns): <b>◉ '+shOf().vault+'</b></div></div><div class="card" style="flex:1;min-width:250px"><b>Suprimentos desta rodada</b><div class="st" style="line-height:1.6">'+rows+'</div></div></div>';
+  return '<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:8px"><div class="card" style="flex:1;min-width:250px"><b>Produção de '+c.name+'</b><div class="st">'+prodTxt+'<br>Humor: '+moodHtml(c)+' • imposto por rodada: ◉'+taxOf(c)+'<br>'+(mapMundoOn()?'Ouro da facção: <b>◉ '+P.coins+'</b>':'Cofre (de todos os armazéns): <b>◉ '+shOf().vault+'</b>')+'</div></div><div class="card" style="flex:1;min-width:250px"><b>Suprimentos desta rodada</b><div class="st" style="line-height:1.6">'+rows+'</div></div></div>';
 }
 function whItemSlot(s,key,title){
   const d=s&&itemDef(s.id);
@@ -227,6 +233,9 @@ function renderWarehouse(){
     dnd:{start:(s,i)=>{WHU.drag=keyOf(i);WHU.sel=keyOf(i)},drop:(s,i)=>{const f=WHU.drag;WHU.drag=null;if(f)whDrop(c,f,keyOf(i));WHU.sel=null;renderWarehouse()}}})};
   if(WHU.tab==='store'){
     lab(L,'Armazenamento (o mesmo em todos os armazéns) ('+sh.store.filter(Boolean).length+'/'+WH_SLOTS+')');grid(L,sh.store,6,i=>({area:'store',i}));
+    if(mapMundoOn()){   // mundo novo: sem cofre (o ouro é um saldo só); a área mostra o que entrou na última rodada
+      const gn=document.createElement('div');gn.className='st';gn.innerHTML=txtWhGains(sh.gain);L.appendChild(gn);
+    }else{
     lab(L,'Cofre (ouro): ◉ '+sh.vault+'  •  Com você: ◉ '+P.coins);
     const gb=document.createElement('div');
     for(const n of[10,100])gb.appendChild(UI.button('Guardar ◉'+n,'',()=>{vaultMove(n);sfx('coin',0);renderWarehouse()}));
@@ -234,6 +243,7 @@ function renderWarehouse(){
     for(const n of[10,100])gb.appendChild(UI.button('Tirar ◉'+n,'alt',()=>{vaultMove(-n);sfx('coin',0);renderWarehouse()}));
     gb.appendChild(UI.button('Tirar tudo','alt',()=>{vaultMove(-sh.vault);sfx('coin',0);renderWarehouse()}));
     L.appendChild(gb);
+    }
   }else{
     lab(L,'Produção em abundância de '+c.name+' (reserva)');grid(L,[w.prod],1,()=>({area:'prod',i:0}));
     lab(L,resIcon('wood')+' Madeira — precisa '+needOf(c,'wood'));grid(L,[w.wood],1,()=>({area:'wood',i:0}));

@@ -83,7 +83,7 @@ function meetApplyEffect(pr,side,yesFids){   // aprovou (ok) ou reprovou (no): g
   S.eff={pid:pr.id,side,a:pr.a,from:STATE.round,until:STATE.round+MEET_DUR,mods:e.mods(pr.a),npc:e.npc(pr.a)};
   const fs=(WORLD.factions||[]).filter(f=>facCities(f.id).length);
   if(e.once==='rel+1')for(const f of fs)relChange(f.id,1,'você aprovou o Festival Continental',true);
-  else if(e.once==='cofre')shOf().vault+=300;
+  else if(e.once==='cofre')goldIn(300);
   else if(e.once==='agressivas')for(const f of fs)if(f.temper==='agressiva')relChange(f.id,-1,'você reprovou o Pacto de Não Agressão',true);
   if(pr.id==='festival'&&side==='no')for(const id of yesFids)relChange(id,-1,'ela votou a favor do Festival Continental, que você reprovou',true);
   rdNow('🏛 Reunião: '+meetName(pr)+' foi '+(side==='ok'?'APROVADA':'REPROVADA')+'. Ganho: '+e.buff(pr.a)+'. Custo: '+e.debuff(pr.a)+'. Vale por '+MEET_DUR+' rodadas.');

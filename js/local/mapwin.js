@@ -38,6 +38,7 @@ function mapMundoWindow(F, q) {
   const win = wfWindow(F, n.x, n.z, size, { tile: true, ti: -1, tj: -1, kind: 'natureza', node: id, neighbors: [] });
   win.openings = wgOpenings(G, F, id, size).filter(o => o.terra).map(o => Object.assign(o, { to: o.para }));
   win.tema = tileThemeOk(n.tema) ? n.tema : 'passagem'; win.empty = tileEmptyOn(win.tema); win.cityKind = tileCityKind(win.tema); win.bare = tileBare();
+  win.vrank = n.rank || 0;   // rank da vila (graph.js; decide o armazém, city.js)
   win.battle = null; mapTilePlan(win);
   win.desc = tileDescribe(F, win, { tema: win.tema, principal: win.mainPlan });
   return win;
@@ -261,7 +262,7 @@ function tileRecruitScenario() {
 }
 // Cidade enorme do jogador (4B): CITY_HUGE.soldiers soldados seus patrulham a cidade, saindo do quartel (nas cidades de outra facção o populateCities põe os inimigos).
 function tileHugeGarrison() {
-  const c = WORLD.home; if (!c || !cityBig(c)) return;
+  const c = WORLD.home; if (!c || !cityBig(c) || c.owner !== 'player') return;
   const b = c.barracks || { x: c.cx, z: c.cz };
   for (let i = 0, n = cityGuardCount(c, new RNG(WORLD.seed * 13 + c.id * 101 + 9)); i < n; i++) spawnAlly(b.x + (i % 5 - 2) * 1.5, b.z + 2 + Math.floor(i / 5) * 1.5, c);
 }

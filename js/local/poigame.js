@@ -208,9 +208,9 @@ Hooks.on('round',()=>{
   for(const a of ALLIES)if(a.poiFort&&a.alive){a.alive=false;a.gone=true;scene.remove(a.group)}   // soldados extras dos fortes valem só numa batalha da rodada
   const home=playerCities()[0],gain={};
   for(const p of poiMine()){
-    const res={farm:'food',mine:'ore',sawmill:'wood',hunters:'leather'}[p.type];
+    const res=mapMundoOn()?null:{farm:'food',mine:'ore',sawmill:'wood',hunters:'leather'}[p.type];   // mundo novo: POI não rende (a renda é do tipo de tile, tileeconomy.js)
     if(res&&home){const g=prodAdd(home,res,POIX.prod.base+POIX.prod.perLvl*poiLvl('player'));if(g>0)gain[res]=(gain[res]||0)+g}
-    if(p.type==='bridge'){const t=POIX.toll*poiLvl('player');shOf().vault+=t;rdNow('🌉 Pedágio da ponte: +◉'+t+' no cofre.')}
+    if(p.type==='bridge'&&!mapMundoOn()){const t=POIX.toll*poiLvl('player');goldIn(t);rdNow('🌉 Pedágio da ponte: +◉'+t+' no cofre.')}
     if(Math.random()<poiRetakeChance(p)){poiSetOwner(p,'bandit');poiGarrisonSync(p);rdNow('🏴 Bandidos retomaram '+POI_DEFS[p.type].n+', longe demais das suas cidades.')}
   }
   for(const r in gain)rdNow('⛏ POIs: +'+gain[r]+' de '+resName(r).toLowerCase()+' na reserva do armazém.');
@@ -247,7 +247,7 @@ Hooks.on('round',()=>{
   const rd=STATE.rd,n0=rd.routes.length+(rd.nroutes||[]).length;   // a guerra ou a conquista de um entreposto desfaz as rotas que ele impede
   rd.routes=rd.routes.filter(r=>!poiRouteBlocked(r));if(rd.nroutes)rd.nroutes=rd.nroutes.filter(r=>!poiRouteBlocked(r));
   if(rd.routes.length+(rd.nroutes||[]).length!==n0){rebuildCaravans();computeBuffs()}
-  for(const i of poiPostIncome())shOf().vault+=i.gold;
+  if(!mapMundoOn())for(const i of poiPostIncome())goldIn(i.gold);
 });
 // aba Efeitos do livro (meetfx.js): o que os entrepostos dão e tiram agora
 function poiPostEffects(good,bad){

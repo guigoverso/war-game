@@ -21,3 +21,14 @@ const TILE_PROD = { base: 1, perLvl: 1, mul: 1, res: { fazenda: 'food', mina: 'o
 const TILE_TAX = { base: 12, perRank: 5, rank: 2 };
 // Regra: o tema gera imposto? Só a vila.
 function tileTaxes(tema) { return tema === 'vila' }
+
+// ---------- Economia por tile no mundo novo (etapa 8.4; rodada 16 de docs/features/5_mapa-mundi.md) ----------
+// vilaRanks = peso de cada rank de vila (1, 2 e 3) no sorteio do grafo; vilaStoreRank = rank a partir do qual a vila tem armazém; indepChance = chance por
+// rodada de uma vila SUA sem nenhum tile seu vizinho ficar independente (vizinha de tile seu nunca); cityFlat = renda por rodada de uma cidade sua que não é o
+// mapa local carregado (sem necessidades nem humor: só o imposto base e por rank 1, tileCityFlat); storeStack = pilha máxima de um item no armazém único (o excedente se perde);
+// items = o item do armazém em que cada recurso dos tiles vira (fazenda/animais = comida). Padrão: pesos 5/3/2, rank 2, 25%, 99, comida = carne, minério, tora
+const TILE_ECON = { vilaRanks: [5, 3, 2], vilaStoreRank: 2, indepChance: 0.25, storeStack: 99, items: { food: 'carne', ore: 'minerio', wood: 'tora' } };
+// Renda por rodada de uma cidade sua fora do mapa local carregado: imposto base + por rank 1 + ganho do nível da cidade (sem humor). Padrão: ECON.taxBase + ECON.taxRank
+const tileCityFlat = () => ECON.taxBase + ECON.taxRank;
+// Regra: a vila de rank `rank` tem armazém? (city.js usa no mundo novo)
+const vilaHasStore = rank => (rank || 0) >= TILE_ECON.vilaStoreRank;

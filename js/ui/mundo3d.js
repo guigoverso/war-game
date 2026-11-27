@@ -468,12 +468,13 @@ function wm3Trees(T) {
 
 // ---------- modelos dos tiles ----------
 const WM_WALL = 0xb8b2a5, WM_ROOF = [0xa84432, 0x4a6a9a, 0x8a5a2e], WM_WALLS = [0xe8dcc0, 0xd9c9a3, 0xcdb89a];
-// Cor da bandeira de cada cidade: a do jogador na inicial; as outras só variam de cor (ainda não há facção dona no grafo).
-// Índice da cor da facção dona do tile (FAC_COLORS) ou -1 se neutro. PROVISÓRIO: o grafo ainda não tem donos; só as cidades têm (a inicial é do jogador).
+// Índice da cor da facção dona do tile (FAC_COLORS) ou -1 se neutro: tile do jogador (STATE.tiles, etapa 8.4) ou cidade NPC (cor provisória).
 function wm3OwnerIdx(n) {
+  const pc = (typeof STATE !== 'undefined' && STATE.fac && STATE.fac.color) || 0;
+  if (typeof STATE !== 'undefined' && tileOwner(wtKey(n.id), n.home ? 'player' : null) === 'player') return pc;   // tile seu (STATE.tiles; a cidade inicial sempre)
   if (n.tema !== 'cidade') return -1;
-  const pc = (typeof STATE !== 'undefined' && STATE.fac && STATE.fac.color) || 0, list = FAC_COLORS.map((_, i) => i).filter(i => i !== pc);
-  return n.home ? pc : list[(n.id * 5) % list.length];
+  const list = FAC_COLORS.map((_, i) => i).filter(i => i !== pc);
+  return list[(n.id * 5) % list.length];   // cidades NPC: cor provisória até as facções NPC agirem no mapa (8.10)
 }
 const wm3FlagColor = n => FAC_COLORS[Math.max(0, wm3OwnerIdx(n))].c;
 // Nome da facção dona (a do jogador tem o nome que ele deu; as outras, por enquanto, só a cor) ou null se neutro.
@@ -697,7 +698,7 @@ function wm3Select(id) {
   if (id >= 0) { const p = B.T.pos[id]; B.selRing.position.set(p.x, B.nodeY[id] + 0.2, p.z); B.selRing.scale.setScalar(wm3Half(B.G.nodes[id]) / 6.2 * 1.25) }
   wm3ShowPath(WM.armed && id >= 0 && id !== WM.at ? wm3Path(B.G, WM.at, id) : null);
   WM.hud.info.innerHTML = wm3Info(id); WM.hud.info.style.display = id >= 0 ? '' : 'none';
-  if (wtX().turn === 'leader') wm3TurnHud();   // modo Líder: os botões dependem do tile selecionado
+  if (wtX().turn === 'leader' || (G.creative && wm3RoundOn())) wm3TurnHud();   // modo Líder (e o botão criativo de anexar): os botões dependem do tile selecionado
 }
 // Com o batalhão selecionado, um clique no tile: ele marcha (wtMove gasta as ações e os NPCs andam) e o boneco anda pela trilha até onde chegou.
 // Recusa (sem ações, sem caminho) fica em silêncio: o contador de ações basta.

@@ -66,7 +66,8 @@ function migrateSave(d){
   if(d.v<28){d.v=28}   // v28 (etapa 8.1): state.wg (grafo do mundo, wgPack), wt.mv/local/spawn/entry (relógio e tile carregado), bat.de e marcas do tile
                        // (tiles[k].dif.loot/acamp, só com ?mundo=1); ausente = grafo gerado da semente e tile = cidade inicial
   if(d.v<29){if(d.wt&&d.wt.born===undefined)d.wt.born=(d.bat&&d.bat.seq)||0;d.v=29}   // v29 (etapa 8.2): wt.born = batalhões do jogador já criados (o primeiro do jogo é grátis); save antigo com batalhões conta como já criado
-  // if(d.v<29){ ...ajustes...; d.v=29 }
+  if(d.v<30){d.v=30}   // v30 (etapa 8.4): state.tiles[chave].cidade (ficha econômica e nível da cidade de cada tile) e state.rd.shared.gain (últimos ganhos do armazém); ausentes = padrão. O cofre antigo vira saldo no mundo novo (shOf)
+  // if(d.v<31){ ...ajustes...; d.v=31 }
   return d;
 }
 

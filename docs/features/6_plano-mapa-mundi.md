@@ -129,6 +129,7 @@ Hoje o rótulo do tile é só o tema ("Fazenda", "Fortaleza"). Passa a ter um **
 - Arquivos: `battle.js`, `worldturn.js`, `tilewar.js`, `game.js` (morte), `mundoturno.js`. Depende da 8.1 (entrar no tile) e da 8.2 (batalhão = boneco).
 
 ### 8.4 Economia e cidades por tile (G) — B1, B2, B3, B6, D6
+> **CÓDIGO PRONTO em 2026-11-27** (falta o teste na tela; resumo em `docs/MAPA.md`, "Etapa 8.4"). Limites: cidade sua fora do mapa carregado rende plano (sem necessidades/humor/rebelião); sem donos NPC (8.10); o pool de ações no código é 3/4/5/6/8.
 - Ouro geral único (`vault` some), **armazém único** da facção (24 slots, pilha 99, descarte silencioso), consulta no livro, área de "últimos ganhos". Renda por tipo de tile (`TILE_PROD`/`TILE_TAX`) entrando no `endRound`; POI deixa de render.
 - Vila: rank 1 a 3 sorteado no grafo, armazém no rank 2+, sempre cura e prefeitura, outros serviços por chance; independência de vila distante (nunca se vizinha de tile do dono). Humor/rebelião só nas cidades.
 - Nível da facção define pool de ações e máx. de batalhões; evoluir facção = 1 ponto de Líder. Suprimento ao entrar em cidade/vila da facção; marcha não consome.

@@ -113,6 +113,8 @@ const CITY_VILLAGE = {
 };
 // Configuração da cidade grande de c: CITY_HUGE (cidade enorme), CITY_VILLAGE (vila) ou null (cidade do mapa antigo).
 const cityBig = c => c.huge ? CITY_HUGE : c.vila ? CITY_VILLAGE : null;
+// Regra: a vila c tem armazém? CITY_VILLAGE.warehouse (padrão não) vale fora do mundo novo; nele vale o rank do grafo (vilaHasStore, economy-modifiers.js).
+const vilaWarehouse = c => CITY_VILLAGE.warehouse || (mapMundoOn() && vilaHasStore(c.vrank));
 // Formato da vila (pesos de CITY_VILLAGE.shapes; ?forma_cidade=<nome> força um) e raio da caixa (CITY_VILLAGE.half).
 function cityVillageShape(rng) {
   const f = new URLSearchParams(location.search).get('forma_cidade');

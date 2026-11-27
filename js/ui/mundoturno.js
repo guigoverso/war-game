@@ -116,6 +116,7 @@ function wm3TurnHud() {
     if (G.creative || !wm3RoundOn()) h += '<button data-a="auto">' + TXT_WT_ENC_AUTO + '</button>';
   }
   else if (w.inTile !== null) h += '<div class="wm3-sub">' + txtWtInTile(wm3TurnTile(w.inTile)) + '</div><button data-a="leave">' + TXT_WT_LEAVE + '</button>';
+  h += wm3AnnexBtn(WM.built.G, WM.sel);
   el.innerHTML = h; el.style.display = 'block';
 }
 // ---- modo Líder (etapa 8.2): o mapa mundi no turno do Líder (escritório) só mostra, cria e doa batalhões; nada anda ----
@@ -124,6 +125,7 @@ function wm3LeadHud() {
   const el = WM.turnEl, G2 = WM.built.G, L = batList('player'), sel = WM.sel;
   let h = '<div><b>' + txtWtLeadTitle(L.length, batCountMax(wtLvl())) + '</b></div>';
   L.forEach((b, i) => { h += '<div class="wm3-sub">' + txtWtLeadRow(i + 1, batTotal(b), wm3TurnTile(wtNode(b.tile))) + '</div>' });
+  h += wm3AnnexBtn(G2, sel);
   if (sel >= 0 && wtMine(G2, sel)) {
     const c = wtCreateCheck(G2, sel), here = batAt(wtKey(sel)).filter(b => b.dono === 'player');
     h += '<button data-a="lcreate"' + (c.why ? ' disabled' : '') + '>' + txtWtLeadCreate(c.cost, c.pt ? ECON.act.battalion : 0) + '</button>';
@@ -142,11 +144,23 @@ function wm3LeadAct(a) {
   else { const [, f, t, n] = a.split(':'); wtDonate(G2, +f, +t, +n || BAT.max) }
   wm3TurnSync(); wm3Select(WM.sel);
 }
+// Atalho criativo (8.4): anexa ou desanexa o tile selecionado do jogador (modo criativo, jogo do mundo novo). O botão aparece na caixa de Ações e na do Líder.
+function wm3AnnexBtn(G2, sel) {
+  if (!G.creative || !wm3RoundOn() || sel < 0 || G2.nodes[sel].mar || G2.nodes[sel].home) return '';
+  return '<button data-a="' + (wtOwnerOf(G2, sel) === 'player' ? 'detach' : 'annex') + '">' + (wtOwnerOf(G2, sel) === 'player' ? TXT_WT_DETACH : TXT_WT_ANNEX) + '</button>';
+}
+// Anexa/desanexa o tile selecionado e refaz o mapa mundi para as bandeiras mudarem. O mapa local carregado segue como está até a próxima entrada.
+function wm3Annex(on) {
+  const G2 = WM.built.G, id = WM.sel; if (id < 0) return;
+  if (on) wtAnnex(G2, id); else wtDetach(G2, id);
+  WM.key = null; wm3Close(); wm3Open(); wm3Select(id);
+}
 // Ações do turno (caixa de Ações e menus): enter (entrar no tile), leave, auto, skip (pula uma ação), end (encerra o turno). Recusas ficam em silêncio
 // (o contador de ações basta).
 function wm3TurnClick(a) {
   const G2 = WM.built.G; if (WM.walk || WM.seq) return;
   if (a === 'lcreate' || (a && a.startsWith('ldon:'))) { wm3LeadAct(a); return }
+  if (a === 'annex' || a === 'detach') { wm3Annex(a === 'annex'); return }
   if (a === 'enter') { wm3EnterTile(); return }
   else if (a === 'fight') { wm3Fight(); return }
   else if (a === 'leave') { const r = wtLeave(G2); if (wm3TurnSeqStart(r && r.steps)) return }
@@ -276,7 +290,7 @@ function wm3Fight() {
 // Troca o mapa local: as marcas do tile atual vão para a ficha dele (collectSave), o tile novo vira STATE.wt.local e o jogador nasce na abertura da
 // estrada de `de` (STATE.wt.spawn/entry). Só o Comandante entra: os soldados que o seguiam não vão junto (allies = 0).
 function mundoGo(tile, de, nome) {
-  const w = wtX(); mundoMarksSave(); w.local = tile; w.spawn = true; w.entry = typeof de === 'number' ? de : -1;
+  const w = wtX(); mundoMarksSave(); mundoCityStash(); w.local = tile; w.spawn = true; w.entry = typeof de === 'number' ? de : -1;
   const d = collectSave(); d.allies = 0;
   try { sessionStorage.setItem('fc_enter', JSON.stringify({ d, nome, col: (STATE.fac && STATE.fac.color) || 0 })) } catch (e) { console.error(e); return }
   mundoLoadShow(nome, (STATE.fac && STATE.fac.color) || 0); setTimeout(() => location.reload(), 30);
@@ -291,6 +305,7 @@ function mundoEnterTake() {
 function mundoAfterStart(entering) {
   if (!mapMundoOn()) return false;
   const w = wtX(); if (w.spawn) { w.spawn = false; mundoPlaceEntry(w.entry >= 0 ? w.entry : null) }
+  if (WORLD.home && !WORLD.home.vila) whSupplyFromStore(WORLD.home);   // entrou na cidade sua: os suprimentos saem do armazém único (tileeconomy.js)
   mundoLoadHide();
   if (w.enc && w.inTile !== null && w.inTile === (WORLD.win && WORLD.win.node)) { closePanel(); tbStart(); return true }   // encontro pendente com o comandante no tile: a luta começa (também ao carregar um save)
   const map = STATE.phase === 'commander' && w.turn === 'commander' && w.inTile === null && !!wtGraph();

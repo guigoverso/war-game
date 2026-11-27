@@ -39,7 +39,7 @@ Hooks.on('round',()=>{
   const rep={push:rdNow};   // rendas dos efeitos ativos: acontecem na rodada que começa
   for(const f of P.fx){
     if(f.t==='routeProd')for(const id of[f.p.a,f.p.b]){const c=WORLD.cities[id];if(c&&c.owner==='player'&&!polFlag('noProd',id)){const g=prodAdd(c,focusOf(c),f.p.add);rep.push('📜 '+f.txt+': +'+g+' em '+c.name+'.')}}
-    if(f.t==='gold'&&f.p.add){shOf().vault+=f.p.add;rep.push('📜 '+f.txt+': +◉'+f.p.add+' no cofre.')}
+    if(f.t==='gold'&&f.p.add){goldIn(f.p.add);rep.push('📜 '+f.txt+': +◉'+f.p.add+' no cofre.')}
     f.left--;
   }
   for(const f of P.fx.filter(x=>x.left<=0))rep.push('📜 Terminou: '+f.txt+'.');
@@ -117,7 +117,7 @@ const polCost=(op,ctx)=>typeof op.cost==='function'?op.cost(ctx):op.cost;   // c
 function polCtx(d,op,c,data){
   return{def:d,op,city:c,data,
     fx:spec=>polAddFx(Object.assign({pid:d.id,c:c?c.id:-1},spec)),
-    gold:n=>Ledger.add('gold',n),vault:n=>{shOf().vault+=n},
+    gold:n=>Ledger.add('gold',n),vault:n=>{goldIn(n)},
     toast:(m,ms)=>toast(m,ms||3500)};
 }
 // quando há mais de uma política a decidir na rodada, uma lista: só ao clicar numa delas abre a janela dela
@@ -355,7 +355,7 @@ definePolicy({id:'traicao',name:'Traição de um oficial',city:true,cool:4,
     {k:'B',label:'Perdoar publicamente',type:'both',eff:c=>'Melhorar soldados custa 20% menos e recrutar custa 20% mais por '+polDurTxt()+'. O descontentamento de '+c.name+' sobe 1 (não afeta a contagem de rebelião).',
       apply:x=>{x.fx({c:-1,t:'price',p:{mul:0.8,sel:'soldierup'},txt:'Melhorar soldados −20% (perdão ao oficial)'});x.fx({c:-1,t:'price',p:{mul:1.2,sel:'recruit'},txt:'Recrutar soldados +20% (perdão ao oficial)'});joyShift(x.city,-1)}},
     {k:'C',label:'Fingir que nada aconteceu',type:'debuff',eff:c=>'Perde 30% do ouro armazenado (cofre dos armazéns) e o descontentamento de '+c.name+' sobe 1 (não afeta a contagem de rebelião).',
-      apply:x=>{const sh=shOf(),l=Math.floor(sh.vault*0.3);sh.vault-=l;joyShift(x.city,-1);x.toast('💸 O oficial levou ◉'+l+' do cofre.')}}
+      apply:x=>{const l=goldTake(Math.floor(goldStock()*0.3));joyShift(x.city,-1);x.toast('💸 O oficial levou ◉'+l+' do cofre.')}}
   ]});
 
 // ---------- Etapa 3 da 4C: raid de bandidos em ondas ----------

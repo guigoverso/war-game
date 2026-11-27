@@ -279,7 +279,7 @@ async function worldCitiesStage(X,status){
     const bio=B[s.z*W+s.x];
     const dm=X.win&&X.win.tile?mapTileCityDims(seed,W,X.win.cityKind,i):null,huge=!!dm&&X.win.cityKind==='enorme',vila=!!dm&&X.win.cityKind==='vila';   // tile de cidade (4B) ou de vila (4C): formato e tamanho próprios (mapTileCityDims, mapwin.js; city-modifiers.js)
     const shp=dm?dm.shape:null;
-    return{id:i,wantWater:!!s.ww,cx:s.x,cz:s.z,half:tileTestOn()?(i===0?TILE_TEST.home.half:TILE_TEST.big.half):huge||vila?dm.half:rng.int(36,45),huge,vila:!!vila,shape:shp,biome:bio,owner:'enemy',state:'idle',home:false,rank:0,
+    return{id:i,wantWater:!!s.ww,cx:s.x,cz:s.z,half:tileTestOn()?(i===0?TILE_TEST.home.half:TILE_TEST.big.half):huge||vila?dm.half:rng.int(36,45),huge,vila:!!vila,vrank:vila&&X.win&&X.win.vrank||0,shape:shp,biome:bio,owner:'enemy',state:'idle',home:false,rank:0,
       enemies:[],npcs:[],walk:[],spawns:[],towers:[],gates:[],flags:[],props:[],aliveEnemies:0,totalEnemies:0};
   });
   if(RES){   // reserva: verifica no rascunho, depois gera o terreno final em volta das pegadas (passada 2)
@@ -292,7 +292,9 @@ async function worldCitiesStage(X,status){
     WORLD.reserve.ms=Math.round(performance.now()-t0);console.log('reserva:',JSON.stringify(WORLD.reserve));
   }
   // cidade inicial: a mais próxima do centro do mapa
-  const home=tileTestOn()?cities[0]:cities[rng.int(0,cities.length-1)];home.home=true;home.owner='player';home.state='conquered';WORLD.home=home;   // (mapa de teste: a cidade pequena do canto é a sua)
+  const home=tileTestOn()?cities[0]:cities[rng.int(0,cities.length-1)];home.home=true;home.owner='player';home.state='conquered';WORLD.home=home;
+  if(mapMundoOn()&&X.win&&typeof X.win.node==='number'&&wtOwnerOf(wtGraph(),X.win.node)!=='player'){home.owner='neutral';home.state='idle'}   // mundo novo (8.4): a cidade do tile só é sua se o tile é seu (STATE.tiles)
+    // (mapa de teste: a cidade pequena do canto é a sua)
   const others=cities.filter(c=>c!==home).sort((a,b)=>Math.hypot(a.cx-home.cx,a.cz-home.cz)-Math.hypot(b.cx-home.cx,b.cz-home.cz));
   others.forEach((c,i)=>c.rank=i+1);
   for(const c of cities){c.name=cityName(rng,c.biome,used)}
@@ -349,7 +351,7 @@ async function worldBuildStage(X,status){
     c.coast=wet;c.coastal=wet>=12;
   }
 
-  WORLD.ctype=cityTypePlan(cities,seed,{});   // tipo (economia) de cada cidade, decidido já aqui: a cidade ganha o edifício do tipo (city.js)
+  WORLD.ctype=cityTypePlan(cities,econSeed(seed),{});   // tipo (economia) de cada cidade, decidido já aqui: a cidade ganha o edifício do tipo (city.js)
   // 4) Cidades
   if(X.win&&X.win.empty){for(const c of cities)Object.assign(c,{half:1,S:1,P:1,gateSpots:[],keepers:[]});return}   // tile vazio (4A): a cidade-âncora (o jogo exige uma) fica sem prédios
   for(const c of cities){

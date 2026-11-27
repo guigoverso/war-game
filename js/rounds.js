@@ -17,6 +17,7 @@ function endRound(city){
   const prep=STATE.round<1;   // rodada 0: preparação, sem cobrança, imposto nem produção
   if(prep)rep.push('Rodada 0 (preparação): sem cobrança, imposto ou produção. A contagem começa agora, na rodada 1.');
   else{
+    whGainBegin();   // mundo novo: o armazém lembra o que entrou nesta rodada (tileeconomy.js)
     const rebels=[],officers=new Set(),taxMap={};   // taxMap: imposto de cada cidade nesta rodada (vai para o relatório)
     for(const c of pcs){
       const e=ec(c),carry2={};delete e.debt;   // recursos não geram dívida
@@ -38,7 +39,7 @@ function endRound(city){
       // níveis: 1ª falta = Descontente (1); 2ª = (0); 3ª = (−1); 4ª = rebelião (os efeitos de 0 e −1 ainda são os do nível 1)
       if(short&&e.press){   // reprimida: não se rebela por falta, continua pagando imposto; as necessidades sobem 50% a cada rodada (até 300%)
         e.press.n++;
-        const tax=Math.round((TAX_BASE+TAX_RANK*Math.max(1,c.rank||1)));if(tax>0){shOf().vault+=tax;taxMap[c.id]=tax;rep.push('⚔ '+c.name+' está sob repressão: faltou suprimento, mas pagou imposto de ◉'+tax+'. As necessidades subiram 50% (até 300%).')}
+        const tax=Math.round((TAX_BASE+TAX_RANK*Math.max(1,c.rank||1)));if(tax>0){goldIn(tax);taxMap[c.id]=tax;rep.push('⚔ '+c.name+' está sob repressão: faltou suprimento, mas pagou imposto de ◉'+tax+'. As necessidades subiram 50% (até 300%).')}
         const at300=NEEDS.filter(r=>(e.pct[r]||0)>0&&pctOf(c,r)>=300).length;
         if(at300>=2&&!c.home&&!(e.noReb>STATE.round)){rebels.push(c);officers.add(c.id)}
       }else if(short){
@@ -48,8 +49,8 @@ function endRound(city){
         }else rep.push((peace?'⛪ '+c.name+': o Santuário manteve o povo calmo ('+MOOD.ok.n+'), mas sem suprimento não há imposto nem produção.':'😠 '+c.name+' está '+moodLbl(c)+': sem imposto e sem produção.')+(c.home?' (A capital não se rebela, mas sofre os mesmos efeitos.)':' Se continuar faltando, ela se rebela em '+(ECON.rebelUps-e.ups)+' rodada(s)!'));
       }else{
         if(e.press){delete e.press;rep.push('✔ '+c.name+' supriu tudo: a repressão acabou e as necessidades voltaram ao normal.')}   // supriu tudo: os recursos que subiram voltam ao valor anterior
-        const gt=goldTradeOf(c);if(gt>0){shOf().vault+=gt;rep.push('🛒 '+c.name+': comércio com cidades de ouro rendeu ◉'+gt+' no cofre.')}
-        const tax=taxOf(c);if(tax>0){shOf().vault+=tax;taxMap[c.id]=tax;rep.push(MOOD[e.mood].icon+' '+c.name+' está '+MOOD[e.mood].n.toLowerCase()+': imposto de ◉'+tax+' no cofre.')}
+        const gt=goldTradeOf(c);if(gt>0){goldIn(gt);rep.push('🛒 '+c.name+': comércio com cidades de ouro rendeu ◉'+gt+' no cofre.')}
+        const tax=taxOf(c);if(tax>0){goldIn(tax);taxMap[c.id]=tax;rep.push(MOOD[e.mood].icon+' '+c.name+' está '+MOOD[e.mood].n.toLowerCase()+': imposto de ◉'+tax+' no cofre.')}
         const f=focusOf(c),amt=prodOf(c);
         if(amt<=0)rep.push('📜 '+c.name+': produção suspensa por uma política.');
         else if(hasRoute(c))rep.push('🛒 '+c.name+': a produção de '+resName(f).toLowerCase()+' ('+amt+') seguiu por caravana.');
@@ -57,6 +58,7 @@ function endRound(city){
       }
     }
     rep.push('💰 Imposto: '+pcs.map(c=>c.name+' ◉'+(taxMap[c.id]||0)).join(', ')+'. Total: ◉'+pcs.reduce((s,c)=>s+(taxMap[c.id]||0),0)+'.');
+    tileEconomyRound(rep);   // mundo novo: renda dos tiles (recurso, vila, cidades fora do mapa carregado) e vilas que ficam independentes
     meetRoundEnd(rep);   // reunião: produção das caravanas, taxas e manutenção (meetfx.js)   // quanto cada cidade pagou e o total
     for(const c of rebels){if(typeof rebS==='function'&&rebS().cur){rep.push('⏳ '+c.name+' está à beira da rebelião, mas há outra em andamento: ela fica para a próxima rodada.');continue}rep.push(officers.has(c.id)?'🔥 '+c.name+': dois suprimentos chegaram a 300% e os oficiais se juntaram aos rebeldes! A cidade se rebelou. Reconquiste-a.':'🔥 '+c.name+' SE REBELOU depois de '+ECON.rebelUps+' rodadas sem suprimentos! Reconquiste-a.');rebelCity(c)}
   }

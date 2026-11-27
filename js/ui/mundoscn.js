@@ -7,6 +7,11 @@
 //   inim=N      força do bando (padrão 14); explorar=1  sem encontro: o comandante já está dentro do tile da capital
 //   meu=1       no Ataque, o POI mais perto do alvo já é seu (a reposição dos soldados nasce nele)
 //   mortal=1    desliga o modo deus (o criativo é invencível; sem isto não dá para morrer); morrer=S  o comandante cai S segundos depois de estar jogando no tile
+// Parâmetros da 8.4 (economia por tile), também com ?mundo=1&auto=1&mute=1&seed=11:
+//   terras=N    anexa os N tiles de terra mais perto da capital (recursos, vilas, cidades...); vila=1  anexa uma vila SEM tile seu vizinho (a mais longe da capital)
+//   cidade=1    anexa a cidade NPC mais perto (para entrar nela: o suprimento sai do armazém); indep=1  a chance de independência vira 100%
+//   armazem=1   o armazém único começa com madeira, minério e comida; armazem=cheio  todos os 24 slots cheios (a renda que sobra se perde em silêncio)
+//   ouro=N      saldo de ouro (padrão: o do modo criativo); nivel=N  nível da facção (pool de ações e batalhões)
 // Só vale numa partida nova (um save, ou a página recarregada ao entrar num tile, já traz o estado e o cenário não refaz nada).
 const MUNDO_SCN = [
   { id: 'campo', t: 'Encontro no campo (Choque)', d: '10 soldados seus contra um bando de 14 num tile vizinho à capital. Botão Lutar no mapa mundi.', q: 'enc=campo&soldados=10&inim=14&mix=1' },
@@ -17,13 +22,18 @@ const MUNDO_SCN = [
   { id: 'invasao-poi', t: 'Invasão com POI seu perto', d: 'Como a invasão, mas um POI do tile já é seu: os soldados de reposição nascem nele. Vencer passa todos os POIs inimigos do tile para você.', q: 'enc=invasao&soldados=30&inim=30&mix=1&meu=1' },
   { id: 'morte-batalha', t: 'Morte em batalha grande (batalhão se desfaz)', d: 'Bando forte e comandante mortal: ele cai 40 s depois de começar a luta, e o batalhão se desfaz.', q: 'enc=campo&soldados=10&inim=60&mortal=1&morrer=40' },
   { id: 'morte-sozinho', t: 'Morte com o batalhão vazio', d: 'Comandante sem soldados contra um bando: cai e o batalhão (só ele) se desfaz.', q: 'enc=campo&soldados=0&inim=20&mortal=1&morrer=40' },
-  { id: 'morte-campo', t: 'Morte fora de batalha (tile explorado)', d: 'O comandante já está dentro do tile, sem encontro, e cai 20 s depois: perde ouro, parte da munição e dos itens, (a ação da exploração já foi gasta; nenhuma a mais).', q: 'explorar=1&soldados=10&mortal=1&morrer=20' }
+  { id: 'morte-campo', t: 'Morte fora de batalha (tile explorado)', d: 'O comandante já está dentro do tile, sem encontro, e cai 20 s depois: perde ouro, parte da munição e dos itens, (a ação da exploração já foi gasta; nenhuma a mais).', q: 'explorar=1&soldados=10&mortal=1&morrer=20' },
+  { id: 'renda', t: 'Renda dos tiles e armazém', d: 'Seis tiles seus ao redor da capital. Encerre o turno: a tabela de renda aparece no livro (Resumo) e os recursos entram no armazém (livro > Cidades).', q: 'terras=6&armazem=1&nivel=3' },
+  { id: 'vila-longe', t: 'Vila distante fica independente', d: 'Uma vila sua sem nenhum tile seu por perto, com a independência garantida: ao encerrar o turno ela se declara independente e o mapa mundi perde a bandeira.', q: 'vila=1&indep=1&nivel=3' },
+  { id: 'armazem-cheio', t: 'Armazém cheio (excedente se perde)', d: 'Os 24 slots do armazém já estão cheios: a renda dos tiles não cabe e some em silêncio (a tabela mostra o que rendeu).', q: 'terras=6&armazem=cheio&nivel=3' },
+  { id: 'cidade-2', t: 'Entrar numa segunda cidade sua', d: 'A cidade NPC mais perto já é sua, com o armazém abastecido: ao entrar, os suprimentos dela saem do armazém único. Botão direito no tile > Entrar.', q: 'cidade=1&armazem=1&nivel=5' },
 ];
 const MUNDO_SCN_BASE = 'mundo=1&auto=1&mute=1&seed=11&';
 
 // Gancho de scenarioApply (scenario.js). Devolve true se montou um cenário (a partida nova pula o livro do Líder e já abre o turno do Comandante).
 function mundoScenario() {
   const q = new URLSearchParams(location.search); if (!mapMundoOn()) return false;
+  if (mundoScnEcon(q)) return true;
   if (q.get('mortal') === '1') setGod(false);   // vale também depois de recarregar o tile (o criativo religa o modo deus a cada partida)
   const kind = q.get('enc') || (q.get('explorar') ? 'explorar' : ''); mundoScnDie(+q.get('morrer') || 0);
   if (!kind || wtX().init) return false;
@@ -59,4 +69,24 @@ function mundoScnDie(secs) {
     if (!t0) { t0 = performance.now(); return }
     if (performance.now() - t0 >= secs * 1000) { clearInterval(id); P.hp = 0; die() }
   }, 500);
+}
+
+// Cenários da economia por tile (8.4; parâmetros no topo do arquivo). Monta a partida no turno do Comandante, rodada 1, com os tiles anexados e o armazém pedidos.
+function mundoScnEcon(q) {
+  if (!['terras', 'vila', 'cidade', 'armazem', 'ouro', 'nivel', 'indep'].some(k => q.has(k)) || wtX().init) return false;
+  const G2 = wtGraph(), home = G2.inicio.id, H = G2.nodes[home], land = G2.nodes.filter(n => !n.mar && !n.home);
+  const dist = n => Math.hypot(n.x - H.x, n.z - H.z);
+  G.introBook = false; STATE.phase = 'commander'; STATE.round = 1; STATE.rd.lvl = +q.get('nivel') || 1; STATE.rd.actions = maxActions();
+  if (q.has('ouro')) P.coins = +q.get('ouro');
+  if (q.get('indep') === '1') TILE_ECON.indepChance = 1;
+  for (const n of land.slice().sort((a, b) => dist(a) - dist(b)).slice(0, +q.get('terras') || 0)) wtAnnex(G2, n.id);
+  if (q.get('cidade') === '1') { const c = land.filter(n => n.tema === 'cidade').sort((a, b) => dist(a) - dist(b))[0]; if (c) wtAnnex(G2, c.id) }
+  if (q.get('vila') === '1') {   // a vila mais longe da capital cujos vizinhos não são seus
+    const v = land.filter(n => n.tema === 'vila' && wtOwnedNear(G2, n.id) === 0).sort((a, b) => dist(b) - dist(a))[0]; if (v) wtAnnex(G2, v.id);
+  }
+  const sh = shOf(), arm = q.get('armazem');
+  if (arm === 'cheio') for (let i = 0; i < WH_SLOTS; i++) sh.store[i] = { id: 'tora', n: TILE_ECON.storeStack };
+  else if (arm) for (const [id, n] of [['tora', 30], ['minerio', 20], ['carne', 25], ['couro', 10]]) storeAddTo(sh, id, n);
+  wtInit(G2); wtX().actors = []; wtX().turn = 'leader'; wtCommanderBegin(G2); wtEnsureBat(G2);
+  return true;
 }
