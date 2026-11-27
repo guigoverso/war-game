@@ -4,6 +4,7 @@ const { erros, run } = require('./carregar')();
 let falhas = 0; const ok = (c, n, w) => { if (!c) falhas++; console.log((c ? 'OK    ' : 'FALHA ') + n + (w ? ' — ' + w : '')) };
 ok(erros.length === 0, 'camada macro carrega (inclui worldturn.js)', erros.join(' | '));
 run('var P={coins:2000}; resetState(); STATE.round=1; STATE.rd={now:[]}');
+run('TOLL.neutral=0');   // este teste anda pelo mapa sem pedágio (macro/toll.js tem o seu teste)
 run('var F=wfCreate(11,{format:"pangeia",dominant:"plains"}); var G=wgBuild(F); var H=G.inicio.id');
 ok(run('G.nodes.length')>10 && run('H')>=0, 'grafo de teste', 'nós ' + run('G.nodes.length'));
 

@@ -137,6 +137,7 @@ Hoje o rótulo do tile é só o tema ("Fazenda", "Fortaleza"). Passa a ter um **
 - Arquivos: `econ.js`, `warehouse.js`, `tilestate.js`, `graph.js` (rank da vila), `city.js`, `book.js` (aba do armazém). Teste: Node para renda e rank; tela para armazém e suprimento.
 
 ### 8.5 POIs viram sítios, torre nova, ponte e fortaleza (G) — D1, D2, D3, D4, G7, E4 (binóculo)
+> **CÓDIGO PRONTO em 2026-11-27** (falta o teste na tela; resumo em `docs/MAPA.md`, "Etapa 8.5"; cenários em `cenarios-mundo.html`). **Fica de fora:** `tcBridge` com ramos por abertura (visual; sessão própria com o jogo aberto), portal da dungeon no tile (8.9), marca de dungeon no minimapa/Mapa M (8.11).
 - Dono por POI; POI principal define o dono do tile e é o único com guarnição; sem efeitos globais nem renda. Baú de recompensa por tipo (tabela [PROPOSTA] da rodada 16, confirmar com o usuário). Loja de POI volta na rodada seguinte à conquista. Santuário por dízimo. Entreposto e Taverna com Comprar / Vender; cura à venda neles.
 - Torre nova (3 usos por rodada, tile + vizinhos, 50% de falha, dungeon e marca por uma rodada); o "?" e o raio 300 saem; o binóculo não acha baús. Dungeons deixam de nascer sozinhas.
 - Pedágio no tile de ponte e de fortaleza (neutro 100, outra facção 150 x relação, NPC paga ao jogador, bandidos tomam em 2 a 3 ações e passar custa 500), popup com "Não mostrar novamente" + opção nas configurações (texto a aprovar). `tcBridge` com ramos por abertura (pendência da etapa 6).

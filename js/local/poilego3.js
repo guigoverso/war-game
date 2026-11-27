@@ -37,8 +37,8 @@ Object.assign(LEGO_PIECES, {
       for (const [uu, vv] of [[3, V - 1.3], [9, V - 1.3]]) W2(uu, vv, uu + 0.5, vv + 0.3, Y + 2.2, Y + 2.8, 0xffe9a0, false, { j: 0 });
       W2(0.8, -1.8, 1.7, -0.9, 0, 0.95, 0x7a5a30, true); W2(0.8, -3.0, 1.7, -2.1, 0, 0.95, 0x7a5a30, true); W2(2.4, -1.5, 4.4, -0.9, 0.45, 0.6, 0x7a5632, true); W2(2.5, -1.5, 2.7, -0.9, 0, 0.45, 0x5a3d22, false, { j: 0 }); W2(4.1, -1.5, 4.3, -0.9, 0, 0.45, 0x5a3d22, false, { j: 0 });   // barris e banco
       W2(12.5, -2.2, 16.5, -1.4, 0, 0.6, 0x7a5632, true, { j: 0.04 }); W2(12.6, -2.1, 16.4, -1.5, 0.6, 0.7, 0x3a7ad8, false, { j: 0 });   // cocho
-      W2(5.2, -0.6, 5.32, -0.48, 0, 3.6, 0x4a2f1a, false, { j: 0 }); W2(5.2, -0.6, 7.2, -0.48, 3.3, 3.6, 0x4a2f1a, false, { j: 0 }); W2(6.1, -0.6, 7.2, -0.5, 2.4, 3.3, 0x5a3d22, false, { j: 0 }); W2(6.2, -0.5, 7.1, -0.45, 2.5, 3.2, 0xf0d890, false, { j: 0 });   // placa pendurada
-      for (const uu of [5.0, 13.0]) { W2(uu, -1.2, uu + 0.2, -1.0, 0, 3.2, 0x2a2a2a, true, { j: 0 }); W2(uu - 0.15, -1.35, uu + 0.35, -0.85, 3.2, 3.7, 0xffe9a0, false, { j: 0 }) }   // lampiões
+      W2(5.2, -0.6, 5.32, -0.48, -4, 3.6, 0x4a2f1a, false, { j: 0 }); W2(5.2, -0.6, 7.2, -0.48, 3.3, 3.6, 0x4a2f1a, false, { j: 0 }); W2(6.1, -0.6, 7.2, -0.5, 2.4, 3.3, 0x5a3d22, false, { j: 0 }); W2(6.2, -0.5, 7.1, -0.45, 2.5, 3.2, 0xf0d890, false, { j: 0 });   // placa pendurada
+      for (const uu of [5.0, 13.0]) { W2(uu, -1.2, uu + 0.2, -1.0, -4, 3.2, 0x2a2a2a, true, { j: 0 }); W2(uu - 0.15, -1.35, uu + 0.35, -0.85, 3.2, 3.7, 0xffe9a0, false, { j: 0 }) }   // lampiões
       for (let v = -ap; v < 0; v++) for (let u = 6; u < 12; u++) { const m = f.map(u + 0.5, v + 0.5); setTL(c, Math.floor(m[0]), Math.floor(m[1]), T_STREET) }   // chão batido na frente
     });
     const at = (x, z, o) => legoSpot(L, x - c.cx + 9, z - c.cz + 8, o);

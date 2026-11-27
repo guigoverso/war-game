@@ -182,7 +182,7 @@ document.addEventListener('click',e=>{
 // (NPC nas cores da facção que pediu ajuda) preso numa jaula que só abre depois de limpar a dungeon. Passado o prazo, o refém morre (relação −1).
 function gevRescueStart(fid){
   const S=gevS();if(S.rescue||!DG.ok)return false;
-  if(!(STATE.portals||[]).length)spawnPortals();
+  if(!(STATE.portals||[]).length&&!mapMundoOn())spawnPortals();
   const p=(STATE.portals||[]).find(q=>!q.claimed&&!q.golden&&!q.rescue&&!(G.dg&&G.dg.p===q));if(!p)return false;
   p.rescue={fid,until:STATE.round+1};p.reward={type:'rescue',fid};p.dead=[];   // o portal fica aberto só nesta rodada
   const i=PORTALS.findIndex(m=>m.id===p.id);if(i>=0){scene.remove(PORTALS[i].group);PORTALS.splice(i,1)}

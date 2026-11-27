@@ -83,11 +83,14 @@ function poiGarrisonSync(p){   // POI de guerra fora da guerra fica sem bandidos
   if(!POI_READY)return;
   if(!p.show){const want=poiLive(p)&&(p.type==='ruins'?!poiX().done[p.id]:p.owner==='bandit'||(typeof warOpArmed==='function'&&typeof p.owner==='number'&&warOpArmed(p)));if(want)poiGarrisonPopulate(p);else poiGarrisonRemove(p)}
   poiCivSync(p);
+  if(typeof poiRewardSync==='function')poiRewardSync(p);   // mundo novo: baú de recompensa (poisite.js)
 }
 function poiPopulateAll(){POI_READY=true;dormBuildAll();for(const p of WORLD.pois||[]){poiGarrisonSync(p);poiHuntChest(p)}}   // chamado por populateWild (poi.js) e depois de carregar um salvamento (poiApply)
 function poiGarrisonCleared(c){
   const p=c.poi;c.state='cleared';if(!p)return;if(c._ally){c._ally=false;armyConquered(WORLD.home)}   // os soldados voltam para casa
   if(p.type==='ruins'){poiX().done[p.id]=true;poiGarrisonRemove(p);sfx('win',0);toast('🏛 Guardiões das ruínas derrotados: o baú foi destrancado. Eles voltam na próxima rodada.',4500);return}
+  if(mapMundoOn()&&p.owner==='bandit'){   // mundo novo: limpar o POI o torna seu na hora (se é o principal, o tile vai junto: poiTileSync); o baú de recompensa abre
+    poiGarrisonRemove(p);poiX().conq[p.id]=STATE.round;poiSetOwner(p,'player');sfx('win',0);if(G.creative)toast('🏴 '+POI_DEFS[p.type].n+' limpo!',3500);return}   // jogo normal: sem aviso (só o modo criativo)
   if(typeof p.owner==='number'&&typeof warOpArmed==='function'&&warOpArmed(p)){   // POI de facção tomado por operação de ataque: vira seu na hora (a dependente fica ativa)
     poiGarrisonRemove(p);poiX().conq[p.id]=STATE.round;poiSetOwner(p,'player');sfx('win',0);toast(txtWarAutoAnnex(POI_DEFS[p.type].n),4500);return}
   if(p.owner!=='bandit')return;
@@ -98,7 +101,7 @@ function poiGarrisonCleared(c){
 
 // ---------- santuário: paz e rebelião adiada (rounds.js, facsupply.js, rebellion.js) ----------
 // vale para o dono do Santuário (você ou uma facção); com bandidos ou livre, nada. Um sorteio só, não importa quantos santuários o dono tenha.
-const poiHasSanc=o=>(WORLD.pois||[]).some(p=>!p.show&&p.type==='sanctuary'&&p.owner===o);
+const poiHasSanc=o=>!mapMundoOn()&&(WORLD.pois||[]).some(p=>!p.show&&p.type==='sanctuary'&&p.owner===o);
 const poiSancPeace=o=>poiHasSanc(o)&&Math.random()<POIX.sanc.peace;   // cidade sem suprimento: o humor não fica em Descontente
 const poiSancDelay=o=>poiHasSanc(o)&&Math.random()<POIX.sanc.delay;   // cidade que ia se rebelar: adia 1 rodada (a contagem de rodadas sem suprimento não muda)
 
@@ -117,7 +120,7 @@ function poiHuntLoot(p){
 // ---------- cartão "Terras livres" (anexar, doar, vender ou deixar) ----------
 const poiById=id=>(WORLD.pois||[]).find(p=>p.id===id);
 function poiDueList(){
-  const out=[],X=poiX();if(X.decided===STATE.round)return out;
+  const out=[],X=poiX();if(X.decided===STATE.round||mapMundoOn())return out;   // mundo novo: limpar o POI já o torna seu (sem cartão de terras livres)
   for(const p of WORLD.pois||[])if(!p.show&&!POI_DEFS[p.type].war&&p.owner==='free'&&(X.clr[p.id]===undefined||X.clr[p.id]<STATE.round))out.push({pid:'poianexar',city:-1,round:STATE.round,data:{poi:p.id}});
   return out;
 }
@@ -185,6 +188,7 @@ function poiNearestFac(p){   // facção (qualquer uma, até em guerra com você
   return bf;
 }
 function poiFreeRetake(){
+  if(mapMundoOn())return;
   const X=poiX();
   for(const p of WORLD.pois||[]){
     if(p.show||POI_DEFS[p.type].war||p.owner!=='free'||X.clr[p.id]===undefined||X.clr[p.id]>=STATE.round)continue;
@@ -211,7 +215,7 @@ Hooks.on('round',()=>{
     const res=mapMundoOn()?null:{farm:'food',mine:'ore',sawmill:'wood',hunters:'leather'}[p.type];   // mundo novo: POI não rende (a renda é do tipo de tile, tileeconomy.js)
     if(res&&home){const g=prodAdd(home,res,POIX.prod.base+POIX.prod.perLvl*poiLvl('player'));if(g>0)gain[res]=(gain[res]||0)+g}
     if(p.type==='bridge'&&!mapMundoOn()){const t=POIX.toll*poiLvl('player');goldIn(t);rdNow('🌉 Pedágio da ponte: +◉'+t+' no cofre.')}
-    if(Math.random()<poiRetakeChance(p)){poiSetOwner(p,'bandit');poiGarrisonSync(p);rdNow('🏴 Bandidos retomaram '+POI_DEFS[p.type].n+', longe demais das suas cidades.')}
+    if(!mapMundoOn()&&Math.random()<poiRetakeChance(p)){poiSetOwner(p,'bandit');poiGarrisonSync(p);rdNow('🏴 Bandidos retomaram '+POI_DEFS[p.type].n+', longe demais das suas cidades.')}
   }
   for(const r in gain)rdNow('⛏ POIs: +'+gain[r]+' de '+resName(r).toLowerCase()+' na reserva do armazém.');
 });
@@ -226,6 +230,7 @@ function poiOnRoute(p,A,B){
   return Math.hypot(p.cx-(A.cx+dx*t),p.cz-(A.cz+dz*t))<=POIX.post.reach;
 }
 function poiRouteBlocked(r){   // a rota {a,b} (ids de cidades) passa por um entreposto do lado inimigo, com guerra declarada?
+  if(mapMundoOn())return false;
   const A=WORLD.cities[r.a],B=WORLD.cities[r.b];if(!A||!B)return false;
   const mine=A.owner==='player'||B.owner==='player',others=[A,B].filter(c=>c.owner!=='player'&&c.fid).map(c=>c.fid);
   for(const p of poiPosts()){
@@ -251,6 +256,7 @@ Hooks.on('round',()=>{
 });
 // aba Efeitos do livro (meetfx.js): o que os entrepostos dão e tiram agora
 function poiPostEffects(good,bad){
+  if(mapMundoOn())return;
   const inc=poiPostIncome(),tot=inc.reduce((s,i)=>s+i.gold,0),n=inc.reduce((s,i)=>s+i.n,0);
   if(tot)good.push('🏪 Entreposto comercial: +◉'+tot+' por rodada no cofre ('+n+' caravana'+(n>1?'s':'')+' sua'+(n>1?'s':'')+' passa'+(n>1?'m':'')+' por ele)');
   const war=(WORLD.factions||[]).filter(f=>!f.player&&relOf(f.id).war);
@@ -261,7 +267,7 @@ function poiPostEffects(good,bad){
 // ---------- fortes: +1 soldado (temporário) por forte em cada batalha ----------
 const _armyAssault=armyAssault;
 armyAssault=function(c,msg,only){
-  const n=Math.min(POIX.fortMax,poiCount('fort'));
+  const n=mapMundoOn()?0:Math.min(POIX.fortMax,poiCount('fort'));   // mundo novo: POI sem efeito global
   if(n&&!only&&c._fortRound!==STATE.round){
     c._fortRound=STATE.round;const hm=WORLD.home,bk=hm.barracks||{x:hm.cx,z:hm.cz};
     for(let i=0;i<n;i++){const a=spawnAlly(bk.x+(Math.random()-0.5)*1.5,bk.z+(Math.random()-0.5)*1.5,hm);a.temp=true;a.poiFort=true}
@@ -423,19 +429,25 @@ function postPriceTag(c,kind){
   return whyTag(priceMulOf(ex),'','data-why="price" data-post="1" data-c="'+c.id+'" data-k="'+kind+'"',false);
 }
 function svcPost(p){
-  const c=poiPriceCity(p);G.postTab='food';G.postSel=null;
+  const c=poiPriceCity(p);G.postTab='food';G.postSel=null;G.postMode=mapMundoOn()?'menu':'buy';   // mundo novo: antes de tudo, Comprar ou Vender (regra dos comerciantes)
   svcOpen('🏪 ENTREPOSTO',(txt,body)=>{
-    const tab=G.postTab,debt=Ledger.anyDebt();
+    const tab=G.postTab,debt=Ledger.anyDebt(),mode=G.postMode,back=()=>{G.postMode='menu';G.innSel=null;svcRender()};
+    if(mode==='menu'){
+      svcShopHeader(txt,innCash(p));body.insertAdjacentHTML('beforeend','<p>'+txtPostIntro(Math.round(POIX.post.markup*100),P.coins)+'</p>');
+      body.appendChild(UI.button('🛍 Comprar','gold',()=>{G.postMode='buy';svcRender()}));
+      body.appendChild(UI.button('🎒 Vender itens','gold',()=>{G.postMode='sell';G.innSel=null;svcRender()}));return;
+    }
+    if(mode==='sell'){svcShopHeader(txt,innCash(p));innSellTab(p,c,body);svcShopBack(body,back);return}   // o entreposto só paga até o ouro que tem na rodada
     txt.innerHTML=txtPostIntro(Math.round(POIX.post.markup*100),P.coins);
     const bar=document.createElement('div');bar.style.marginBottom='6px';   // abas como as do armeiro
-    for(const [k,label] of POST_TABS)bar.appendChild(UI.button(label,tab===k?'gold':'alt',()=>{G.postTab=k;G.postSel=null;svcRender()}));
+    for(const [k,label] of POST_TABS.filter(t=>!mapMundoOn()||t[0]!=='sell'))bar.appendChild(UI.button(label,tab===k?'gold':'alt',()=>{G.postTab=k;G.postSel=null;svcRender()}));
     body.appendChild(bar);
     const row=(btn,tag)=>{body.appendChild(btn);if(tag)body.insertAdjacentHTML('beforeend',tagLine(tag))};
     const item=(d,kind)=>{   // um item da bolsa por clique
       const left=d.supply&&d.shop==='store'?postStockLeft(p,d.id):null;   // só materiais têm estoque
       const pr=postPrice(d.price,c,kind),b=UI.button(d.icon+' '+d.name+' ◉'+pr+(left!==null?txtPostStock(left):''),'gold',()=>{
         if(invRoomFor(d.id)<1)toast('Bolsa cheia! Descarte algo antes de comprar.',2000);
-        else if(Ledger.spend({gold:pr})){invGive([[d.id,1]]);if(left!==null)poiX().postStock[p.id].s[d.id]--;sfx('coin',0)}
+        else if(Ledger.spend({gold:pr})){invGive([[d.id,1]]);if(left!==null)poiX().postStock[p.id].s[d.id]--;if(mapMundoOn())innCashAdd(p,pr);sfx('coin',0)}
         svcRender();
       });
       b.disabled=debt||P.coins<pr||(left!==null&&left<=0);b.title=d.desc;row(b,postPriceTag(c,kind));
@@ -454,6 +466,7 @@ function svcPost(p){
       b.disabled=full||(!pistolDebtOk(i,pk)&&(debt||P.coins<pk));row(b,postPriceTag(c,'ammo'));
     });
     else postSellTab(p,c,body);
+    if(mapMundoOn())svcShopBack(body,back);
   });
 }
 // aba Venda: o entreposto compra o que está na bolsa pelo mesmo valor das lojas da cidade de referência (relação, facção, reunião)
@@ -557,20 +570,49 @@ function innSellTab(p,c,body){
   right.appendChild(UI.button('Vender 1','gold',()=>sell(1)));
   if(n>1)right.appendChild(UI.button('Vender tudo ('+n+')','alt',()=>sell(n)));
 }
-// taverneiro: comida e quarto
+// taverneiro: comida, remédios e quarto (mundo novo: menu Comprar / Vender itens antes de tudo, o taverneiro só paga até o ouro que tem na rodada)
 function svcTavern(p){
   const c=poiPriceCity(p);
+  if(!mapMundoOn())return svcTavernOld(p,c);
+  const price=(base,kind)=>Math.max(1,Math.round(base*priceMulOf(priceExplain({city:c,kind})))),tag=kind=>whyTag(priceMulOf(priceExplain({city:c,kind})),'','data-why="price" data-c="'+c.id+'" data-k="'+kind+'"',false);
+  G.tavMode='menu';G.tavTab='food';G.innSel=null;
   svcOpen('🍺 TAVERNEIRO',(txt,body)=>{
-    const X=poiX(),r=X.room,has=r&&r.poi===p.id&&r.round===STATE.round,cost=poiRoomCost(p);
+    const mode=G.tavMode,gold=innCash(p),back=()=>{G.tavMode='menu';G.innSel=null;svcRender()};
+    if(mode==='menu'){
+      svcShopHeader(txt,gold);body.insertAdjacentHTML('beforeend','<p>— Sente-se! Comida quente, remédio ou uma cama?</p>');
+      body.appendChild(UI.button('🛍 Comprar','gold',()=>{G.tavMode='buy';svcRender()}));
+      body.appendChild(UI.button('🎒 Vender itens','gold',()=>{G.tavMode='sell';G.innSel=null;svcRender()}));
+      poiRoomButton(p,c,body);return;
+    }
+    if(mode==='sell'){svcShopHeader(txt,gold);innSellTab(p,c,body);svcShopBack(body,back);return}
+    const debt=Ledger.anyDebt(),cards=[],shop=G.tavTab==='heal'?'clinic':'tavern',kind=G.tavTab==='heal'?'heal':'tavern';
+    for(const d of Object.values(DATA.items).filter(d=>d.shop===shop&&!d.rod)){
+      const pr=price(d.price,kind);
+      cards.push({icon:itemIconHtml(d),name:d.name,desc:d.desc,tag:tag(kind),label:'Comprar ◉'+pr,disabled:debt||P.coins<pr,onBuy:()=>{
+        if(invRoomFor(d.id)<1)toast('Bolsa cheia! Descarte algo antes de comprar.',2000);
+        else if(Ledger.spend({gold:pr})){invGive([[d.id,1]]);innCashAdd(p,pr);sfx('coin',0)}
+        svcRender()}});
+    }
+    svcShopView(txt,body,{gold,tabs:TAVERN_TABS,tab:G.tavTab,onTab:k=>{G.tavTab=k;svcRender()},cards,onBack:back});
+  });
+}
+// botão do quarto da taverna (a cama faz a noite virar manhã; o preço é o da cura completa + POIX.roomMul)
+function poiRoomButton(p,c,body){
+  const X=poiX(),r=X.room,has=r&&r.poi===p.id&&r.round===STATE.round,cost=poiRoomCost(p);
+  body.insertAdjacentHTML('beforeend',tagLine(priceTag(c,'healhp','Quarto')));
+  const b=UI.button(has?'🛏 Quarto reservado (porta aberta, andar de cima)':'🛏 Alugar quarto ◉'+cost,'gold',()=>{
+    if(!Ledger.spend({gold:cost})){toast('Ouro insuficiente para o quarto (◉'+cost+').',2500);return}
+    if(mapMundoOn())innCashAdd(p,cost);
+    X.room={poi:p.id,round:STATE.round};sfx('coin',0);toast('🛏 Quarto reservado (−◉'+cost+'). É o da porta aberta, no andar de cima.',4500);svcRender();
+  });
+  b.disabled=has;body.appendChild(b);
+  if(!has)body.insertAdjacentHTML('beforeend','<p class="st">No quarto, a cama faz a noite virar manhã (ou o dia virar noite) e recupera a vida.</p>');
+}
+function svcTavernOld(p,c){
+  svcOpen('🍺 TAVERNEIRO',(txt,body)=>{
     txt.innerHTML='— Sente-se! Comida quente ou uma cama? (o quarto custa a cura completa + 10%) Moedas: <b>◉ '+P.coins+'</b>';
     body.appendChild(UI.button('🍲 Comprar comida','gold',()=>openStore(c,'tavern')));
-    body.insertAdjacentHTML('beforeend',tagLine(priceTag(c,'healhp','Quarto')));
-    const b=UI.button(has?'🛏 Quarto reservado (porta aberta, andar de cima)':'🛏 Alugar quarto ◉'+cost,'gold',()=>{
-      if(!Ledger.spend({gold:cost})){toast('Ouro insuficiente para o quarto (◉'+cost+').',2500);return}
-      X.room={poi:p.id,round:STATE.round};sfx('coin',0);toast('🛏 Quarto reservado (−◉'+cost+'). É o da porta aberta, no andar de cima.',4500);svcRender();
-    });
-    b.disabled=has;body.appendChild(b);
-    if(!has)body.insertAdjacentHTML('beforeend','<p class="st">No quarto, a cama faz a noite virar manhã (ou o dia virar noite) e recupera a vida.</p>');
+    poiRoomButton(p,c,body);
   });
 }
 
@@ -581,6 +623,7 @@ function poiScan(lines){
     const atVigil=(p.vigilPos&&Math.hypot(P.x-p.vigilPos.x,P.z-p.vigilPos.z)<2.6&&Math.abs(P.y-p.y)<2.6)
       ||(p.binoc&&Math.hypot(P.x-p.binoc.x,P.z-p.binoc.z)<1.8&&Math.abs(P.y-p.binoc.y)<3);   // base da torre ou binóculo no tripé
     if(own&&atVigil){G.target={type:'poivigil',p};lines.push(TXT_VIGIL_HINT)}
+    if(p.altar&&Math.hypot(P.x-p.altar.x,P.z-p.altar.z)<2.6&&Math.abs(P.y-p.y)<2.6){G.target={type:'poialtar',p};lines.push('[E] '+TXT_SANC_ALTAR)}   // dízimo do santuário (poisite.js)
     if(svc&&p.tavern&&Math.hypot(P.x-p.tavern.x,P.z-p.tavern.z)<3.2&&Math.abs(P.y-p.y)<2.6){G.target={type:'poibar',p};lines.push('[E] Taverneiro: comida e quarto')}
     if(own&&p.stove&&Math.hypot(P.x-p.stove.x,P.z-p.stove.z)<3.0&&Math.abs(P.y-p.y)<2.6){G.target={type:'stove',p};lines.push('[E] Fogão: cozinhar')}   // igual ao da taverna da cidade (game.js: openCooking), só na taverna sua
     if(svc&&p.bed&&Math.hypot(P.x-p.bed.x,P.z-p.bed.z)<2.4&&Math.abs(P.y-p.bed.y)<2.6){G.target={type:'poibed',p};const r=poiX().room;lines.push(r&&r.poi===p.id&&r.round===STATE.round?'[E] Dormir (noite vira manhã; dia vira noite)':txtBedLocked(p.type))}
@@ -596,6 +639,7 @@ function poiScan(lines){
 function poiAct(t){
   const p=t.p,X=poiX();
   if(t.type==='poibar')return svcTavern(p);
+  if(t.type==='poialtar')return svcSanctuary(p);
   if(t.type==='poisvc')return t.s.kind==='smith'?svcSmith(p):t.s.kind==='merc'?svcMerc(p):t.s.kind==='inn'?svcInn(p):svcPost(p);
   if(t.type==='poivigil')return poiVigil(p);
   if(t.type==='poibed'){
@@ -614,6 +658,7 @@ function poiMarkCheck(){
 
 // ---------- "Fazer vigia" (única ação da torre): avança horas e marca o ponto mais perto no raio ----------
 function poiVigil(p){
+  if(mapMundoOn())return poiTowerUse();   // mundo novo: torre nova (poisite.js)
   const X=poiX(),rg=POIX.binoc.range;
   if(STATE.phase!=='commander')return toast(TXT_VIGIL_WRONG_PHASE,2500);
   if(X.vigil[p.id]===STATE.round)return toast(TXT_VIGIL_USED,2500);

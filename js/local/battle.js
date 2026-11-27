@@ -529,7 +529,7 @@ function battleStartAtaque(opts) {
 function battleAnnex(T) {
   T.captured = true; T.owner = 'player'; T.flag.material = mat(facColor(0) || 0x2a4a9a);
   if (T.gen.ring) { scene.remove(T.gen.ring); scene.remove(T.gen.leashRing); T.gen.ring = T.gen.leashRing = null; }
-  for (const p of T.pois) if (typeof poiSetOwner === 'function') poiSetOwner(p, 'player');
+  for (const p of mapMundoOn() ? (T.poi ? [T.poi] : []) : T.pois) if (typeof poiSetOwner === 'function') poiSetOwner(p, 'player');   // mundo novo: cada POI tem o seu dono, só o principal passa (e leva o tile)
 }
 
 // Ataque, a cada quadro: o POI é conquistado quando morre o último soldado da guarnição (os de reforço não contam). Se ainda há reserva ou reforços vivos, avisa

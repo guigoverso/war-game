@@ -100,6 +100,7 @@ Object.assign(LEGO_PIECES, {
       for (const v of [3.2, 6.2]) for (const u of [-0.06, W - 0.02]) pBc(c, u, 1.6, v - 0.6, u + 0.08, 3.6, v + 0.6, rng.pick([0x6aa0e0, 0xe07a6a, 0xe0c04a]), false, { j: 0 });   // vitrais
       poiBrazier(c, uc - 2.2, D + 0.7); poiBrazier(c, uc + 2.2, D + 0.7);
     });
+    legoAnchor(A, 'altar', legoSpot(L, uc, 3.4));   // onde o jogador deixa o dízimo (poigame.js, svcSanctuary)
     legoHouse(r, L, face, A);
   },
   // Torre do sino: base cheia, quatro pilares, sino, telhado em pirâmide e cruz.
@@ -221,8 +222,8 @@ Object.assign(LEGO_PIECES, {
       poiWall(c, cu - b, cv + b - 1, cu - 0.9, cv + b, 9, ST); poiWall(c, cu + 0.9, cv + b - 1, cu + b, cv + b, 9, ST); pBc(c, cu - 0.9, 2.8, cv + b - 1, cu + 0.9, 9, cv + b, ST, true, { j: 0.04 });   // porta na frente
       for (const y of [3.4, 6.4]) pBc(c, cu - b - 0.1, y, cv - b - 0.1, cu + b + 0.1, y + 0.25, cv + b + 0.1, 0x6a6a72, false, { j: 0.02 });
       for (const y of [4.6, 7.4]) { pBc(c, cu - 0.4, y, cv - b - 0.06, cu + 0.4, y + 1.0, cv - b + 0.02, 0x1a1a1a, false, { j: 0 }); pBc(c, cu + b - 0.02, y, cv - 0.4, cu + b + 0.06, y + 1.0, cv + 0.4, 0x1a1a1a, false, { j: 0 }) }   // seteiras
-      const sl = 2 * b / 8;   // escada pelo lado esquerdo: degraus de 1 bloco, do chão (frente) até a altura 8 junto ao fundo
-      for (let i = 0; i < 8; i++) { const v1 = cv + b - i * sl, v0 = v1 - sl;
+      const sl = 2 * b / 9;   // escada pelo lado esquerdo: 9 degraus de 1 bloco, do chão (frente) até a altura 9 junto ao fundo (a plataforma sobe até 9,5: o último degrau tem meio bloco, não dois)
+      for (let i = 0; i < 9; i++) { const v1 = cv + b - i * sl, v0 = v1 - sl;
         pBc(c, cu - b - 1.4, 0, v0, cu - b, i + 1, v1, i % 2 ? 0x8a8a92 : 0x7a7a82, true, { j: 0.03 }); pBc(c, cu - b - 1.45, i + 1, v0, cu - b - 1.35, i + 2.1, v1, 0x4a3320, false, { j: 0 }) }
       pBc(c, cu - b, 9, cv - b - 0.4, cu + b + 0.4, 9.5, cv + b + 0.4, 0x6b4a2a, true, { j: 0.03 });   // plataforma (sem beiral do lado da escada)
       for (let k = cu - b; k < cu + b + 0.4; k += 1.2) { pBc(c, k, 9.5, cv - b - 0.4, k + 0.7, 10.8, cv - b - 0.2, 0x7a5632, true, { j: 0.04 }); pBc(c, k, 9.5, cv + b + 0.2, k + 0.7, 10.8, cv + b + 0.4, 0x7a5632, true, { j: 0.04 }) }
@@ -245,14 +246,14 @@ Object.assign(LEGO_PIECES, {
   // ---- pousada, alojamento e entreposto ----
   // Pousada: casa de um andar com balcão, duas camas e criado-mudo com vela. Âncoras: bed e svcSpec (pousadeiro). Âncora (A.house).
   posada(c, rng, R, face, A) {
-    const { r, L } = legoFit(R, face, 12, 8);
+    const { r, L } = legoFit(R, face, 12, 8), W = L.W, du = W - 12;   // vaga menor que 12: a casa encolhe e as camas e a mesinha andam junto com o fundo (antes ficavam para fora da parede)
     poiHouse(c, r.x, r.z, r.w, r.d, face, { h: 4, wall: 0xd8b888, roof: 0x8a3a2a, chimney: true, timber: true, shut: 0x4a3a2a }, rng);
     legoDraw(L, () => {
       pBc(c, 0.8, 0, 2.6, 4.4, 1.05, 3.3, 0x7a5632, true, { j: 0.03 }); pBc(c, 0.7, 1.05, 2.5, 4.5, 1.15, 3.4, 0x9a6a3a, false, { j: 0.02 });   // balcão
-      for (const [bx, sw] of [[6.6, 0xc03a3a], [8.6, 0x3a6ac0]]) { pBc(c, bx, 0, 1.1, bx + 1.5, 0.5, 3.5, 0x6b4a2a, true, { j: 0.02 }); pBc(c, bx + 0.1, 0.5, 1.2, bx + 1.4, 0.75, 2.8, sw, false, { j: 0.02 }); pBc(c, bx + 0.1, 0.5, 2.8, bx + 1.4, 0.7, 3.4, 0xf0ece0, false, { j: 0 }) }
-      pBc(c, 5.6, 0, 1.0, 6.2, 0.7, 1.6, 0x7a4a22, true, { j: 0.02 }); pBc(c, 5.8, 0.7, 1.1, 6.0, 0.95, 1.5, 0xfff0b0, false, { j: 0 });
+      for (const [bx, sw] of [[6.6 + du, 0xc03a3a], [8.6 + du, 0x3a6ac0]]) { pBc(c, bx, 0, 1.1, bx + 1.5, 0.5, 3.5, 0x6b4a2a, true, { j: 0.02 }); pBc(c, bx + 0.1, 0.5, 1.2, bx + 1.4, 0.75, 2.8, sw, false, { j: 0.02 }); pBc(c, bx + 0.1, 0.5, 2.8, bx + 1.4, 0.7, 3.4, 0xf0ece0, false, { j: 0 }) }
+      pBc(c, 5.6 + du, 0, 1.0, 6.2 + du, 0.7, 1.6, 0x7a4a22, true, { j: 0.02 }); pBc(c, 5.8 + du, 0.7, 1.1, 6.0 + du, 0.95, 1.5, 0xfff0b0, false, { j: 0 });
     });
-    legoAnchor(A, 'bed', legoSpot(L, 7.35, 2.4, { y: 0.1 }));
+    legoAnchor(A, 'bed', legoSpot(L, 7.35 + du, 2.4, { y: 0.1 }));
     legoAnchor(A, 'svcSpec', legoSpot(L, 4.8, 2.7, { kind: 'inn', role: 'merchant', label: txtLegoSvc.inn, yaw: legoYaw(L, 0), r: 3.2 })); legoHouse(r, L, face, A);
   },
   // Enfeite de fora da pousada por tema do tile (feira, minério ou toras; poiRestTheme).

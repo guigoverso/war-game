@@ -79,3 +79,7 @@ const TXT_WT_DEATH = {
   campoSozinho: 'Quando a escuridão se desfez, não havia rosto conhecido por perto, ninguém para carregá-lo de volta. Foi se arrastando que ele voltou. Quem o derrubou já havia passado pelo seu corpo, levando o que achou de valioso.',
   sozinho: 'Foi sozinho contra a posição, e o fim era previsível. O batalhão desapareceu junto com o seu comandante, e seu corpo ficou ali jogado, sem honra, sem enterro, esquecido pelo tempo.'
 };
+
+// Popup do encerramento AUTOMÁTICO do turno (as ações acabaram; ui/mundoturno.js, wm3AutoEndAsk). Aprovado em 2026-11-27.
+const TXT_WT_AUTOEND = 'O último dia do mês morre no horizonte. O comandante guarda o mapa e fica de prontidão para as novas ordens do Líder.';
+const TXT_WT_AUTOEND_OK = 'Continuar';

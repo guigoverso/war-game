@@ -5,7 +5,7 @@
 // (battalion.js) e o tile é a chave 'w'+id do ponto. Fluxo: turno do Líder (wtCreate/wtDonate) -> wtCommanderBegin -> o jogador age (wtMove) e, a cada ação gasta,
 // os NPCs dão UM passo (wtStepNpcs) -> encontro no mesmo tile = batalha (wtEnc) -> wtBattleEnd/wtAutoBattle -> wtEnd (sobra de ações vira passos, cerco cai, resumo).
 // Números em WT (worldturn-modifiers.js); textos em worldturn-texts.js. Determinístico: o sorteio usa G.seed e o contador STATE.wt.rs.
-const wtFresh = () => ({ rs: 0, seq: 0, pool: 0, left: 0, act: 0, turn: 'leader', actors: [], log: [], enc: null, idle: 0, init: false, inTile: null, owed: 0, mv: 0, born: 0, local: null, spawn: false, entry: -1 });
+const wtFresh = () => ({ rs: 0, seq: 0, pool: 0, left: 0, act: 0, turn: 'leader', actors: [], log: [], enc: null, idle: 0, init: false, inTile: null, owed: 0, mv: 0, born: 0, local: null, spawn: false, entry: -1, tow: null, dung: [] });
 const wtX = () => STATE.wt || (STATE.wt = wtFresh());
 const wtKey = id => 'w' + id, wtNode = key => +String(key).slice(1);
 const wtLvl = () => (STATE.rd && STATE.rd.lvl) || 1;
@@ -25,6 +25,8 @@ function wtApply(s) {
     w.log = Array.isArray(s.log) ? s.log.filter(t => typeof t === 'string') : [];
     w.enc = s.enc && typeof s.enc === 'object' ? s.enc : null; w.inTile = typeof s.inTile === 'number' ? s.inTile : null;
     w.local = typeof s.local === 'number' ? s.local : null; w.spawn = !!s.spawn; w.entry = typeof s.entry === 'number' ? s.entry : -1;
+    w.tow = s.tow && typeof s.tow === 'object' ? { r: +s.tow.r || 0, n: +s.tow.n || 0 } : null;   // torre de vigia: usos da rodada (macro/toll.js)
+    w.dung = Array.isArray(s.dung) ? s.dung.filter(d => d && typeof d.tile === 'number').map(d => ({ tile: d.tile, r: +d.r || 0 })) : [];   // dungeons achadas (só valem na rodada em que r = STATE.round)
   }
   STATE.wt = w;
 }
@@ -151,10 +153,16 @@ function wtNpcStep(G) {
     }
     let next = -1;
     const seen = wtSee(G, a.tile, mine);   // batalhão do jogador à vista: primeiro salto do caminho até ele
+    if (wtTollTile(G, a.tile) && wtOwnerOf(G, a.tile) === 'bandit') continue;   // bando que segura a passagem fica estacionado lá (não persegue)
+    if (seen === null && wtBanditTake(G, a, rg)) continue;   // num tile de pedágio que não é deles: ficam 2 a 3 ações e o tomam (macro/toll.js)
     if (seen !== null) next = seen;
-    else if (rg.chance(WT.roam)) {
-      const opt = wgLandAdj(G, a.tile).map(x => x.to).filter(t => { const m = G.nodes[t]; return !m.mar && m.tema !== 'cidade' && m.tema !== 'vila' });
-      if (opt.length) next = rg.pick(opt);
+    else {
+      const tg = wtBanditTarget(G, a.tile, rg);   // tile de pedágio vizinho que ainda não é deles
+      if (tg >= 0) next = tg;
+      else if (rg.chance(WT.roam)) {
+        const opt = wgLandAdj(G, a.tile).map(x => x.to).filter(t => { const m = G.nodes[t]; return !m.mar && m.tema !== 'cidade' && m.tema !== 'vila' });
+        if (opt.length) next = rg.pick(opt);
+      }
     }
     if (next < 0) continue;
     wtMoveLog.push({ id: a.id, from: a.tile, to: next, e: wgEdgeOf(G, a.tile, next).id }); a.tile = next;
@@ -218,30 +226,34 @@ function wtLeave(G) {
   w.owed = 0; return { steps };
 }
 // UMA AÇÃO do batalhão ativo: anda até `to` (por terra) até onde o movimento da ação alcança (custo do terreno de cada tile; WT.movePerAction), parando antes se
-// encontrar inimigo. A ação inteira do jogador acontece primeiro; só depois os NPCs dão UM passo cada (e o cerco conta 1). Quem não chegou fica parado onde parou:
+// encontrar inimigo ou um pedágio (tile de ponte/fortaleza que cobra ao atravessar, macro/toll.js: sem opts.pay/opts.auto o batalhão para ali e o resultado traz `toll`). A ação inteira do jogador acontece primeiro; só depois os NPCs dão UM passo cada (e o cerco conta 1). Quem não chegou fica parado onde parou:
 // o próximo trecho é outra ação, com novo clique. Devolve {ok, nodes, steps:[{from, node, edge, npc}], gasto, enc, left, parcial}; os passos dos NPCs vêm no último
-// item de steps (npc). Ou {ok:false, why}.
-function wtMove(G, to) {
+// item de steps (npc). Ou {ok:false, why}. opts = {pay: {tile, to} (paga esse pedágio), auto (paga todos), rel, facName (para o preço e o nome do dono)}; toll = pedágio pendente.
+function wtMove(G, to, opts) {
+  opts = opts || {};
   const w = wtX(), b = wtActive();
   if (w.turn !== 'commander' || w.inTile !== null || (w.enc && b && wtNode(b.tile) === w.enc.tile)) return { ok: false, why: 'turno' };   // no encontro, só se move quem não está nele
   if (!b || b.dono !== 'player') return { ok: false, why: 'sem-batalhao' };
   const p = wtPath(G, wtNode(b.tile), to); if (!p || !p.ids.length) return { ok: false, why: 'sem-caminho' };
-  if (w.left <= 0) return { ok: false, why: 'sem-acao', acoes: wtPlan(G, p) };
-  const n = wtReach(G, p.ids, 0), nodes = [], steps = []; let gasto = 0;
-  w.left--;
+  const free = !!opts.pay;   // pagar o pedágio não é uma ação: o trecho que continua depois do pagamento não gasta ação nem faz os NPCs andarem
+  if (w.left <= 0 && !free) return { ok: false, why: 'sem-acao', acoes: wtPlan(G, p) };
+  const n = wtReach(G, p.ids, 0), nodes = [], steps = []; let gasto = 0, toll = null;
+  if (!free) w.left--;
   for (let q = 0; q < n; q++) {
     const node = p.nodes[q + 1], key = wtKey(node), st = { from: p.nodes[q], node, edge: p.ids[q], npc: [] };
     if (w.enc && node !== w.enc.tile && wtHostileAt(node)) break;   // com um encontro pendente, outro batalhão só entra no tile do próprio encontro (junta-se à luta); outro tile hostil espera
+    const tl = wtTollCheck(G, b, p.nodes[q], node, opts.rel, opts.facName);   // pedágio: só ao atravessar para o lado oposto ao de onde veio
+    if (tl) { if (opts.auto || (opts.pay && opts.pay.tile === tl.tile && opts.pay.to === tl.to)) st.pay = wtTollCharge(G, tl.tile, 'player', opts.rel); else { toll = tl; break } }   // st.pay: a interface mostra -◉ na cabeça do boneco ao partir
     b.tile = key; b.de = p.nodes[q]; gasto += wtEdgeCost(G.edges[p.ids[q]]); nodes.push(node); steps.push(st);   // de: de onde chegou (entra pela estrada certa)
     if (!w.enc && siegeArrive(key)) { wtSetEnc(G, null, b, 'player', true); break }
     const hit = wtHostileAt(node); if (hit && !w.enc) { wtSetEnc(G, hit, b, 'player'); break }
   }
-  if (!nodes.length) { w.left++; return { ok: false, why: 'bloqueado' } }
-  if (!w.enc) {
+  if (!nodes.length) { if (!free) w.left++; return toll ? { ok: false, why: 'pedagio', toll } : { ok: false, why: 'bloqueado' } }
+  if (!w.enc && !free) {
     steps[steps.length - 1].npc = wtActionEnd(G);   // depois da ação completa do jogador: um passo de cada NPC
     wtLog(txtWtMoved(wtName(G, nodes[nodes.length - 1])));
   }
-  return { ok: true, nodes, steps, gasto, enc: w.enc, left: w.left, parcial: nodes.length < p.ids.length && !w.enc };
+  return { ok: true, nodes, steps, gasto, enc: w.enc, left: w.left, parcial: nodes.length < p.ids.length && !w.enc, toll };
 }
 
 // ---- batalha ----

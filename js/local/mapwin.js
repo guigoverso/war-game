@@ -33,7 +33,8 @@ function mapWindowPick(seed, dominant) {
 // Jogo no mundo novo (?mundo=1, etapa 8.1): o grafo vem do save (STATE.wg) ou é gerado (wtGraphLoad); o mapa local é o tile STATE.wt.local (partida
 // nova = a cidade inicial do grafo). Janela centrada no ponto do tile, aberturas = arestas de terra do grafo (wgOpenings), tema = o do grafo.
 function mapMundoWindow(F, q) {
-  const G = wtGraphLoad(F), w = wtX(), id = typeof w.local === 'number' && G.nodes[w.local] ? w.local : (G.inicio || G.nodes.find(n => !n.mar)).id;
+  const G = wtGraphLoad(F), w = wtX(), want = w.local === null ? mundoScnTile(G, q) : null;   // ?tile= só vale numa partida nova (cenários, ui/mundoscn.js)
+  const id = typeof w.local === 'number' && G.nodes[w.local] ? w.local : want !== null ? want : (G.inicio || G.nodes.find(n => !n.mar)).id;
   const n = G.nodes[id], size = TILE_SIZE; w.local = id;
   const win = wfWindow(F, n.x, n.z, size, { tile: true, ti: -1, tj: -1, kind: 'natureza', node: id, neighbors: [] });
   win.openings = wgOpenings(G, F, id, size).filter(o => o.terra).map(o => Object.assign(o, { to: o.para }));
@@ -367,7 +368,7 @@ document.addEventListener('click', e => {
 const mundoTileKey = () => (WORLD.win && typeof WORLD.win.node === 'number' ? wtKey(WORLD.win.node) : null);
 function mundoMarksSave() {
   const key = mundoTileKey(); if (!key) return;
-  for (const ch of WORLD.chests || []) if (ch.opened) tileDiffSet(key, 'loot', chestKey(ch), 1);
+  for (const ch of WORLD.chests || []) if (ch.opened && !ch.poiRew) tileDiffSet(key, 'loot', chestKey(ch), 1);   // baú de recompensa de POI: estado em poiX().rew (poisite.js)
   for (const c of WORLD.camps || []) {
     const m = { gone: !!c.gone, goneAt: c.goneAt, completed: !!c.completed, cleared: c.state === 'cleared', cageOpened: !!(c.cage && c.cage.opened) };
     const on = m.gone || m.completed || m.cleared || m.cageOpened;

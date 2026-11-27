@@ -12,13 +12,15 @@ const wtOwnedIds = (G, dono) => G.nodes.filter(n => !n.mar && wtOwnerOf(G, n.id)
 function wtAnnex(G, id, dono) {
   const n = G.nodes[id]; dono = dono || 'player';
   if (!n || n.mar || (n.home && dono !== 'player')) return false;
-  tileOwnerSet(wtKey(id), n.home ? null : dono); return true;
+  tileOwnerSet(wtKey(id), n.home ? null : dono); wtPoiReset(id); return true;
 }
 // Atalho criativo: tira o tile do dono (volta a neutro). A cidade inicial não se desanexa.
 function wtDetach(G, id) {
   const n = G.nodes[id]; if (!n || n.mar || n.home) return false;
-  tileOwnerSet(wtKey(id), null); return true;
+  tileOwnerSet(wtKey(id), null); wtPoiReset(id); return true;
 }
+// O dono do tile mudou por fora do POI principal (atalho criativo): o POI principal volta a nascer do dono do tile, então o estado guardado dos POIs (donos) se descarta.
+function wtPoiReset(id) { const t = tileStatesAll()[wtKey(id)]; if (t) delete t.poi }
 // Quantos tiles vizinhos (aresta do grafo) são do jogador.
 const wtOwnedNear = (G, id) => G.adj[id].filter(x => wtOwnerOf(G, x.to) === 'player').length;
 

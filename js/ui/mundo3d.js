@@ -624,6 +624,7 @@ function wm3Build(F, G) {
       const hh = n.tema === 'cidade' ? 10 : 8.2, pl = wm3Plate(n), lb = wm3Label(tileName(G, n), wm3Owner(n) === null ? null : '#' + wm3Owner(n).toString(16).padStart(6, '0'));
       pl.position.set(p.x, y + 0.16, p.z); lb.position.set(p.x, y + 0.9, p.z + wm3Half(n) + 2.6); lb.visible = WM.names; sc.add(pl, lb); labels.push(lb);
     }
+    if (mapMundoOn() && wtDungeons().includes(n.id)) sc.add(wm3DungeonMark(p.x, y, p.z));   // dungeon achada pela torre nesta rodada (macro/toll.js)
     const rr = n.tema === 'cidade' ? 9 : 6, pk = new THREE.Mesh(new THREE.CylinderGeometry(rr, rr, 10, 12), new THREE.MeshBasicMaterial({ visible: false }));
     pk.position.set(p.x, y + 3, p.z); pk.userData.id = n.id; sc.add(pk); pick.push(pk);
   }
@@ -686,6 +687,11 @@ function wm3ShowPath(p) {
 }
 
 // ---------- seleção e caminhada ----------
+// Marca de dungeon achada pela torre de vigia: um cristal roxo girando acima do tile (só nesta rodada; o portal em si é da etapa 8.9).
+function wm3DungeonMark(x, y, z) {
+  const m = new THREE.Mesh(new THREE.OctahedronGeometry(2.2), new THREE.MeshBasicMaterial({ color: 0xb06aff }));
+  m.position.set(x, y + 15, z); m.scale.y = 1.6; return m;
+}
 function wm3Info(id) {
   if (id < 0) return '';
   const B = WM.built, n = B.G.nodes[id], p = id === WM.at ? null : wm3Path(B.G, WM.at, id), ow = wm3Owner(n);
@@ -702,12 +708,13 @@ function wm3Select(id) {
 }
 // Com o batalhão selecionado, um clique no tile: ele marcha (wtMove gasta as ações e os NPCs andam) e o boneco anda pela trilha até onde chegou.
 // Recusa (sem ações, sem caminho) fica em silêncio: o contador de ações basta.
-function wm3Go(id) {
+function wm3Go(id, pay) {   // pay = {tile, to}: o pedágio que o jogador acabou de aceitar pagar (wm3TollAsk)
   const B = WM.built; if (WM.walk || WM.seq) return;
   const lv = wtX().inTile !== null && !wtX().enc ? wtLeave(B.G) : null;   // dentro do tile: marchar sai dele (grátis; os NPCs dão o que deviam)
   if (lv && wtX().enc) { wm3TurnSeqStart(lv.steps); return }   // um NPC alcançou o batalhão na saída: o encontro vem antes da marcha
-  const r = wtMove(B.G, id); if (!r.ok) { if (!lv || !wm3TurnSeqStart(lv.steps)) wm3TurnSync(); return }
+  const r = wtMove(B.G, id, wm3TollOpts(pay)); if (!r.ok) { if (r.why === 'pedagio') { wm3TurnSync(); wm3TollAsk(r.toll, id) } else if (!lv || !wm3TurnSeqStart(lv.steps)) wm3TurnSync(); return }
   if (lv) r.steps = lv.steps.concat(r.steps);
+  WM.tollPend = r.toll ? { toll: r.toll, dest: id } : null;   // pedágio no meio do caminho: o pedido aparece quando a marcha acaba (wm3TurnAfter)
   wm3TurnHud();   // o contador de movimento desce já ao partir
   wm3ClockSpend(r.gasto);   // relógio único: cada WT.clock.mvPerPart de movimento passa uma parte do dia (ui/mundoturno.js)
   B.path.children.slice().forEach(c => B.path.remove(c)); WM.hud.info.style.display = 'none'; B.selRing.visible = false; B.batRing.visible = false;
@@ -883,7 +890,8 @@ function wm3MenuAct(id) {
 // Abre o livro do jogo (tecla L ou botão); ao fechar o livro o mapa mundi continua aberto (wm3Frame devolve o painel). Só dentro do jogo.
 function wm3Book() { if (!G.running || WM.standalone) return; wm3MenuClose(); openBook('book') }
 // Engrenagem: abre e fecha o painel de opções (por ora só a velocidade das marchas, que fica guardada no navegador).
-function wm3GearToggle(on) { const o = WM.hud.opts; o.style.display = (on === undefined ? o.style.display === 'none' : on) ? 'block' : 'none' }
+function wm3TollBtn() { const b = WM.hud.opts.querySelector('[data-toll]'); b.textContent = txtTollSetting(mundoTollShow()); b.classList.toggle('on', mundoTollShow()) }
+function wm3GearToggle(on) { wm3TollBtn(); const o = WM.hud.opts; o.style.display = (on === undefined ? o.style.display === 'none' : on) ? 'block' : 'none' }
 function wm3SpeedSet(x) {
   WM.speed = x; localStorage.setItem('wm3speed', x);
   WM.hud.opts.querySelectorAll('[data-x]').forEach(b => b.classList.toggle('on', +b.dataset.x === x));
@@ -969,6 +977,7 @@ function wm3Keys(e) {
     e.preventDefault(); e.stopImmediatePropagation(); return;
   }
   if (e.code === 'KeyM' && !e.repeat && wtX().turn === 'leader' && !WM.standalone) { wm3Close(); e.preventDefault(); e.stopImmediatePropagation(); return }   // M no escritório abre e fecha o mapa mundi (modo Líder)
+  if (e.code === 'Tab' && !e.repeat && !WM.standalone) { if (typeof refreshCheats === 'function') refreshCheats(); openPanel('pause'); e.preventDefault(); e.stopImmediatePropagation(); return }   // Tab abre a pausa/configurações
   if (e.code === 'KeyL' && !e.repeat) { wm3Book(); e.preventDefault(); e.stopImmediatePropagation(); return }
   if (e.code === 'KeyF' && !e.repeat) wm3View(WM.follow ? 'geral' : 'heroi');
   if (e.code === 'Home' && !e.repeat) wm3View('geral');
@@ -1045,7 +1054,8 @@ function wm3HudMake() {
     + '<button class="wm3-btn" data-v="livro">' + TXT_WM3_VIEW.livro + '</button><div id="wm3info" class="wm3-panel" style="display:none"></div></div>'
     + '<div class="wm3-tr"><button class="wm3-btn wm3-gear" data-v="engrenagem">' + TXT_WM3_GEAR + '</button><div class="wm3-opts" style="display:none"><div class="wm3-head">'
     + TXT_WM3_OPTIONS.titulo + '</div><div class="wm3-body"><div class="wm3-sub">' + TXT_WM3_OPTIONS.vel + '</div><div class="wm3-btns">'
-    + WT.speeds.map(x => '<button class="wm3-btn' + (x === WM.speed ? ' on' : '') + '" data-x="' + x + '">' + txtWm3Speed(x) + '</button>').join('') + '</div></div></div></div>'
+    + WT.speeds.map(x => '<button class="wm3-btn' + (x === WM.speed ? ' on' : '') + '" data-x="' + x + '">' + txtWm3Speed(x) + '</button>').join('') + '</div>'
+    + '<div class="wm3-btns" style="margin-top:8px"><button class="wm3-btn" data-toll="1"></button></div></div></div></div>'
     + '<div class="wm3-menu"></div>';
   document.body.appendChild(el);
   const nm = el.querySelector('[data-v="nomes"]');
@@ -1056,10 +1066,11 @@ function wm3HudMake() {
   WM.hud = { el, info: el.querySelector('#wm3info'), menu: el.querySelector('.wm3-menu'), book: el.querySelector('[data-v="livro"]'), opts: el.querySelector('.wm3-opts') };
   el.querySelector('[data-v="engrenagem"]').onclick = () => { wm3EntClose(); wm3GearToggle() };
   el.querySelectorAll('.wm3-opts [data-x]').forEach(b => { b.onclick = () => wm3SpeedSet(+b.dataset.x) });
+  const tb = el.querySelector('[data-toll]'); tb.onclick = () => { mundoTollSet(!mundoTollShow()); wm3TollBtn() }; wm3TollBtn();   // religar/desligar o aviso do pedágio (ui/mundoturno.js)
 }
 
 // ---------- abrir e fechar ----------
-const wm3Key = F => F.seed + '/' + F.fmt + '/' + F.dominant;
+const wm3Key = F => F.seed + '/' + F.fmt + '/' + F.dominant + (mapMundoOn() && typeof wtDungeons === 'function' ? '/d' + wtDungeons().join('.') : '');   // as dungeons achadas pela torre (só valem na rodada) refazem o mapa
 function wm3Open(F) {
   if (WM.open) return;
   wm3HudMake();

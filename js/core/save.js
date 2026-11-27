@@ -67,7 +67,8 @@ function migrateSave(d){
                        // (tiles[k].dif.loot/acamp, só com ?mundo=1); ausente = grafo gerado da semente e tile = cidade inicial
   if(d.v<29){if(d.wt&&d.wt.born===undefined)d.wt.born=(d.bat&&d.bat.seq)||0;d.v=29}   // v29 (etapa 8.2): wt.born = batalhões do jogador já criados (o primeiro do jogo é grátis); save antigo com batalhões conta como já criado
   if(d.v<30){d.v=30}   // v30 (etapa 8.4): state.tiles[chave].cidade (ficha econômica e nível da cidade de cada tile) e state.rd.shared.gain (últimos ganhos do armazém); ausentes = padrão. O cofre antigo vira saldo no mundo novo (shOf)
-  // if(d.v<31){ ...ajustes...; d.v=31 }
+  if(d.v<31){d.v=31}   // v31 (etapa 8.5): state.tiles[chave].poi (donos e estado dos POIs de cada tile) e state.wt.tow/dung (usos da torre e dungeons achadas); ausentes = padrão
+  // if(d.v<32){ ...ajustes...; d.v=32 }
   return d;
 }
 
@@ -112,7 +113,8 @@ function applySave(d){
   if(s.frel)STATE.frel=s.frel;if(s.flog)STATE.flog=s.flog;
   if(s.fev)STATE.fev=s.fev;if(s.meet)STATE.meet=s.meet;if(s.gev)STATE.gev=s.gev;   // eventos entre facções NPC e reuniões   // eventos entre facções NPC (facevents.js)
   STATE.deadFacs=s.deadFacs||[];if(s.reb)STATE.reb=s.reb;rebApply();   // facções novas e cidades trocadas (rebellion.js)
-  STATE.pois=s.pois||{};STATE.poiX=Object.assign({clr:{},vigil:{},room:null,done:{},seen:{}},s.poiX||{});poiApply();warApply(s.war);   // POIs permanentes: donos que mudaram (pois.js)
+  const tp=mapMundoOn()?mundoPoiTake():null;STATE.pois=tp?tp.pois:(s.pois||{});STATE.poiX=Object.assign({clr:{},vigil:{},room:null,done:{},seen:{}},tp?tp.x:(s.poiX||{}));poiApply();   // mundo novo: POIs do tile que abre (poisite.js)
+  warApply(s.war);   // POIs permanentes: donos que mudaram (pois.js)
   if(s.rel)STATE.rel=s.rel;   // relações com as facções NPC
   warFrontRestore();   // POIs de guerra da frente (warfront.js): precisam das relações (poiLive) e dos donos salvos
   if(s.fac)STATE.fac=Object.assign(STATE.fac||{},s.fac);   // identidade do jogador (nome, cor, bandeira)

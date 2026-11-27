@@ -20,6 +20,7 @@ function tcOwner(type, main) {
   if (type === 'ruins') return 'none';
   const q = new URLSearchParams(location.search).get('dono');
   if (main && q === 'faccao') return BATTLE_SURR.testFaction;   // ?dono=faccao: principal de facção (testa os arredores de defesa)
+  if (main && q !== 'player' && q !== 'bandit' && mapMundoOn()) { const m = mundoMainOwner(); if (m) return m }   // mundo novo: o principal nasce do dono do tile (poisite.js)
   return main ? (q === 'player' || q === 'bandit' ? q : TILE_OWNER.main) : TILE_OWNER.other;
 }
 // Mapa de distância (blocos) até a estrada mais próxima e lista de pontos de estrada (de 3 em 3), fora da cidade, para sortear lugares "perto da estrada".

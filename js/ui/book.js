@@ -138,8 +138,8 @@ function renderBook(){
   if(!inv&&!mp&&LB.tab==='facs')$('ldL').querySelectorAll('.cvb').forEach(el=>UI.tip(el,()=>routeTip(STATE.rd.routes[+el.dataset.ri])));   // o mouse sobre o 🛒 mostra a caravana
   $('ldtabs').innerHTML=[['inv','🎒','Bolsa'],['book','📖','Livro'],['map','🗺','Mapa']].filter(t=>!(G.office&&t[0]==='inv')&&!(typeof WM!=='undefined'&&WM.open&&t[0]==='map')).map(t=>'<button class="'+((inv?'inv':mp?'map':'book')===t[0]?'sel':'')+'" data-top="'+t[0]+'">'+t[1]+'<br><small>'+t[2]+'</small></button>').join('');
   $('ldL').parentNode.classList.toggle('ldmap',mp);   // no mapa o livro vira uma página só, mais alta
-  const outBtn=mundoCanLeave();   // mundo novo, dentro de um tile: o botão do canto vira "Sair do tile"
-  $('lddone').style.display=(isLeader()||G.office||outBtn)?'':'none';$('lddone').textContent=outBtn?'🚪 '+TXT_WT_LEAVE:'✔ Encerrar turno';
+  const outBtn=mundoCanLeave(),mapEnd=mundoMapEnd();   // mundo novo, dentro de um tile: o botão do canto vira "Sair do tile"; no mapa mundi (turno do Comandante): "Encerrar turno"
+  $('lddone').style.display=(isLeader()||G.office||outBtn||mapEnd)?'':'none';$('lddone').textContent=outBtn?'🚪 '+TXT_WT_LEAVE:'✔ Encerrar turno';
   {const inMeet=!!(G.office&&G.office.meet);const picking=!!WF.pick;$('lddone').disabled=inMeet||picking;$('lddone').title=inMeet?'Termine a reunião antes de encerrar o turno':picking?TXT_WAR_END_BLOCKED:''}   // na sala de reuniões não dá para encerrar o turno
 }
 function bookClick(e){
@@ -148,7 +148,7 @@ function bookClick(e){
   if(t.dataset.top==='map'&&(G.office||isLeader())&&mapMundoOn()){closePanel();wm3Open();return}   // mundo novo, no escritório: Mapa = mapa mundi em modo Líder (etapa 8.2)
   if(t.dataset.top){if(t.dataset.top!=='map')G.cityFocus=null;LB.top=t.dataset.top;G.invSel=null;G.pendSel=null;renderBook();return}
   if(t.dataset.tab){G.cityFocus=null;LB.tab=t.dataset.tab;LB.top='book';renderBook();return}
-  if(t.id==='lddone'){if(mundoCanLeave()){mundoLeaveTile();return}if(G.office&&G.office.meet)return;if(isLeader())finishLeaderTurn();else{closePanel();leaveOffice()}return}
+  if(t.id==='lddone'){if(mundoMapEnd()){closePanel();wm3TurnEnd();return}if(mundoCanLeave()){mundoLeaveTile();return}if(G.office&&G.office.meet)return;if(isLeader())finishLeaderTurn();else{closePanel();leaveOffice()}return}
   if(t.id==='ldclose'){closePanel();return}
   if(LB.top==='inv'||LB.top==='map')return;   // botões da bolsa têm seus próprios tratadores; o mapa só tem o canvas
   const c=WORLD.cities[LB.city];

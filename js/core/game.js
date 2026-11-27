@@ -49,6 +49,7 @@ function sfx(name,dist,x,z){   // x,z (opcionais): onde o som nasce; o som sai m
     case'beep3':tn(1800,0.18,'square',0.38*v,0,D);break;
     case'slam':nzs(0.3,0.8*v,500,D);break;
     case'hurt':tn(160,0.15,'sawtooth',0.3,70);break;
+    case'choir':[[262,0],[330,0.25],[392,0.5],[523,0.75],[659,1.0]].forEach(([f,d])=>setTimeout(()=>{if(!AC)return;tn(f,2.6,'sine',0.07,0);tn(f*1.005,2.6,'triangle',0.035,0);tn(f/2,2.6,'sine',0.04,0)},d*500));break;   // coral de igreja (dízimo do santuário)
     case'win':[523,659,784,1046].forEach((f,i)=>setTimeout(()=>AC&&tn(f,0.25,'square',0.18),i*160));break;
   }
 }
@@ -272,8 +273,9 @@ function refreshCheats(){
   {const ss=$('seedshow');if(ss&&typeof WORLD!=='undefined'&&WORLD.seed!==undefined)ss.textContent=WORLD.seed}
   $('cPolicyNext').textContent='Disparar evento na próxima rodada: '+(POL.forceNext?'SIM':'não');
   $('cSupplied').textContent='Cidades sempre supridas: '+(G.alwaysSupplied?'LIGADO':'desligado');
-  $('cNoWear').textContent='Desgaste das armas: '+(G.noWear?'desligado':'LIGADO');$('ledgerline').textContent='Rodada '+STATE.round+'  •  '+Ledger.summary()+(Ledger.anyDebt()?'  •  ⚠ EM DÍVIDA: compras bloqueadas':'');$('cInvis').textContent='Invisível: '+(G.invis?'LIGADO':'desligado');$('cMute').textContent='Som: '+(G.muted?'desligado':'LIGADO');$('cGod').textContent='Invencível: '+(G.god?'LIGADO':'desligado');$('cAmmo').textContent='Munição infinita: '+(G.infAmmo?'LIGADA':'desligada');$('cMag').textContent='Pente infinito (sem recarregar): '+(G.noReload?'LIGADO':'desligado')}
+  $('cNoWear').textContent='Desgaste das armas: '+(G.noWear?'desligado':'LIGADO');$('ledgerline').textContent='Rodada '+STATE.round+'  •  '+Ledger.summary()+(Ledger.anyDebt()?'  •  ⚠ EM DÍVIDA: compras bloqueadas':'');$('cInvis').textContent='Invisível: '+(G.invis?'LIGADO':'desligado');$('cMute').textContent='Som: '+(G.muted?'desligado':'LIGADO');{const bt=$('cToll');if(bt){bt.classList.toggle('hidden',!mapMundoOn());bt.textContent=txtTollSetting(mundoTollShow())}}$('cGod').textContent='Invencível: '+(G.god?'LIGADO':'desligado');$('cAmmo').textContent='Munição infinita: '+(G.infAmmo?'LIGADA':'desligada');$('cMag').textContent='Pente infinito (sem recarregar): '+(G.noReload?'LIGADO':'desligado')}
 $('cMute').onclick=toggleMute;
+$('cToll').onclick=()=>{mundoTollSet(!mundoTollShow());refreshCheats()};   // opção do aviso do pedágio (mundo novo; ui/mundoturno.js)
 $('seedcopy').onclick=()=>{const s=String(WORLD.seed),done=()=>toast('Semente '+s+' copiada!',1800);
   const fb=()=>{const ta=document.createElement('textarea');ta.value=s;ta.style.cssText='position:fixed;left:-999px';document.body.appendChild(ta);ta.select();try{document.execCommand('copy');done()}catch(e){toast('Não foi possível copiar. A semente é '+s,3000)}ta.remove()};
   if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(s).then(done,fb);else fb()};
@@ -575,6 +577,9 @@ function updateHUD(dt){
   $('obj').innerHTML+=questLine();drawMinimap();
 }
 function cityCol(c){if(RAID.active&&RAID.city===c)return Math.floor(G.t*4)%2?'#ff3030':'#ffffff';return(c.state==='attacking'&&c.owner!=='player'&&Math.floor(G.t*4)%2)?'#ffffff':'#'+((c.rebel?FAC_COLORS[c.rebel.color].c:facColor(c.fid))||0x888888).toString(16).padStart(6,'0')}   // cor da facção dona (piscando em ataque)
+// Mundo novo: o marcador da cidade/vila só existe se o tile TEM uma (a âncora de tile sem cidade tem half 1). Cor = a da facção dona, escura se for de bandidos, neutra se for neutra.
+const mundoCityMark=c=>!mapMundoOn()||c.half>1;
+const mundoCityCol=c=>mapMundoOn()&&c.owner!=='player'&&tileOwner(mundoTileKey(),null)==='bandit'?'#2a2a2a':cityCol(c);
 const mm=$('mm'),mmc=mm.getContext('2d');
 function drawMinimap(){
   const s=1.5,R=88;
@@ -582,13 +587,13 @@ function drawMinimap(){
   mmc.save();mmc.translate(R,R);mmc.rotate(P.yaw);
   if(G.dg)drawDungeonMinimap();   // dentro da dungeon, o minimapa mostra a planta da ala (sem marcar inimigos)
   else mmc.drawImage(WORLD.mapCanvas,-P.x*s,-P.z*s,W*s,W*s);
-  for(const c of G.dg?[]:WORLD.cities){
+  for(const c of G.dg?[]:WORLD.cities.filter(mundoCityMark)){
     const x=(c.cx-P.x)*s,y=(c.cz-P.z)*s;
-    mmc.fillStyle=cityCol(c);
+    mmc.fillStyle=mundoCityCol(c);
     mmc.strokeStyle='#fff';mmc.lineWidth=2;mmc.beginPath();mmc.rect(x-6,y-6,12,12);mmc.fill();mmc.stroke();
   }
   if(!G.dg)for(const p of WORLD.pois||[]){if(p.type==='ruins'||!poiVisible(p))continue;const x=(p.cx-P.x)*s,y=(p.cz-P.z)*s;mmc.fillStyle=poiCss(p.owner);mmc.strokeStyle=POI_BORDER;mmc.lineWidth=1.3;mmc.beginPath();mmc.rect(x-4.5,y-4.5,9,9);mmc.fill();mmc.stroke()}   // POIs (cor do dono)
-  if(!G.dg&&WORLD.tileCompose)tileMarkDraw(mmc,(wx,wz)=>[(wx-P.x)*s,(wz-P.z)*s],TILE_MARK.mini,1);   // círculos do principal (ciano) e dos donos (azul/vermelho) no cenário de tile (tilecompose.js)
+  if(!G.dg&&WORLD.tileCompose&&G.creative)tileMarkDraw(mmc,(wx,wz)=>[(wx-P.x)*s,(wz-P.z)*s],TILE_MARK.mini,1);   // círculos do principal (ciano) e dos donos (azul/vermelho) no cenário de tile (tilecompose.js)
   if(!G.dg)battleMarks(mmc,(wx,wz)=>[(wx-P.x)*s,(wz-P.z)*s],s,1,false);   // raios e geradores da batalha (battle.js)
   if(!G.dg)warFrontDrawMini(mmc,s);   // rota da frente da guerra (warfront.js; liga/desliga em WAR.front.minimap)
   {const ct=G.dg?null:cvbTarget();if(ct){let x=(ct.x-P.x)*s,y=(ct.z-P.z)*s;const L=Math.hypot(x,y),maxL=62;if(L>maxL){x*=maxL/L;y*=maxL/L}drawStar(mmc,x,y,7)}}   // caravana sendo saqueada
@@ -665,7 +670,8 @@ function drawBigMap(cvArg,mk){   // cvArg: outro canvas (popup de missão); mk: 
   g.imageSmoothingEnabled=false;g.drawImage(WORLD.mapCanvas,0,0,cv.width,cv.height);
   g.font='bold '+Math.round(14*k)+'px monospace';g.textAlign='center';
   for(const c of WORLD.cities){
-    const x=c.cx*s,y=c.cz*s,h=7*k;g.fillStyle=cityCol(c);g.strokeStyle='#fff';g.lineWidth=2;
+    if(!mundoCityMark(c))continue;   // mundo novo: tile sem cidade nem vila, sem marcador
+    const x=c.cx*s,y=c.cz*s,h=7*k;g.fillStyle=mundoCityCol(c);g.strokeStyle='#fff';g.lineWidth=2;
     g.beginPath();g.rect(x-h,y-h,2*h,2*h);g.fill();g.stroke();
     g.fillStyle='#fff';g.strokeStyle='#000';g.lineWidth=3;const lbl=c.name+(MP.on?'  '+resIcon(focusOf(c)):'');g.strokeText(lbl,x,y-12*k);g.fillText(lbl,x,y-12*k);   // na escolha de caravana, o ícone do que a cidade troca
   }
@@ -674,7 +680,7 @@ function drawBigMap(cvArg,mk){   // cvArg: outro canvas (popup de missão); mk: 
     if(G.poiNames&&p.id!==G.poiFocus){g.font='bold '+Math.round(10*k)+'px monospace';g.fillStyle='#ffe9b0';g.strokeStyle='#000';g.lineWidth=3;g.strokeText(POI_DEFS[p.type].n,x,y-8*k);g.fillText(POI_DEFS[p.type].n,x,y-8*k);g.font='bold '+Math.round(14*k)+'px monospace'}}   // POIs no mapa grande, como as cidades (menores); o nome só aparece se o botão estiver ligado (e, sempre, ao passar o mouse)
   {const pf=(WORLD.pois||[]).find(q=>q.id===G.poiFocus);if(pf){const x=pf.cx*s,y=pf.cz*s;g.strokeStyle='#ffd23a';g.lineWidth=4*k;g.beginPath();g.arc(x,y,(16+3*Math.sin(Date.now()/250))*k,0,6.283);g.stroke();g.fillStyle='#ffe9a0';g.strokeStyle='#000';g.lineWidth=3;g.font='bold '+Math.round(13*k)+'px monospace';g.strokeText(POI_DEFS[pf.type].n,x,y-22*k);g.fillText(POI_DEFS[pf.type].n,x,y-22*k);g.font='bold '+Math.round(14*k)+'px monospace'}}   // POI do cartão "Terras livres" em destaque
   {const cf=WORLD.cities.find(q=>q.id===G.cityFocus);if(cf){const x=cf.cx*s,y=cf.cz*s;g.strokeStyle='#ffd23a';g.lineWidth=4*k;g.beginPath();g.arc(x,y,(20+3*Math.sin(Date.now()/250))*k,0,6.283);g.stroke()}}   // cidade escolhida na aba Guerra do livro (warbook.js)
-  if(WORLD.tileCompose)tileMarkDraw(g,(wx,wz)=>[wx*s,wz*s],TILE_MARK.big,k);   // idem, no mapa grande (tilecompose.js)
+  if(WORLD.tileCompose&&G.creative)tileMarkDraw(g,(wx,wz)=>[wx*s,wz*s],TILE_MARK.big,k);   // círculos de depuração: só no modo criativo   // idem, no mapa grande (tilecompose.js)
   drawGoldPortals(g,s,0,0,0,true);   // portais dourados no mapa grande
   {const ct=cvbTarget();if(ct){drawStar(g,ct.x*s,ct.z*s,10*k);g.fillStyle='#ffe680';g.strokeStyle='#000';g.lineWidth=3;g.strokeText('Caravana',ct.x*s,ct.z*s-16*k);g.fillText('Caravana',ct.x*s,ct.z*s-16*k)}}
   drawRose(g,cv.width-64*k,64*k,30*k);

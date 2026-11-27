@@ -15,7 +15,7 @@ const legoRotToward = (dx, dz) => { const v = [[0, 1], [-1, 0], [0, -1], [1, 0]]
 // O jogo lê as âncoras de um POI em COORDENADAS DO MAPA (poigame.js): pontos {x,z[,y][,yaw]} em p.bed, p.tavern, p.stove, p.vigilPos, p.chestPos e listas em p.beds, p.medWalk, p.keepers, p.svcSpec.
 // binoc: binóculo da torre; chestAt: onde nasce o baú das ruínas (criado por legoBuild com addChest, não fica em p). yaw: direção da frente = (-sen yaw, -cos yaw). Uma peça declara a âncora no quadro do esqueleto (relativa ao centro, y relativo ao chão do POI) com legoAnchor(A, tipo, valor);
 // legoBuild a converte (giro/espelho) e grava em p. POIs antigos (L1b: frente para a estrada) usam poiAnchorsXf, que gira as âncoras já gravadas em coordenadas do mapa.
-const LEGO_ANCH_PT = ['bed', 'tavern', 'stove', 'vigilPos', 'chestPos', 'firePos', 'binoc', 'chestAt'], LEGO_ANCH_LIST = ['beds', 'medWalk', 'keepers', 'svcSpec'];
+const LEGO_ANCH_PT = ['bed', 'tavern', 'stove', 'vigilPos', 'chestPos', 'firePos', 'binoc', 'chestAt', 'altar'], LEGO_ANCH_LIST = ['beds', 'medWalk', 'keepers', 'svcSpec'];
 function legoAnchor(A, kind, v) { const a = A.anch = A.anch || {}; if (LEGO_ANCH_LIST.includes(kind)) (a[kind] = a[kind] || []).push(v); else a[kind] = v }
 // Cópia das âncoras o com cada ponto levado por fn(x,z) -> [x,z], cada yaw por fv(dx,dz) (vetor) e y somado a dy.
 function poiAnchorsMap(o, fn, fv, dy) {

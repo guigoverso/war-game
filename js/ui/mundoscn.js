@@ -26,14 +26,80 @@ const MUNDO_SCN = [
   { id: 'renda', t: 'Renda dos tiles e armazém', d: 'Seis tiles seus ao redor da capital. Encerre o turno: a tabela de renda aparece no livro (Resumo) e os recursos entram no armazém (livro > Cidades).', q: 'terras=6&armazem=1&nivel=3' },
   { id: 'vila-longe', t: 'Vila distante fica independente', d: 'Uma vila sua sem nenhum tile seu por perto, com a independência garantida: ao encerrar o turno ela se declara independente e o mapa mundi perde a bandeira.', q: 'vila=1&indep=1&nivel=3' },
   { id: 'armazem-cheio', t: 'Armazém cheio (excedente se perde)', d: 'Os 24 slots do armazém já estão cheios: a renda dos tiles não cabe e some em silêncio (a tabela mostra o que rendeu).', q: 'terras=6&armazem=cheio&nivel=3' },
+  { id: 'ponte-neutra', t: 'Ponte neutra (pedágio 100)', d: 'O batalhão está ao lado de um tile de ponte sem dono. Marche para o outro lado: o aviso pede ◉100 (pagar, recusar, não mostrar de novo).', q: 'sitio=ponte&ped=neutro&ouro=1000' },
+  { id: 'ponte-aliada', t: 'Ponte de facção aliada (de graça)', d: 'Ponte de uma facção Aliada: cobra 150 x 0 = nada. Troque rel= (fav 105, neutral 150, unfav 225, enemy 300) na URL para ver os outros preços.', q: 'sitio=ponte&ped=faccao&rel=ally&ouro=1000' },
+  { id: 'ponte-inimiga', t: 'Ponte de facção inimiga (300)', d: 'Pedágio de 150 x 2. Recuse e volte (não paga), ou pague e atravesse; o ouro pode ficar negativo (dívida).', q: 'sitio=ponte&ped=faccao&rel=enemy&ouro=100' },
+  { id: 'ponte-meu', t: 'Ponte sua (grátis)', d: 'Atravessar o seu próprio tile não cobra nada. (NPCs que passarem pagam a você; eles só andam de verdade na 8.10.)', q: 'sitio=ponte&ped=meu&ouro=1000' },
+  { id: 'ponte-bandidos', t: 'Ponte tomada por bandidos (500)', d: 'Bandidos seguram a ponte: o encontro oferece lutar ou pagar ◉500 e passar.', q: 'sitio=ponte&ped=bandido&bando=1&ouro=1000' },
+  { id: 'fortaleza-neutra', t: 'Fortaleza neutra (pedágio 100)', d: 'Mesmo pedágio, no tile de fortaleza. Encerre ações várias vezes: bandidos soltos podem tomar a passagem (diário do turno).', q: 'sitio=fortaleza&ped=neutro&ouro=1000' },
+  { id: 'torre', t: 'Torre de vigia nova', d: 'Dentro do tile, ao lado de uma torre sua. [E] na base ou no binóculo: 3 usos por rodada, 50% de falha; a dungeon achada aparece como cristal roxo no mapa mundi (J) só nesta rodada.', q: 'poi=tower&dono=player' },
+  { id: 'bau-fazenda', t: 'Baú de recompensa (fazenda de bandidos)', d: 'Fazenda com guarnição de bandidos e o baú trancado. Limpe os bandidos: o POI vira seu na hora e o baú abre (comida).', q: 'poi=farm&dono=bandit' },
+  { id: 'bau-torre', t: 'Baú de recompensa (torre de bandidos)', d: 'Torre dominada por bandidos; o baú guarda munição. Se os bandidos a retomarem, o baú enche de novo.', q: 'poi=tower&dono=bandit' },
+  { id: 'santuario', t: 'Santuário: dízimo no altar', d: 'Santuário seu e vida pela metade: [E] no altar cura uma parte pelo dízimo (sem buffs nem debuffs no preço).', q: 'poi=sanctuary&dono=player&vida=40' },
+  { id: 'entreposto', t: 'Entreposto: Comprar / Vender', d: 'Entreposto seu: o menu pergunta Comprar ou Vender; ele só paga até o ouro que tem na rodada.', q: 'poi=post&dono=player&ouro=1000' },
+  { id: 'taverna', t: 'Taverna: Comprar / Vender e cura', d: 'Taverna sua: menu com Comprar (comida e remédios), Vender itens e o quarto.', q: 'poi=tavern&dono=player&ouro=1000' },
   { id: 'cidade-2', t: 'Entrar numa segunda cidade sua', d: 'A cidade NPC mais perto já é sua, com o armazém abastecido: ao entrar, os suprimentos dela saem do armazém único. Botão direito no tile > Entrar.', q: 'cidade=1&armazem=1&nivel=5' },
 ];
 const MUNDO_SCN_BASE = 'mundo=1&auto=1&mute=1&seed=11&';
+// Parâmetros da 8.5 (POIs viram sítios), também com ?mundo=1&auto=1&mute=1&seed=11:
+//   sitio=ponte|fortaleza  o tile de pedágio mais perto da capital; o batalhão começa num vizinho de terra dele (clique no outro lado para atravessar)
+//   ped=neutro|faccao|bandido|meu  dono desse tile (neutro cobra 100, facção 150 x relação, bandidos 500, o seu é de graça); rel=ally|fav|neutral|unfav|enemy  relação com a facção
+//   bando=1  um bando de bandidos parado no tile de pedágio (encontro com o botão de pagar a passagem)
+//   tile=<tema|id>  a partida já começa dentro desse tile (o mais perto da capital do tema); poi=<tipo>  põe um POI desse tipo ao lado do jogador (tower, sanctuary, farm,
+//   mine, sawmill, hunters, post, tavern, fort, inn, lodge, bridge); dono=player|bandit  dono do POI (bandit = guarnição e baú trancado); vida=N  vida do jogador
+function mundoScnTile(G, q) {
+  const t = q.get('tile'); if (!t) return null;
+  if (/^[0-9]+$/.test(t)) return G.nodes[+t] && !G.nodes[+t].mar ? +t : null;
+  const H = G.inicio, d = n => Math.hypot(n.x - H.x, n.z - H.z);
+  const c = G.nodes.filter(n => n.tema === t && !n.mar).sort((a, b) => d(a) - d(b))[0]; return c ? c.id : null;
+}
+// Põe um POI do tipo `type` perto do começo do jogador (fora da cidade) e o monta como se tivesse nascido com o tile. Devolve o POI ou null.
+function mundoScnPoi(type, dono) {
+  const d = POI_DEFS[type], hm = WORLD.home; if (!d || !hm) return null;
+  const taken = (WORLD.pois || []).map(p => ({ x: p.cx, z: p.cz, r: poiR(p) })), base = (hm.half > 1 ? hm.half * 1.45 : 0) + d.r + 8;
+  for (let dd = base; dd < base + 160; dd += 8) for (let k = 0; k < 24; k++) {
+    const a = k / 24 * 6.2832, x = Math.round(hm.cx + Math.cos(a) * dd), z = Math.round(hm.cz + Math.sin(a) * dd), y = spotOK(x, z, d.r + 2, taken, 8, 4, 0);
+    if (y === null) continue;
+    const p = { id: 900, type, cx: x, cz: z, y, biome: B[z * W + x], owner: dono, tile: true, cityId: 0 };
+    flattenArea(x, z, d.r, y, POI_BIG[type] ? 4 : 3); poiBuild(p); WORLD.pois.push(p);
+    poiX().since[p.id] = -9;   // os moradores já estão lá (o serviço funciona)
+    poiApply(); return p;
+  }
+  return null;
+}
+// Cenários da 8.5 (parâmetros acima).
+function mundoScnSite(q) {
+  if (!['sitio', 'poi'].some(k => q.has(k)) || wtX().init) return false;
+  const G2 = wtGraph(), home = G2.inicio.id, w = wtX(); poiX().since = poiX().since || {};
+  G.introBook = false; STATE.phase = 'commander'; STATE.round = 1; STATE.rd.lvl = 3; STATE.rd.actions = maxActions();
+  if (q.has('ouro')) P.coins = +q.get('ouro');
+  if (q.has('vida')) P.hp = +q.get('vida');
+  wtInit(G2); w.actors = []; w.turn = 'leader'; wtCommanderBegin(G2);
+  const b = wtEnsureBat(G2); BAT.kinds.forEach((kd, i) => batGain(b, kd, i === 0 ? 10 : 0));
+  if (q.has('sitio')) {
+    const H = G2.nodes[home], t = G2.nodes.filter(n => n.tema === q.get('sitio') && !n.mar).sort((x, y) => Math.hypot(x.x - H.x, x.z - H.z) - Math.hypot(y.x - H.x, y.z - H.z))[0];
+    if (!t) return false;
+    const nb = G2.adj[t.id].map(x => x.to).find(id => !G2.nodes[id].mar); b.tile = wtKey(nb); b.de = -1;
+    const ped = q.get('ped') || 'neutro';
+    if (ped === 'faccao') wtAnnex(G2, t.id, 3); else if (ped === 'bandido') wtAnnex(G2, t.id, 'bandit'); else if (ped === 'meu') wtAnnex(G2, t.id, 'player');
+    const rel = { ally: [10, true], fav: [9, false], neutral: [5, false], unfav: [2, false], enemy: [0, false] }[q.get('rel')];
+    if (rel) Object.assign(relOf(3), { v: rel[0], ally: rel[1] });
+    if (q.get('bando') === '1') w.actors.push({ id: ++w.seq, kind: 'bandit', tile: t.id, str: 8, stay: 0 });
+    return true;
+  }
+  w.inTile = w.local; w.owed = 1; w.left = Math.max(0, w.left - 1); b.tile = wtKey(w.local); b.de = home;   // dentro do tile, sem encontro
+  const p = mundoScnPoi(q.get('poi'), q.get('dono') === 'bandit' ? 'bandit' : 'player');
+  if (p) {
+    const s = p.vigilPos || p.altar || (p.svcSpec && p.svcSpec[0]) || { x: p.cx + poiR(p) * 0.5, z: p.cz };
+    P.x = s.x + 1.5; P.z = s.z; P.y = tH(P.x, P.z) + 0.1; P.vx = P.vz = P.vy = 0; P.camY = P.y;
+  }
+  return true;
+}
 
 // Gancho de scenarioApply (scenario.js). Devolve true se montou um cenário (a partida nova pula o livro do Líder e já abre o turno do Comandante).
 function mundoScenario() {
   const q = new URLSearchParams(location.search); if (!mapMundoOn()) return false;
-  if (mundoScnEcon(q)) return true;
+  if (mundoScnSite(q) || mundoScnEcon(q)) return true;   // site primeiro: os dois aceitam ouro=
   if (q.get('mortal') === '1') setGod(false);   // vale também depois de recarregar o tile (o criativo religa o modo deus a cada partida)
   const kind = q.get('enc') || (q.get('explorar') ? 'explorar' : ''); mundoScnDie(+q.get('morrer') || 0);
   if (!kind || wtX().init) return false;

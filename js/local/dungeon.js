@@ -184,7 +184,7 @@ function portalNear(){
 function updatePortals(dt){
   if(!DG.ok)return;
   if(!STATE.portals)STATE.portals=[];
-  if(!G.dg&&STATE.round>=1&&(!STATE.portals.length&&STATE.portalDay===undefined||DN.days-(STATE.portalDay||0)>=PORTAL_DAYS)){spawnPortals()}
+  if(!G.dg&&!mapMundoOn()&&STATE.round>=1&&(!STATE.portals.length&&STATE.portalDay===undefined||DN.days-(STATE.portalDay||0)>=PORTAL_DAYS)){spawnPortals()}
   for(const m of PORTALS)m.group.visible=Math.hypot(m.p.x-P.x,m.p.z-P.z)<260;   // o brilho do portal é estático
   const dh=document.getElementById('dghud');   // contagem de inimigos restantes (só no modo criativo)
   if(dh){if(G.dg&&G.creative){const n=G.dg.area.enemies.filter(e=>e.alive).length;dh.style.display='block';dh.textContent='👁 Inimigos restantes: '+n}else dh.style.display='none'}

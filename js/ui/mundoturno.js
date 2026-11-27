@@ -49,6 +49,7 @@ function wm3SeqNext() {
   const q = WM.seq; if (!q) return;
   if (++q.i >= q.steps.length) { WM.seq = null; wm3TurnAfter(); return }
   const st = q.steps[q.i], B = WM.built;
+  if (st.pay) wm3CoinFx(st.pay);   // pagou o pedágio ao partir do tile: -◉ sobe da cabeça do boneco
   if (st.node === undefined) { wm3SeqNpc(); return }   // passo só de NPCs (fim do turno)
   const p = wm3PathPts({ ids: [st.edge], from: [st.from] }), t = B.token.position, a = wm3Anchor(st.node);
   WM.walk = { pts: [{ x: t.x, y: t.y, z: t.z }].concat(p, [{ x: a.x, y: a.y, z: a.z }]), k: 0, f: 0, dest: st.node };
@@ -66,6 +67,7 @@ function wm3SeqNpc() {
   q.tw = tw;
 }
 function wm3TurnAnim(dt) {
+  wm3FxAnim(dt);
   const q = WM.seq; if (!q || !q.tw) return;
   let live = 0;
   for (const t of q.tw) {
@@ -85,13 +87,58 @@ function wm3TurnAnim(dt) {
   if (!live) { for (const t of q.tw) if (t.o.h) t.o.h.legs.forEach(l => { l.rotation.x = 0 }); q.tw = null; wm3SeqNext() }
 }
 // Depois de a marcha acabar: marcadores, caixa de Ações e anel do batalhão selecionado.
-function wm3TurnAfter() { wm3TurnActors(); wm3TurnHud(); wm3ArmRing(); wm3TurnRoundGo() }
+function wm3TurnAfter() {
+  wm3TurnActors(); wm3TurnHud(); wm3ArmRing(); wm3TurnRoundGo(); wm3TollNext();
+  if (wm3RoundOn() && !WM.endRound && wtX().left <= 0 && wm3CanEnd() && !document.getElementById('wm3toll')) wm3AutoEndAsk();   // acabaram as ações: o turno termina sozinho, depois do popup
+}
 // Começa uma marcha só de passos de NPC (encerrar ações, sair do tile, luta): devolve true se havia passos para andar.
 function wm3TurnSeqStart(steps) {
   if (!steps || !steps.length) return false;
   WM.seq = { steps, i: -1, tw: null }; wm3SeqNext(); return true;
 }
 
+// ---------- pedágio (etapa 8.5; macro/toll.js, textos txtToll* em poi-texts.js) ----------
+// O batalhão para no tile de ponte/fortaleza que cobra ao atravessar (wtMove devolve `toll`); o popup oferece pagar ou recusar (recusar deixa o batalhão parado ali:
+// dá para voltar ou tentar de novo). "Não mostrar novamente" paga sempre sozinho; a opção das configurações (pausa > Geral) volta a mostrar o aviso.
+const mundoTollShow = () => { try { return localStorage.getItem('fc_toll_ask') !== '0' } catch (e) { return true } };
+function mundoTollSet(on) { try { localStorage.setItem('fc_toll_ask', on ? '1' : '0') } catch (e) { /* sem armazenamento: o aviso fica ligado */ } }
+const wm3FacName = fid => (typeof facOf === 'function' && facOf(fid) && facOf(fid).name) || 'uma facção';
+// Efeito do pagamento: "-◉N" sobe e some sobre a cabeça do boneco do batalhão, com o som de moedas.
+function wm3CoinFx(n) {
+  const B = WM.built, s = wm3Sprite(256, 96, (c, w, h) => {
+    c.font = 'bold 56px Georgia, serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 8; c.strokeStyle = '#3a1a08'; c.fillStyle = '#ffd24a';
+    c.strokeText('-◉' + n, w / 2, h / 2); c.fillText('-◉' + n, w / 2, h / 2);
+  });
+  s.scale.set(12, 4.5, 1); s.renderOrder = 40; s.position.copy(B.token.position); s.position.y += 7; B.scene.add(s);
+  (WM.fx || (WM.fx = [])).push({ s, t: 0 }); sfx('coin', 0); setTimeout(() => sfx('coin', 0), 140);
+}
+function wm3FxAnim(dt) {
+  for (const f of WM.fx || []) { f.t += dt; f.s.position.y += dt * 4; f.s.material.opacity = Math.max(0, 1 - f.t / 1.6); if (f.t > 1.6) { WM.built.scene.remove(f.s); f.dead = true } }
+  if (WM.fx) WM.fx = WM.fx.filter(f => !f.dead);
+}
+// Opções de wtMove para o pedágio: paga sozinho com o aviso desligado; `pay` = o pedágio aceito agora.
+const wm3TollOpts = pay => ({ auto: !mundoTollShow(), pay, facName: wm3FacName });
+// Depois da marcha: se ela parou num pedágio, pergunta (uma vez por parada).
+function wm3TollNext() {
+  const t = WM.tollPend; WM.tollPend = null;
+  if (t && !wtX().enc && !WM.endRound && !WM.walk && !WM.seq) wm3TollAsk(t.toll, t.dest);
+}
+function wm3TollAsk(toll, dest) {
+  const nome = tileName(WM.built.G, WM.built.G.nodes[toll.tile]);
+  let el = document.getElementById('wm3toll'); if (el) el.remove();
+  el = document.createElement('div'); el.id = 'wm3toll';
+  el.style.cssText = 'position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;background:rgba(10,6,2,.55);pointer-events:auto';
+  el.innerHTML = '<div style="width:420px;background:rgba(30,21,11,.98);border:2px solid #c9a24a;border-radius:12px;color:#f4ecd8;font:15px Georgia,serif;padding:16px 18px">'
+    + '<div style="font-size:19px;color:#fff;margin-bottom:8px">' + txtTollTitle(nome) + '</div><div style="line-height:1.45">' + txtTollAsk(toll.dono, toll.price) + '</div>'
+    + '<label style="display:block;margin:10px 0 4px;font-size:13px;color:#d8c8a0"><input type="checkbox" id="wm3tollno"> ' + TXT_TOLL_NOMORE + '</label>'
+    + '<div style="display:flex;gap:8px;margin-top:8px"><button data-a="pay" class="gold" style="flex:1">' + txtTollPay(toll.price) + '</button><button data-a="no" class="alt" style="flex:1">' + TXT_TOLL_REFUSE + '</button></div></div>';
+  el.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    const never = el.querySelector('#wm3tollno').checked; el.remove();
+    if (b.dataset.a === 'pay') { if (never) mundoTollSet(false); wm3Go(dest, { tile: toll.tile, to: toll.to }) }
+  });
+  document.body.appendChild(el);
+}
 // Caixa de Ações (canto superior esquerdo, sempre no topo da coluna): contador de ações e, quando vale, o encontro ou o aviso de dentro do tile.
 function wm3TurnHudMake() {
   if (WM.turnEl) return;
@@ -113,6 +160,8 @@ function wm3TurnHud() {
   if (w.enc) {   // encontro: lutar de verdade no tile (jogo do mundo novo); o atalho por número só no modo criativo (ou no mapa mundi solto)
     h += '<div class="wm3-warn">⚔ ' + txtWtEncTitle(w.enc.layout, w.enc.n) + '</div>';
     if (wm3RoundOn()) h += '<button data-a="fight">' + TXT_WT_ENC_FIGHT + '</button>';
+    if (wm3RoundOn() && wtEncCanPay(WM.built.G)) h += '<button data-a="encpay">' + txtTollEncPay(TOLL.bandit) + '</button>';
+    if (wm3RoundOn() && wtEncCanBack(WM.built.G)) h += '<button data-a="encback">' + TXT_TOLL_BACK + '</button>';   // bandidos que tomaram a passagem: passar sem lutar
     if (G.creative || !wm3RoundOn()) h += '<button data-a="auto">' + TXT_WT_ENC_AUTO + '</button>';
   }
   else if (w.inTile !== null) h += '<div class="wm3-sub">' + txtWtInTile(wm3TurnTile(w.inTile)) + '</div><button data-a="leave">' + TXT_WT_LEAVE + '</button>';
@@ -163,6 +212,8 @@ function wm3TurnClick(a) {
   if (a === 'annex' || a === 'detach') { wm3Annex(a === 'annex'); return }
   if (a === 'enter') { wm3EnterTile(); return }
   else if (a === 'fight') { wm3Fight(); return }
+  else if (a === 'encpay') { wtEncPay(G2); wm3TurnSync(); return }
+  else if (a === 'encback') { const r = wtEncBack(G2); if (r) { WM.at = r.to; wm3TokenPlace(r.to); wm3Select(-1) } wm3TurnSync(); return }   // volta ao tile anterior
   else if (a === 'leave') { const r = wtLeave(G2); if (wm3TurnSeqStart(r && r.steps)) return }
   else if (a === 'auto') { const r = wtAutoBattle(G2); if (r && r.fim) { wm3TurnEnd(); return } else if (r && wm3TurnSeqStart(r.steps)) return }
   else if (a === 'skip') {   // o tempo passa como numa marcha
@@ -290,7 +341,7 @@ function wm3Fight() {
 // Troca o mapa local: as marcas do tile atual vão para a ficha dele (collectSave), o tile novo vira STATE.wt.local e o jogador nasce na abertura da
 // estrada de `de` (STATE.wt.spawn/entry). Só o Comandante entra: os soldados que o seguiam não vão junto (allies = 0).
 function mundoGo(tile, de, nome) {
-  const w = wtX(); mundoMarksSave(); mundoCityStash(); w.local = tile; w.spawn = true; w.entry = typeof de === 'number' ? de : -1;
+  const w = wtX(); mundoMarksSave(); mundoCityStash(); mundoPoiStash(); w.local = tile; w.spawn = true; w.entry = typeof de === 'number' ? de : -1;
   const d = collectSave(); d.allies = 0;
   try { sessionStorage.setItem('fc_enter', JSON.stringify({ d, nome, col: (STATE.fac && STATE.fac.color) || 0 })) } catch (e) { console.error(e); return }
   mundoLoadShow(nome, (STATE.fac && STATE.fac.color) || 0); setTimeout(() => location.reload(), 30);
@@ -376,6 +427,18 @@ function mundoLoadHide() { const el = document.getElementById('tileload'); if (e
 // Sair do tile pelo livro/bolsa (botão do canto inferior direito, ui/book.js): fecha o livro, abre o mapa mundi e os NPCs andam o que deviam.
 const mundoCanLeave = () => mapMundoOn() && G.running && !!wtGraph() && !WM.open && wtX().turn === 'commander' && wtX().inTile !== null && !wtX().enc   // com a luta em andamento (encontro pendente) não se sai do tile
   && STATE.phase === 'commander' && !G.office;
+// Popup do fim automático do turno: narra e só então encerra (sem teleportar o jogador direto para o Líder).
+function wm3AutoEndAsk() {
+  if (document.getElementById('wm3autoend')) return;
+  const el = document.createElement('div'); el.id = 'wm3autoend';
+  el.style.cssText = 'position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;background:rgba(10,6,2,.6);pointer-events:auto';
+  el.innerHTML = '<div style="width:440px;background:rgba(30,21,11,.98);border:2px solid #c9a24a;border-radius:12px;color:#f4ecd8;font:16px Georgia,serif;padding:20px 22px;text-align:center">'
+    + '<div style="line-height:1.5;font-style:italic">' + TXT_WT_AUTOEND + '</div><button class="gold" style="margin-top:16px;padding:8px 26px">' + TXT_WT_AUTOEND_OK + '</button></div>';
+  el.querySelector('button').onclick = () => { el.remove(); wm3TurnEnd() };
+  document.body.appendChild(el);
+}
+// Livro aberto por cima do mapa mundi, no turno do Comandante e fora de um tile: o botão do canto encerra o turno (só no mapa mundi).
+const mundoMapEnd = () => mapMundoOn() && G.running && !!wtGraph() && typeof WM !== 'undefined' && WM.open && !G.office && STATE.phase === 'commander' && wm3CanEnd();
 function mundoLeaveTile() {
   if (BATTLE.real) tbEnd();   // depois da vitória: tira os soldados e o que sobrou da batalha
   const r = wtLeave(wtGraph()); closePanel(); wm3Open();

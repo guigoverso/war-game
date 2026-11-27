@@ -27,7 +27,7 @@ const POI_BORDER='#ff2bd6';   // borda dos quadrados dos POIs nos mapas: magenta
 const poiCss=o=>'#'+poiColor(o).toString(16).padStart(6,'0');
 function poiOwnerName(o){return o==='free'?'Livre (limpo)':o==='bandit'?'Bandidos':o==='player'?'Você':o==='none'?'Sem dono':typeof o==='number'?((facOf(o)||{}).name||'Facção'):'?'}
 function poiPaint(p){if(p.flagMat)p.flagMat.color.setHex(poiColor(p.owner))}
-function poiSetOwner(p,o){p.owner=o;if(typeof poiOwnerChanged==='function')poiOwnerChanged(p,o);if(!p.show){STATE.pois=STATE.pois||{};STATE.pois[p.id]=o}poiPaint(p);if(typeof poiGarrisonSync==='function')poiGarrisonSync(p);if(typeof warOpOwnerChanged==='function')warOpOwnerChanged(p,o)}   // (guarnição e moradores acompanham o dono; operações de guerra: warops.js)
+function poiSetOwner(p,o){p.owner=o;if(typeof poiOwnerChanged==='function')poiOwnerChanged(p,o);if(!p.show){STATE.pois=STATE.pois||{};STATE.pois[p.id]=o}poiPaint(p);if(typeof poiTileSync==='function')poiTileSync(p);if(typeof poiGarrisonSync==='function')poiGarrisonSync(p);if(typeof warOpOwnerChanged==='function')warOpOwnerChanged(p,o)}   // (guarnição e moradores acompanham o dono; operações de guerra: warops.js)
 function poiApply(){for(const p of WORLD.pois||[]){if(!p.show&&STATE.pois&&STATE.pois[p.id]!==undefined)p.owner=STATE.pois[p.id];poiPaint(p);if(typeof poiGarrisonSync==='function')poiGarrisonSync(p)}}   // depois de gerar/carregar
 
 // ---------- ferramentas de construção ----------
@@ -102,7 +102,8 @@ function poiBench(c,x,z,alongX){pBc(c,x,0.45,z,alongX?x+1.8:x+0.5,0.6,alongX?z+0
 function poiBrazier(c,x,z,y0){y0=y0||0;pBc(c,x-0.1,y0,z-0.1,x+0.1,y0+0.9,z+0.1,0x2a2a2a,true,{j:0});pBc(c,x-0.4,y0+0.9,z-0.4,x+0.4,y0+1.2,z+0.4,0x3a3a3a,false,{j:0.02});pBc(c,x-0.28,y0+1.2,z-0.28,x+0.28,y0+1.6,z+0.28,0xff7a1a,false,{j:0.1});pBc(c,x-0.14,y0+1.5,z-0.14,x+0.14,y0+1.9,z+0.14,0xffd84a,false,{j:0.1})}
 function poiPath(c,x0,z0,x1,z1,col){const L=Math.hypot(x1-x0,z1-z0),n=Math.round(L/1.2);for(let i=0;i<=n;i++){const x=x0+(x1-x0)*i/n,z=z0+(z1-z0)*i/n,s=0.7+((i*7)%3)*0.12;pBc(c,x-s/2,0,z-s/2,x+s/2,0.06,z+s/2,col||0x9a9078,false,{j:0.05})}}
 function poiAnimal(c,x,z,col,big){const s=big?1:0.7;pBc(c,x,0.4*s,z,x+1.2*s,0.95*s,z+0.6*s,col,true,{j:0.03});pBc(c,x+1.1*s,0.6*s,z+0.05,x+1.55*s,1.1*s,z+0.55*s,shadec(col,1.1),false,{j:0.03});for(const [a,b] of[[0.1,0.05],[0.9,0.05],[0.1,0.4],[0.9,0.4]])pBc(c,x+a*s,0,z+b*s,x+a*s+0.18*s,0.45*s,z+b*s+0.18*s,shadec(col,0.7),false,{j:0})}
-function poiSign(c,x,z,col){pBc(c,x-0.07,0,z-0.07,x+0.07,1.9,z+0.07,0x4a3320,false,{j:0});pBc(c,x-0.7,1.3,z-0.05,x+0.7,1.9,z+0.07,col||0x6b4a2a,false,{j:0.02});pBc(c,x-0.55,1.45,z+0.07,x+0.55,1.75,z+0.1,0xe8d8a8,false,{j:0})}
+function poiSign(c,x,z,col){pBc(c,x-0.07,-4,z-0.07,x+0.07,1.9,z+0.07,0x4a3320,false,{j:0});   // o poste desce 4 blocos: em terreno inclinado a placa não flutua
+  pBc(c,x-0.7,1.3,z-0.05,x+0.7,1.9,z+0.07,col||0x6b4a2a,false,{j:0.02});pBc(c,x-0.55,1.45,z+0.07,x+0.55,1.75,z+0.1,0xe8d8a8,false,{j:0})}
 function poiRack(c,x,z,alongX){for(let k=0;k<4;k++){const o=0.3+k*0.4;if(alongX){pBc(c,x+o,0.6,z,x+o+0.06,2.0,z+0.06,0xc0c8d0,false,{j:0});pBc(c,x+o-0.1,0.6,z,x+o+0.16,0.75,z+0.06,0x6b4a2a,false,{j:0})}else{pBc(c,x,0.6,z+o,x+0.06,2.0,z+o+0.06,0xc0c8d0,false,{j:0});pBc(c,x,0.6,z+o-0.1,x+0.06,0.75,z+o+0.16,0x6b4a2a,false,{j:0})}}pBc(c,alongX?x:x-0.05,0,alongX?z-0.05:z,alongX?x+1.8:x+0.15,0.6,alongX?z+0.15:z+1.8,0x5a3d22,true,{j:0.02})}
 function poiHut(c,x0,z0,w,d,D,o,rng){const f=poiHouse(c,x0,z0,w,d,D,o,rng);furnishHouse(c,f,rng,D);return f}   // casa com mobília
 // tenda de pele (5 degraus, entrada ao sul) centrada em (tx,tz); extraída de hunters e lodge, usada também pelos micro-POIs (poimicro.js)

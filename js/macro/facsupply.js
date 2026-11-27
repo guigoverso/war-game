@@ -23,7 +23,7 @@ function fsupRelief(){   // caravanas (suas e das NPC) trazem para uma cidade o 
   return out;
 }
 function poiHuntPen(fid,r){   // acampamentos de caçadores seus tiram pontuação de couro da facção em guerra com você (POIX.hunt, poigame.js)
-  return r==='leather'&&relOf(fid).war?POIX.hunt.pen*poiCount('hunters'):0;
+  return r==='leather'&&!mapMundoOn()&&relOf(fid).war?POIX.hunt.pen*poiCount('hunters'):0;   // mundo novo: POI sem efeito global
 }
 function fsupRound(){
   if(STATE.rd.fmod){for(const k in STATE.rd.fmod)fsupHit(+k,STATE.rd.fmod[k].d,STATE.rd.fmod[k].left,null,'antigo');delete STATE.rd.fmod}   // saves antigos: um golpe por facção vira um modificador
