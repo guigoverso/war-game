@@ -182,4 +182,4 @@ const TXT_NAME_SEA_BASE = ['Mar', 'Golfo', 'Águas', 'Canal'];
 
 // Mapa M (game.js, mapServicesDraw): ícone e nome de cada serviço da cidade ou vila, na ordem da legenda. A chave é o campo do serviço na cidade (c.hall, c.warehouse...).
 const TXT_MAP_SERVICES = { hall: ['🏛', 'Prefeitura'], warehouse: ['📦', 'Armazém'], shop: ['⚔', 'Armeiro'], store: ['🛒', 'Mercado'], clinic: ['✚', 'Clínica'],
-  barracks: ['🛡', 'Quartel'], recruit: ['🪖', 'Alistamento'], tavern: ['🍺', 'Taverna'], chapel: ['⛪', 'Capela'], works: ['🏭', 'Oficina do tipo'] };
+  barracks: ['🛡', 'Quartel'], recruit: ['🪖', 'Alistamento'], tavern: ['🍺', 'Taverna'], chapel: ['⛪', 'Capela'] };
