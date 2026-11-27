@@ -49,3 +49,13 @@ const txtWtEntInfo = d => '<div class="wm3-head" style="font-size:15px;padding:6
 
 // Tela de carregamento ao entrar num tile (3 soldados correndo no centro; o texto fica embaixo). nome = tile de destino. Aprovado em 2026-11-26.
 const txtTileLoading = nome => 'Marchando para ' + nome + '...';
+
+// ---------- Modo Líder no mapa mundi (etapa 8.2): caixa de batalhões no turno do Líder (js/ui/mundoturno.js, wm3LeadHud). RASCUNHOS, a aprovar ----------
+// Título da caixa: quantos batalhões você tem e o máximo do nível da facção.
+const txtWtLeadTitle = (n, max) => '🪖 Batalhões: ' + n + ' / ' + max;
+// Linha de cada batalhão da caixa: número, soldados e onde está.
+const txtWtLeadRow = (i, n, nome) => 'Batalhão ' + i + ' — ' + n + ' soldados — ' + nome;
+// Botão de criar um batalhão no tile selecionado (cidade ou vila sua). ouro e ponto = o custo (0 = não custa).
+const txtWtLeadCreate = (ouro, ponto) => '➕ Criar batalhão aqui' + (ouro || ponto ? ' (' + [ouro ? '◉' + ouro : '', ponto ? ponto + ' ponto' : ''].filter(Boolean).join(' + ') + ')' : '');
+// Botões de doar soldados entre dois batalhões do mesmo tile: n soldados (ou todos) do batalhão a para o b.
+const txtWtLeadDonate = (a, b, n) => '↪ Doar ' + (n ? n : 'todos') + ' do ' + a + ' ao ' + b;

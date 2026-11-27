@@ -91,8 +91,8 @@ function armyGain(n){
 }
 function recruitAlly(c){
   if(c&&polFlag('noRecruit',c.id)){toast('Não é possível recrutar em '+c.name+' agora (política em vigor).',2500);return false}
-  if(!recruitPlace(c)||recruitLeft(c)<=0||armyTotal()>=ARMY.max||P.coins<bp(ARMY.recruitCost,'recruit'))return false;   // 4B-19: cidade sua ou vila sua/neutra, com limite por rodada
-  P.coins-=bp(ARMY.recruitCost,'recruit');recruitCount(c);
+  if(!recruitPlace(c)||recruitLeft(c)<=0||armyFull()||P.coins<bp(ARMY.recruitCost,'recruit'))return false;   // 4B-19: cidade sua ou vila sua/neutra, com limite por rodada
+  P.coins-=bp(ARMY.recruitCost,'recruit');recruitCount(c);armyGainBat();
   const bk=c.barracks||{x:c.cx,z:c.cz};
   spawnAlly(bk.x+(Math.random()-0.5)*1.5,bk.z+(Math.random()-0.5)*1.5,c);
   sfx('coin',0);return true;
@@ -308,7 +308,7 @@ function renderBarracks(){
   const n=allyCount();
   $('bkinfo').innerHTML=txtBarracksInfo(P.coins,n,ARMY.max);
   let h='<div class="grid">';
-  if(recruitPlace(ARMY.city)){const left=recruitLeft(ARMY.city),full=n>=ARMY.max;   // só cidade sua recruta no Quartel (4B-19)
+  if(recruitPlace(ARMY.city)){const left=recruitLeft(ARMY.city),full=armyFull();   // só cidade sua recruta no Quartel (4B-19)
     h+='<div class="card"><b>Recrutar soldado</b><div class="st">'+txtRecruitQueue(left)+'</div>'+tagLine(priceTag(ARMY.city,'recruit'))+'<button class="gold" data-a="rec" '+(full||left<=0||P.coins<bp(ARMY.recruitCost,'recruit')?'disabled':'')+'>'+txtRecruitBtn(bp(ARMY.recruitCost,'recruit'),full,left)+'</button></div>'}
   const dl=ARMY.dmg,hl=ARMY.hp;
   h+='<div class="card"><b>Dano dos soldados</b><div class="st">Nível '+dl+'/'+ARMY.maxLvl+' • +25% de dano por nível (atual ×'+allyDmgMul().toFixed(2)+')</div>'+tagLine(priceTag(ARMY.city,'soldierup'))+'<button data-a="dmg" '+(dl>=ARMY.maxLvl||P.coins<bp(upCost(dl),'soldierup')?'disabled':'')+'>'+(dl>=ARMY.maxLvl?'Máximo':'Evoluir ◉'+bp(upCost(dl),'soldierup'))+'</button></div>';

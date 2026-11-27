@@ -13,7 +13,7 @@ const TAX_BASE=ECON.taxBase,TAX_RANK=ECON.taxRank;
 // ações do líder (Fase 4A): quanto cada decisão gasta por rodada. 0 = não gasta (hoje a caravana é só ouro; o porto e, no futuro, paz e guerra são grátis).
 // Para a caravana também gastar ação, troque caravan para 1. Custos de evoluir cidade e facção: LVL, abaixo). capital/city = evoluir facção/cidade (1 ação cada, além do limite de 1 por rodada).
 ECON.rebelUps=4;   // rodadas seguidas sem suprimentos até a rebelião: Descontente (1), (0), (−1) e então a rebelião
-ECON.act={caravan:1,capital:1,city:1,give:1,relic:1,ally:1,mission:1};   // F4: criar caravana, doar ouro, doar relíquia e fechar aliança gastam 1 ação do líder cada (evita subir a relação com várias facções num turno)
+ECON.act={battalion:1,caravan:1,capital:1,city:1,give:1,relic:1,ally:1,mission:1};   // F4: criar caravana, doar ouro, doar relíquia e fechar aliança gastam 1 ação do líder cada (evita subir a relação com várias facções num turno)
 ECON.loot={items:6,coins:40,perRank:15};   // saque: unidades de um dos produtos da rota + ◉ (base + por nível da cidade dona)
 const TYPE_NAME={food:'Alimentos',ore:'Minérios',wood:'Madeira',leather:'Couro',gold:'Dinheiro',port:'Porto'};
 const CITY_COLS=[0xe0402a,0x2aa04a,0xe8b820,0x8a3ac8,0x20b0c8,0xe87820,0xd0409a,0x8a8a8a];   // cor de identidade de cada cidade (faixa da bandeira)

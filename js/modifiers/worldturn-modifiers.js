@@ -21,9 +21,13 @@ const WT = {
   costPerAction: 2.5,
   // Multiplicador do custo da estrada (a trilha vale 1): a estrada é mais barata. Padrão: 0.6
   roadMul: 0.6,
-  // Soldados do batalhão grátis (o primeiro, ou o novo quando o jogador ficou sem nenhum) e do batalhão pago no turno do Líder; preço de cada soldado
-  // do pago (o total sai do ouro; nunca vira dívida). Padrão: 10, 10, 100
-  freeSoldiers: 10, newSoldiers: 10, soldierPrice: 100,
+  // Batalhões (etapa 8.2): soldados do PRIMEIRO batalhão do jogo (grátis, com o kit), do batalhão de resgate (sem nenhum batalhão: só custa o ponto do Líder,
+  // nasce sem soldados) e do batalhão contratado no turno do Líder (custa o ouro abaixo, mais o ponto). Padrão: 10, 0, 10
+  firstSoldiers: 10, rescueSoldiers: 0, newSoldiers: 10,
+  // Ouro do contrato de um batalhão novo (a tropa e o comandante; nunca vira dívida). O ponto do Líder está em ECON.act.battalion. Padrão: 1000
+  newGold: 1000,
+  // Doação entre batalhões na mesma cidade ou vila sua: quantos soldados passam por clique de "doar um pouco" (o outro botão passa todos). Padrão: 10
+  donateStep: 10,
   // Morte do comandante: ouro perdido (o que houver, até este valor; nunca dívida) e fração do que o batalhão levava (munição) que se perde. Padrão: 150, 1
   deathGold: 150, deathAmmo: 1,
   // Kit do comandante novo (batalhão grátis ou criado no turno do Líder): munição da pistola e curas, na bolsa do batalhão (b.mun). Padrão: 30 e 2

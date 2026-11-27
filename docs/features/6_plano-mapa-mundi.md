@@ -115,6 +115,7 @@ Hoje o rótulo do tile é só o tema ("Fazenda", "Fortaleza"). Passa a ter um **
 - Arquivos: `rounds.js`, `save.js`, `state.js`, `worldturn.js`, `mapwin.js`, `mundo3d.js`, `mundoturno.js`. Teste: entrar e sair de vários tiles, fechar rodadas, salvar e carregar em marcha e dentro do tile.
 
 ### 8.2 Batalhões como duplicados do jogador e turno do Líder (M) — A2, C7, E2, E3 (modo Líder básico)
+> **CÓDIGO PRONTO em 2026-11-27** (falta o teste na tela; resumo em `docs/MAPA.md`, "Etapa 8.2"). Limites: os soldados do batalhão ainda não aparecem no tile ao entrar (8.3/8.4); o mapa na mesa fica para a 8.11; o kit fica em `b.mun` (inventário único não migrado).
 - Batalhão = boneco do jogador (vida, inventário, buffs e upgrades compartilhados; só os soldados variam). Limite por facção (1/2/3).
 - Criar no turno do Líder: 1 ponto + 1.000 de ouro, nasce com 10 em qualquer cidade da facção; 1º grátis; sem nenhum, um grátis com 0 soldados. Doar/dividir em cidade ou vila da facção, até zerar. Kit só no resgate.
 - Recrutamento e mercenário entram no batalhão presente (cidade 25, vila 15, neutro 5; teto 50).

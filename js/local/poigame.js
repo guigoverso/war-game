@@ -375,8 +375,8 @@ function svcSmith(p){
 function svcMerc(p){
   const c=WORLD.home;ARMY.city=c;
   svcOpen('⚔ MERCENÁRIO',(txt,body)=>{
-    const cost=bp(ARMY.recruitCost,'recruit'),full=armyTotal()>=ARMY.max,left=recruitLeft(c);
-    txt.innerHTML='— Espada de aluguel, a seu serviço. Soldados: <b>'+armyTotal()+'/'+ARMY.max+'</b> • Moedas: <b>◉ '+P.coins+'</b>';
+    const cost=bp(ARMY.recruitCost,'recruit'),full=armyFull(),left=recruitLeft(c);
+    txt.innerHTML='— Espada de aluguel, a seu serviço. Soldados: <b>'+armyCount()+'/'+ARMY.max+'</b> • Moedas: <b>◉ '+P.coins+'</b>';
     body.insertAdjacentHTML('beforeend','<div class="st">'+txtRecruitQueue(left)+'</div>'+tagLine(priceTag(c,'recruit')));
     const b=UI.button(txtRecruitBtn(cost,full,left),'gold',()=>{
       if(recruitAlly(c))toast('⚔ Um mercenário se juntou ao seu exército.',2500);else toast('Não foi possível recrutar.',2000);svcRender();
@@ -394,7 +394,7 @@ function recruitFace(c,i){
 function svcRecruit(c){
   ARMY.city=c;
   svcOpen(TXT_RECRUIT_TITLE,(txt,body)=>{
-    const cost=bp(ARMY.recruitCost,'recruit'),full=armyTotal()>=ARMY.max,left=recruitLeft(c);
+    const cost=bp(ARMY.recruitCost,'recruit'),full=armyFull(),left=recruitLeft(c);
     txt.innerHTML=txtRecruitGreeting(recruitPlace(c),facOf(0).name,left);
     if(left>0){
       body.insertAdjacentHTML('beforeend','<div class="st">'+txtRecruitQueue(left)+'</div>'+tagLine(priceTag(c,'recruit')));

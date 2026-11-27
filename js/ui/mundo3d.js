@@ -697,6 +697,7 @@ function wm3Select(id) {
   if (id >= 0) { const p = B.T.pos[id]; B.selRing.position.set(p.x, B.nodeY[id] + 0.2, p.z); B.selRing.scale.setScalar(wm3Half(B.G.nodes[id]) / 6.2 * 1.25) }
   wm3ShowPath(WM.armed && id >= 0 && id !== WM.at ? wm3Path(B.G, WM.at, id) : null);
   WM.hud.info.innerHTML = wm3Info(id); WM.hud.info.style.display = id >= 0 ? '' : 'none';
+  if (wtX().turn === 'leader') wm3TurnHud();   // modo Líder: os botões dependem do tile selecionado
 }
 // Com o batalhão selecionado, um clique no tile: ele marcha (wtMove gasta as ações e os NPCs andam) e o boneco anda pela trilha até onde chegou.
 // Recusa (sem ações, sem caminho) fica em silêncio: o contador de ações basta.
@@ -966,6 +967,7 @@ function wm3Keys(e) {
     else if (!WM.standalone && !e.repeat) { if (wm3Locked()) openPanel('pause'); else wm3Close() }   // mundo novo fora do tile: o mapa é a tela principal
     e.preventDefault(); e.stopImmediatePropagation(); return;
   }
+  if (e.code === 'KeyM' && !e.repeat && wtX().turn === 'leader' && !WM.standalone) { wm3Close(); e.preventDefault(); e.stopImmediatePropagation(); return }   // M no escritório abre e fecha o mapa mundi (modo Líder)
   if (e.code === 'KeyL' && !e.repeat) { wm3Book(); e.preventDefault(); e.stopImmediatePropagation(); return }
   if (e.code === 'KeyF' && !e.repeat) wm3View(WM.follow ? 'geral' : 'heroi');
   if (e.code === 'Home' && !e.repeat) wm3View('geral');

@@ -10,7 +10,7 @@ function wm3TurnOpen(B) {
   const w = wtX(); wtInit(B.G); wm3SpeedSet(+localStorage.getItem('wm3speed') || WT.speedDefault);
   if (w.turn === 'leader' && (WM.standalone || typeof STATE.phase === 'undefined' || STATE.phase !== 'leader')) wtCommanderBegin(B.G);
   const b = wtEnsureBat(B.G); WM.at = b ? wtNode(b.tile) : B.G.inicio.id;
-  wm3TokenPlace(WM.at); wm3TurnActors(); wm3TurnHud();
+  B.token.visible = !!b; wm3TokenPlace(WM.at); wm3TurnActors(); wm3TurnHud();
 }
 // Posição da vaga s (0 = a do batalhão ativo) de um tile: as vagas se enfileiram ao lado da âncora.
 function wm3TurnPos(tile, s) { const a = wm3Anchor(tile); return { x: a.x - s * WORLD3D.slotGap, y: a.y, z: a.z } }
@@ -101,23 +101,48 @@ function wm3TurnHudMake() {
     #wm3turn b { color: #fff; } #wm3turn .wm3-sub { color: #d8c8a0; margin: 4px 0; font-size: 13px; }
     #wm3turn button { display: block; width: 100%; margin-top: 6px; text-align: left; pointer-events: auto; cursor: pointer; padding: 7px 10px; border: 2px solid #c9a24a;
       border-radius: 10px; font: bold 13px Georgia, serif; background: #3a2810; color: #f4ecd8; }
-    #wm3turn button:hover { background: #5a3d1a; } #wm3turn .wm3-warn { color: #ff9a8a; margin-top: 6px; font-size: 13px; }`;
+    #wm3turn button:hover { background: #5a3d1a; } #wm3turn button:disabled { opacity: .4; cursor: default; background: #3a2810; } #wm3turn .wm3-warn { color: #ff9a8a; margin-top: 6px; font-size: 13px; }`;
   document.head.appendChild(css);
   const el = WM.turnEl = WM.hud.el.querySelector('#wm3turn');
   el.addEventListener('click', e => { const b = e.target.closest('button'); if (b) wm3TurnClick(b.dataset.a) });
 }
 function wm3TurnHud() {
   wm3TurnHudMake();
-  const el = WM.turnEl, w = wtX(); if (w.turn === 'leader') { el.style.display = 'none'; return }
+  const el = WM.turnEl, w = wtX(); if (w.turn === 'leader') { wm3LeadHud(); return }
   let h = '<div>' + txtWtActions(w.left, w.pool) + '</div>';
   if (w.enc) h += '<div class="wm3-warn">⚔ ' + txtWtEncTitle(w.enc.layout, w.enc.n) + '</div><button data-a="auto">' + TXT_WT_ENC_AUTO + '</button>';
   else if (w.inTile !== null) h += '<div class="wm3-sub">' + txtWtInTile(wm3TurnTile(w.inTile)) + '</div><button data-a="leave">' + TXT_WT_LEAVE + '</button>';
   el.innerHTML = h; el.style.display = 'block';
 }
+// ---- modo Líder (etapa 8.2): o mapa mundi no turno do Líder (escritório) só mostra, cria e doa batalhões; nada anda ----
+// A caixa lista os batalhões e, com uma cidade ou vila sua selecionada, oferece criar um batalhão ali e doar soldados entre os que estão lá.
+function wm3LeadHud() {
+  const el = WM.turnEl, G2 = WM.built.G, L = batList('player'), sel = WM.sel;
+  let h = '<div><b>' + txtWtLeadTitle(L.length, batCountMax(wtLvl())) + '</b></div>';
+  L.forEach((b, i) => { h += '<div class="wm3-sub">' + txtWtLeadRow(i + 1, batTotal(b), wm3TurnTile(wtNode(b.tile))) + '</div>' });
+  if (sel >= 0 && wtMine(G2, sel)) {
+    const c = wtCreateCheck(G2, sel), here = batAt(wtKey(sel)).filter(b => b.dono === 'player');
+    h += '<button data-a="lcreate"' + (c.why ? ' disabled' : '') + '>' + txtWtLeadCreate(c.cost, c.pt ? ECON.act.battalion : 0) + '</button>';
+    for (const a of here) for (const b of here) {
+      if (a === b || !batTotal(a) || batTotal(b) >= BAT.max) continue;
+      const ia = 1 + L.indexOf(a), ib = 1 + L.indexOf(b);
+      for (const n of [WT.donateStep, 0]) if (!n || batTotal(a) > n) h += '<button data-a="ldon:' + a.id + ':' + b.id + ':' + n + '">' + txtWtLeadDonate(ia, ib, n) + '</button>';
+    }
+  }
+  el.innerHTML = h; el.style.display = 'block';
+}
+// Clique de um botão do modo Líder: criar no tile selecionado ou doar (n = 0: todos).
+function wm3LeadAct(a) {
+  const G2 = WM.built.G;
+  if (a === 'lcreate') { if (WM.sel >= 0) wtCreate(G2, WM.sel) }
+  else { const [, f, t, n] = a.split(':'); wtDonate(G2, +f, +t, +n || BAT.max) }
+  wm3TurnSync(); wm3Select(WM.sel);
+}
 // Ações do turno (caixa de Ações e menus): enter (entrar no tile), leave, auto, skip (pula uma ação), end (encerra o turno). Recusas ficam em silêncio
 // (o contador de ações basta).
 function wm3TurnClick(a) {
   const G2 = WM.built.G; if (WM.walk || WM.seq) return;
+  if (a === 'lcreate' || (a && a.startsWith('ldon:'))) { wm3LeadAct(a); return }
   if (a === 'enter') { wm3EnterTile(); return }
   else if (a === 'leave') { const r = wtLeave(G2); if (wm3TurnSeqStart(r && r.steps)) return }
   else if (a === 'auto') { const r = wtAutoBattle(G2); if (r && r.fim) { wm3TurnEnd(); return } else if (r && wm3TurnSeqStart(r.steps)) return }
@@ -214,7 +239,7 @@ function wm3EntMenu(mx, my, tile) {
 }
 // Escolha de uma entrada do tile: batalhão seu = seleciona (o já selecionado abre o menu dele); o resto mostra a informação sob a do tile.
 function wm3EntPick(tile, E, i) {
-  if (E.k === 'bat' && E.b.dono === 'player') {
+  if (E.k === 'bat' && E.b.dono === 'player' && wtX().turn !== 'leader') {   // no turno do Líder o batalhão não se arma (nada anda)
     if (E.b.id === wtX().act && WM.armed) { wm3MenuOpen(); return }
     if (E.b.id !== wtX().act && !(wtSwitch(E.b.id) && (wm3TurnSync(), true))) return;
     WM.armed = true; wm3ArmRing();

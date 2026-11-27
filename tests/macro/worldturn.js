@@ -11,25 +11,44 @@ ok(run('G.nodes.length')>10 && run('H')>=0, 'grafo de teste', 'nós ' + run('G.n
 ok(run('wtPoolMax(1)')===3 && run('wtPoolMax(3)')===5 && run('wtPoolMax(99)')===8, 'pool por nível (o último vale para os acima)');
 ok(run('G.edges.every(e=>wtEdgeCost(e)>=1)') && run('(()=>{const t=G.edges.find(e=>e.kind==="trilha"),r=G.edges.find(e=>e.kind==="estrada");return !t||!r||wtEdgeCost(Object.assign({},r,{custo:t.custo,len:t.len}))<=wtEdgeCost(t)})()'), 'custo >= 1 e estrada nunca mais cara que trilha');
 
-// turno do Líder: primeiro batalhão grátis; depois pago
+// turno do Líder (etapa 8.2): primeiro batalhão grátis; depois ponto + 1.000 de ouro; resgate só com o ponto
+run('STATE.phase="leader"; STATE.rd.actions=5; STATE.rd.lvl=1');
 ok(run('wtX().turn')==='leader', 'começa no turno do Líder');
 const r1 = run('JSON.stringify(wtCreate(G,H))');
-ok(JSON.parse(r1).ok && run('Ledger.get("gold")')===2000 && run('batList("player").length')===1, 'primeiro batalhão grátis na capital', r1.slice(0, 60));
-ok(run('wtX().act')===run('batList("player")[0].id') && run('batList("player")[0].mun.pistol')===30, 'vira o ativo e leva o kit do comandante');
+ok(JSON.parse(r1).ok && run('Ledger.get("gold")')===2000 && run('batList("player").length')===1 && run('STATE.rd.actions')===5, 'primeiro batalhão grátis (sem ouro nem ponto) na capital', r1.slice(0, 60));
+ok(run('wtX().act')===run('batList("player")[0].id') && run('batList("player")[0].mun.pistol')===30 && run('batTotal(batList("player")[0])')===10, 'vira o ativo, com 10 soldados e o kit do comandante');
 ok(run('wtCreate(G,H).why')==='teto', 'nível 1: só 1 batalhão (teto)');
 run('STATE.rd.lvl=2');
-ok(run('wtCreate(G,H).ok')===true && run('Ledger.get("gold")')===1000, 'nível 2: segundo custa 10 x 100 de ouro');
+ok(run('wtCreate(G,H).ok')===true && run('Ledger.get("gold")')===1000 && run('STATE.rd.actions')===4, 'nível 2: segundo custa 1 ponto + 1.000 de ouro');
+ok(run('batTotal(batList("player")[1])')===10 && !('pistol' in run('batList("player")[1].mun')), 'nasce com 10 soldados e sem kit (inventário único)');
 run('STATE.rd.lvl=3');
 run('Ledger.set("gold",300)');
-ok(run('wtCreate(G,H).why')==='ouro' && run('Ledger.get("gold")')===300, 'sem ouro: recusa e não mexe no saldo (nunca dívida)');
+ok(run('wtCreate(G,H).why')==='ouro' && run('Ledger.get("gold")')===300 && run('STATE.rd.actions')===4, 'sem ouro: recusa e não mexe no saldo nem no ponto (nunca dívida)');
+run('Ledger.set("gold",5000); STATE.rd.actions=0');
+ok(run('wtCreate(G,H).why')==='ponto' && run('Ledger.get("gold")')===5000, 'sem ponto de Líder: recusa');
+run('STATE.rd.actions=3');
 ok(run('wtCreate(G,run=G.nodes.findIndex(n=>n.tema!=="cidade"&&n.tema!=="vila"&&!n.mar)).why')==='cidade', 'só em cidade ou vila sua');
+ok(run('wtCreateCheck(G,H).why')==='' && run('wtCreateCheck(G,H).cost')===1000 && run('batList("player").length')===2, 'wtCreateCheck não cria nada');
+run('wtX().turn="commander"'); ok(run('wtCreate(G,H).why')==='turno', 'criar só no turno do Líder'); run('wtX().turn="leader"');
 // doação na mesma cidade
 const [b1, b2] = JSON.parse(run('JSON.stringify(batList("player").map(b=>b.id))'));
-ok(run(`wtDonate(G,${b1},${b2},"soldier",4)`)===4 && run(`batTotal(batGet(${b2}))`)===14, 'doação entre batalhões na mesma cidade');
+ok(run(`wtDonate(G,${b1},${b2},4)`)===4 && run(`batTotal(batGet(${b2}))`)===14, 'doação entre batalhões na mesma cidade');
+ok(run(`wtDonate(G,${b1},${b2},999)`)===6 && run(`batTotal(batGet(${b1}))`)===0, 'dá para zerar o doador (dividir)');
+ok(run(`wtDonate(G,${b2},${b1},999)`)===20 && run(`batTotal(batGet(${b1}))`)===20, 'e voltar tudo');
+run(`batGain(batGet(${b1}),"soldier",30)`);
+ok(run(`wtDonate(G,${b2},${b1},5)`)===0, 'destino cheio (50) não recebe');
 run(`batMove(batGet(${b2}),wtKey(G.nodes.find(n=>n.tema==="cidade"&&n.id!==H).id))`);
-ok(run(`wtDonate(G,${b1},${b2},"soldier",1)`)===0, 'doação recusada se não estão no mesmo tile');
+ok(run(`wtDonate(G,${b1},${b2},1)`)===0, 'doação recusada se não estão no mesmo tile');
 run(`batMove(batGet(${b2}),wtKey(H))`);
+run('wtX().turn="commander"'); ok(run(`wtDonate(G,${b1},${b2},1)`)===0, 'doar só no turno do Líder'); run('wtX().turn="leader"');
 run(`batDestroy(${b2})`); run('STATE.rd.lvl=1');
+// resgate: sem batalhão nenhum, o novo custa só o ponto e nasce sem soldados, com o kit
+run(`batDestroy(${b1})`); run('STATE.rd.actions=2; Ledger.set("gold",10)');
+ok(run('wtCreate(G,H).ok')===true && run('Ledger.get("gold")')===10 && run('STATE.rd.actions')===1 && run('batTotal(batList("player")[0])')===0 && run('batList("player")[0].mun.pistol')===30, 'resgate: só o ponto, sem soldados, com o kit');
+run('batDestroy(batList("player")[0].id); STATE.rd.actions=0');
+ok(run('wtCreate(G,H).why')==='ponto', 'resgate também exige o ponto');
+ok(run('wtEnsureBat(G)')===null, 'wtEnsureBat não cria sozinho depois do primeiro do jogo');
+run('batCreate("player",wtKey(H),{soldier:6},WT.kit,1); STATE.phase="commander"; wtX().turn="leader"');
 
 // turno do Comandante
 run('wtCommanderBegin(G)');
@@ -71,9 +90,12 @@ ok(d1.fim === true && run('batList("player").length')===0 && run('Ledger.get("go
 run('Ledger.set("gold",40)'); run('batCreate("player","w1",{soldier:5},{},1)'); run('wtX().act=batList("player")[0].id');
 run('wtX().enc={actor:0,bat:wtX().act,tile:1,mover:"npc",layout:"defesa",n:5}'); run('wtBattleEnd(G,false,0)');
 ok(run('Ledger.get("gold")')===0, 'ouro baixo: perde só o que tem (nunca dívida)');
-// sem batalhão: o próximo turno cria um grátis na capital
+// sem batalhão: o turno do Comandante fica sem ninguém; o Líder cria o de resgate (só o ponto) no turno dele
 run('wtX().turn="leader"; wtCommanderBegin(G)');
-ok(run('batList("player").length')===1 && run('wtActive().tile')===run('wtKey(H)') && run('Ledger.get("gold")')===0, 'sem batalhão: o próximo turno traz um grátis na capital');
+ok(run('batList("player").length')===0 && run('wtActive()')===null, 'sem batalhão: nada nasce sozinho no turno do Comandante');
+run('wtX().turn="leader"; STATE.phase="leader"; STATE.rd.actions=1');
+ok(run('wtCreate(G,H).ok')===true && run('wtActive().tile')===run('wtKey(H)') && run('Ledger.get("gold")')===0 && run('batTotal(wtActive())')===0, 'resgate no turno do Líder: grátis na capital, sem soldados');
+run('STATE.phase="commander"; wtCommanderBegin(G); batGain(wtActive(),"soldier",6)');
 
 // NPC dá um passo por ação; bandido caça batalhão à vista; defesa na cidade
 run('wtX().actors=[]; wtX().left=10; wtX().enc=null');

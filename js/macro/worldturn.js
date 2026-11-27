@@ -5,7 +5,7 @@
 // (battalion.js) e o tile é a chave 'w'+id do ponto. Fluxo: turno do Líder (wtCreate/wtDonate) -> wtCommanderBegin -> o jogador age (wtMove) e, a cada ação gasta,
 // os NPCs dão UM passo (wtStepNpcs) -> encontro no mesmo tile = batalha (wtEnc) -> wtBattleEnd/wtAutoBattle -> wtEnd (sobra de ações vira passos, cerco cai, resumo).
 // Números em WT (worldturn-modifiers.js); textos em worldturn-texts.js. Determinístico: o sorteio usa G.seed e o contador STATE.wt.rs.
-const wtFresh = () => ({ rs: 0, seq: 0, pool: 0, left: 0, act: 0, turn: 'leader', actors: [], log: [], enc: null, idle: 0, init: false, inTile: null, owed: 0, mv: 0, local: null, spawn: false, entry: -1 });
+const wtFresh = () => ({ rs: 0, seq: 0, pool: 0, left: 0, act: 0, turn: 'leader', actors: [], log: [], enc: null, idle: 0, init: false, inTile: null, owed: 0, mv: 0, born: 0, local: null, spawn: false, entry: -1 });
 const wtX = () => STATE.wt || (STATE.wt = wtFresh());
 const wtKey = id => 'w' + id, wtNode = key => +String(key).slice(1);
 const wtLvl = () => (STATE.rd && STATE.rd.lvl) || 1;
@@ -19,7 +19,7 @@ Hooks.on('resetState', () => { STATE.wt = wtFresh() });
 function wtApply(s) {
   const w = wtFresh();
   if (s && typeof s === 'object') {
-    for (const k of ['rs', 'seq', 'pool', 'left', 'act', 'idle', 'owed', 'mv']) w[k] = +s[k] || 0;
+    for (const k of ['rs', 'seq', 'pool', 'left', 'act', 'idle', 'owed', 'mv', 'born']) w[k] = +s[k] || 0;
     w.turn = s.turn === 'commander' ? 'commander' : 'leader'; w.init = !!s.init;
     w.actors = Array.isArray(s.actors) ? s.actors.filter(a => a && typeof a.tile === 'number' && a.str > 0) : [];
     w.log = Array.isArray(s.log) ? s.log.filter(t => typeof t === 'string') : [];
@@ -73,10 +73,10 @@ function wtInit(G) {
   }
   w.init = true;
 }
-// Garante um batalhão do jogador (o primeiro é grátis, com o kit do comandante); sem nenhum, nasce outro na capital. Devolve-o.
+// Garante o batalhão ativo. Só o PRIMEIRO do jogo nasce sozinho (grátis, com o kit); quem perdeu todos cria o de resgate no turno do Líder (wtCreate).
 function wtEnsureBat(G) {
-  const w = wtX(); let b = batGet(w.act) || batList('player')[0];
-  if (!b) { const home = G.inicio ? G.inicio.id : 0; b = batCreate('player', wtKey(home), { soldier: WT.freeSoldiers }, WT.kit, wtLvl()); wtLog(txtWtCreated(wtName(G, home))) }
+  const w = wtX(); let b = batGet(w.act) || batList('player')[0] || null;
+  if (!b && !w.born) { const r = wtCreate(G, G.inicio ? G.inicio.id : 0, true); b = r.b || null }
   w.act = b ? b.id : 0; return b;
 }
 // Começa o turno do Comandante: pool pelo nível, batalhão ativo garantido.
@@ -90,22 +90,39 @@ function wtCommanderBegin(G) {
 function wtSwitch(id) { const b = batGet(id); if (!b || b.dono !== 'player' || wtX().enc || wtX().inTile !== null) return false; wtX().act = id; return true }
 
 // ---- turno do Líder: batalhões ----
-// Cria um batalhão na cidade `id` (só sua). Grátis se o jogador não tem nenhum; senão custa newSoldiers x soldierPrice em ouro (nunca dívida).
-function wtCreate(G, id) {
-  const w = wtX(); if (w.turn !== 'leader') return { ok: false, why: 'turno' };
-  if (!wtMine(G, id)) return { ok: false, why: 'cidade' };
-  const free = !batList('player').length, cost = free ? 0 : WT.newSoldiers * WT.soldierPrice;
-  if (batList('player').length >= batCountMax(wtLvl())) return { ok: false, why: 'teto' };
-  if (cost && !Ledger.spend({ gold: cost })) return { ok: false, why: 'ouro', cost };
-  const b = batCreate('player', wtKey(id), { soldier: free ? WT.freeSoldiers : WT.newSoldiers }, WT.kit, wtLvl());
-  if (!w.act) w.act = b.id;
+// Confere se dá para criar um batalhão em `id` sem criar nada (a interface usa para ligar o botão). Devolve {why: '' | turno|cidade|teto|ponto|ouro, none, first, cost, pt}.
+function wtCreateCheck(G, id, force) {
+  const w = wtX(), none = !batList('player').length, first = none && !w.born, cost = none ? 0 : WT.newGold, pt = !force && !first, o = { none, first, cost, pt, why: '' };
+  if (!force && w.turn !== 'leader') o.why = 'turno';
+  else if (!wtMine(G, id)) o.why = 'cidade';
+  else if (!none && batList('player').length >= batCountMax(wtLvl())) o.why = 'teto';
+  else if (pt && !canAct('battalion')) o.why = 'ponto';   // o primeiro do jogo não gasta nem o ponto
+  else if (cost && !Ledger.canAfford({ gold: cost })) o.why = 'ouro';
+  return o;
+}
+// Cria um batalhão na cidade ou vila sua `id` (no turno do Líder; `force` = começo do jogo, sem turno nem ponto). O PRIMEIRO do jogo é grátis (WT.firstSoldiers
+// e o kit); sem nenhum batalhão, o de resgate custa só o ponto do Líder (sem soldados, com o kit); os demais custam o ponto e WT.newGold (nasce com WT.newSoldiers,
+// sem kit: o inventário é um só). Respeita o teto do nível; nunca vira dívida. Devolve {ok, b, cost} ou {ok:false, why: turno|cidade|teto|ponto|ouro}.
+function wtCreate(G, id, force) {
+  const c = wtCreateCheck(G, id, force); if (c.why) return { ok: false, why: c.why, cost: c.cost };
+  const w = wtX(), none = c.none, first = c.first, cost = c.cost;
+  if (c.pt) spendAct('battalion'); if (cost) Ledger.spend({ gold: cost });
+  const sold = first ? WT.firstSoldiers : none ? WT.rescueSoldiers : WT.newSoldiers;
+  const b = batCreate('player', wtKey(id), sold ? { soldier: sold } : {}, none ? WT.kit : {}, wtLvl()); w.born++;
+  if (!w.act || none) w.act = b.id;
   wtLog(txtWtCreated(wtName(G, id))); return { ok: true, b, cost };
 }
-// Doa n soldados do tipo k entre dois batalhões do jogador parados na mesma cidade sua. Devolve quantos passaram.
-function wtDonate(G, fromId, toId, k, n) {
+// Doa soldados entre dois batalhões do jogador parados na mesma cidade ou vila sua, no turno do Líder; pode zerar o doador (dividir um batalhão cheio).
+// Doa até n soldados (os tipos com mais gente primeiro); o destino respeita o teto. Devolve quantos passaram.
+function wtDonate(G, fromId, toId, n) {
   const a = batGet(fromId), b = batGet(toId);
-  if (!a || !b || a === b || a.dono !== 'player' || b.dono !== 'player' || a.tile !== b.tile || !wtMine(G, wtNode(a.tile))) return 0;
-  return batDonate(a, b, k, n);
+  if (wtX().turn !== 'leader' || !a || !b || a === b || a.dono !== 'player' || b.dono !== 'player' || a.tile !== b.tile || !wtMine(G, wtNode(a.tile))) return 0;
+  let got = 0, left = Math.min(n, BAT.max - batTotal(b));
+  while (left > 0 && batTotal(a) > 0) {
+    const k = BAT.kinds.reduce((m, x) => (a.sold[x] || 0) > (a.sold[m] || 0) ? x : m, BAT.kinds[0]), d = batDonate(a, b, k, left);
+    if (!d) break; got += d; left -= d;
+  }
+  return got;
 }
 
 // ---- movimento e NPCs ----

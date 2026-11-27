@@ -22,8 +22,14 @@ function canOrderAllies() { return ALLIES.some(a => a.alive && !a.post); }
 // ---------- Recrutamento com regras e limites (feature 12, passo 11; 4B-4 e 4B-19) ----------
 // Teto de soldados do jogador (sem reserva: ganho além do teto se perde; quem morre sai do exército). Padrão: 50
 const ARMY_MAX_SOLDIERS = 50;
-// Teto de soldados recrutados por RODADA em cada lugar (renova a cada rodada): cidade, vila sua e vila neutra. O teto do exército vale por cima. Padrão: 50, 15 e 5
-const RECRUIT_ROUND_CAP = { city: 50, village: 15, neutral: 5 };
+// Teto de soldados recrutados por RODADA em cada lugar (renova a cada rodada): cidade, vila sua e vila neutra. O teto do exército vale por cima. Padrão: 25, 15 e 5
+const RECRUIT_ROUND_CAP = { city: 25, village: 15, neutral: 5 };
+// No mundo novo (?mundo=1) o recrutamento entra no BATALHÃO ativo (o que está no tile; etapa 8.2): o teto de BAT.max vale para ele e cada recruta soma 1 soldado
+// ao batalhão (armyGainBat). Fora dele valem os soldados do Campo (ARMY.max). armyCount = quantos soldados contam para o teto agora.
+const armyBat = () => mapMundoOn() && typeof wtActive === 'function' ? wtActive() : null;
+const armyCount = () => armyBat() ? batTotal(armyBat()) : armyTotal();
+const armyFull = () => armyBat() ? batTotal(armyBat()) >= BAT.max : armyTotal() >= ARMY.max;
+const armyGainBat = () => { const b = armyBat(); if (b) batGain(b, 'soldier', 1) };
 // Recompensa em ouro que o refém libertado dá quando o exército está cheio e ele não pode se juntar. Padrão: 100
 const HOSTAGE_FULL_REWARD = 100;
 // Onde dá para recrutar: 'city' = cidade sua (Quartel); 'village' = vila sua; 'neutral' = vila neutra (não dominada por facção); null = em lugar nenhum.
