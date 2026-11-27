@@ -79,6 +79,14 @@ const BATTLE_MOD = {
   // Cores dos números do placar: bandidos têm cor fixa; mortos usam a mesma cor com esta transparência. Padrão: '#d05a4a' e 0.55
   scoreBandit: '#d05a4a', scoreDeadAlpha: 0.55
 };
+// Batalha no tile REAL do mundo novo (etapa 8.3, local/tilebattle.js): como achar o chão e onde pôr as peças em cada tile (que tem 384 de lado, não os 320 do teste).
+// edge = margem do mapa onde nada é posto (10); dry = altura mínima acima do mar para valer como terra firme (1.5); slope = desnível máximo em 4 blocos (3);
+// landMax/landStep = até onde e de quanto em quanto se procura terra firme em anéis (140, 8); enter = blocos para dentro da abertura onde o comandante nasce (14);
+// fieldRing = distância do centro do tile onde se procura o campo do Choque quando há cidade (110) e cityGap = folga mínima à cidade (35);
+// postDist/postSpread = distância dos postos ao centro do campo (85) e deslocamento lateral de cada um (-32, 0, 32); defFoot = meia-pegada mínima da posição na Defesa (30);
+// defAngles = ângulos, em graus, dos 3 postos atacantes em torno da posição, a partir do lado de onde o inimigo chega (0, 50, -50). Padrão: os valores entre parênteses
+const BATTLE_TILE = { edge: 10, dry: 1.5, slope: 3, landMax: 140, landStep: 8, enter: 14, fieldRing: 110, cityGap: 35, postDist: 85, postSpread: [-32, 0, 32],
+  defFoot: 30, defAngles: [0, 50, -50] };
 // Verdadeiro quando o cenário de teste está no modo de batalha pedido por ?modo= (nucleo, choque, defesa, ataque, pequena).
 const battleMode = () => tileTestOn() ? (new URLSearchParams(location.search).get('modo') || '') : '';
 

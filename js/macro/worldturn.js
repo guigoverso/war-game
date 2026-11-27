@@ -87,7 +87,11 @@ function wtCommanderBegin(G) {
   wtEnsureBat(G);
 }
 // Troca o batalhão ativo (grátis: o comandante é um só e "teleporta").
-function wtSwitch(id) { const b = batGet(id); if (!b || b.dono !== 'player' || wtX().enc || wtX().inTile !== null) return false; wtX().act = id; return true }
+// Com um encontro pendente a troca vale (o jogador move os outros batalhões antes de lutar), menos para o que está no tile do encontro.
+function wtSwitch(id) {
+  const b = batGet(id), w = wtX(); if (!b || b.dono !== 'player' || w.inTile !== null || (w.enc && wtNode(b.tile) === w.enc.tile)) return false;
+  w.act = id; return true;
+}
 
 // ---- turno do Líder: batalhões ----
 // Confere se dá para criar um batalhão em `id` sem criar nada (a interface usa para ligar o botão). Devolve {why: '' | turno|cidade|teto|ponto|ouro, none, first, cost, pt}.
@@ -138,7 +142,7 @@ function wtSetEnc(G, actor, bat, mover, cerco) {
 function wtNpcStep(G) {
   const w = wtX(), rg = wtRng(G), mine = batList('player');
   for (const a of w.actors.slice()) {
-    if (!w.actors.includes(a)) continue;
+    if (!w.actors.includes(a) || (w.enc && a.id === w.enc.actor)) continue;   // quem está no encontro pendente espera a luta
     if (a.kind === 'caravan') {
       const r = a.route; if (a.ri + a.dir < 0 || a.ri + a.dir >= r.length) a.dir = -a.dir;
       const f0 = a.tile; a.ri += a.dir; a.tile = r[a.ri]; wtMoveLog.push({ id: a.id, from: f0, to: a.tile, e: wgEdgeOf(G, f0, a.tile).id });
@@ -155,7 +159,7 @@ function wtNpcStep(G) {
     if (next < 0) continue;
     wtMoveLog.push({ id: a.id, from: a.tile, to: next, e: wgEdgeOf(G, a.tile, next).id }); a.tile = next;
     const bat = mine.find(b => wtNode(b.tile) === next);
-    if (bat) { wtSetEnc(G, a, bat, 'npc'); return true }
+    if (bat && !w.enc) { wtSetEnc(G, a, bat, 'npc'); return true }   // com um encontro pendente não nasce outro
     const car = wtActorsAt(next).find(c => c.kind === 'caravan');
     if (car) { w.actors.splice(w.actors.indexOf(car), 1); wtLog(txtWtCaravanLost(wtName(G, next))) }
   }
@@ -219,7 +223,7 @@ function wtLeave(G) {
 // item de steps (npc). Ou {ok:false, why}.
 function wtMove(G, to) {
   const w = wtX(), b = wtActive();
-  if (w.turn !== 'commander' || w.enc || w.inTile !== null) return { ok: false, why: 'turno' };
+  if (w.turn !== 'commander' || w.inTile !== null || (w.enc && b && wtNode(b.tile) === w.enc.tile)) return { ok: false, why: 'turno' };   // no encontro, só se move quem não está nele
   if (!b || b.dono !== 'player') return { ok: false, why: 'sem-batalhao' };
   const p = wtPath(G, wtNode(b.tile), to); if (!p || !p.ids.length) return { ok: false, why: 'sem-caminho' };
   if (w.left <= 0) return { ok: false, why: 'sem-acao', acoes: wtPlan(G, p) };
@@ -227,10 +231,12 @@ function wtMove(G, to) {
   w.left--;
   for (let q = 0; q < n; q++) {
     const node = p.nodes[q + 1], key = wtKey(node), st = { from: p.nodes[q], node, edge: p.ids[q], npc: [] };
+    if (w.enc && node !== w.enc.tile && wtHostileAt(node)) break;   // com um encontro pendente, outro batalhão só entra no tile do próprio encontro (junta-se à luta); outro tile hostil espera
     b.tile = key; b.de = p.nodes[q]; gasto += wtEdgeCost(G.edges[p.ids[q]]); nodes.push(node); steps.push(st);   // de: de onde chegou (entra pela estrada certa)
-    if (siegeArrive(key)) { wtSetEnc(G, null, b, 'player', true); break }
-    const hit = wtHostileAt(node); if (hit) { wtSetEnc(G, hit, b, 'player'); break }
+    if (!w.enc && siegeArrive(key)) { wtSetEnc(G, null, b, 'player', true); break }
+    const hit = wtHostileAt(node); if (hit && !w.enc) { wtSetEnc(G, hit, b, 'player'); break }
   }
+  if (!nodes.length) { w.left++; return { ok: false, why: 'bloqueado' } }
   if (!w.enc) {
     steps[steps.length - 1].npc = wtActionEnd(G);   // depois da ação completa do jogador: um passo de cada NPC
     wtLog(txtWtMoved(wtName(G, nodes[nodes.length - 1])));
@@ -239,31 +245,77 @@ function wtMove(G, to) {
 }
 
 // ---- batalha ----
-// Parâmetros de URL do cenário de batalha para o encontro (modo por WT.layoutMode, inimigos = força do encontro). A luta de verdade no tile liga na etapa 8.
+// Parâmetros de URL do cenário de batalha do teste (modo por WT.layoutMode, inimigos = força do encontro). O jogo do mundo novo usa wtBattleBegin.
 const wtBattleParams = enc => '?cenario=batalha&modo=' + WT.layoutMode[enc.layout] + '&inim=' + enc.n;
-// Derrota do comandante: o batalhão se desfaz, o jogador perde ouro (nunca dívida) e o que o batalhão levava (munição). Passa o comando a outro batalhão.
-function wtDeath(G, id) {
+// Batalhões do jogador que lutam o encontro: os que estão no tile dele (o do encontro e os que chegaram; somam, 8.3).
+const wtForces = e => e ? batAt(wtKey(e.tile)).filter(b => b.dono === 'player') : [];
+// Baixas divididas igualmente entre os batalhões (14 e 14 de 28); sobra de conta redonda vai aos primeiros; quem tem menos que a cota perde o que tem e o resto passa adiante.
+function wtLoseSplit(bats, n) {
+  let left = Math.max(0, Math.floor(n)); const L = bats.slice();
+  while (left > 0 && L.some(b => batTotal(b) > 0)) {
+    const live = L.filter(b => batTotal(b) > 0), q = Math.max(1, Math.floor(left / live.length));
+    for (const b of live) { if (left <= 0) break; const d = Math.min(q, left, batTotal(b)); batLoseAny(b, d); left -= d }
+  }
+}
+// Começa a luta do encontro: o comandante passa a estar DENTRO do tile (sem gastar ação: o encontro já gastou a do movimento; os NPCs andam quando ele sai, owed).
+// Devolve {ok, tile, de, mode, enemies, bats:[id], soldiers} (mode = o da batalha em battle.js, soldiers = soma dos batalhões no tile) ou {ok:false, why}.
+function wtBattleBegin(G) {
+  const w = wtX(), e = w.enc, b = e && batGet(e.bat);
+  if (!e || !b || w.turn !== 'commander' || w.inTile !== null) return { ok: false, why: 'sem-encontro' };
+  const bats = wtForces(e); w.inTile = e.tile; w.owed = e.pend ? 1 : 0; w.mv = 0;
+  return { ok: true, tile: e.tile, de: typeof b.de === 'number' ? b.de : null, mode: WT.layoutMode[e.layout], layout: e.layout, enemies: e.n,
+    bats: bats.map(x => x.id), soldiers: bats.reduce((s, x) => s + batTotal(x), 0) };
+}
+// Sair da luta sem terminá-la (só o Ataque deixa: "fugir pausa"): o comandante sai do tile, o encontro continua à espera. As baixas até aqui já saíram dos batalhões
+// e o bando perdeu `mortos` homens (a força nunca cai a menos de 1). Devolve {steps: []}.
+function wtBattlePause(G, baixas, mortos) {
+  const w = wtX(), e = w.enc; if (!e) return null;
+  wtLoseSplit(wtForces(e), baixas || 0);
+  const a = w.actors.find(x => x.id === e.actor); if (a && mortos > 0) a.str = Math.max(1, a.str - mortos);
+  e.n = a ? a.str : Math.max(1, e.n - (mortos || 0)); w.inTile = null; w.owed = 0;
+  return { steps: [] };
+}
+// Derrota do comandante em batalha ou fora dela. form 1 = tile neutro ou bandidos sem tropas: perde ouro, parte da munição e dos itens (itemsLost, o chamador sorteia) e a
+// ação seguinte; form 2 = batalha de POI com soldados: igual e mais WT.deathPoiSoldiers soldados (sem soldados vira forma 3, sozinho); form 3 = batalha grande: o batalhão
+// se desfaz (soldados, ouro até WT.deathGold e munição), passa-se o comando a outro e, sem outro, o turno do Comandante acaba. Nunca dívida. O comandante volta ao mapa
+// mundi (sai do tile; os NPCs andam o que ficaram devendo). Devolve {form, sozinho, soldados, ouro, restam, fim, steps}.
+function wtDeath(G, id, form) {
   const w = wtX(), b = batGet(id); if (!b) return null;
-  const sold = batTotal(b), gold = Math.max(0, Math.min(Ledger.get('gold'), WT.deathGold));
+  form = form || 3; const sozinho = form === 2 && batTotal(b) === 0; if (sozinho) form = 3;
+  const sold = batTotal(b), gold = Math.max(0, Math.min(Ledger.get('gold'), WT.deathGold)), name = wtName(G, wtNode(b.tile));
   if (gold) Ledger.add('gold', -gold);
-  batDestroy(id);
-  const rest = batList('player'); w.act = rest.length ? rest[0].id : 0;
-  wtLog(txtWtDead(wtName(G, wtNode(b.tile)), gold));
-  if (!rest.length) w.left = 0;   // sem batalhão: a rodada acaba e vai para o turno do Líder
-  return { soldados: sold, ouro: gold, restam: rest.length };
+  let lostSold = 0;
+  if (form === 3) {
+    batDestroy(id); const rest = batList('player'); w.act = rest.length ? rest[0].id : 0;
+    if (!rest.length) w.left = 0;   // sem batalhão: a rodada acaba e vai para o turno do Líder
+    wtLog(txtWtDead(name, gold));
+  } else {
+    for (const k of Object.keys(b.mun)) b.mun[k] = Math.floor(b.mun[k] * (1 - WT.deathAmmoPart));
+    if (form === 2) lostSold = Object.values(batLoseAny(b, WT.deathPoiSoldiers)).reduce((s, n) => s + n, 0);
+    else w.left = Math.max(0, w.left - 1);   // forma 1: custa uma ação
+    wtLog(txtWtFainted(name, form));
+  }
+  w.enc = null; const lv = w.inTile !== null || w.owed > 0 ? wtLeave(G) : null, restam = batList('player').length;
+  return { form, sozinho, soldados: form === 3 ? sold : lostSold, ouro: gold, restam, fim: restam === 0, steps: lv ? lv.steps : [], mun: form !== 3 };
 }
 // A batalha encerrou a ação do jogador (qualquer que seja o movimento que sobrava): agora os NPCs dão o passo deles. Devolve [{npc}].
 function wtBattleAfter(G, e) { return e.pend ? [{ npc: wtActionEnd(G) }] : [] }
-// Fim da luta do encontro. venceu: o inimigo some; baixas = soldados do batalhão que morreram. Derrota: wtDeath. Devolve {fim}: true = sem batalhão (chame wtEnd).
-function wtBattleEnd(G, venceu, baixas) {
+// Fim da luta do encontro. venceu: o bando some e as baixas (soldados que morreram) se dividem igualmente entre os batalhões no tile; o comandante CONTINUA no tile
+// (sai pelo botão; os NPCs que deviam andar andam então) e, fora dele (resolvido por número), os NPCs andam já. Derrota: wtDeath forma 3 (form = outra, se pedida).
+// Devolve {fim, steps, ...}: fim = sem batalhão (chame wtEnd).
+function wtBattleEnd(G, venceu, baixas, form) {
   const w = wtX(), e = w.enc; if (!e) return { fim: false };
-  const b = batGet(e.bat); w.enc = null;
+  const b = batGet(e.bat), bats = wtForces(e);
   if (venceu) {
-    const i = w.actors.findIndex(a => a.id === e.actor); if (i >= 0) w.actors.splice(i, 1);
-    if (b) batLoseAny(b, baixas || 0);
-    wtLog(txtWtWon(wtName(G, e.tile), baixas || 0)); return { fim: false, steps: wtBattleAfter(G, e) };
+    w.enc = null; const i = w.actors.findIndex(a => a.id === e.actor); if (i >= 0) w.actors.splice(i, 1);
+    wtLoseSplit(bats.length ? bats : (b ? [b] : []), baixas || 0);
+    wtLog(txtWtWon(wtName(G, e.tile), baixas || 0));
+    if (w.inTile !== null) { w.owed += e.pend ? 1 : 0; return { fim: false, steps: [] } }
+    return { fim: false, steps: wtBattleAfter(G, e) };
   }
-  const r = b ? wtDeath(G, b.id) : null; return { fim: !!r && r.restam === 0, steps: r && r.restam ? wtBattleAfter(G, e) : [] };
+  const dentro = w.inTile !== null, r = b ? wtDeath(G, b.id, form) : null;
+  if (r && !dentro && r.restam) r.steps = wtBattleAfter(G, e);   // resolvido por número (fora do tile): os NPCs andam já
+  return Object.assign({ fim: !!r && r.restam === 0, steps: r ? r.steps : [] }, r || {});
 }
 // Resolve o encontro por número (atalho de teste para o jogador). Maior força (com um pouco de acaso) vence; o vencedor perde WT.autoLoss da força do outro.
 // Devolve {venceu, baixas, fim}.

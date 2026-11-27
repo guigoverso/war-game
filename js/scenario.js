@@ -7,6 +7,7 @@
 // Na pausa (Tab) → aba 🏴 Facções aparecem botões para ir até cada caravana. Nada daqui roda no jogo normal.
 const SCN={on:false,routes:[]};
 function scenarioApply(){
+  if(mapMundoOn()&&mundoScenario())return;   // cenários do mundo novo (?mundo=1&enc=...; ui/mundoscn.js)
   if(new URLSearchParams(location.search).get('cenario')==='pois'||new URLSearchParams(location.search).get('cenario')==='lego'){poiShowcase();return}   // mapa manual com todos os POIs (pois.js)
   if(new URLSearchParams(location.search).get('cenario')==='rebeliao'){rebScenario();return}   // cenário da rebelião de cidade NPC (rebellion.js)
   if(new URLSearchParams(location.search).get('cenario')==='guerra'){warScenario();return}   // cenário da guerra (war.js)

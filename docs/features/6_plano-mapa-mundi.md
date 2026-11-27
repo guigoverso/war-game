@@ -123,6 +123,7 @@ Hoje o rótulo do tile é só o tema ("Fazenda", "Fortaleza"). Passa a ter um **
 - Arquivos: `battalion.js`, `worldturn.js`, `office.js`, `mundoturno.js`, recrutamento (`battle.js`/quartel). Teste: Node (`tests/macro/worldturn.js`) + criar, dividir e recrutar na tela.
 
 ### 8.3 Encontro vira batalha de verdade e morte (G) — C5, C6, A5
+> **CÓDIGO PRONTO em 2026-11-27** (falta o teste na tela; resumo em `docs/MAPA.md`, "Etapa 8.3"; cenários em `cenarios-mundo.html`). Limites: encontro entre NPCs por número com intervenção do jogador (ainda não há NPC contra NPC), dono do tile/baú ao vencer (8.7) e fadiga/cerco no fim da batalha real.
 - O encontro no mapa mundi abre a batalha real no tile: Choque, Defesa (sem fuga: sair do raio = morrer) ou Ataque (só no POI principal; fugir pausa). Batalhões somados (30 x 10 em campo), baixas divididas, encontro espera o jogador mover os outros batalhões. Ao vencer, continua no tile. Entre NPCs por número, com intervenção do jogador escolhendo um lado. Sai o atalho "Resolver por número" (fica só no modo criativo).
 - Morte em três formas (+ conversão "atacou sozinho"), tela de morte narrativa (textos a aprovar), troca para outro batalhão ou fim do turno do Comandante.
 - Arquivos: `battle.js`, `worldturn.js`, `tilewar.js`, `game.js` (morte), `mundoturno.js`. Depende da 8.1 (entrar no tile) e da 8.2 (batalhão = boneco).

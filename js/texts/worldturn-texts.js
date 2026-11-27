@@ -14,6 +14,8 @@ const txtWtCaravanLost = nome => '🛒 Uma caravana foi tomada por bandidos pert
 const txtWtWon = (nome, baixas) => '🏁 Vencemos em ' + nome + (baixas ? ' e enterramos ' + baixas + ' dos nossos.' : ' sem perder ninguém.');
 // Resumo do livro: o comandante caiu. ouro = quanto custou um novo.
 const txtWtDead = (nome, ouro) => '💀 O comandante caiu em ' + nome + '. O batalhão se desfez' + (ouro ? ' e um novo comandante custou ◉' + ouro + '.' : '.');
+// Resumo do livro (etapa 8.3, RASCUNHO a aprovar): o comandante caiu mas o batalhão sobreviveu (forma 1 = desacordado no campo; forma 2 = o sacrifício dos soldados o salvou).
+const txtWtFainted = (nome, form) => form === 2 ? '🩹 Em ' + nome + ' o comandante caiu, mas a tropa o tirou de lá com vida.' : '🩹 Em ' + nome + ' o comandante foi achado desacordado e levado de volta.';
 // Resumo do livro: batalhão novo.
 const txtWtCreated = nome => '🪖 Um novo batalhão se formou em ' + nome + '.';
 // Painel do mapa mundi: contador de ações e botão de encerrar o turno.
@@ -59,3 +61,16 @@ const txtWtLeadRow = (i, n, nome) => 'Batalhão ' + i + ' — ' + n + ' soldados
 const txtWtLeadCreate = (ouro, ponto) => '➕ Criar batalhão aqui' + (ouro || ponto ? ' (' + [ouro ? '◉' + ouro : '', ponto ? ponto + ' ponto' : ''].filter(Boolean).join(' + ') + ')' : '');
 // Botões de doar soldados entre dois batalhões do mesmo tile: n soldados (ou todos) do batalhão a para o b.
 const txtWtLeadDonate = (a, b, n) => '↪ Doar ' + (n ? n : 'todos') + ' do ' + a + ' ao ' + b;
+
+// ---------- Encontro vira batalha e morte (etapa 8.3). RASCUNHOS, a aprovar ----------
+// Botão do painel de Ações quando há um encontro pendente: entrar no tile e lutar de verdade.
+const TXT_WT_ENC_FIGHT = '⚔ Lutar';
+// Tela de morte NARRATIVA (sem listar o que se perdeu). titulo/botao: forma 1 e 2; campo = forma 1 (caiu fora de batalha: os soldados o acharam e levaram de volta, os
+// inimigos já tinham saqueado o corpo); poi = forma 2 (perdeu a batalha da posição mas o sacrifício dos soldados o tirou de lá); sozinho = foi à posição sem tropa e o
+// batalhão se desfez. A forma 3 usa o texto de cada batalha (TXT_BATTLE_LOSE).
+const TXT_WT_DEATH = {
+  titulo: 'VOCÊ CAIU', botao: 'Continuar',
+  campo: 'Quando a escuridão se desfez, havia rostos conhecidos em volta. Os seus soldados o tinham achado caído no campo e carregado de volta. Quem o derrubou já havia passado pelo seu corpo, e levou tudo o que valia alguma coisa.',
+  poi: 'A posição não caiu, e o comandante também não, por muito pouco. Foi o sacrifício dos soldados que cobriram a retirada que o trouxe vivo de volta, e o preço deles ainda pesa.',
+  sozinho: 'Foi sozinho contra a posição, e o fim era previsível. Não restou ninguém para recolher o corpo, e o batalhão desapareceu junto com o seu comandante.'
+};

@@ -30,6 +30,10 @@ const WT = {
   donateStep: 10,
   // Morte do comandante: ouro perdido (o que houver, até este valor; nunca dívida) e fração do que o batalhão levava (munição) que se perde. Padrão: 150, 1
   deathGold: 150, deathAmmo: 1,
+  // Morte do comandante (etapa 8.3, três formas; wtDeath). Forma 1 (tile neutro/bandidos sem tropas) e forma 2 (batalha de POI com soldados): fração da munição do
+  // batalhão que se perde (o batalhão sobrevive), fração dos itens da bolsa que se perde (sorteio; armas e equipamento principal ficam) e, só na forma 2,
+  // quantos soldados morrem. Padrão: 0.5, 0.25 e 10
+  deathAmmoPart: 0.5, deathItems: 0.25, deathPoiSoldiers: 10,
   // Kit do comandante novo (batalhão grátis ou criado no turno do Líder): munição da pistola e curas, na bolsa do batalhão (b.mun). Padrão: 30 e 2
   kit: { pistol: 30, heal: 2 },
   // Atores do mundo: bandidos soltos e caravanas. count = quantos nascem na rodada 0; str = [mín, máx] de soldados do bandido; sight = alcance de visão do

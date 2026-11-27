@@ -19,6 +19,7 @@ Ao editar código: mantenha novas funções com linhas de até ~120 caracteres e
 - Modo criativo: pausa (Tab/O/Esc) tem abas de teste. Na aba **Rodadas**, "Invocar evento" dispara uma política específica no turno do Líder.
 - Os roteiros de teste de cada fase estão em `docs/fase-N-testes.md`. **`docs/fase-4-testes.md` é o mais completo e atual** (regras de rodadas, economia, políticas, raids).
 - Não há suíte de testes automática completa. Testar = jogar no navegador.
+- **Cenários de teste por mecânica (pedido do usuário, 2026-11-27):** toda mecânica nova do mundo novo (`?mundo=1`) ganha cenários prontos para o usuário testar sem jogar até ela: uma linha em `MUNDO_SCN` (`js/ui/mundoscn.js`; parâmetros de URL que montam o estado) e o cartão na galeria `cenarios-mundo.html` (`cd tests && node cenarios-mundo.js`, como `cenarios-pois.html`). Cite os links no fim da sessão.
 - Teste de fumaça (Node + Playwright, só para desenvolvimento): na primeira vez `cd tests && npm install && npx playwright install chromium`; depois `node tests/smoke.js`.
   Ele abre `?auto=1&mute=1&seed=11` e `?cenario=pois&auto=1&mute=1` e imprime OK/FALHA para carga sem erros, POIs, serviços, binóculo, moradores e Negociação.
 

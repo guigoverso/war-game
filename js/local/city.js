@@ -450,7 +450,7 @@ function cityWallRebuild(c,lvl,noNav){
 // no começo do jogo (e ao carregar): cada cidade do jogador fica com o muro do seu nível e com os atiradores certos
 function cityWallSync(){
   let any=false;
-  for(const c of WORLD.cities)if(c.owner==='player'){const lvl=cityLvl(c);if(c.wallLvl!==lvl){cityWallRebuild(c,lvl,true);any=true}else citySentrySync(c)}
+  for(const c of WORLD.cities)if(c.owner==='player'&&c.half>1){const lvl=cityLvl(c);if(c.wallLvl!==lvl){cityWallRebuild(c,lvl,true);any=true}else citySentrySync(c)}
   if(any)buildNav();
 }
 // uma torre 3x3 ancorada em (tx,tz) (coordenadas locais do centro da cidade): colisão, blocos, ameias, bandeira e registro em c.towers

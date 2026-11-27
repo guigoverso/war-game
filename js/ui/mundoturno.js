@@ -110,7 +110,11 @@ function wm3TurnHud() {
   wm3TurnHudMake();
   const el = WM.turnEl, w = wtX(); if (w.turn === 'leader') { wm3LeadHud(); return }
   let h = '<div>' + txtWtActions(w.left, w.pool) + '</div>';
-  if (w.enc) h += '<div class="wm3-warn">⚔ ' + txtWtEncTitle(w.enc.layout, w.enc.n) + '</div><button data-a="auto">' + TXT_WT_ENC_AUTO + '</button>';
+  if (w.enc) {   // encontro: lutar de verdade no tile (jogo do mundo novo); o atalho por número só no modo criativo (ou no mapa mundi solto)
+    h += '<div class="wm3-warn">⚔ ' + txtWtEncTitle(w.enc.layout, w.enc.n) + '</div>';
+    if (wm3RoundOn()) h += '<button data-a="fight">' + TXT_WT_ENC_FIGHT + '</button>';
+    if (G.creative || !wm3RoundOn()) h += '<button data-a="auto">' + TXT_WT_ENC_AUTO + '</button>';
+  }
   else if (w.inTile !== null) h += '<div class="wm3-sub">' + txtWtInTile(wm3TurnTile(w.inTile)) + '</div><button data-a="leave">' + TXT_WT_LEAVE + '</button>';
   el.innerHTML = h; el.style.display = 'block';
 }
@@ -144,6 +148,7 @@ function wm3TurnClick(a) {
   const G2 = WM.built.G; if (WM.walk || WM.seq) return;
   if (a === 'lcreate' || (a && a.startsWith('ldon:'))) { wm3LeadAct(a); return }
   if (a === 'enter') { wm3EnterTile(); return }
+  else if (a === 'fight') { wm3Fight(); return }
   else if (a === 'leave') { const r = wtLeave(G2); if (wm3TurnSeqStart(r && r.steps)) return }
   else if (a === 'auto') { const r = wtAutoBattle(G2); if (r && r.fim) { wm3TurnEnd(); return } else if (r && wm3TurnSeqStart(r.steps)) return }
   else if (a === 'skip') {   // o tempo passa como numa marcha
@@ -257,7 +262,15 @@ function wm3EnterTile() {
   const r = wtEnter(G2); if (!r.ok) return;
   if (!wm3RoundOn()) { wm3TurnSync(); return }
   wm3ClockEnter(); wm3Disarm();
-  if (r.tile === (WORLD.win && WORLD.win.node)) { wm3Close(); mundoPlaceEntry(r.de); return }
+  if (r.tile === (WORLD.win && WORLD.win.node) && !tbDirty) { wm3Close(); mundoPlaceEntry(r.de); return }   // tile que já teve batalha recarrega limpo (tbDirty)
+  mundoGo(r.tile, r.de, tileName(G2, G2.nodes[r.tile]));
+}
+// Lutar (botão do encontro, etapa 8.3): o comandante entra no tile do encontro sem gastar ação (wtBattleBegin) e a batalha começa lá (local/tilebattle.js). Se o tile do
+// encontro é o carregado e está limpo, abre direto; senão recarrega o tile (mundoGo) e mundoAfterStart começa a batalha.
+function wm3Fight() {
+  const G2 = WM.built.G, r = wtBattleBegin(G2); if (!r.ok) return;
+  wm3ClockEnter(); wm3Disarm();
+  if (r.tile === (WORLD.win && WORLD.win.node) && !tbDirty) { wm3Close(); tbStart(); return }
   mundoGo(r.tile, r.de, tileName(G2, G2.nodes[r.tile]));
 }
 // Troca o mapa local: as marcas do tile atual vão para a ficha dele (collectSave), o tile novo vira STATE.wt.local e o jogador nasce na abertura da
@@ -279,6 +292,7 @@ function mundoAfterStart(entering) {
   if (!mapMundoOn()) return false;
   const w = wtX(); if (w.spawn) { w.spawn = false; mundoPlaceEntry(w.entry >= 0 ? w.entry : null) }
   mundoLoadHide();
+  if (w.enc && w.inTile !== null && w.inTile === (WORLD.win && WORLD.win.node)) { closePanel(); tbStart(); return true }   // encontro pendente com o comandante no tile: a luta começa (também ao carregar um save)
   const map = STATE.phase === 'commander' && w.turn === 'commander' && w.inTile === null && !!wtGraph();
   if (map || entering) closePanel();   // tira a tela inicial (a pausa de "mundo pronto" não abre)
   if (map) wm3Open();
@@ -345,9 +359,11 @@ function mundoLoadShow(nome, col) {
 function mundoLoadHide() { const el = document.getElementById('tileload'); if (el) el.style.display = 'none'; mundoLoadStop() }
 
 // Sair do tile pelo livro/bolsa (botão do canto inferior direito, ui/book.js): fecha o livro, abre o mapa mundi e os NPCs andam o que deviam.
-const mundoCanLeave = () => mapMundoOn() && G.running && !!wtGraph() && !WM.open && wtX().turn === 'commander' && wtX().inTile !== null && !wtX().enc
+const mundoCanLeave = () => mapMundoOn() && G.running && !!wtGraph() && !WM.open && wtX().turn === 'commander' && wtX().inTile !== null && (!wtX().enc || tbCanPause())
   && STATE.phase === 'commander' && !G.office;
 function mundoLeaveTile() {
+  if (tbCanPause()) { tbPause(); closePanel(); wm3Open(); wm3TurnSync(); return }   // fugir do Ataque só pausa: o encontro espera no mapa mundi
+  if (BATTLE.real) tbEnd();   // depois da vitória: tira os soldados e o que sobrou da batalha
   const r = wtLeave(wtGraph()); closePanel(); wm3Open();
   if (!wm3TurnSeqStart(r && r.steps)) wm3TurnSync();
 }

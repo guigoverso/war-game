@@ -213,4 +213,53 @@ run('STATE.wg.nodes[0][3]="ruinas"');
 ok(run('wtGraphLoad(F).nodes[0].tema')==='ruinas', 'grafo do save vale no lugar do gerado');
 ok(run('(()=>{const U=wgUnpack(JSON.parse(JSON.stringify(wgPack(G))),F);return G.edges.every(e=>wtEdgeCost(e)===wtEdgeCost(U.edges[e.id]))})()'),
   'pack guarda o custo da aresta (caminho em ações igual ao carregar)');
+
+// etapa 8.3: encontro vira batalha no tile (soma de batalhões, baixas divididas, pausa do Ataque, três formas de morte)
+run('resetState(); STATE.round=1; STATE.rd={now:[],lvl:3}; wtX().turn="leader"; wtCommanderBegin(G); wtX().actors=[]; Ledger.set("gold",1000)');
+const T8 = run('(()=>{const a=G.adj[G.inicio.id].find(x=>!G.nodes[x.to].mar&&G.nodes[x.to].tema!=="cidade"&&G.nodes[x.to].tema!=="vila");return a.to})()');
+run(`(()=>{const b=wtActive(); b.sold={soldier:50}; b.tile=wtKey(${T8}); b.de=G.inicio.id; b.mun={pistol:30,heal:2};
+  const c=batCreate("player",wtKey(${T8}),{soldier:50},{},3); wtX().second=c.id;
+  wtX().actors.push({id:90,kind:"bandit",tile:${T8},str:40,stay:0}); wtSetEnc(G,wtX().actors[0],b,"player")})()`);
+const bb = JSON.parse(run('JSON.stringify(wtBattleBegin(G))'));
+ok(bb.ok && bb.mode==='choque' && bb.soldiers===100 && bb.bats.length===2 && bb.enemies===40 && bb.tile===T8 && run('wtX().inTile')===T8 && run('wtX().owed')===1, 'encontro: a luta soma os dois batalhões do tile (100) e põe o comandante dentro', JSON.stringify(bb));
+ok(run('wtBattleBegin(G).ok')===false, 'não começa duas vezes');
+const be = JSON.parse(run('JSON.stringify(wtBattleEnd(G,true,29))'));
+ok(be.fim===false && run('wtX().enc')===null && run('wtX().actors.length')===0 && run('wtX().inTile')===T8 && run('wtX().owed')===2, 'vitória: o bando some, o comandante continua no tile e os NPCs ainda devem passos');
+ok(run('batTotal(wtActive())')+run(`batTotal(batGet(wtX().second))`)===71 && Math.abs(run('batTotal(wtActive())')-run(`batTotal(batGet(wtX().second))`))<=1, 'baixas (29) divididas igualmente entre os batalhões', run('batTotal(wtActive())')+' e '+run(`batTotal(batGet(wtX().second))`));
+run('wtLoseSplit([batGet(wtX().second),wtActive()],2000)'); ok(run('batTotal(wtActive())')===0 && run(`batTotal(batGet(wtX().second))`)===0, 'baixas maiores que a tropa zeram sem erro');
+// Ataque: fugir pausa (as baixas ficam, o bando perde os mortos)
+run(`wtX().inTile=null; wtX().owed=0; wtX().actors=[{id:91,kind:"bandit",tile:${T8},str:20,stay:3}]; wtActive().sold={soldier:30}; batGet(wtX().second).sold={soldier:10}`);
+run('wtSetEnc(G,wtX().actors[0],wtActive(),"player")');
+ok(run('wtX().enc.layout')==='invasao' && run('wtBattleBegin(G).mode')==='ataque', 'bando estacionado vira invasão (modo ataque)');
+run('wtBattlePause(G,10,6)');
+ok(run('wtX().inTile')===null && run('wtX().enc')!==null && run('wtX().enc.n')===14 && run('wtX().actors[0].str')===14 && run('batTotal(wtActive())')+run('batTotal(batGet(wtX().second))')===30, 'pausa: sai do tile, encontro continua, baixas saem e o bando perde 6');
+// com encontro pendente: troca e move o outro batalhão; o do encontro não anda; um segundo bando não vira outro encontro
+ok(run('wtSwitch(wtX().act)')===false, 'o batalhão do encontro não troca nem se move');
+const oth = run('wtX().second');
+ok(run(`wtSwitch(${oth})`)===false, 'o outro batalhão está no mesmo tile (engajado): também não');
+run(`batMove(batGet(${oth}),wtKey(G.inicio.id))`);
+ok(run(`wtSwitch(${oth})`)===true && run('wtMove(G,'+T8+').ok')===true && run('wtX().enc.bat')!==oth, 'um batalhão fora do tile troca e marcha enquanto o encontro espera');
+ok(run(`batAt(wtKey(${T8})).length`)===2, 'e chega ao tile do encontro (os dois lutarão juntos)');
+// morte: forma 3 (batalhão desfeito), forma 2 e forma 1
+run(`wtX().enc=null; wtX().actors=[]; wtX().inTile=null; wtX().left=4; wtX().owed=0; wtX().act=${oth}`);
+run(`batGet(${oth}).sold={soldier:30}; batGet(${oth}).mun={pistol:30,heal:2}; Ledger.set("gold",400)`);
+const f1 = JSON.parse(run(`JSON.stringify(wtDeath(G,${oth},1))`));
+ok(f1.form===1 && run('Ledger.get("gold")')===250 && run(`batTotal(batGet(${oth}))`)===30 && run(`batGet(${oth}).mun.pistol`)===15 && run('wtX().left')===3 && f1.ouro===150, 'forma 1: perde ouro (até 150) e metade da munição, gasta 1 ação, o batalhão fica');
+const f2 = JSON.parse(run(`JSON.stringify(wtDeath(G,${oth},2))`));
+ok(f2.form===2 && f2.soldados===10 && run(`batTotal(batGet(${oth}))`)===20 && !f2.sozinho && run('Ledger.get("gold")')===100, 'forma 2: perde 10 soldados e o batalhão sobrevive');
+run(`batGet(${oth}).sold={}`);
+const f2b = JSON.parse(run(`JSON.stringify(wtDeath(G,${oth},2))`));
+ok(f2b.form===3 && f2b.sozinho===true && run(`batGet(${oth})`)===null, 'forma 2 sem soldados vira forma 3 ("atacou sozinho"): o batalhão se desfaz');
+ok(run('Ledger.get("gold")')>=0, 'nunca dívida');
+const f3 = JSON.parse(run('JSON.stringify(wtDeath(G,wtActive().id,3))'));
+ok(f3.form===3 && f3.restam===0 && f3.fim===true && run('wtX().left')===0 && run('wtX().act')===0, 'forma 3 sem outro batalhão: o turno do Comandante acaba');
+// forma 3 com outro batalhão: passa o comando
+run('wtX().turn="leader"; wtCommanderBegin(G); wtX().actors=[]');
+run('{const a=batCreate("player",wtKey(G.inicio.id),{soldier:5},{},3),b=batCreate("player",wtKey(G.inicio.id),{soldier:5},{},3); wtX().act=a.id; wtX().second=b.id}');
+const f4 = JSON.parse(run('JSON.stringify(wtDeath(G,wtActive().id,3))'));
+ok(f4.restam===1 && f4.fim===false && run('wtX().act')===run('wtX().second') && run('wtX().left')>0, 'forma 3 com outro batalhão: ele assume e o turno segue');
+// derrota pelo atalho de número continua forma 3
+run(`wtX().actors=[{id:92,kind:"bandit",tile:wtNode(wtActive().tile),str:99,stay:0}]; wtSetEnc(G,wtX().actors[0],wtActive(),"player")`);
+const dd = JSON.parse(run('JSON.stringify(wtBattleEnd(G,false,0))'));
+ok(dd.form===3 && dd.fim===true && run('wtX().enc')===null, 'wtBattleEnd(derrota) usa a forma 3');
 console.log(falhas ? '\n' + falhas + ' FALHA(S)' : '\nTudo OK'); process.exit(falhas ? 1 : 0);
