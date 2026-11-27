@@ -16,7 +16,7 @@ run('STATE.phase="leader"; STATE.rd.actions=5; STATE.rd.lvl=1');
 ok(run('wtX().turn')==='leader', 'começa no turno do Líder');
 const r1 = run('JSON.stringify(wtCreate(G,H))');
 ok(JSON.parse(r1).ok && run('Ledger.get("gold")')===2000 && run('batList("player").length')===1 && run('STATE.rd.actions')===5, 'primeiro batalhão grátis (sem ouro nem ponto) na capital', r1.slice(0, 60));
-ok(run('wtX().act')===run('batList("player")[0].id') && run('batList("player")[0].mun.pistol')===30 && run('batTotal(batList("player")[0])')===10, 'vira o ativo, com 10 soldados e o kit do comandante');
+ok(run('wtX().act')===run('batList("player")[0].id') && run('batList("player")[0].mun.pistol')===30 && run('batTotal(batList("player")[0])')===0, 'vira o ativo, com 0 soldados e o kit do comandante');
 ok(run('wtCreate(G,H).why')==='teto', 'nível 1: só 1 batalhão (teto)');
 run('STATE.rd.lvl=2');
 ok(run('wtCreate(G,H).ok')===true && run('Ledger.get("gold")')===1000 && run('STATE.rd.actions')===4, 'nível 2: segundo custa 1 ponto + 1.000 de ouro');
@@ -32,6 +32,7 @@ ok(run('wtCreateCheck(G,H).why')==='' && run('wtCreateCheck(G,H).cost')===1000 &
 run('wtX().turn="commander"'); ok(run('wtCreate(G,H).why')==='turno', 'criar só no turno do Líder'); run('wtX().turn="leader"');
 // doação na mesma cidade
 const [b1, b2] = JSON.parse(run('JSON.stringify(batList("player").map(b=>b.id))'));
+run(`batGain(batGet(${b1}),"soldier",10)`);
 ok(run(`wtDonate(G,${b1},${b2},4)`)===4 && run(`batTotal(batGet(${b2}))`)===14, 'doação entre batalhões na mesma cidade');
 ok(run(`wtDonate(G,${b1},${b2},999)`)===6 && run(`batTotal(batGet(${b1}))`)===0, 'dá para zerar o doador (dividir)');
 ok(run(`wtDonate(G,${b2},${b1},999)`)===20 && run(`batTotal(batGet(${b1}))`)===20, 'e voltar tudo');

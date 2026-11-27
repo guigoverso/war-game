@@ -397,7 +397,7 @@ window.addEventListener('keydown',e=>{
     return;
   }
   if(e.code==='KeyJ'&&!G.panel&&!e.repeat){wm3Open();return}   // J abre o mapa mundi em 3D (ui/mundo3d.js)
-  if(e.code==='KeyM'&&G.office&&mapMundoOn()&&!e.repeat&&(!G.panel||G.panel==='ldbook')){if(G.panel)closePanel();wm3Open();return}   // mundo novo, no escritório: M abre o mapa mundi em modo Líder (etapa 8.2)
+  if(e.code==='KeyM'&&(G.office||STATE.phase==='leader')&&mapMundoOn()&&!e.repeat&&(!G.panel||G.panel==='ldbook')){if(G.panel)closePanel();wm3Open();return}   // mundo novo, no escritório: M abre o mapa mundi em modo Líder (etapa 8.2)
   if(e.code==='KeyM'){   // M abre o caderno na aba Mapa (com o caderno aberto, troca para o mapa; no mapa, fecha)
     if(G.panel==='ldbook'){if(LB.top==='map')closePanel();else{LB.top='map';renderBook()}}
     else if(!G.panel)openBook('map');

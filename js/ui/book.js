@@ -145,7 +145,7 @@ function renderBook(){
 function bookClick(e){
   const t=e.target.closest('button');if(!t||!$('ldbook').contains(t))return;
   const rd=STATE.rd,a=t.dataset.a;
-  if(t.dataset.top==='map'&&G.office&&mapMundoOn()){closePanel();wm3Open();return}   // mundo novo, no escritório: Mapa = mapa mundi em modo Líder (etapa 8.2)
+  if(t.dataset.top==='map'&&(G.office||isLeader())&&mapMundoOn()){closePanel();wm3Open();return}   // mundo novo, no escritório: Mapa = mapa mundi em modo Líder (etapa 8.2)
   if(t.dataset.top){if(t.dataset.top!=='map')G.cityFocus=null;LB.top=t.dataset.top;G.invSel=null;G.pendSel=null;renderBook();return}
   if(t.dataset.tab){G.cityFocus=null;LB.tab=t.dataset.tab;LB.top='book';renderBook();return}
   if(t.id==='lddone'){if(mundoCanLeave()){mundoLeaveTile();return}if(G.office&&G.office.meet)return;if(isLeader())finishLeaderTurn();else{closePanel();leaveOffice()}return}
