@@ -4,7 +4,7 @@ Documento de **levantamento e validação**. Cada seção é uma mecânica do jo
 
 Fontes: `docs/features/5_mapa-mundi.md` (decisões e tabela de impacto), `6_plano-mapa-mundi.md`, `12_batalha-no-tile.md`, `docs/ESTADO.md`, `docs/fase-6-guerra.md`, `docs/MAPA.md`. **É rascunho da IA**: onde a descrição do "hoje" estiver errada ou incompleta, o usuário corrige na validação.
 
-> **Status (2026-11-26): sessão 0A concluída.** Todas as seções A a G têm veredito e decisões nas linhas "Notas". Pendências para o planejamento (0B) no fim do documento.
+> **Status (2026-11-26): sessões 0A e 0B concluídas.** Todas as seções A a G têm veredito e decisões nas linhas "Notas". Resumo das decisões na **rodada 16 de `5_mapa-mundi.md`**; ordem final **8.1 a 8.12 em `6_plano-mapa-mundi.md`** (etapa 8). Próximo: sessão 8.1.
 
 ## Como o usuário valida (sessão 0A)
 Em cada seção há uma linha **Veredito**. Marque uma:
@@ -259,36 +259,17 @@ Pronto e testado em Node: grafo (`macro/graph.js`), nomes (`tilename.js`), estad
 
 ---
 
-# Pendências deixadas para a 0B (planejamento)
-- Hora exata de entrada no Campo por parte do dia (sugestão: início da faixa) e quantas ações avançam uma parte do dia.
-- Rank mínimo da vila para ter acesso ao armazém.
-- Tabela tipo de POI para loot do baú (a IA envia sugestão) e escala pelo tipo de tile.
-- Valores de relação do pedágio da ponte (aliado paga menos, rixa paga mais) em `poi-modifiers.js`.
-- Textos a listar e aprovar: tela de carregamento, tela de morte (3 tipos), popup do pedágio, seção "Mundo" do livro.
-- Atalhos criativos além de anexar/desanexar tile e bandidos dominarem o tile.
-- Pasta de cenários com subpasta `legado` e `?mundo=0` para o mundo antigo.
-- Visão do tile vizinho além da borda: versão simples na 8.9 (acabamento).
-- Fortaleza com pedágio (G7) entra: reaproveitar a regra da ponte (D4) no tile de fortaleza, forte como POI principal (D1).
-- Nome do tile editável (G8): gravar o nome no save.
+# Pendências da 0B (resolvidas em 2026-11-26)
+- **Relógio:** cada **4 pontos de movimento** no mapa mundi avançam uma parte do dia; o Campo começa no **início da faixa** (06h, 12h, 18h, 00h).
+- **Vila:** rank 1 a 3 sorteado no grafo; **rank 2+ tem armazém**.
+- **Pedágio por relação** (base 150, outra facção): Aliado grátis, Favorável x0,7, Neutro x1, Desfavorável x1,5, Inimiga x2 (`poi-modifiers.js`).
+- **Baú por tipo de POI:** sugestão escrita na rodada 16 de `5_mapa-mundi.md` ([PROPOSTA]); o usuário confirma na 8.5.
+- **Textos** (carregamento, morte, popup do pedágio, seção "Mundo"): listados e aprovados na sessão que os cria (8.1, 8.3, 8.5, 8.10).
+- **Atalhos criativos extras:** lista [PROPOSTA] na rodada 16; oferecidos na sessão em que fazem sentido.
+- `cenarios/legado` e `?mundo=0`: na 8.12. Visão do vizinho, nome editável (G8): na 8.11. Fortaleza com pedágio (G7): na 8.5.
 
 ---
 
-# Sessões (regra do `CLAUDE.md`: dizer se é mesma sessão ou nova)
+# Sessões
 
-| Passo | Quem | Sessão | Por quê |
-|---|---|---|---|
-| **0. Correções do mapa mundi** | usuário (+ IA para corrigir) | **Nova**, contexto limpo | Lista de coisas que o usuário quer mudar no mapa; depende do que ele observar, não deste levantamento. Edita `mundo3d.js`/`graph.js`; **não rodar em paralelo** com nada que mexa neles. |
-| **0A. Validação do levantamento** | usuário (conversa com a IA) | **Nova**, só precisa deste arquivo e do `5_mapa-mundi.md` | Marcar o Veredito de cada seção e conversar as marcadas `Conversar`/`Acrescentar`. Sem código. |
-| **0B. Plano da etapa 8** | IA | **Mesma** da 0A se o contexto estiver leve; senão nova | Transformar vereditos em decisões fechadas, atualizar `5_mapa-mundi.md` e escrever a ordem final (8.1 a 8.n) em `6_plano-mapa-mundi.md`. Só texto. |
-| 8.1 Fundação (A1 a A5, E4 básico) | IA | **Nova** | É a ponte de tudo (rodadas <-> mapa mundi, entrar/sair do tile, salvar o grafo); mexe em `rounds.js`, `save.js`, `state.js`, `worldturn.js`, `mapwin.js`. Tem de vir **primeiro** e sozinha. |
-| 8.2 Economia e cidades por tile (B1 a B3, B6, D6) | IA | **Nova**, depois da 8.1 | Usa `STATE.tiles` e o `endRound` ligado. |
-| 8.3 Caravanas (C1) | IA | **Nova** | Mexe em `caravans.js`, `worldturn.js`; depende da 8.2. Pode ir em paralelo com a 8.5 (arquivos diferentes). |
-| 8.4 Raids e bandidos (C2, C3) | IA | **Nova** | Mexe em `raids.js` e `worldturn.js`: **não** em paralelo com a 8.3. |
-| 8.5 POIs viram sítios e torre nova (D1 a D4) | IA | **Nova** | Mexe em `pois*.js`, `tilecompose.js`; independente de 8.3/8.4. |
-| 8.6 Missões (E1) | IA | **Mesma** da 8.5 se curta, senão nova | Pequena, usa viagem e prefeitura. |
-| 8.7 Rebelião e mina (C4) e dungeons (D5) | IA | **Nova** | Depende das decisões D5 e de 8.4 (visual de cidade destruída). |
-| 8.8 Facções e eventos no espaço (B4, B5, E5) | IA | **Nova** | Rotas e resumo do livro. |
-| 8.9 Mapas, UI e livro (E3, E4 final) | IA | **Nova** | Tela e conferência visual. |
-| 8.10 Salvar/carregar completo, smoke, virar padrão (A4 final, F3) | IA | **Nova, por último** | `SAVE_VERSION` novo, `migrateSave`, smoke do mundo novo e troca do padrão; conflita com tudo, **sozinha**. |
-
-Ordem proposta: **0 -> 0A -> 0B -> 8.1 -> 8.2 -> (8.3 | 8.5 em paralelo) -> 8.4 -> 8.6 -> 8.7 -> 8.8 -> 8.9 -> 8.10**. A ordem final sai da 0B, depois dos vereditos.
+Sessões 0, 0A e 0B feitas. **A ordem final (8.1 a 8.12), com a tabela "Sessões" (mesma ou nova e por quê), está em `docs/features/6_plano-mapa-mundi.md`, etapa 8.** Ela substitui a tabela provisória que ficava aqui (8.1 a 8.10).

@@ -97,7 +97,97 @@ Hoje o rótulo do tile é só o tema ("Fazenda", "Fortaleza"). Passa a ter um **
 - Layouts de batalha: campo, defesa da cidade, invasão da cidade (reaproveitar a invasão antiga). Tamanho do exército de raid vem do teste 30 x 10.
 
 ## Etapa 8: migração dos sistemas para o mundo novo (G; uma sessão por item)
-Caravanas (atores nas estradas, saque no tile), raids (contagem de 3 ações, visual N/N+1/N+2 como rebelião, origem em bandidos soltos e na política), POIs viram **sítios** dentro de tiles, missões (viagem e entrega na prefeitura), **torre de vigia nova** (marca um tile com tesouro/dungeon por uma rodada), rebelião e mina, economia e humor por tile de cidade, dungeons/portais (decidir), **salvar/carregar** (`SAVE_VERSION` + `migrateSave`), cenários de teste e smoke. Ao fim, o mundo novo vira o padrão.
+**Levantamento validado em `docs/features/13_etapa-8-migracao-mecanicas.md`** (seções A a G, com as notas do usuário) e **decisões resumidas na rodada 16 de `5_mapa-mundi.md`**. Sessões 0, 0A e **0B feitas (2026-11-26)**. A ordem abaixo é a final.
+
+**Regras de todas as sessões da etapa 8:**
+- Tudo atrás de `?mundo=1` até a 8.12; o jogo padrão continua o mundo antigo e não pode quebrar (smoke atual OK em toda sessão).
+- Sessão que muda o estado salvo: +1 em `SAVE_VERSION` e passo `if(d.v<N)` em `migrateSave`, como sempre; a 8.12 só fecha o save e troca o padrão.
+- Números novos em `js/modifiers/`, textos em `js/texts/`; **notificações e textos novos são listados e aprovados na própria sessão antes de criar** (tela de carregamento na 8.1, tela de morte na 8.3, popup do pedágio na 8.5, seção "Mundo" na 8.10).
+- Regras da camada `macro` ganham teste em Node (`tests/macro/`); cada sessão termina com teste na tela pelo usuário, `docs/MAPA.md` e `docs/ESTADO.md` atualizados e commit.
+- Os dois atalhos criativos aprovados entram onde passam a ser úteis: **anexar/desanexar tile** na 8.4 e **bandidos dominam o tile** na 8.7. Os outros (rodada 16, [PROPOSTA]) são oferecidos ao usuário na sessão em que fariam sentido.
+
+### 8.1 Fundação: rodada única, entrar/sair do tile, relógio, grafo salvo (G) — doc 13: A1, A3, A4 (parte), E6
+- `endRound` e `wtEnd` viram **um só fim de rodada** (`rounds.js` chama o fechamento do turno do mapa mundi; o turno do Comandante passa a ser o turno no mapa mundi). Rodada 0 com pool de 4 ações e sem declarar guerra (`WT`).
+- Grafo no `STATE` (`wgPack`/`wgUnpack`), `STATE.wt` e `STATE.bat` salvos; salvar em marcha e dentro do tile (posição + marcas do tile, ainda só as que já existem).
+- Entrar no tile: botão direito > "Entrar no tile" (1 ação), geração pelo `mapwin`/`tileCompose` com o estado do tile, início no ponto da estrada de onde veio; sair grátis. Tela de carregamento (3 soldados correndo + texto a aprovar). Tile sem o jogador não simula NPCs.
+- Relógio único: partes do dia no mapa mundi (4 de movimento = 1 parte), horas no Campo; entrada no início da faixa e volta pela hora de saída (substitui `WORLD3D.actionsPerDay`).
+- Arquivos: `rounds.js`, `save.js`, `state.js`, `worldturn.js`, `mapwin.js`, `mundo3d.js`, `mundoturno.js`. Teste: entrar e sair de vários tiles, fechar rodadas, salvar e carregar em marcha e dentro do tile.
+
+### 8.2 Batalhões como duplicados do jogador e turno do Líder (M) — A2, C7, E2, E3 (modo Líder básico)
+- Batalhão = boneco do jogador (vida, inventário, buffs e upgrades compartilhados; só os soldados variam). Limite por facção (1/2/3).
+- Criar no turno do Líder: 1 ponto + 1.000 de ouro, nasce com 10 em qualquer cidade da facção; 1º grátis; sem nenhum, um grátis com 0 soldados. Doar/dividir em cidade ou vila da facção, até zerar. Kit só no resgate.
+- Recrutamento e mercenário entram no batalhão presente (cidade 25, vila 15, neutro 5; teto 50).
+- Mapa mundi em modo Líder no escritório (tecla M e livro; o mapa na mesa fica para a 8.11): ver, criar e doar; sem mover.
+- Arquivos: `battalion.js`, `worldturn.js`, `office.js`, `mundoturno.js`, recrutamento (`battle.js`/quartel). Teste: Node (`tests/macro/worldturn.js`) + criar, dividir e recrutar na tela.
+
+### 8.3 Encontro vira batalha de verdade e morte (G) — C5, C6, A5
+- O encontro no mapa mundi abre a batalha real no tile: Choque, Defesa (sem fuga: sair do raio = morrer) ou Ataque (só no POI principal; fugir pausa). Batalhões somados (30 x 10 em campo), baixas divididas, encontro espera o jogador mover os outros batalhões. Ao vencer, continua no tile. Entre NPCs por número, com intervenção do jogador escolhendo um lado. Sai o atalho "Resolver por número" (fica só no modo criativo).
+- Morte em três formas (+ conversão "atacou sozinho"), tela de morte narrativa (textos a aprovar), troca para outro batalhão ou fim do turno do Comandante.
+- Arquivos: `battle.js`, `worldturn.js`, `tilewar.js`, `game.js` (morte), `mundoturno.js`. Depende da 8.1 (entrar no tile) e da 8.2 (batalhão = boneco).
+
+### 8.4 Economia e cidades por tile (G) — B1, B2, B3, B6, D6
+- Ouro geral único (`vault` some), **armazém único** da facção (24 slots, pilha 99, descarte silencioso), consulta no livro, área de "últimos ganhos". Renda por tipo de tile (`TILE_PROD`/`TILE_TAX`) entrando no `endRound`; POI deixa de render.
+- Vila: rank 1 a 3 sorteado no grafo, armazém no rank 2+, sempre cura e prefeitura, outros serviços por chance; independência de vila distante (nunca se vizinha de tile do dono). Humor/rebelião só nas cidades.
+- Nível da facção define pool de ações e máx. de batalhões; evoluir facção = 1 ponto de Líder. Suprimento ao entrar em cidade/vila da facção; marcha não consome.
+- Cidade do tile: estado salvo (nível, muro, construções, POIs limpos, baús, lojas, armazém); moradores gerados a cada entrada. Atalho criativo: anexar/desanexar tile.
+- Arquivos: `econ.js`, `warehouse.js`, `tilestate.js`, `graph.js` (rank da vila), `city.js`, `book.js` (aba do armazém). Teste: Node para renda e rank; tela para armazém e suprimento.
+
+### 8.5 POIs viram sítios, torre nova, ponte e fortaleza (G) — D1, D2, D3, D4, G7, E4 (binóculo)
+- Dono por POI; POI principal define o dono do tile e é o único com guarnição; sem efeitos globais nem renda. Baú de recompensa por tipo (tabela [PROPOSTA] da rodada 16, confirmar com o usuário). Loja de POI volta na rodada seguinte à conquista. Santuário por dízimo. Entreposto e Taverna com Comprar / Vender; cura à venda neles.
+- Torre nova (3 usos por rodada, tile + vizinhos, 50% de falha, dungeon e marca por uma rodada); o "?" e o raio 300 saem; o binóculo não acha baús. Dungeons deixam de nascer sozinhas.
+- Pedágio no tile de ponte e de fortaleza (neutro 100, outra facção 150 x relação, NPC paga ao jogador, bandidos tomam em 2 a 3 ações e passar custa 500), popup com "Não mostrar novamente" + opção nas configurações (texto a aprovar). `tcBridge` com ramos por abertura (pendência da etapa 6).
+- Arquivos: `pois*.js`, `poigame.js`, `poilego*.js`, `tilecompose.js`, `svcshop.js`, `worldturn.js` (cobrança ao cruzar), `poi-modifiers.js`.
+
+### 8.6 Caravanas (M) — C1
+- Caravana como ator do grafo, criada no modo Líder (1 ponto, marca a rota), 1 por cidade; suprimento das cidades da rota enquanto existir; emboscada com 2 ações para saquear (sem o jogador, por número); representação na estrada ao entrar no tile; caravana não paga pedágio.
+- Arquivos: `caravans.js`, `worldturn.js`, `mundo3d.js`/`mundoturno.js`. Depende da 8.4 (suprimento) e da 8.5 (pedágio no mesmo `worldturn.js`).
+
+### 8.7 Raids e bandidos (G) — C2, C3, B4 (raid em vila/tile)
+- Bandidos soltos (1 passo por ação, alvo mais perto, desempate caravana/vila/cidade), reaparecimento por sorteio, maioria dos tiles livres com bandidos no início.
+- Raid de 30 a 60, chegada em 3 a 5 ações, 2 a 3 ações no alvo; Choque/Defesa/Ataque conforme quem chega primeiro; cidade saqueada (ouro, armazém, humor, chamas por 2 rodadas); vila/tile passa aos bandidos.
+- Limpar tile = Ataque no POI principal; POI de saída dos soldados (automático se faltar); POIs secundários seguem com bandidos. Atalho criativo: bandidos dominam o tile.
+- Arquivos: `raids.js`, `worldturn.js`, `tilestate.js`, `battle.js`. Depende da 8.3 (batalha), 8.5 (POI principal) e 8.6 (caravana como alvo).
+
+### 8.8 Missões (M) — E1
+- Prazo em rodadas, quadro na prefeitura, entrega entrando no tile e indo à prefeitura, destinos = cidades e tiles com POI principal livre; vilas com até 3 missões do próprio tile; missão "limpar POIs tomados por bandidos" (no território do jogador ou de outra facção, dando relação; se não houver POI, o jogo toma um).
+- Arquivos: `missions.js`, `quests.js`. Depende da 8.7.
+
+### 8.9 Rebelião e dungeons (M) — C4, D5
+- Rebelião = Ataque no tile da cidade (rebeldes podem passar de 30); cidade não retomada vira facção nova ou é anexada (também para NPC); visual reaproveitado do raid.
+- Dungeon achada pela torre: marca no mapa mundi, no minimapa e no Mapa M; portal dentro do tile; sem fim de turno lá dentro; portal dourado só por evento.
+- Arquivos: `rebellion.js`, `rebmine.js`, `dungeon.js`. Depende da 8.5 (torre) e 8.7 (visual da cidade saqueada).
+
+### 8.10 Facções NPC no mapa e o livro (G) — B4, B5, E5
+- NPCs começam com tiles próximos anexados; têm caravanas e batalhões que conquistam neutros e bandidos (1 tile por rodada, onde pararam; se o jogador estiver lá, vira encontro), caçam bandidos e podem se juntar ao jogador contra bandidos; tile conquistado longe pode ficar independente. Rotas (`fgRoutes`) viram arestas do grafo. Evento que cita lugar marca o tile.
+- Seção **"Mundo"** na parte "anterior" do relatório (lista de eventos e textos a aprovar).
+- Arquivos: `factions.js`, `facgraph.js`, `facevents.js`, `worldturn.js`, `book.js`, `rounds.js` (`rdNow`). Depende da 8.6 e 8.7.
+
+### 8.11 Mapas, UI e acabamento (M) — E3, E4 (final), G8, D6 (vizinho)
+- Teclas finais (J mapa mundi; M = Mapa M no Campo e mapa mundi no escritório), mapa na mesa do escritório, Caderno > Mapa abre o 3D, minimapa só do tile, marcas de evento e dungeon no mapa mundi.
+- Nome do tile editável (gravado no save). Visão simples do tile vizinho além da borda.
+- Arquivos: `mundo3d.js`, `office.js`, `bookmap.js`, `game.js` (teclas), `tilename.js`.
+
+### 8.12 Salvar completo, cenários, smoke e troca do padrão (M) — A4 (final), F3
+- `SAVE_VERSION` final do mundo novo; save antigo mostra aviso de versão antiga e não carrega. Mundo novo vira o padrão; o antigo fica em `?mundo=0` (removido numa etapa final).
+- Cenários antigos para `cenarios/legado`, cenários novos por tile, smoke novo do mundo novo.
+- Arquivos: `save.js`, `state.js`, `scenario.js`, `index.html`, `tests/smoke.js`, galerias `cenarios-*.html`.
+
+| Passo | Sessão | Por quê |
+|---|---|---|
+| 8.1 Fundação | **Nova** | Grande e é a ponte de tudo; só precisa do repositório e dos docs. Mexe em `rounds/save/state/worldturn/mapwin`: **sozinha**. |
+| 8.2 Batalhões e Líder | **Nova** | Contexto da 8.1 já pesado; usa `worldturn.js` (não em paralelo com a 8.1 nem a 8.3). |
+| 8.3 Batalha real e morte | **Nova** | Grande; usa `battle.js`, `worldturn.js` e a morte em `game.js`. Depende da 8.1 e da 8.2. |
+| 8.4 Economia e cidades | **Nova** | Grande e em outros arquivos (`econ/warehouse/city`). Poderia rodar junto da 8.3, mas o pool de ações pelo nível da facção mexe em `worldturn.js`: vem depois. |
+| 8.5 POIs, torre, ponte | **Nova** | Grande, em `pois*`/`tilecompose`; a cobrança do pedágio entra em `worldturn.js`, por isso não em paralelo com a 8.6. |
+| 8.6 Caravanas | **Nova** | Média; precisa do suprimento da 8.4 e do pedágio da 8.5. |
+| 8.7 Raids e bandidos | **Nova** | Grande; `raids.js` + `worldturn.js`. Depende da 8.3, 8.5 e 8.6. |
+| 8.8 Missões | **Nova** (pode rodar **em paralelo com a 8.9**) | Pequena, mas a 8.7 deixa o contexto pesado; arquivos próprios (`missions/quests`). |
+| 8.9 Rebelião e dungeons | **Nova** (em paralelo com a 8.8) | Arquivos próprios (`rebellion/rebmine/dungeon`), sem sobreposição com a 8.8. |
+| 8.10 Facções NPC e livro | **Nova** | Grande; volta a `worldturn.js` e `rounds.js`. Depois da 8.8 e da 8.9 terminarem. |
+| 8.11 Mapas e UI | **Nova** | Tela e conferência visual; precisa de tudo ligado. |
+| 8.12 Save final e padrão | **Nova, por último, sozinha** | Conflita com tudo (`save/state/index/smoke`). |
+
+Ordem: **8.1 -> 8.2 -> 8.3 -> 8.4 -> 8.5 -> 8.6 -> 8.7 -> (8.8 | 8.9) -> 8.10 -> 8.11 -> 8.12**. Prompt de abertura: "Leia docs/ESTADO.md, a rodada 16 de docs/features/5_mapa-mundi.md, docs/features/13_etapa-8-migracao-mecanicas.md e a etapa 8 de docs/features/6_plano-mapa-mundi.md e comece a 8.N".
 
 ## Etapa 9: mar (M a G)
 Aluguel de navio (início 100, grátis com cidade de porto), embarque em qualquer ponto com trilha ao mar, arena naval (dois navios ligados por tábuas, barreira invisível), piratas. **Só depois** de o teste 30 x 10 estar aprovado.

@@ -237,7 +237,7 @@ Análise das duas ideias:
 - **[DECIDIDO]** Turno alternado: **um passo** dos NPCs por ação do jogador. O resumo do que mudou vai para o **livro**.
 - **Próximo:** levantar as mecânicas do jogo e marcar quais mudam com o mapa mundi (lista nesta rodada), depois escrever o plano de implementação.
 
-## Inventário das mecânicas e impacto previsto (rascunho da IA, para o usuário revisar)
+## Inventário das mecânicas e impacto previsto (rascunho da IA; SUBSTITUÍDO na rodada 16 pelo levantamento validado em `13_etapa-8-migracao-mecanicas.md`)
 Impacto: **Alto** = refeito; **Médio** = regra fica, a parte espacial muda; **Baixo** = quase intacto; **Novo** = não existe hoje.
 | # | Mecânica (hoje) | Impacto | Por quê |
 |---|---|---|---|
@@ -422,6 +422,48 @@ Grade perfeita descartada. Proposta:
 - **[DECIDIDO]** Distância mínima entre pontos: **384** (um tile; janelas vizinhas não se sobrepõem).
 - **[CONSEQUÊNCIA, a confirmar]** Com 384 de distância, o mundo de 7x7 tiles (2688) só comportava 12 a 21 tiles de terra (continentes com 4 tiles e 1 cidade cada). o usuário pediu **no mínimo 40 tiles de terra por mapa**: o tamanho do mundo agora é por formato (`WORLD_FIELD.worldTiles`: continentes 14, pangeia 12, arquipélagos 13, lago 12 = 5376 a 4608 blocos) e as massas dos continentes cresceram (`blobR`). Medido: 43 a 58 tiles de terra, geração ~1,3 s. Em continentes e arquipélagos a cidade inicial vira porto em ~1 de cada 6 mundos.
 - **[IMPLEMENTADO]** `js/macro/graph.js`: pontos, Delaunay, trilhas (árvore + extras), estradas entre cidades, ponte = aresta com vão de água 28 a 96 blocos, temas, ilha inicial/porto, aberturas, `wgPack/wgUnpack`. Fora do escopo desta rodada: salvar no `STATE`, ligar ao mapa local, desenho 3D (etapa 6).
+
+## Rodada 16 (2026-11-26): etapa 8, decisões fechadas (sessões 0A e 0B)
+Fonte detalhada: `docs/features/13_etapa-8-migracao-mecanicas.md` (uma seção por mecânica, com as notas do usuário). Aqui fica o resumo do que vale; em caso de dúvida, o doc 13 manda. Ordem de implementação: `6_plano-mapa-mundi.md`, etapa 8.
+
+### Laço do jogo
+- **[DECIDIDO]** Rodada igual à de hoje (começa no turno do Líder). **Fim único:** `endRound` e `wtEnd` viram o mesmo fim de rodada. **Rodada 0:** sem declarar guerra e pool de **4 ações**; depois 6/8/10/12/15 pelo nível da facção. O ritmo do mundo escala com o pool (NPC anda 1 tile por ação; o jogador pode andar mais).
+- **[DECIDIDO] Mapa mundi em modo Líder:** a mesma tela, aberta no escritório (tecla M, mapa na mesa e livro), só para ver, criar e doar batalhões e marcar **rota de caravana** e **cidade a conquistar** (em guerra). O Líder não move batalhões.
+- **[DECIDIDO] Entrar no tile:** botão direito > "Entrar no tile", gasta **1 ação**; **sair não gasta**. Começa no ponto da estrada de onde veio. Só o Comandante entra. Tile sem o jogador não simula NPCs (só contas por evento). Tela de carregamento: 3 soldados correndo no lugar + texto (a aprovar).
+- **[DECIDIDO] Relógio único:** o mapa mundi tem partes do dia (Manhã 06-12, Tarde 12-18, Noite 18-00, Madrugada 00-06) e o Campo tem horas. **Cada 4 pontos de movimento gastos no mapa mundi avançam uma parte do dia** (dia = 16 de movimento; substitui `WORLD3D.actionsPerDay`). Ao entrar, o Campo começa no **início da faixa** (06h, 12h, 18h, 00h); ao sair, a hora do Campo vira a parte do dia do mapa mundi. Tempo no tile não gasta ação. Clima não existe e não será criado.
+- **[DECIDIDO] Salvar:** grafo, `STATE.tiles/bat/wt` e as **marcas** do que foi feito por tile (baús, acampamentos, mortos, coletados; o jogador não mexe em blocos). Pode salvar em marcha e dentro do tile. Corpos somem em poucas rodadas; estrago de cerco dura até a rodada seguinte. Saves antigos: **aviso de versão antiga** (não carregam).
+
+### Batalhão, morte e batalha
+- **[DECIDIDO] Batalhão = comandante = o boneco que o jogador controla.** Cada batalhão é um duplicado do jogador: **vida, inventário, buffs e upgrades compartilhados**; muda só o número de soldados (0 a 50). Até 3 por **facção** (1/2/3 pelo nível).
+- **[DECIDIDO] Criar:** turno do Líder, **1 ponto de Líder + 1.000 de ouro**, nasce com 10 soldados em qualquer cidade da facção. O 1º é grátis; sem nenhum, nasce um grátis (só o ponto) com **0 soldados**. **Doar/dividir** só dentro de cidade ou vila da facção, podendo zerar o doador. Kit do comandante só no resgate (sem nada no inventário) e sem soldados.
+- **[DECIDIDO] Recrutamento** entra no batalhão presente no tile; limites por rodada: **cidade 25**, vila 15, neutro 5. Mercenário da Taverna também entra no batalhão presente (teto 50).
+- **[DECIDIDO] Morte, três formas:** (1) tile neutro ou bandidos sem tropas: perde ouro carregado, parte da munição e alguns itens sorteados, volta ao mapa mundi e gasta 1 ação; (2) batalha de POI com soldados: perde **10 soldados** e volta ao mapa mundi no mesmo tile; (3) batalha grande (raid ou ataque, qualquer modo): **o batalhão se desfaz** (soldados, ouro até 150, munição); continua com outro batalhão ou o turno do Comandante acaba. Morrer em POI sem soldados vira forma 3. Nunca dívida. Tela de morte **narrativa** por forma (textos a aprovar).
+- **[DECIDIDO] Batalha:** o encontro no mapa mundi abre a batalha de verdade: **Choque** (fora do alvo), **Defesa** (jogador já no alvo; **sem fuga**: sair do raio = morrer), **Ataque** (alvo já tomado; só no POI principal; **fugir só pausa**, sem perda além dos mortos). Batalhões no mesmo tile se somam (máx. 30 inimigos x 10 soldados em campo) e as baixas se dividem igualmente. O encontro espera o jogador terminar de mover seus outros batalhões. Ao vencer, continua no tile. Entre NPCs resolve por número, salvo se o jogador intervier escolhendo um lado.
+
+### Economia e lugares
+- **[DECIDIDO] Armazém único** da facção (24 slots, pilha 99, excedente descartado em silêncio), visto no livro e com área de "últimos ganhos". **Ouro = saldo geral único** (o `vault` some). Renda por **tipo de tile**, igual perto ou longe; POI não rende. Batalhão em marcha não consome nada; reabastece em cidade ou vila da facção.
+- **[DECIDIDO] Vila:** o grafo sorteia **rank 1 a 3** (imposto 12 + 5 x rank); **rank 2+ dá acesso ao armazém**. Vila não evolui, não tem humor nem rebelião; sempre tem cura e prefeitura (outros serviços por chance). Vila longe do dono pode ficar independente; vizinha de tile do dono, nunca.
+- **[DECIDIDO]** Nível da facção define ações e máx. de batalhões; evoluir a facção gasta 1 ponto de Líder (custos mantidos); evolução da cidade independente. Humor e rebelião só por cidade. Políticas por cidade como hoje; evento que cita lugar marca o tile no mapa mundi.
+- **[DECIDIDO] POIs:** cada POI tem o seu dono; o tile é de quem tem o **POI principal** (o único com guarnição). Sem efeitos globais nem renda; POI secundário dá só o serviço local. **Baú de recompensa** por tipo de POI (fechado com bandidos, reabastece uma vez por ocupação). Loja de POI volta a funcionar na rodada seguinte à conquista. Santuário cura por dízimo. Entreposto e Taverna passam ao menu Comprar / Vender; tavernas e entrepostos vendem cura.
+- **[DECIDIDO] Torre de vigia nova:** até 3 usos por rodada no total; alcance = tile da torre + vizinhos; cada uso revela 1 dungeon com 50% de falha; marca e dungeon duram só a rodada. O binóculo é a peça da torre (não acha mais baús). Dungeons deixam de nascer aleatoriamente.
+- **[DECIDIDO] Ponte e fortaleza (G7):** pedágio no tile; neutro 100; do jogador é grátis para ele e paga a ele quando um NPC passa; outra facção **150 x relação: Aliado grátis, Favorável x0,7, Neutro x1, Desfavorável x1,5, Inimiga x2**. Só batalhões pagam (caravanas não), só ao cruzar para o lado oposto; pode gerar dívida. Popup pagar/recusar com "Não mostrar novamente" (e opção nas configurações). Bandidos tomam a ponte em 2 a 3 ações; passar por eles custa 500.
+- **[DECIDIDO] Dungeon:** espaço à parte por portal, acessada de dentro do tile (sem ação extra), marcada no mapa mundi e no mapa local; não se encerra o turno nela. Portal dourado só por evento. Ruína é estática: nada vira ruína e ruína nunca é reconstruída.
+
+### Atores e conflito
+- **[DECIDIDO] Caravana:** ator no grafo, criada pelo Líder (1 ponto), **1 por cidade**; enquanto existir, as cidades da rota são supridas. Emboscada: bandidos no mesmo tile levam 2 ações para saquear. Sem escolta. Aparece na estrada ao entrar no tile.
+- **[DECIDIDO] Raid:** 30 a 60 bandidos, chegam em 3 a 5 ações, ficam 2 a 3 ações no alvo; alvo pode ser cidade, vila ou tile; cidade saqueada perde ouro, itens do armazém e humor (não muda de dono; visual em chamas por 2 rodadas); vila ou tile **passa para os bandidos**. Sem limite de raids.
+- **[DECIDIDO] Bandidos soltos:** 1 passo por ação, vão ao alvo mais perto (empate: caravana, vila, cidade; depois sorteio); reaparecem por sorteio em tiles neutros e, menos, em anexados (nunca no POI principal). Limpar tile = vencer o Ataque no POI principal; os soldados saem de um POI do jogador no tile (se não houver, o jogo dá um). A maioria dos tiles livres começa com bandidos.
+- **[DECIDIDO] Rebelião** (`rebmine.js` = rebelião em cidade do jogador): batalha de Ataque no tile da cidade, rebeldes podem passar de 30; cidade não retomada vira facção nova ou é anexada (vale para NPC).
+- **[DECIDIDO] Facções NPC** agem já na etapa 8: começam com tiles próximos anexados, têm caravanas e batalhões que conquistam **só tiles neutros e de bandidos** (1 por rodada) ou caçam bandidos e podem ajudar o jogador contra bandidos. Sem guerra entre facções até a etapa 10.
+
+### Missões, interface e testes
+- **[DECIDIDO] Missões:** prazo em rodadas; quadro na prefeitura; entregar = entrar no tile e ir à prefeitura; vilas com até 3 missões do próprio tile; missão nova: limpar POIs tomados por bandidos. Sem fog (tudo revelado).
+- **[DECIDIDO] Mapas:** J abre o mapa mundi; M no Campo = Mapa M (só dentro do tile); M no escritório = mapa mundi em modo Líder; Caderno > Mapa abre o 3D. O livro ganha a seção **"Mundo"** na parte "anterior" do relatório (raids, tiles ganhos/perdidos, caravanas saqueadas/criadas/desfeitas, ponte tomada, batalhas entre NPCs, mudanças de relação), em tom narrativo. Sem notificações novas.
+- **[DECIDIDO]** Nome do tile editável (G8, gravado no save). Visão do tile vizinho além da borda: versão simples no acabamento.
+- **[DECIDIDO] Testes:** atalhos criativos no mapa mundi **anexar/desanexar tile** e **bandidos dominam o tile**; cenários novos por tile, antigos em `cenarios/legado`; mundo antigo atrás de `?mundo=0` até uma etapa final; smoke novo com `?mundo=1`.
+- **[PROPOSTA]** Outros atalhos criativos (confirmar na sessão de cada um): +ouro, encher o pool de ações, batalhão grátis, teleportar batalhão, invocar raid, invocar caravana.
+- **[PROPOSTA] Baú por tipo de POI** (confirmar na 8.5; quantidades em `poi-modifiers.js`, +50% se o POI for do mesmo tema do tile): fazenda = comida; caçadores = couro e carne; mina = minério; serraria = madeira; torre e forte = munição; taverna e pousada = comida e cura; alojamento e santuário = remédios; entreposto = materiais misturados; ponte = ouro; ruínas e vila em escombros = item raro.
+- Textos a listar e aprovar **na sessão que os cria** (regra do `CLAUDE.md`): tela de carregamento, tela de morte (3 formas + "atacou sozinho"), popup do pedágio, seção "Mundo" do livro.
 
 ## Próximos passos (propostos)
 1. Responder as perguntas abertas (principalmente 1 a 5).
