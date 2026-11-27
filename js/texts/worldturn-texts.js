@@ -1,6 +1,6 @@
 'use strict';
 // ---------- Textos: turno do Comandante no mapa mundi (etapa 7; js/macro/worldturn.js e js/ui/mundo3d.js) ----------
-// APROVADOS em 2026-11-27 (com ajustes do usuário). Cada texto tem um comentário acima: onde aparece e para que serve. Os do resumo vão para o livro (rdNow), sem toast.
+// RASCUNHOS, a aprovar. Cada texto tem um comentário acima: onde aparece e para que serve. Os do resumo vão para o livro (rdNow), sem toast.
 
 // Resumo do livro: o batalhão se moveu. nome = tile de destino.
 const txtWtMoved = nome => '🚩 O batalhão marchou até ' + nome + '.';
@@ -52,7 +52,7 @@ const txtWtEntInfo = d => '<div class="wm3-head" style="font-size:15px;padding:6
 // Tela de carregamento ao entrar num tile (3 soldados correndo no centro; o texto fica embaixo). nome = tile de destino. Aprovado em 2026-11-26.
 const txtTileLoading = nome => 'Marchando para ' + nome + '...';
 
-// ---------- Modo Líder no mapa mundi (etapa 8.2): caixa de batalhões no turno do Líder (js/ui/mundoturno.js, wm3LeadHud). APROVADOS em 2026-11-27 (com ajustes do usuário) ----------
+// ---------- Modo Líder no mapa mundi (etapa 8.2): caixa de batalhões no turno do Líder (js/ui/mundoturno.js, wm3LeadHud). RASCUNHOS, a aprovar ----------
 // Título da caixa: quantos batalhões você tem e o máximo do nível da facção.
 const txtWtLeadTitle = (n, max) => '🪖 Batalhões: ' + n + ' / ' + max;
 // Linha de cada batalhão da caixa: número, soldados e onde está.
