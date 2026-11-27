@@ -27,6 +27,7 @@ function tileEconomyRound(rep, cityRows) {
   const tot = { gold: 0, res: {} };
   for (const r of rows) { tot.gold += r.gold; for (const k in r.res) tot.res[k] = (tot.res[k] || 0) + r.res[k] }
   if (rows.length) rep.push(txtTileIncomeTable(rows, tot));
+  if (eco.freed.length) WM.key = null;   // o mapa mundi 3D refaz as bandeiras na próxima abertura (a vila independente ficava azul)
   for (const id of eco.freed) {
     rep.push(txtVilaIndep(wtName(G, id), STATE.fac && STATE.fac.name));
     if (id === loaded && WORLD.home) WORLD.home.owner = 'neutral';   // o jogador estava na vila: ela já deixa de ser sua no mapa carregado

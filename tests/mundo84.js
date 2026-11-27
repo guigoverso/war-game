@@ -42,7 +42,7 @@ srv.listen(0, '127.0.0.1', async () => {
     ok(typeof v === 'number', 'vila: uma vila sua sem tile seu vizinho');
     await endTurn(page);
     const b = await page.evaluate(v => ({ own: wtOwnerOf(wtGraph(), v), rep: STATE.rd.report.join('||') }), v);
-    ok(b.own === null && b.rep.includes('hasteou a própria'), 'vila: ficou independente e o relatório conta a história', JSON.stringify(b.own));
+    ok(await page.evaluate(() => WM.key === null) && b.own === null && b.rep.includes('hasteou a própria'), 'vila: ficou independente e o relatório conta a história', JSON.stringify(b.own));
     await page.close();
   }
   if (want('cheio')) {

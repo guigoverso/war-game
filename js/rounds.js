@@ -87,7 +87,7 @@ function roundEnd(city){
 }
 // rebelião: a cidade deixa de ser sua, perde o armazém e ganha uma guarnição que você precisa derrotar
 function rebelCity(c){
-  if(mapMundoOn()&&WORLD.win&&typeof WORLD.win.node==='number')tileOwnerSet(wtKey(WORLD.win.node),'rebel');   // mundo novo (8.4): o tile deixa de ser seu e fica neutro no mapa mundi
+  if(mapMundoOn()&&WORLD.win&&typeof WORLD.win.node==='number'){tileOwnerSet(wtKey(WORLD.win.node),'rebel');WM.key=null}   // mundo novo (8.4): o tile deixa de ser seu e fica neutro no mapa mundi
   const e=ec(c),mine=typeof rebmStart==='function'&&rebmStart(c);   // rebelião de verdade (rebmine.js): fogo, bandeira rebelde e cartão no turno do líder; sem guarnição aqui
   c.owner='enemy';c.state='idle';facSetFlag(c);facReskin();   // volta à facção de origem
   STATE.rd.routes=STATE.rd.routes.filter(r=>r.a!==c.id&&r.b!==c.id);rebuildCaravans();

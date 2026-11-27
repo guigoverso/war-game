@@ -136,7 +136,7 @@ function placePlayerHome(){
   P.x=c.cx+6;P.z=c.cz+6;P.y=tH(P.x,P.z)+1;P.camY=P.y;
 }
 function conquerCity(c){
-  if(mapMundoOn()&&WORLD.win&&typeof WORLD.win.node==='number')wtAnnex(wtGraph(),WORLD.win.node);   // mundo novo: o tile volta a ser seu
+  if(mapMundoOn()&&WORLD.win&&typeof WORLD.win.node==='number'){wtAnnex(wtGraph(),WORLD.win.node);WM.key=null}   // mundo novo: o tile volta a ser seu
   c.owner='player';c.state='conquered';facSetFlag(c);facReskin();armyConquered(c);citySentrySync(c);if(typeof facReap==='function')facReap();
   {const e=ec(c);if(e&&e.rebelled){e.rebelled=false;e.noReb=STATE.round+(typeof REBM!=='undefined'?REBM.cool:5);e.ups=0;e.mood='ok'}}   // reconquistada de uma rebelião: 5 rodadas sem se rebelar (rebmine.js)
   const reward=120+60*c.rank;addCoins(reward);
