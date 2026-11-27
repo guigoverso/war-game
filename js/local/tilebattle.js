@@ -3,7 +3,7 @@
 // Liga o encontro do mapa mundi (STATE.wt.enc, macro/worldturn.js) aos modos de js/local/battle.js: tbStart lê o encontro e os batalhões do tile, monta a geometria do tile
 // carregado (BATTLE.geo: coordenadas no mesmo formato do BATTLE_MOD, que só vale para o mapa de teste de 320) e chama o modo (Choque, Defesa ou Ataque). O fim volta ao macro:
 // vitória = tbWin (baixas divididas entre os batalhões, o comandante continua no tile); derrota = tbLose (tela de morte narrativa e wtDeath forma 3, ou forma 2 na batalha
-// pequena); sair no meio do Ataque = tbPause ("fugir pausa"). A morte fora de batalha (forma 1) é mundoDie. Números em BATTLE_TILE (battle-modifiers.js); textos em
+// pequena); não há fuga: com a luta em andamento não se sai do tile. A morte fora de batalha (forma 1) é mundoDie. Números em BATTLE_TILE (battle-modifiers.js); textos em
 // worldturn-texts.js / battle-texts.js. Nada daqui roda fora do mundo novo.
 
 // Painel de morte original (index.html): guardado ao primeiro uso para a tela narrativa não estragar as mortes do jogo antigo.
@@ -41,9 +41,18 @@ function tbFieldCenter() {
 }
 // Alvo do Ataque e posição defendida na Defesa: o POI principal do tile (macro: win.mainPlan) ou a cidade.
 function tbMainPoint() {
-  const win = WORLD.win, h = WORLD.home, m = win && win.mainPlan;
+  const win = WORLD.win, h = WORLD.home, m = win && win.mainPlan, S = WORLD.tileS, mp = S && S.main && S.main.poi;
   if (h && h.half > 1) return { x: h.cx, z: h.cz, half: h.half };
+  if (mp) return { x: mp.cx, z: mp.cz, half: Math.max(10, poiR(mp)) };   // o POI de verdade (posição exata), não o ponto do plano
   return m ? { x: m.x, z: m.z, half: 10 } : Object.assign({ half: 10 }, tbLand(W / 2, W / 2));
+}
+// POIs reais do tile que entram na batalha (Ataque e Pequena): o principal (alvo) e os outros POIs inimigos (satélites; passam junto ao conquistar). Os bandidos
+// DESSES POIs saem do mapa: quem defende é a guarnição e os reforços da batalha (senão ficariam parados ali, atirando nos seus soldados e sem contar para a vitória).
+function tbPoiOpts() {
+  const S = WORLD.tileS, main = S && S.main && S.main.poi || null, foe = p => !p.show && !p.war && (p.owner === 'bandit' || typeof p.owner === 'number');
+  const pois = (WORLD.pois || []).filter(p => p !== main && foe(p));
+  for (const p of (main ? [main] : []).concat(pois)) if (p.type !== 'ruins' && p.gar) poiGarrisonRemove(p);
+  return { poi: main && foe(main) ? main : null, pois };
 }
 // Coordenadas do tile para os quatro modos (mesmo formato de BATTLE_MOD). entry = tbEntry; enemyAng = direção de onde vem o inimigo (rad).
 function tbGeo(entry) {
@@ -53,8 +62,8 @@ function tbGeo(entry) {
   const choque = Object.assign({}, M.choque, { center: { x: C.x, z: C.z }, playerStart: { x: entry.x, z: entry.z },
     playerPosts: K.postSpread.map(s => at(-K.postDist, s)), enemyPosts: K.postSpread.map(s => at(K.postDist, s)) });
   const toEnemy = Math.atan2(main.z - entry.z, main.x - entry.x) * 180 / Math.PI;   // na Defesa o inimigo chega do lado oposto ao da sua entrada
-  const defesa = Object.assign({}, M.defesa, { center: { x: main.x, z: main.z }, footprint: Math.max(K.defFoot, main.half * 2),
-    postAngles: K.defAngles.map(a => a + toEnemy + 180) });
+  const defesa = Object.assign({}, M.defesa, { center: { x: main.x, z: main.z }, footprint: Math.max(K.defFoot, main.half * 2 * K.defCover),
+    postAngles: K.defAngles.map(a => a + toEnemy + 180) });   // footprint: só a maior parte da cidade fica dentro do raio (defCover)
   const ataque = Object.assign({}, M.ataque, { center: { x: main.x, z: main.z }, start: { x: entry.x, z: entry.z } });
   const pequena = Object.assign({}, M.pequena, { center: { x: main.x, z: main.z }, start: { x: entry.x, z: entry.z } });
   return { choque, defesa, ataque, pequena };
@@ -63,7 +72,7 @@ function tbGeo(entry) {
 function tbForces(enc) {
   const bats = wtForces(enc), flat = [];
   for (const k of BAT.kinds) for (const b of bats) for (let i = 0; i < (b.sold[k] || 0); i++) flat.push(k);
-  const el = Math.min(BAT.elite, flat.length);
+  const el = Math.min(BATTLE_MOD.allyLiveCap, flat.length);   // já nascem em campo junto do comandante tantos quantos cabem (a cota de vivos); o resto é a reposição
   return { elites: el, reserve: flat.length - el, kinds: flat.slice(0, el), queue: flat.slice(el), enemies: Math.max(1, enc.n | 0), total: flat.length };
 }
 // Começa a batalha do encontro pendente no tile carregado (o comandante já está dentro dele: wtBattleBegin). Chamada ao abrir o tile (mundoAfterStart) ou direto
@@ -73,11 +82,10 @@ function tbStart() {
   const F = tbForces(e), mode = WT.layoutMode[e.layout] || 'choque', geo = tbGeo(tbEntry(typeof b.de === 'number' ? b.de : null));
   Object.assign(geo, F, { real: { enc: e.id || 0, layout: e.layout, mode } });
   tbDirty = true; BATTLE.geo = geo; G.introBook = false; if (G.panel) closePanel();
-  ({ choque: battleStartChoque, defesa: battleStartDefesa, ataque: battleStartAtaque, pequena: battleStartPequena })[mode]();
+  const opts = mode === 'ataque' || mode === 'pequena' ? tbPoiOpts() : {};
+  ({ choque: battleStartChoque, defesa: battleStartDefesa, ataque: battleStartAtaque, pequena: battleStartPequena })[mode](opts);
   return true;
 }
-// O Ataque pode ser deixado no meio ("fugir pausa"); os outros modos não têm fuga.
-const tbCanPause = () => !!BATTLE.real && battleOn() && BATTLE.mode === 'ataque';
 
 // Cicatriz do tile (micros de guerra no mapa da próxima vez); as baixas e o dono do tile ficam com o macro (wtBattleEnd).
 function tbRecord(res) {
@@ -96,10 +104,6 @@ function tbEnd() {
   if (BATTLE.area) { for (const e of BATTLE.area.enemies) { e.alive = false; e.gone = true; if (e.group) scene.remove(e.group) } WORLD.areas = WORLD.areas.filter(a => a !== BATTLE.area) }
   battleWarn(false); if (BATTLE.hud) { BATTLE.hud.remove(); BATTLE.hud = null }
   BATTLE.on = false; BATTLE.over = true; BATTLE.real = null; BATTLE.geo = null;
-}
-// Sair no meio do Ataque: baixas até aqui saem dos batalhões, o bando perde os mortos e o encontro espera no mapa mundi (wtBattlePause).
-function tbPause() {
-  const c = battleCounts(); wtBattlePause(wtGraph(), c.p.d, c.e.d); tbEnd();
 }
 
 // Itens da bolsa perdidos na morte (formas 1 e 2): cada pilha da bolsa tem WT.deathItems de chance de ir; armas, atalhos e equipamento ficam.
@@ -125,18 +129,18 @@ function tbBackToMap(res) {
 // Derrota na batalha (battleDefeat): batalha pequena = forma 2 (perde 10 soldados, o batalhão fica); as demais = forma 3 (o batalhão se desfaz). Pequena sem soldados vira a
 // forma 3 "atacou sozinho". key = chave do texto (defesaFuga, quando o comandante sai do raio da Defesa).
 function tbLose(key) {
-  const w = wtX(), e = w.enc, b = e && batGet(e.bat), small = BATTLE.small, form = small ? 2 : 3, alone = small && b && batTotal(b) === 0;
-  const txt = alone ? TXT_WT_DEATH.sozinho : small ? TXT_WT_DEATH.poi : TXT_BATTLE_LOSE[key || BATTLE.mode] || TXT_BATTLE_LOSE.nucleo;
+  const w = wtX(), e = w.enc, b = e && batGet(e.bat), small = BATTLE.small, form = small ? 2 : 3, alone = !!b && batTotal(b) === 0;   // alone: foi sem um soldado sequer
+  const txt = alone ? (small ? TXT_WT_DEATH.sozinho : TXT_WT_DEATH.sozinhoBatalha) : small ? TXT_WT_DEATH.poi : TXT_BATTLE_LOSE[key || BATTLE.mode] || TXT_BATTLE_LOSE.nucleo;
   tbDeathScreen(small && !alone ? TXT_WT_DEATH.titulo : TXT_BATTLE_LOSE.titulo, txt, () => {
     const res = wtBattleEnd(wtGraph(), false, 0, form); if (res.form === 2) tbLoseItems();
     tbBackToMap(res);
   });
 }
-// Morte FORA de batalha (forma 1; game.js die): no tile do mundo novo, no turno do Comandante. Perde ouro, parte da munição e dos itens e uma ação; volta ao mapa
-// mundi. Devolve true se tratou (die() não abre a tela antiga).
+// Morte FORA de batalha (forma 1; game.js die): no tile do mundo novo, no turno do Comandante. Perde ouro, parte da munição e dos itens (a ação da exploração já tinha
+// sido gasta ao entrar); volta ao mapa mundi. Devolve true se tratou (die() não abre a tela antiga).
 function mundoDie() {
   if (!mapMundoOn() || !G.running || !wtGraph() || STATE.phase !== 'commander' || wtX().turn !== 'commander' || wtX().inTile === null || G.office) return false;
   const b = wtActive(); if (!b) return false;
-  tbDeathScreen(TXT_WT_DEATH.titulo, TXT_WT_DEATH.campo, () => { const res = wtDeath(wtGraph(), b.id, 1); tbLoseItems(); tbBackToMap(res) });
+  tbDeathScreen(TXT_WT_DEATH.titulo, batTotal(b) === 0 ? TXT_WT_DEATH.campoSozinho : TXT_WT_DEATH.campo, () => { const res = wtDeath(wtGraph(), b.id, 1); tbLoseItems(); tbBackToMap(res) });
   return true;
 }

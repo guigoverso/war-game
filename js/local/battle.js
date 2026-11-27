@@ -345,7 +345,7 @@ function battleStartChoque() {
   const n = battleElites(), er = battleEnemyTot(), pr = battleAllyRes(n);
   battleSpawnElites(n, home);
   battleSplit(er, C.enemyPosts.length).forEach((r, i) => battleAddGen(C.enemyPosts[i].x, C.enemyPosts[i].z, r, { side: 'enemy', kind: 'post' }));
-  battleSplit(pr, C.playerPosts.length).forEach((r, i) => battleAddGen(C.playerPosts[i].x, C.playerPosts[i].z, r, { side: 'player', kind: 'post' }));
+  if (pr > 0) battleSplit(pr, C.playerPosts.length).forEach((r, i) => battleAddGen(C.playerPosts[i].x, C.playerPosts[i].z, r, { side: 'player', kind: 'post' }));   // sem reserva (ou sem soldados) não há posto seu
   if (BATTLE_MOD.showRings && new URLSearchParams(location.search).get('raios') !== '0') battleRing(C.center.x, C.center.z, C.centerR, 0xffffff, 0.8);
   BATTLE.cover = battleScatterCover();
   BATTLE.total0 = er; BATTLE.ally.total0 = n + pr;

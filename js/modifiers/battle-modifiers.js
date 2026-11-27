@@ -84,9 +84,10 @@ const BATTLE_MOD = {
 // landMax/landStep = até onde e de quanto em quanto se procura terra firme em anéis (140, 8); enter = blocos para dentro da abertura onde o comandante nasce (14);
 // fieldRing = distância do centro do tile onde se procura o campo do Choque quando há cidade (110) e cityGap = folga mínima à cidade (35);
 // postDist/postSpread = distância dos postos ao centro do campo (85) e deslocamento lateral de cada um (-32, 0, 32); defFoot = meia-pegada mínima da posição na Defesa (30);
-// defAngles = ângulos, em graus, dos 3 postos atacantes em torno da posição, a partir do lado de onde o inimigo chega (0, 50, -50). Padrão: os valores entre parênteses
+// defAngles = ângulos, em graus, dos 3 postos atacantes em torno da posição, a partir do lado de onde o inimigo chega (0, 50, -50);
+// defCover = fração da cidade que o raio da Defesa cobre (0.5: só a maior parte; 1 = a cidade inteira). Padrão: os valores entre parênteses
 const BATTLE_TILE = { edge: 10, dry: 1.5, slope: 3, landMax: 140, landStep: 8, enter: 14, fieldRing: 110, cityGap: 35, postDist: 85, postSpread: [-32, 0, 32],
-  defFoot: 30, defAngles: [0, 50, -50] };
+  defFoot: 30, defAngles: [0, 50, -50], defCover: 0.5 };
 // Verdadeiro quando o cenário de teste está no modo de batalha pedido por ?modo= (nucleo, choque, defesa, ataque, pequena).
 const battleMode = () => tileTestOn() ? (new URLSearchParams(location.search).get('modo') || '') : '';
 

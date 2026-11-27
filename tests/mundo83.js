@@ -31,8 +31,8 @@ srv.listen(0, '127.0.0.1', async () => {
     await inBattle(page);
     const b = await page.evaluate(() => ({ mode: BATTLE.mode, tile: WORLD.win.node, enc: wtX().enc && wtX().enc.tile, inTile: wtX().inTile, allies: ALLIES.filter(x => x.alive).length, kinds: ALLIES.map(x => x.kindT),
       en: BATTLE.total0, gens: BATTLE.gens.length, p: { x: P.x | 0, z: P.z | 0 }, W, mapOpen: WM.open, dry: tH(P.x, P.z) > SEA }));
-    ok(b.mode === 'choque' && b.tile === b.enc && b.inTile === b.enc && b.allies >= 5 && b.allies <= 10 && b.en === 6 && !b.mapOpen && b.dry, 'campo: o tile do encontro abre e o Choque começa com 5 elites e 6 inimigos', JSON.stringify(b));
-    ok(b.gens === 6 && b.kinds.length === b.allies, 'campo: 3 postos de cada lado', JSON.stringify(b.gens));
+    ok(b.mode === 'choque' && b.tile === b.enc && b.inTile === b.enc && b.allies === 10 && b.en === 6 && !b.mapOpen && b.dry, 'campo: o tile do encontro abre e o Choque começa com os 10 soldados em campo e 6 inimigos', JSON.stringify(b));
+    ok(b.gens === 3 && b.kinds.length === b.allies, 'campo: sem reserva não há postos seus (só os 3 do inimigo)', JSON.stringify(b.gens));
     await page.evaluate(() => { for (const e of ENEMIES) if (e.btl) e.hp = 0; });   // elimina os bandidos que já nasceram e as reservas
     await page.evaluate(() => { for (const g of BATTLE.gens) if (g.side === 'enemy') g.reserve = 0; for (const e of BATTLE.area.enemies) if (e.alive) { e.alive = false; e.gone = true; BATTLE.area.aliveEnemies-- } });
     await page.waitForFunction(() => BATTLE.over && wtX().enc === null, null, { timeout: 60000 });
@@ -49,7 +49,7 @@ srv.listen(0, '127.0.0.1', async () => {
     await page.evaluate(() => WM.turnEl.querySelector('[data-a=fight]').click());
     await inBattle(page);
     const b = await page.evaluate(() => ({ mode: BATTLE.mode, lim: !!BATTLE.limit, R: BATTLE.centerR | 0, d: Math.hypot(P.x - BATTLE.center.x, P.z - BATTLE.center.z) | 0, en: BATTLE.total0, allies: ALLIES.filter(x => x.alive).length, res: BATTLE.ally.reserve }));
-    ok(b.mode === 'defesa' && b.lim && b.en === 8 && b.allies >= 5 && b.allies <= 10 && b.res + b.allies === 20, 'defesa: raio de defesa e forças do batalhão (5 elites + 15 de reserva)', JSON.stringify(b));
+    ok(b.mode === 'defesa' && b.lim && b.en === 8 && b.allies === 10 && b.res + b.allies === 20 && b.R < 95, 'defesa: raio de defesa menor e forças do batalhão (10 em campo + 10 de reserva)', JSON.stringify(b));
     await page.evaluate(() => { const L = BATTLE.limit; P.x = L.x + L.r + L.gray + 5; P.z = L.z });   // foge além da zona cinza
     await page.waitForSelector('#tbgo', { timeout: 20000 });
     const t = await page.evaluate(() => document.querySelector('#dead').innerText);
@@ -59,17 +59,33 @@ srv.listen(0, '127.0.0.1', async () => {
     ok(c.bats === 0 && !c.dead && c.inTile === null && c.enc === null && c.turn === 'leader', 'defesa: o batalhão se desfaz; sem outro, o turno do Comandante acaba e a rodada vai ao Líder', JSON.stringify(c));
     await page.close();
   }
-  if (want('invasao')) {   // Ataque: sair no meio pausa
+  if (want('invasao')) {   // Ataque: sem fuga; a guarnição real do POI sai e o POI é conquistado
     const page = await open('enc=invasao&soldados=30&inim=14&mix=1');
+    const g0 = await page.evaluate(() => ({ gar: (WORLD.pois || []).filter(p => p.gar).length, main: !!(WORLD.tileS && WORLD.tileS.main && WORLD.tileS.main.poi) }));
     await page.evaluate(() => WM.turnEl.querySelector('[data-a=fight]').click());
     await inBattle(page);
-    const b = await page.evaluate(() => ({ mode: BATTLE.mode, t: !!BATTLE.target, can: mundoCanLeave(), en: BATTLE.total0 }));
-    ok(b.mode === 'ataque' && b.t && b.can && b.en === 14, 'invasão: modo Ataque com alvo; dá para sair (pausa)', JSON.stringify(b));
-    await page.evaluate(() => { for (const e of BATTLE.area.enemies) if (e.alive) { e.hp = 0 } });
-    await page.waitForTimeout(600);
-    await page.evaluate(() => mundoLeaveTile()); await page.waitForTimeout(1200);
-    const c = await page.evaluate(() => ({ open: WM.open, enc: wtX().enc, inTile: wtX().inTile, str: wtX().actors[0] && wtX().actors[0].str }));
-    ok(c.open && c.enc && c.inTile === null && c.str <= 14, 'invasão: fugir pausa; o encontro continua no mapa mundi', JSON.stringify(c));
+    const b = await page.evaluate(() => { const m = WORLD.tileS && WORLD.tileS.main && WORLD.tileS.main.poi; return { mode: BATTLE.mode, t: !!BATTLE.target, can: mundoCanLeave(), en: BATTLE.total0,
+      allies: ALLIES.filter(x => x.alive).length, gar: (WORLD.pois || []).filter(p => p.gar).length, main: m ? m.owner : null, tpoi: !!(BATTLE.target && BATTLE.target.poi) } });
+    ok(b.mode === 'ataque' && b.t && !b.can && b.en === 14 && b.allies === 10, 'invasão: modo Ataque com 10 em campo; NÃO dá para sair do tile em combate', JSON.stringify(b));
+    ok(b.gar === 0, 'invasão: os bandidos reais dos POIs saem (a guarnição é a da batalha)', JSON.stringify([g0, b]));
+    if (b.main !== null) {
+      await page.evaluate(() => { for (const g of BATTLE.gens) if (g.side === 'enemy') g.reserve = 0; for (const e of BATTLE.area.enemies) if (e.alive) { e.alive = false; e.gone = true; BATTLE.area.aliveEnemies-- } });
+      await page.waitForFunction(() => BATTLE.over, null, { timeout: 30000 });
+      const c = await page.evaluate(() => ({ owner: WORLD.tileS.main.poi.owner, can: mundoCanLeave() }));
+      ok(c.owner === 'player' && c.can, 'invasão: vencer conquista o POI principal e libera a saída', JSON.stringify(c));
+    }
+    await page.close();
+  }
+  if (want('morte-sozinho')) {   // sem soldados: sem postos seus; texto de quem estava sozinho
+    const page = await open('enc=campo&soldados=0&inim=20&mortal=1');
+    await page.evaluate(() => WM.turnEl.querySelector('[data-a=fight]').click());
+    await page.waitForFunction(() => typeof BATTLE !== 'undefined' && BATTLE.on && BATTLE.real && !BATTLE.over, null, { timeout: T }); await page.waitForTimeout(1500);
+    const g = await page.evaluate(() => BATTLE.gens.filter(x => x.side === 'player').length);
+    ok(g === 0, 'sozinho: nenhum posto/POI do jogador na batalha', String(g));
+    await page.evaluate(() => { P.hp = 0; die() });
+    await page.waitForSelector('#tbgo', { timeout: 20000 });
+    const t = await page.evaluate(() => document.querySelector('#dead').innerText);
+    ok(/sozinho/.test(t) && !/soldados/.test(t), 'sozinho: tela de morte própria de quem estava sozinho', t.slice(0, 90));
     await page.close();
   }
   if (want('morte-campo')) {   // forma 1: sem batalha, dentro do tile
@@ -81,7 +97,7 @@ srv.listen(0, '127.0.0.1', async () => {
     await page.waitForSelector('#tbgo', { timeout: 10000 });
     await page.click('#tbgo'); await page.waitForTimeout(1500);
     const c = await page.evaluate(() => ({ open: WM.open, gold: Ledger.get('gold'), left: wtX().left, bats: batList('player').length, mun: JSON.stringify(wtActive().mun), inTile: wtX().inTile, dead: P.dead }));
-    ok(c.open && c.gold === 250 && c.left === g0.left - 1 && c.bats === 1 && c.inTile === null && !c.dead, 'morte fora de batalha: perde 150 de ouro e uma ação; o batalhão fica; volta ao mapa mundi', JSON.stringify([g0, c]));
+    ok(c.open && c.gold === 250 && c.left === g0.left && c.bats === 1 && c.inTile === null && !c.dead, 'morte fora de batalha: perde 150 de ouro (a ação da exploração já foi paga; nenhuma a mais); o batalhão fica; volta ao mapa mundi', JSON.stringify([g0, c]));
     await page.close();
   }
   if (want('dois')) {   // dois batalhões somados: as baixas se dividem

@@ -359,10 +359,9 @@ function mundoLoadShow(nome, col) {
 function mundoLoadHide() { const el = document.getElementById('tileload'); if (el) el.style.display = 'none'; mundoLoadStop() }
 
 // Sair do tile pelo livro/bolsa (botão do canto inferior direito, ui/book.js): fecha o livro, abre o mapa mundi e os NPCs andam o que deviam.
-const mundoCanLeave = () => mapMundoOn() && G.running && !!wtGraph() && !WM.open && wtX().turn === 'commander' && wtX().inTile !== null && (!wtX().enc || tbCanPause())
+const mundoCanLeave = () => mapMundoOn() && G.running && !!wtGraph() && !WM.open && wtX().turn === 'commander' && wtX().inTile !== null && !wtX().enc   // com a luta em andamento (encontro pendente) não se sai do tile
   && STATE.phase === 'commander' && !G.office;
 function mundoLeaveTile() {
-  if (tbCanPause()) { tbPause(); closePanel(); wm3Open(); wm3TurnSync(); return }   // fugir do Ataque só pausa: o encontro espera no mapa mundi
   if (BATTLE.real) tbEnd();   // depois da vitória: tira os soldados e o que sobrou da batalha
   const r = wtLeave(wtGraph()); closePanel(); wm3Open();
   if (!wm3TurnSeqStart(r && r.steps)) wm3TurnSync();

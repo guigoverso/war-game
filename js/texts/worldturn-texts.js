@@ -72,5 +72,8 @@ const TXT_WT_DEATH = {
   titulo: 'VOCÊ CAIU', botao: 'Continuar',
   campo: 'Quando a escuridão se desfez, havia rostos conhecidos em volta. Os seus soldados o tinham achado caído no campo e carregado de volta. Quem o derrubou já havia passado pelo seu corpo, levando o que achou de valioso.',
   poi: 'A posição não caiu, e o comandante também não, por muito pouco. Foi o sacrifício dos soldados que cobriram a retirada que o trouxe vivo de volta, e o preço deles ainda pesa.',
+  // sozinhoBatalha = foi a uma batalha grande sem soldado algum; campoSozinho = caiu fora de batalha sem soldado algum (ninguém o carregou de volta). RASCUNHOS, a aprovar
+  sozinhoBatalha: 'Estava sozinho diante deles, e o fim era previsível. O batalhão desapareceu junto com o seu comandante, e seu corpo ficou ali jogado, sem honra, sem enterro, esquecido pelo tempo.',
+  campoSozinho: 'Quando a escuridão se desfez, não havia rosto conhecido por perto, ninguém para carregá-lo de volta. Foi se arrastando que ele voltou. Quem o derrubou já havia passado pelo seu corpo, levando o que achou de valioso.',
   sozinho: 'Foi sozinho contra a posição, e o fim era previsível. O batalhão desapareceu junto com o seu comandante, e seu corpo ficou ali jogado, sem honra, sem enterro, esquecido pelo tempo.'
 };

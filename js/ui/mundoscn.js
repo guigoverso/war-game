@@ -12,10 +12,10 @@ const MUNDO_SCN = [
   { id: 'campo-grande', t: 'Encontro no campo, 30 x 10', d: '50 soldados contra 40 (campo: no máximo 30 inimigos e 10 soldados vivos ao mesmo tempo; o resto vem como reserva).', q: 'enc=campo&soldados=50&inim=40&mix=1' },
   { id: 'campo-dois', t: 'Dois batalhões no mesmo tile', d: 'Dois batalhões de 30 somam 60 contra 40; as baixas se dividem igualmente entre eles ao vencer.', q: 'enc=campo&soldados=30&soldados2=30&inim=40&mix=1' },
   { id: 'defesa', t: 'Defesa da cidade', d: 'Um bando de 25 cai sobre a capital com o seu batalhão dentro. Sem fuga: sair do raio azul é perder.', q: 'enc=defesa&soldados=20&inim=25&mix=1' },
-  { id: 'invasao', t: 'Invasão (Ataque)', d: 'Um bando estacionado no tile vizinho; conquiste o ponto principal. Sair do tile no meio só pausa a luta.', q: 'enc=invasao&soldados=30&inim=30&mix=1' },
+  { id: 'invasao', t: 'Invasão (Ataque)', d: 'Um bando estacionado no tile vizinho; conquiste o ponto principal (a guarnição vem da batalha; vencer conquista o POI). Não se sai do tile em combate.', q: 'enc=invasao&soldados=30&inim=30&mix=1' },
   { id: 'morte-batalha', t: 'Morte em batalha grande (batalhão se desfaz)', d: 'Bando forte e comandante mortal: ele cai 40 s depois de começar a luta, e o batalhão se desfaz.', q: 'enc=campo&soldados=10&inim=60&mortal=1&morrer=40' },
   { id: 'morte-sozinho', t: 'Morte com o batalhão vazio', d: 'Comandante sem soldados contra um bando: cai e o batalhão (só ele) se desfaz.', q: 'enc=campo&soldados=0&inim=20&mortal=1&morrer=40' },
-  { id: 'morte-campo', t: 'Morte fora de batalha (tile explorado)', d: 'O comandante já está dentro do tile, sem encontro, e cai 20 s depois: perde ouro, parte da munição e dos itens, e uma ação.', q: 'explorar=1&soldados=10&mortal=1&morrer=20' }
+  { id: 'morte-campo', t: 'Morte fora de batalha (tile explorado)', d: 'O comandante já está dentro do tile, sem encontro, e cai 20 s depois: perde ouro, parte da munição e dos itens, (a ação da exploração já foi gasta; nenhuma a mais).', q: 'explorar=1&soldados=10&mortal=1&morrer=20' }
 ];
 const MUNDO_SCN_BASE = 'mundo=1&auto=1&mute=1&seed=11&';
 

@@ -266,7 +266,7 @@ function wtBattleBegin(G) {
   return { ok: true, tile: e.tile, de: typeof b.de === 'number' ? b.de : null, mode: WT.layoutMode[e.layout], layout: e.layout, enemies: e.n,
     bats: bats.map(x => x.id), soldiers: bats.reduce((s, x) => s + batTotal(x), 0) };
 }
-// Sair da luta sem terminá-la (só o Ataque deixa: "fugir pausa"): o comandante sai do tile, o encontro continua à espera. As baixas até aqui já saíram dos batalhões
+// Sair da luta sem terminá-la (hoje sem uso no jogo: desde 2026-11-27 não se sai do tile em combate; fica para o macro/testes): o comandante sai do tile, o encontro continua à espera. As baixas até aqui já saíram dos batalhões
 // e o bando perdeu `mortos` homens (a força nunca cai a menos de 1). Devolve {steps: []}.
 function wtBattlePause(G, baixas, mortos) {
   const w = wtX(), e = w.enc; if (!e) return null;
@@ -275,8 +275,8 @@ function wtBattlePause(G, baixas, mortos) {
   e.n = a ? a.str : Math.max(1, e.n - (mortos || 0)); w.inTile = null; w.owed = 0;
   return { steps: [] };
 }
-// Derrota do comandante em batalha ou fora dela. form 1 = tile neutro ou bandidos sem tropas: perde ouro, parte da munição e dos itens (itemsLost, o chamador sorteia) e a
-// ação seguinte; form 2 = batalha de POI com soldados: igual e mais WT.deathPoiSoldiers soldados (sem soldados vira forma 3, sozinho); form 3 = batalha grande: o batalhão
+// Derrota do comandante em batalha ou fora dela. form 1 = tile neutro ou bandidos sem tropas: perde ouro, parte da munição e dos itens (itemsLost, o chamador sorteia); a ação
+// gasta para entrar no tile já foi paga, nenhuma outra se perde; form 2 = batalha de POI com soldados: igual e mais WT.deathPoiSoldiers soldados (sem soldados vira forma 3, sozinho); form 3 = batalha grande: o batalhão
 // se desfaz (soldados, ouro até WT.deathGold e munição), passa-se o comando a outro e, sem outro, o turno do Comandante acaba. Nunca dívida. O comandante volta ao mapa
 // mundi (sai do tile; os NPCs andam o que ficaram devendo). Devolve {form, sozinho, soldados, ouro, restam, fim, steps}.
 function wtDeath(G, id, form) {
@@ -292,7 +292,6 @@ function wtDeath(G, id, form) {
   } else {
     for (const k of Object.keys(b.mun)) b.mun[k] = Math.floor(b.mun[k] * (1 - WT.deathAmmoPart));
     if (form === 2) lostSold = Object.values(batLoseAny(b, WT.deathPoiSoldiers)).reduce((s, n) => s + n, 0);
-    else w.left = Math.max(0, w.left - 1);   // forma 1: custa uma ação
     wtLog(txtWtFainted(name, form));
   }
   w.enc = null; const lv = w.inTile !== null || w.owed > 0 ? wtLeave(G) : null, restam = batList('player').length;

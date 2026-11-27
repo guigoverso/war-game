@@ -244,7 +244,7 @@ ok(run(`batAt(wtKey(${T8})).length`)===2, 'e chega ao tile do encontro (os dois 
 run(`wtX().enc=null; wtX().actors=[]; wtX().inTile=null; wtX().left=4; wtX().owed=0; wtX().act=${oth}`);
 run(`batGet(${oth}).sold={soldier:30}; batGet(${oth}).mun={pistol:30,heal:2}; Ledger.set("gold",400)`);
 const f1 = JSON.parse(run(`JSON.stringify(wtDeath(G,${oth},1))`));
-ok(f1.form===1 && run('Ledger.get("gold")')===250 && run(`batTotal(batGet(${oth}))`)===30 && run(`batGet(${oth}).mun.pistol`)===15 && run('wtX().left')===3 && f1.ouro===150, 'forma 1: perde ouro (até 150) e metade da munição, gasta 1 ação, o batalhão fica');
+ok(f1.form===1 && run('Ledger.get("gold")')===250 && run(`batTotal(batGet(${oth}))`)===30 && run(`batGet(${oth}).mun.pistol`)===15 && run('wtX().left')===4 && f1.ouro===150, 'forma 1: perde ouro (até 150) e metade da munição, nenhuma ação a mais, o batalhão fica');
 const f2 = JSON.parse(run(`JSON.stringify(wtDeath(G,${oth},2))`));
 ok(f2.form===2 && f2.soldados===10 && run(`batTotal(batGet(${oth}))`)===20 && !f2.sozinho && run('Ledger.get("gold")')===100, 'forma 2: perde 10 soldados e o batalhão sobrevive');
 run(`batGet(${oth}).sold={}`);
