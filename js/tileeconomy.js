@@ -19,12 +19,14 @@ function whIncome(res) {
 
 // Fim da rodada no mundo novo (chamado por endRound depois das cidades): a renda dos tiles seus entra no saldo e no armazém, vilas distantes podem ficar
 // independentes e o relatório da rodada ganha a tabela. rep = a lista do relatório.
-function tileEconomyRound(rep) {
+function tileEconomyRound(rep, cityRows) {
   const G = wtGraph(); if (!mapMundoOn() || !G) return;
   const loaded = WORLD.win && typeof WORLD.win.node === 'number' ? WORLD.win.node : -1, eco = wtRoundEconomy(G, wtLvl(), loaded);
   goldIn(eco.gold); whIncome(eco.res);
-  const rows = eco.tiles.map(t => ({ nome: wtName(G, t.id), tema: t.tema, gold: t.gold || 0, res: t.res || {} }));
-  if (rows.length) rep.push(txtTileIncomeTable(rows, { gold: eco.gold, res: eco.res }));
+  const rows = (cityRows || []).map(r => ({ nome: r.nome, tema: 'cidade', mood: r.mood, gold: r.gold, res: r.res })).concat(eco.tiles.map(t => ({ nome: wtName(G, t.id), tema: t.tema, gold: t.gold || 0, res: t.res || {} })));
+  const tot = { gold: 0, res: {} };
+  for (const r of rows) { tot.gold += r.gold; for (const k in r.res) tot.res[k] = (tot.res[k] || 0) + r.res[k] }
+  if (rows.length) rep.push(txtTileIncomeTable(rows, tot));
   for (const id of eco.freed) {
     rep.push(txtVilaIndep(wtName(G, id), STATE.fac && STATE.fac.name));
     if (id === loaded && WORLD.home) WORLD.home.owner = 'neutral';   // o jogador estava na vila: ela já deixa de ser sua no mapa carregado

@@ -472,7 +472,7 @@ const WM_WALL = 0xb8b2a5, WM_ROOF = [0xa84432, 0x4a6a9a, 0x8a5a2e], WM_WALLS = [
 function wm3OwnerIdx(n) {
   const pc = (typeof STATE !== 'undefined' && STATE.fac && STATE.fac.color) || 0;
   if (typeof STATE !== 'undefined' && tileOwner(wtKey(n.id), n.home ? 'player' : null) === 'player') return pc;   // tile seu (STATE.tiles; a cidade inicial sempre)
-  if (n.tema !== 'cidade') return -1;
+  if (n.tema !== 'cidade' || (typeof STATE !== 'undefined' && tileOwner(wtKey(n.id), null) === 'rebel')) return -1;   // tile rebelde: neutro
   const list = FAC_COLORS.map((_, i) => i).filter(i => i !== pc);
   return list[(n.id * 5) % list.length];   // cidades NPC: cor provisória até as facções NPC agirem no mapa (8.10)
 }

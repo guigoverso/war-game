@@ -43,7 +43,10 @@ const CITY_SENTRY_HIT = 0.5;
 // towerGap/towerMax: torres do muro (além das 2 de cada portão): afastadas ao menos `towerGap` blocos entre si, no máximo `towerMax` no total.
 //   Padrão: 24 e 20
 // frontGap: [mín, máx] de blocos entre casas vizinhas na mesma rua (era 3 a 5). Padrão: [2, 3]
+// neck: raio do "pescoço": parte da pegada ligada ao corpo por uma passagem mais estreita que 2*neck+1 blocos sai da pegada (o lóbulo ficava isolado pelo muro,
+//   sem rua até ele). 0 desliga. Padrão: 3
 const CITY_FOOT = {
+  neck: 3,
   coreX: 16, coreZ: 23, maxDev: 6, ramp: 20, nudge: 40, nudgeStep: 4, relocateTries: 300, relocateGap: 140,
   density: 150, houseGap: 2, frontGap: [2, 3],
   towerGap: 24, towerMax: 20, serviceSpread: 18, serviceMinDist: 6, serviceTries: 1500, plazaOff: 0.5, shoreSlope: 1,

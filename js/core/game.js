@@ -136,6 +136,7 @@ function placePlayerHome(){
   P.x=c.cx+6;P.z=c.cz+6;P.y=tH(P.x,P.z)+1;P.camY=P.y;
 }
 function conquerCity(c){
+  if(mapMundoOn()&&WORLD.win&&typeof WORLD.win.node==='number')wtAnnex(wtGraph(),WORLD.win.node);   // mundo novo: o tile volta a ser seu
   c.owner='player';c.state='conquered';facSetFlag(c);facReskin();armyConquered(c);citySentrySync(c);if(typeof facReap==='function')facReap();
   {const e=ec(c);if(e&&e.rebelled){e.rebelled=false;e.noReb=STATE.round+(typeof REBM!=='undefined'?REBM.cool:5);e.ups=0;e.mood='ok'}}   // reconquistada de uma rebelião: 5 rodadas sem se rebelar (rebmine.js)
   const reward=120+60*c.rank;addCoins(reward);
@@ -646,6 +647,25 @@ function drawIcon(ctx,x,y,ic,r){
   ctx.strokeStyle=ic.col;ctx.lineWidth=2;ctx.stroke();
   ctx.fillStyle=ic.col;ctx.font='bold '+Math.round(r*1.3)+'px monospace';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(ic.t,x,y+1);
 }
+// Mapa M: onde ficam os serviços de cada cidade ou vila grande (prefeitura, armazém, armeiro, clínica...): um ícone sobre o mapa e a legenda no canto.
+// Só nas cidades grandes (cityBig: tile do mundo novo e cenários de tile); o mapa antigo de cidades pequenas fica como era.
+function mapServicesDraw(g,s,k){
+  const used=new Set();
+  for(const c of WORLD.cities){
+    if(!cityBig(c))continue;
+    for(const key of Object.keys(TXT_MAP_SERVICES)){
+      const p=c[key];if(!p||typeof p.x!=='number')continue;used.add(key);
+      const x=p.x*s,y=p.z*s,r=6.5*k;g.fillStyle='rgba(20,14,8,0.85)';g.strokeStyle='#e8d6a0';g.lineWidth=1.2;g.beginPath();g.arc(x,y,r,0,6.283);g.fill();g.stroke();
+      g.font=Math.round(9*k)+'px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillStyle='#fff';g.fillText(TXT_MAP_SERVICES[key][0],x,y+0.5);g.textBaseline='alphabetic';
+    }
+  }
+  if(!used.size)return;
+  const L=[...used],fs=Math.round(11*k),lh=fs+4;g.font='bold '+fs+'px monospace';g.textAlign='left';
+  const w=Math.max(...L.map(key=>g.measureText(TXT_MAP_SERVICES[key][0]+' '+TXT_MAP_SERVICES[key][1]).width))+12,h=L.length*lh+8,x0=8,y0=g.canvas.height-h-8;
+  g.fillStyle='rgba(20,14,8,0.78)';g.fillRect(x0,y0,w,h);g.fillStyle='#f4ecd8';
+  L.forEach((key,i)=>g.fillText(TXT_MAP_SERVICES[key][0]+' '+TXT_MAP_SERVICES[key][1],x0+6,y0+4+(i+1)*lh-4));
+  g.textAlign='center';
+}
 function drawBigMap(cvArg,mk){   // cvArg: outro canvas (popup de missão); mk: {x,z,label} marca extra
   const cv=cvArg||$('bigmap');if(!cv)return;
   const g=cv.getContext('2d'),s=cv.width/W,k=Math.max(0.6,Math.min(1,cv.width/640));   // k: o mapa do caderno é menor, então letras e marcas encolhem
@@ -656,6 +676,7 @@ function drawBigMap(cvArg,mk){   // cvArg: outro canvas (popup de missão); mk: 
     g.beginPath();g.rect(x-h,y-h,2*h,2*h);g.fill();g.stroke();
     g.fillStyle='#fff';g.strokeStyle='#000';g.lineWidth=3;const lbl=c.name+(MP.on?'  '+resIcon(focusOf(c)):'');g.strokeText(lbl,x,y-12*k);g.fillText(lbl,x,y-12*k);   // na escolha de caravana, o ícone do que a cidade troca
   }
+  mapServicesDraw(g,s,k);   // serviços das cidades e vilas grandes (ícones e legenda; map-texts.js)
   for(const p of WORLD.pois||[]){if(p.type==='ruins'||!poiVisible(p))continue;const x=p.cx*s,y=p.cz*s,h=5*k;g.fillStyle=poiCss(p.owner);g.strokeStyle=POI_BORDER;g.lineWidth=1.6;g.beginPath();g.rect(x-h,y-h,2*h,2*h);g.fill();g.stroke();
     if(G.poiNames&&p.id!==G.poiFocus){g.font='bold '+Math.round(10*k)+'px monospace';g.fillStyle='#ffe9b0';g.strokeStyle='#000';g.lineWidth=3;g.strokeText(POI_DEFS[p.type].n,x,y-8*k);g.fillText(POI_DEFS[p.type].n,x,y-8*k);g.font='bold '+Math.round(14*k)+'px monospace'}}   // POIs no mapa grande, como as cidades (menores); o nome só aparece se o botão estiver ligado (e, sempre, ao passar o mouse)
   {const pf=(WORLD.pois||[]).find(q=>q.id===G.poiFocus);if(pf){const x=pf.cx*s,y=pf.cz*s;g.strokeStyle='#ffd23a';g.lineWidth=4*k;g.beginPath();g.arc(x,y,(16+3*Math.sin(Date.now()/250))*k,0,6.283);g.stroke();g.fillStyle='#ffe9a0';g.strokeStyle='#000';g.lineWidth=3;g.font='bold '+Math.round(13*k)+'px monospace';g.strokeText(POI_DEFS[pf.type].n,x,y-22*k);g.fillText(POI_DEFS[pf.type].n,x,y-22*k);g.font='bold '+Math.round(14*k)+'px monospace'}}   // POI do cartão "Terras livres" em destaque

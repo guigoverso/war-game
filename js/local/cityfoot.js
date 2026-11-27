@@ -136,7 +136,22 @@ function cityFootPlan(c,seed){
       const a=x+dx,b=z+dz;if(a>=-Hc&&a<=Hc&&b>=-Hc&&b<=Hc&&m2[idx(a,b)]){out[i]=1;dz=2;break}
     }
   }
-  c.foot=out;
+  // pescoços: lóbulos ligados ao corpo por uma passagem mais estreita que 2*neck+1 blocos ficavam sem rua até eles (o armazém num lóbulo isolado pelo muro); saem da pegada
+  const nk=CITY_FOOT.neck;
+  if(nk>0){
+    const er2=new Uint8Array(N*N);
+    for(let z=-Hc;z<=Hc;z++)for(let x=-Hc;x<=Hc;x++){
+      if(!out[idx(x,z)])continue;let all=true;
+      for(let dz=-nk;dz<=nk&&all;dz++)for(let dx=-nk;dx<=nk;dx++){const a=x+dx,b=z+dz;if(a<-Hc||a>Hc||b<-Hc||b>Hc||!out[idx(a,b)]){all=false;break}}
+      er2[idx(x,z)]=(all||core(x,z))?1:0;
+    }
+    const m3=flood(er2),keep=new Uint8Array(N*N);
+    for(let z=-Hc;z<=Hc;z++)for(let x=-Hc;x<=Hc;x++){
+      if(!out[idx(x,z)])continue;
+      for(let dz=-nk;dz<=nk&&!keep[idx(x,z)];dz++)for(let dx=-nk;dx<=nk;dx++){const a=x+dx,b=z+dz;if(a>=-Hc&&a<=Hc&&b>=-Hc&&b<=Hc&&m3[idx(a,b)]){keep[idx(x,z)]=1;break}}
+    }
+    c.foot=keep;
+  }else c.foot=out;
   return true;
 }
 // a cidade não achou chão onde foi sorteada: tenta outros pontos candidatos (planos e em terra), longe das outras cidades

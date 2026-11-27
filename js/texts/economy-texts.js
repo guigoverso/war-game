@@ -10,11 +10,16 @@
 function txtTileIncomeTable(rows, tot) {
   const ic = k => resIcon(k), cel = r => [r.gold ? '◉' + r.gold : ''].concat(Object.keys(r.res || {}).filter(k => r.res[k] > 0).map(k => r.res[k] + ' ' + ic(k))).filter(Boolean).join(' &nbsp; ') || '—';
   return '<b>🌾 O que suas terras renderam</b><table class="ldt"><tr><td><small>Lugar</small></td><td><small>Renda</small></td></tr>'
-    + rows.map(r => '<tr><td>' + r.nome + ' <small>(' + (TXT_TILE_THEME[r.tema] || r.tema) + ')</small></td><td>' + cel(r) + '</td></tr>').join('')
+    + rows.map(r => '<tr><td>' + (r.mood ? MOOD[r.mood].icon + ' ' : '') + r.nome + ' <small>(' + (TXT_TILE_THEME[r.tema] || r.tema) + ')</small></td><td>' + cel(r) + '</td></tr>').join('')
     + '<tr><td><b>Total</b></td><td><b>' + cel(tot) + '</b></td></tr></table>';
 }
 // Relatório da rodada: uma vila sua ficou independente por estar longe do território. nome = a vila; fac = nome da facção do jogador.
 const txtVilaIndep = (nome, fac) => '🏳 ' + nome + ' nunca chegou a se sentir parte de ' + (fac || 'sua facção') + ': longe das suas estradas e das suas bandeiras, o povo cansou de esperar por ajuda e hasteou a própria.';
+// Relatório da rodada: tabela do que faltou nas cidades (cada linha = uma cidade e um recurso). rows = [{nome, res, n}]. Só aparece quando algo faltou.
+function txtShortTable(rows) {
+  return '<b>⚠ O que faltou nas cidades</b><table class="ldt"><tr><td><small>Cidade</small></td><td><small>Recurso</small></td><td><small>Faltou</small></td></tr>'
+    + rows.map(r => '<tr><td>' + r.nome + '</td><td>' + resIcon(r.res) + ' ' + resName(r.res) + '</td><td class="ldbad">' + r.n + '</td></tr>').join('') + '</table>';
+}
 // Armazém único (mundo novo): área "últimos ganhos" da aba Armazenamento. g = {r, gold, items:[{id,n,put}]} ou ausente.
 function txtWhGains(g) {
   if (!g || (!g.gold && !(g.items || []).length)) return '<b>Últimos ganhos</b><br><small>Nada entrou no armazém na última rodada.</small>';

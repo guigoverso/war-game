@@ -95,7 +95,7 @@ function fgNpcRoutes(){
   for(let i=R.length-1;i>=0;i--){const A=WORLD.cities[R[i].a],B=WORLD.cities[R[i].b];if(A.owner==='player'||B.owner==='player'||!fgTrade(A,B)){R.splice(i,1);changed=true}}   // cidade tomada ou facções inimigas: a rota acaba
   if(STATE.round>=1){
     const p=fgPickRoute();
-    if(p){R.push({a:p[0].id,b:p[1].id,npc:true});changed=true;rdNow('🛒 Uma caravana saiu entre '+p[0].name+' ('+facOf(p[0].fid).name+') e '+p[1].name+' ('+facOf(p[1].fid).name+').')}
+    if(p){R.push({a:p[0].id,b:p[1].id,npc:true});changed=true;rdNow('🛒 Uma caravana saiu entre '+p[0].name+' ('+facChip(p[0].fid)+') e '+p[1].name+' ('+facChip(p[1].fid)+').')}
   }
   if(changed&&typeof rebuildCaravans==='function')rebuildCaravans();
 }

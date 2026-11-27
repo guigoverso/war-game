@@ -191,7 +191,7 @@ function poiFreeRetake(){
     const nf=poiNearestFac(p),who=freePoiTaker(!!nf),n=POI_DEFS[p.type].n,f=who==='faction'?nf:null;   // pesos em modifiers/
     if(!who)continue;   // modificadores zerados: continua livre
     delete X.clr[p.id];
-    if(f){poiSetOwner(p,f.id);rdNow('🏳 '+f.name+' assumiu '+n+' que estava livre.')}
+    if(f){poiSetOwner(p,f.id);rdNow('🏳 '+facChip(f.id)+' assumiu '+n+' que estava livre.')}
     else{poiSetOwner(p,'bandit');poiGarrisonSync(p);rdNow('🏴 Bandidos retomaram '+n+' que estava livre.')}
   }
 }

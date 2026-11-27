@@ -18,19 +18,19 @@ function endRound(city){
   if(prep)rep.push('Rodada 0 (preparação): sem cobrança, imposto ou produção. A contagem começa agora, na rodada 1.');
   else{
     whGainBegin();   // mundo novo: o armazém lembra o que entrou nesta rodada (tileeconomy.js)
-    const rebels=[],officers=new Set(),taxMap={};   // taxMap: imposto de cada cidade nesta rodada (vai para o relatório)
+    const rebels=[],officers=new Set(),taxMap={},M=mapMundoOn(),cityRows={},miss=[];   // mundo novo (M): renda e falta de suprimento viram TABELAS no relatório, não frases soltas   // taxMap: imposto de cada cidade nesta rodada (vai para o relatório)
     for(const c of pcs){
       const e=ec(c),carry2={};delete e.debt;   // recursos não geram dívida
       let short=false,over=false;const overRes=[];
       for(const r of NEEDS){
         const need=needOf(c,r),cover=G.alwaysSupplied?need:storedOf(c,r),sh=Math.max(0,need-cover);   // (modo criativo: sempre supridas)
         if(gotOf(c,r)>Math.max(0,need-carryOf(c,r))){over=true;overRes.push(r)}   // entregou acima da meta: gera bônus (cidade próspera)
-        if(sh>0){short=true;debuf[r]=true;rep.push('⚠ '+c.name+': faltaram '+sh+' de '+resName(r).toLowerCase()+' (debuff nesta rodada; a necessidade continua a mesma).')}
+        if(sh>0){short=true;debuf[r]=true;if(M)miss.push({nome:c.name,res:r,n:sh});else rep.push('⚠ '+c.name+': faltaram '+sh+' de '+resName(r).toLowerCase()+' (debuff nesta rodada; a necessidade continua a mesma).')}
         consumeSupply(c,r,Math.min(need,cover));   // o que a cidade precisa é consumido (destruído); a necessidade da rodada seguinte é a mesma
         const left=storedOf(c,r);if(left>0)carry2[r]=left;   // o que sobrou nos slots conta como já entregue na rodada seguinte (bônus e "+N da rodada anterior")
       }
       e.got={};e.carry=carry2;
-      if(!short)rep.push('✔ '+c.name+': suprida corretamente'+(over?' e acima da meta — bônus de entrega ('+overRes.map(resIcon).join(' ')+') na próxima rodada':'')+'.');
+      if(!short&&!M)rep.push('✔ '+c.name+': suprida corretamente'+(over?' e acima da meta — bônus de entrega ('+overRes.map(resIcon).join(' ')+') na próxima rodada':'')+'.');
       // humor: descontente se faltou algo; próspera se tudo foi atendido e algo ficou acima da meta; senão contente
       // políticas: festa (efeito 'prosper') e felicidade (e.joyAdj, ±1) empurram o humor entre Descontente(1) e Próspera(3), mas NÃO mudam a contagem de rebelião (e.ups)
       {const ORD=['upset','ok','rich'];e.mood=short?'upset':ORD[clamp((over?2:1)+(e.joyAdj||0)+(polFlag('prosper',c.id)?1:0),polFlag('prosper',c.id)?2:0,2)];e.joyAdj=0}
@@ -49,16 +49,17 @@ function endRound(city){
         }else rep.push((peace?'⛪ '+c.name+': o Santuário manteve o povo calmo ('+MOOD.ok.n+'), mas sem suprimento não há imposto nem produção.':'😠 '+c.name+' está '+moodLbl(c)+': sem imposto e sem produção.')+(c.home?' (A capital não se rebela, mas sofre os mesmos efeitos.)':' Se continuar faltando, ela se rebela em '+(ECON.rebelUps-e.ups)+' rodada(s)!'));
       }else{
         if(e.press){delete e.press;rep.push('✔ '+c.name+' supriu tudo: a repressão acabou e as necessidades voltaram ao normal.')}   // supriu tudo: os recursos que subiram voltam ao valor anterior
-        const gt=goldTradeOf(c);if(gt>0){goldIn(gt);rep.push('🛒 '+c.name+': comércio com cidades de ouro rendeu ◉'+gt+' no cofre.')}
-        const tax=taxOf(c);if(tax>0){goldIn(tax);taxMap[c.id]=tax;rep.push(MOOD[e.mood].icon+' '+c.name+' está '+MOOD[e.mood].n.toLowerCase()+': imposto de ◉'+tax+' no cofre.')}
+        const gt=goldTradeOf(c);if(gt>0){goldIn(gt);(cityRows[c.id]||(cityRows[c.id]={nome:c.name,mood:e.mood,gold:0,res:{}})).gold+=gt;if(!M)rep.push('🛒 '+c.name+': comércio com cidades de ouro rendeu ◉'+gt+' no cofre.')}
+        const tax=taxOf(c);if(tax>0){goldIn(tax);taxMap[c.id]=tax;(cityRows[c.id]||(cityRows[c.id]={nome:c.name,mood:e.mood,gold:0,res:{}})).gold+=tax;if(!M)rep.push(MOOD[e.mood].icon+' '+c.name+' está '+MOOD[e.mood].n.toLowerCase()+': imposto de ◉'+tax+' no cofre.')}
         const f=focusOf(c),amt=prodOf(c);
         if(amt<=0)rep.push('📜 '+c.name+': produção suspensa por uma política.');
         else if(hasRoute(c))rep.push('🛒 '+c.name+': a produção de '+resName(f).toLowerCase()+' ('+amt+') seguiu por caravana.');
-        else{const got=prodAdd(c,f,amt);rep.push('✔ '+c.name+' produziu '+got+' de '+resName(f).toLowerCase()+(f==='gold'?' (no cofre).':' (na reserva do armazém).'))}
+        else{const got=prodAdd(c,f,amt);if(M){const r=cityRows[c.id]||(cityRows[c.id]={nome:c.name,mood:e.mood,gold:0,res:{}});if(f==='gold')r.gold+=got;else r.res[f]=(r.res[f]||0)+got}else rep.push('✔ '+c.name+' produziu '+got+' de '+resName(f).toLowerCase()+(f==='gold'?' (no cofre).':' (na reserva do armazém).'))}
       }
     }
-    rep.push('💰 Imposto: '+pcs.map(c=>c.name+' ◉'+(taxMap[c.id]||0)).join(', ')+'. Total: ◉'+pcs.reduce((s,c)=>s+(taxMap[c.id]||0),0)+'.');
-    tileEconomyRound(rep);   // mundo novo: renda dos tiles (recurso, vila, cidades fora do mapa carregado) e vilas que ficam independentes
+    if(!M)rep.push('💰 Imposto: '+pcs.map(c=>c.name+' ◉'+(taxMap[c.id]||0)).join(', ')+'. Total: ◉'+pcs.reduce((s,c)=>s+(taxMap[c.id]||0),0)+'.');
+    if(M&&miss.length)rep.push(txtShortTable(miss));
+    tileEconomyRound(rep,Object.values(cityRows));   // mundo novo: renda dos tiles (recurso, vila, cidades fora do mapa carregado) e vilas que ficam independentes
     meetRoundEnd(rep);   // reunião: produção das caravanas, taxas e manutenção (meetfx.js)   // quanto cada cidade pagou e o total
     for(const c of rebels){if(typeof rebS==='function'&&rebS().cur){rep.push('⏳ '+c.name+' está à beira da rebelião, mas há outra em andamento: ela fica para a próxima rodada.');continue}rep.push(officers.has(c.id)?'🔥 '+c.name+': dois suprimentos chegaram a 300% e os oficiais se juntaram aos rebeldes! A cidade se rebelou. Reconquiste-a.':'🔥 '+c.name+' SE REBELOU depois de '+ECON.rebelUps+' rodadas sem suprimentos! Reconquiste-a.');rebelCity(c)}
   }
@@ -86,6 +87,7 @@ function roundEnd(city){
 }
 // rebelião: a cidade deixa de ser sua, perde o armazém e ganha uma guarnição que você precisa derrotar
 function rebelCity(c){
+  if(mapMundoOn()&&WORLD.win&&typeof WORLD.win.node==='number')tileOwnerSet(wtKey(WORLD.win.node),'rebel');   // mundo novo (8.4): o tile deixa de ser seu e fica neutro no mapa mundi
   const e=ec(c),mine=typeof rebmStart==='function'&&rebmStart(c);   // rebelião de verdade (rebmine.js): fogo, bandeira rebelde e cartão no turno do líder; sem guarnição aqui
   c.owner='enemy';c.state='idle';facSetFlag(c);facReskin();   // volta à facção de origem
   STATE.rd.routes=STATE.rd.routes.filter(r=>r.a!==c.id&&r.b!==c.id);rebuildCaravans();

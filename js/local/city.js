@@ -525,7 +525,13 @@ function cityWallDraw(c,wt,rng){
     let adj=false;for(let dz=-1;dz<=1&&!adj;dz++)for(let dx=-1;dx<=1;dx++)if(cityIn(c,x+dx,z+dz)){adj=true;break}
     const wx=c.cx+x,wz=c.cz+z;
     if(!adj||inGate(x,z)||wx<0||wz<0||wx>=W||wz>=W||H[wz*W+wx]<SEA+1)continue;
-    const tt=getT(wx,wz);if(tt===T_ROAD||tt===T_BRIDGE)continue;   // onde passa estrada o muro abre (nada de muro sobre o caminho)
+    const wayT=t=>t===T_ROAD||t===T_BRIDGE||t===T_STREET||t===T_PLAZA;
+    let way=false;for(let dz=-1;dz<=1&&!way;dz++)for(let dx=-1;dx<=1;dx++)if(!cityIn(c,x+dx,z+dz)&&wayT(getT(wx+dx,wz+dz))){way=true;break}
+    if(!way)for(const [dx,dz] of[[1,0],[0,1]]){   // fenda no contorno: rua dos dois lados, em linha (as duas pontas ficavam separadas pelo muro)
+      let sa=false,sb=false;for(let k=1;k<=5;k++){if(wayT(getT(wx+dx*k,wz+dz*k)))sa=true;if(wayT(getT(wx-dx*k,wz-dz*k)))sb=true}
+      if(sa&&sb){way=true;break}
+    }
+    if(way)continue;   // onde passa estrada ou rua (fora da pegada) o muro abre, com 1 bloco de folga: nada de muro sobre o caminho (a rua do armazém ficava cortada)
     ring.push([x,z]);
   }
   const hasR=new Set(ring.map(q=>q[0]+','+q[1]));

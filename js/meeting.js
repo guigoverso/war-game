@@ -222,7 +222,7 @@ function meetFinish(){
   const mine=R.rows[0].yes,yesFids=[];
   for(const x of R.rows){if(x.fid===0)continue;if(x.yes)yesFids.push(x.fid);let d=x.yes===mine?1:-1;if(mine&&MPD[R.pr.id].benefit(x.fid,R.pr.a)<=-1.5)d-=1;relChange(x.fid,d,'ela votou '+(x.yes===mine?'como você':'contra você')+' na reunião ('+meetName(R.pr)+')'+(d<-1?' e a proposta a prejudica muito':''),true)}
   meetApplyEffect(R.pr,R.ok?'ok':'no',yesFids);
-  rdNow('🏛 Votação: '+R.yw+' de '+R.tot+' votos a favor. A favor: '+(R.rows.filter(x=>x.yes).map(x=>x.fid===0?'você':facOf(x.fid).name).join(', ')||'ninguém')+'. Contra: '+(R.rows.filter(x=>!x.yes).map(x=>x.fid===0?'você':facOf(x.fid).name).join(', ')||'ninguém')+'.');
+  rdNow('🏛 Votação: '+R.yw+' de '+R.tot+' votos a favor. A favor: '+(R.rows.filter(x=>x.yes).map(x=>x.fid===0?'você':facChip(x.fid)).join(', ')||'ninguém')+'. Contra: '+(R.rows.filter(x=>!x.yes).map(x=>x.fid===0?'você':facChip(x.fid)).join(', ')||'ninguém')+'.');
   S.last=STATE.round;S.draw=null;S.theme=null;S.bought={};
   meetLeave();
 }

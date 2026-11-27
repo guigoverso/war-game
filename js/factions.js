@@ -43,6 +43,8 @@ function facOf(id){
   if(id===0||id===undefined){const f=STATE.fac||{};return{id:0,player:true,name:f.name||FAC_NAME_DEFAULT,color:f.color||0,flag:f.flag||0,temper:null}}
   return(WORLD.factions||[]).find(f=>f.id===id)||{id,name:'Facção extinta',color:0,flag:0,temper:null,dead:true};   // id sem facção (destruída): um substituto, para nada quebrar por ler .name
 }
+// Nome da facção com a sua cor ao lado (quadradinho), para os textos do livro que falam de território de outra facção.
+const facChip=id=>{const f=facOf(id),c=FAC_COLORS[f.color||0].c;return'<span style="color:#'+c.toString(16).padStart(6,'0')+'">■</span> '+f.name};
 const facColor=id=>{const f=facOf(id);return f?FAC_COLORS[f.color].c:null};
 const facCities=id=>WORLD.cities.filter(c=>c.fid===id&&!c.rebel);   // cidade em rebelião não conta para nenhuma facção (é dos "Rebeldes")
 const facTemperName=f=>f&&f.temper?FAC_TEMPER[f.temper].n:'';
@@ -177,7 +179,7 @@ function relEffects(fid,before,after){
 // registra no relatório da rodada (Rodada atual) uma mudança da SUA relação com uma facção, com o motivo
 function relLog(fid,v0,v1,why){
   if(v0===v1||!facOf(fid))return;
-  rdNow((v1>v0?'📈':'📉')+' Relação com '+facOf(fid).name+': '+v0+' → '+v1+'/10 ('+REL_ST[relStatus(fid)].n.toLowerCase()+') — '+(why||'ação sua')+'.');
+  rdNow((v1>v0?'📈':'📉')+' Relação com '+facChip(fid)+': '+v0+' → '+v1+'/10 ('+REL_ST[relStatus(fid)].n.toLowerCase()+') — '+(why||'ação sua')+'.');
 }
 // Decisões mexem na relação em NO MÁXIMO 1 ponto (sempre ±1, sem multiplicador de temperamento). `fixed` = efeito que mexe nas relações (ex.: Festival,
 // votos da reunião): vale o valor exato, soma com o resto e não depende da relação nem da personalidade.
@@ -487,7 +489,7 @@ Hooks.on('round',()=>{
     if(r.v===REL_START||(relStatus(+id)==='enemy'&&r.debt))continue;
     if(STATE.round-(r.lastRd||0)>=FAC_DECAY[f.temper||'neutra']){
       const before=r.v;r.v+=Math.sign(REL_START-r.v);r.seenV=r.v;r.lastRd=STATE.round;
-      rdNow('⏳ A relação com '+f.name+' '+(before>REL_START?'esfriou':'melhorou com o tempo')+': '+r.v+'/10 ('+REL_ST[relStatus(+id)].n.toLowerCase()+').');
+      rdNow('⏳ A relação com '+facChip(f.id)+' '+(before>REL_START?'esfriou':'melhorou com o tempo')+': '+r.v+'/10 ('+REL_ST[relStatus(+id)].n.toLowerCase()+').');
     }
   }
 });
@@ -519,7 +521,7 @@ function facDestroy(fid){
   if(S.ms&&S.ms.fac)delete S.ms.fac[fid];
   if(S.meet&&S.meet.cur&&S.meet.cur.fid===fid)S.meet.cur=null;
   if(typeof FG_CACHE!=='undefined')FG_CACHE=null;
-  if(typeof rdNow==='function')rdNow('💀 '+f.name+' foi destruída: perdeu todas as cidades e sumiu do mapa.');
+  if(typeof rdNow==='function')rdNow('💀 '+facChip(f.id)+' foi destruída: perdeu todas as cidades e sumiu do mapa.');
   return true;
 }
 function facReap(){for(const f of(WORLD.factions||[]).slice())if(facCities(f.id).length===0)facDestroy(f.id)}

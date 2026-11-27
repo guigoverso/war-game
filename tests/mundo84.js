@@ -48,7 +48,7 @@ srv.listen(0, '127.0.0.1', async () => {
   if (want('cheio')) {
     const page = await open('terras=6&armazem=cheio&nivel=3'); await endTurn(page);
     const b = await page.evaluate(() => ({ n: shOf().store.filter(Boolean).length, all99: shOf().store.every(s => s.n <= 99), rep: STATE.rd.report.join('||') }));
-    ok(b.n === 24 && b.all99 && b.rep.includes('<table'), 'cheio: o excedente se perde em silêncio (24 slots, pilha até 99)', JSON.stringify(b));
+    ok(b.n === 24 && b.all99 && b.rep.includes('<table') && b.rep.includes('O que faltou nas cidades') && !b.rep.includes('💰 Imposto'), 'cheio: o excedente se perde em silêncio (24 slots, pilha até 99); a falta de suprimento vira tabela e as frases soltas somem', JSON.stringify(b));
     await page.close();
   }
   if (want('cidade')) {
@@ -75,6 +75,19 @@ srv.listen(0, '127.0.0.1', async () => {
       const b = await page.evaluate(() => ({ vila: !!WORLD.home.vila, rank: WORLD.home.vrank, wh: !!WORLD.home.warehouse, hall: !!WORLD.home.hall, owner: WORLD.home.owner }));
       ok(b.vila && b.rank === rk && b.wh === (rk >= 2) && b.owner === 'player', 'vila rank ' + rk + ': ' + (rk >= 2 ? 'tem' : 'não tem') + ' armazém', JSON.stringify(b));
     }
+    await page.close();
+  }
+  if (want('rebeliao')) {   // cidade rebelde: o tile deixa de ser seu e a cor no mapa mundi fica neutra
+    const page = await open('terras=1&cidade=1&nivel=5');
+    const cid = await page.evaluate(() => wtGraph().nodes.filter(n => n.tema === 'cidade' && !n.home)[0].id);
+    await page.evaluate(id => { batMove(wtActive(), wtKey(id)); wtX().inTile = id; wtX().turn = 'commander'; mundoGo(id, -1, 'Teste') }, cid);
+    await page.waitForFunction(id => typeof G !== 'undefined' && G.running && WORLD.win && WORLD.win.node === id, cid, { timeout: T }); await page.waitForTimeout(2000);
+    await page.evaluate(() => rebelCity(WORLD.home));
+    const b = await page.evaluate(id => ({ dono: tileOwner(wtKey(id), null), own: wtOwnerOf(wtGraph(), id), idx: wm3OwnerIdx(wtGraph().nodes[id]) }), cid);
+    ok(b.dono === 'rebel' && b.own !== 'player' && b.idx === -1, 'rebeliao: o tile deixa de ser seu e a cor no mapa mundi fica neutra', JSON.stringify(b));
+    await page.evaluate(() => conquerCity(WORLD.home));
+    const c = await page.evaluate(id => wtOwnerOf(wtGraph(), id), cid);
+    ok(c === 'player', 'rebeliao: reconquistar a cidade devolve o tile', String(c));
     await page.close();
   }
   if (want('neutra')) {   // cidade NPC que não é sua: abre como neutra (sem armazém seu, sem erros) e volta para a capital com a ficha dela
