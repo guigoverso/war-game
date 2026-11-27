@@ -66,10 +66,21 @@ function endRound(city){
   refreshShops();   // novas necessidades (dado) e Lojas reabastecidas conforme a produção
   rd.debuff=prep?(rd.debuff||{}):debuf;   // debuffs valem na rodada que começa (a necessidade não muda)
   rd.rbuf=Object.assign({},rd.rnext||{});rd.rnext={};   // bônus do que foi entregue vale só na rodada que começa (a rodada 0 também)
+  if(mapMundoOn())for(const t of wtTake())rep.push(t);   // mundo novo: o diário do turno no mapa mundi (marchas, encontros) fecha junto com a rodada
   rd.hallCity=(city||WORLD.home).id;rd.report=rep;rd.now=[];   // o que fechou esta rodada vira o relatório da ANTERIOR; a nova começa vazia
   STATE.round++;Hooks.emit('round',STATE.round);
   beginLeaderTurn();
   return true;
+}
+// Fim ÚNICO da rodada (etapa 8.1): no mundo novo (?mundo=1) o turno do Comandante é o turno no mapa mundi; ele fecha primeiro (wtEnd: as ações que
+// sobram viram passos dos NPCs, o cerco aberto cai) e depois a rodada (endRound, que leva o diário do turno para o relatório). Devolve true se fechou;
+// 'enc' se um NPC alcançou um batalhão no caminho (resolva o encontro no mapa mundi e encerre de novo); false se algo impede (líder, morte, rebelião).
+function roundEnd(city){
+  if(!mapMundoOn()||!wtGraph())return endRound(city);
+  if(STATE.phase==='leader'||G.office||P.dead)return false;
+  if(typeof rebPending==='function'&&rebPending()){rebEndPopup();return false}
+  if(wtX().turn==='commander'){const r=wtEnd(wtGraph(),true);if(!r.ok&&r.why==='encontro')return 'enc'}
+  return endRound(city);
 }
 // rebelião: a cidade deixa de ser sua, perde o armazém e ganha uma guarnição que você precisa derrotar
 function rebelCity(c){
@@ -97,6 +108,7 @@ function finishLeaderTurn(skipWar){
   polRunQueue();   // o que as políticas deixaram para o começo do turno do Comandante (teleporte, combate, soldados...)
   toast('✔ Decisões tomadas. Turno do comandante!'+(n?' Bônus de entrega ativos: '+Object.keys(STATE.rd.rbuf).map(resIcon).join(' '):''),4500);
   refreshRoundHud();
+  if(mapMundoOn())mundoCommanderStart();   // mundo novo: o turno do Comandante começa no mapa mundi (ui/mundoturno.js)
 }
 
 // dica do escritório e linha da rodada no HUD
@@ -126,7 +138,7 @@ function hallRoundAction(c){
   if(STATE.phase==='leader'){closePanel();openBook('book','resumo');return}
   if(RAID.active||CVB.active){toast('Há um ataque em andamento! Defenda a cidade antes de encerrar a rodada.',3000);return}
   const rnd=STATE.round<1?'rodada 0, preparação':'rodada '+STATE.round;
-  UI.confirm('Encerrar o turno do comandante ('+rnd+')? '+(STATE.round<1?'Nada é cobrado. ':'As cidades produzem e cobram as necessidades (o que faltar deixa a cidade descontente e liga debuffs). ')+'Depois você decide no escritório.',()=>{closePanel();endRound(c)},'Encerrar');
+  UI.confirm('Encerrar o turno do comandante ('+rnd+')? '+(STATE.round<1?'Nada é cobrado. ':'As cidades produzem e cobram as necessidades (o que faltar deixa a cidade descontente e liga debuffs). ')+'Depois você decide no escritório.',()=>{closePanel();if(roundEnd(c)==='enc')wm3Open()},'Encerrar');   // encontro no caminho: mostra no mapa mundi
 }
 
 // ---------- rodada 0 (preparação): mundo mais calmo, sem facções, sem portais, sem missões ----------

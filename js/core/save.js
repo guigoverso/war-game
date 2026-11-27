@@ -9,6 +9,7 @@ const chestKey=ch=>Math.round(ch.x)+','+Math.round(ch.z);
 
 function collectSave(){
   const army=Object.assign({},ARMY);delete army.city;
+  const mw=mapMundoOn();if(mw)mundoMarksSave();   // mundo novo: baús e acampamentos vão para a ficha do tile carregado (mapwin.js), não para o topo do save
   return {
     v:SAVE_VERSION,savedAt:new Date().toISOString(),seed:WORLD.seed,bio:G.startBio||'',creative:!!G.creative,
     flags:{god:!!G.god,infAmmo:!!G.infAmmo,noReload:!!G.noReload,won:!!G.won},
@@ -16,9 +17,9 @@ function collectSave(){
       :{x:P.x,y:P.y,z:P.z,yaw:P.yaw,pitch:P.pitch,hp:P.hp,maxhp:P.maxhp,armor:P.armor,coins:P.coins},
     weapons:{owned:WS.owned.slice(),mag:WS.mag.slice(),reserve:WS.reserve.slice(),cur:WS.cur},
     army,allies:allyCount(),
-    cities:WORLD.cities.map(c=>({id:c.id,owner:c.owner})),
-    camps:WORLD.camps.map(c=>({id:c.id,gone:!!c.gone,goneAt:c.goneAt,completed:!!c.completed,cleared:c.state==='cleared',cageOpened:!!(c.cage&&c.cage.opened)})),
-    chests:WORLD.chests.filter(c=>c.opened).map(chestKey),
+    cities:mw?[]:WORLD.cities.map(c=>({id:c.id,owner:c.owner})),
+    camps:mw?[]:WORLD.camps.map(c=>({id:c.id,gone:!!c.gone,goneAt:c.goneAt,completed:!!c.completed,cleared:c.state==='cleared',cageOpened:!!(c.cage&&c.cage.opened)})),
+    chests:mw?[]:WORLD.chests.filter(c=>c.opened).map(chestKey),
     time:{t:DN.t,days:DN.days},
     state:Object.assign(JSON.parse(JSON.stringify(STATE)),{bat:batSaved()})   // batalhão: com batalha em curso grava a foto de antes dela
   };
@@ -62,7 +63,9 @@ function migrateSave(d){
   if(d.v<25){d.v=25}   // v25: STATE.tiles[chave].cerco/cicatriz/tomado (cerco e cicatrizes de batalha); ausente = nenhum   // v24: state.bat (batalhões: id, tile, dono, soldados por tipo, munição); ausente = nenhum
   if(d.v<26){if(d.army){d.army.max=ARMY_MAX_SOLDIERS;delete d.army.reserve}d.v=26}   // v26: teto único de 50 soldados e fim da reserva antiga (army.reserve some); army.recr = recrutados por lugar na rodada (ausente = nenhum)
   if(d.v<27){d.v=27}   // v27: state.wt (turno do mapa mundi: pool de ações, batalhão ativo, atores e encontro); ausente = estado novo
-  // if(d.v<28){ ...ajustes...; d.v=28 }
+  if(d.v<28){d.v=28}   // v28 (etapa 8.1): state.wg (grafo do mundo, wgPack), wt.mv/local/spawn/entry (relógio e tile carregado), bat.de e marcas do tile
+                       // (tiles[k].dif.loot/acamp, só com ?mundo=1); ausente = grafo gerado da semente e tile = cidade inicial
+  // if(d.v<29){ ...ajustes...; d.v=29 }
   return d;
 }
 
@@ -102,6 +105,7 @@ function applySave(d){
   if(s.pol)STATE.pol=s.pol;normalizePol();   // políticas: carta pendente, efeitos ativos, fila do turno do Comandante, recargas
   batApply(s.bat);   // batalhões (macro/battalion.js)
   wtApply(s.wt);   // turno do mapa mundi (macro/worldturn.js)
+  if(s.wg)STATE.wg=s.wg;   // grafo do mundo (já lido antes da geração, em startGame)
   STATE.tiles=s.tiles||{};   // estado dos tiles (macro/tilestate.js)
   if(s.frel)STATE.frel=s.frel;if(s.flog)STATE.flog=s.flog;
   if(s.fev)STATE.fev=s.fev;if(s.meet)STATE.meet=s.meet;if(s.gev)STATE.gev=s.gev;   // eventos entre facções NPC e reuniões   // eventos entre facções NPC (facevents.js)
@@ -112,8 +116,9 @@ function applySave(d){
   if(s.fac)STATE.fac=Object.assign(STATE.fac||{},s.fac);   // identidade do jogador (nome, cor, bandeira)
   if(s.rd)STATE.rd=s.rd;   // rodadas: tipos de cidade, entregas, rotas, nível da capital (o que faltar é completado por initEconomy)
   normalizeInv();refreshBuffs();   // inventário e durabilidade (salvamentos antigos usam os padrões)
+  const mk=mapMundoOn()?mundoMarks():null;   // mundo novo: as marcas vêm da ficha do tile carregado (mapwin.js)
   // cidades conquistadas
-  for(const sc of d.cities||[]){
+  for(const sc of mk?[]:d.cities||[]){
     const c=WORLD.cities[sc.id];if(!c||sc.owner!=='player'||c.owner==='player')continue;
     c.owner='player';c.state='conquered';facSetFlag(c);
     for(const e of c.enemies)if(e.alive){e.alive=false;e.gone=true;scene.remove(e.group)}
@@ -121,7 +126,7 @@ function applySave(d){
   }
   refreshFactionLook();   // a identidade do jogador pode ter mudado: recolore as bandeiras
   // acampamentos
-  for(const sc of d.camps||[]){
+  for(const sc of mk?mk.camps:d.camps||[]){
     const c=WORLD.camps.find(k=>k.id===sc.id);if(!c)continue;
     if(sc.gone&&!c.gone){despawnCamp(c);c.goneAt=sc.goneAt;continue}
     if(c.gone)continue;
@@ -136,7 +141,7 @@ function applySave(d){
     c.completed=!!sc.completed;
   }
   // baús abertos
-  const open=new Set(d.chests||[]);
+  const open=new Set(mk?mk.chests:d.chests||[]);
   for(const ch of WORLD.chests)if(open.has(chestKey(ch))){ch.opened=true;ch.open=1;ch.lid.rotation.x=-1.9}
   // missões (STATE.ms já veio com o STATE; aqui só religa os acampamentos das missões e recomeça as matilhas)
   if(s.ms)STATE.ms=s.ms;msAfterLoad();

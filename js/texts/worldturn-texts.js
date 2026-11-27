@@ -31,6 +31,8 @@ const txtWtExplored = nome => '🔍 O batalhão vasculhou os arredores de ' + no
 // Painel de Ações: aviso de que o batalhão está dentro do tile e o botão de sair (a exploração de verdade, no mapa local, liga na etapa 8).
 const txtWtInTile = nome => '📍 No tile: ' + nome;
 const TXT_WT_LEAVE = 'Sair do tile';
+// Menu do botão direito no tile do batalhão ativo: entrar no mapa local do tile (gasta 1 ação; etapa 8.1).
+const TXT_WT_ENTER = '🚪 Entrar no tile';
 
 // Painel do tile no mapa mundi, parte do que foi escolhido no menu do tile (clique esquerdo). Cargas das caravanas por recurso.
 const TXT_WT_CARGO = { food: 'Comida', ore: 'Minério', wood: 'Madeira' };
@@ -44,3 +46,6 @@ const txtWtMenuBand = n => '☠ Bando de bandidos (' + n + ')';
 const txtWtEntInfo = d => '<div class="wm3-head" style="font-size:15px;padding:6px 14px">' + d.titulo + '</div><div class="wm3-body"><div class="wm3-row"><i>🏴</i><span>Facção</span><b>'
   + '<span class="wm3-sw" style="background:' + d.dono.css + '"></span>' + d.dono.name + '</b></div>'
   + d.linhas.map(l => '<div class="wm3-row"><i>' + l[0] + '</i><span>' + l[1] + '</span><b>' + l[2] + '</b></div>').join('') + '</div>';
+
+// Tela de carregamento ao entrar num tile (3 soldados correndo no centro; o texto fica embaixo). nome = tile de destino. Aprovado em 2026-11-26.
+const txtTileLoading = nome => 'Marchando para ' + nome + '...';

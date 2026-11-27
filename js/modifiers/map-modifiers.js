@@ -70,17 +70,17 @@ const TILE_BATTLES = ['conquista', 'defesa', 'choque'];
 // Etapa 4B: o tile de tema 'cidade' agora traz a cidade enorme (CITY_HUGE em city-modifiers.js); os outros temas seguem vazios até as sessões 4C/4E.
 // Cidade que o tile recebe: 'enorme' (tema cidade), 'antiga' (?cidade=1: a cidade pequena da etapa 3, para comparar) ou null (tile vazio).
 const tileCityKind = tema => {
-  if (!mapTileOn()) return null;
-  if (new URLSearchParams(location.search).get('cidade') === '1') return 'antiga';
+  if (!mapTileGen()) return null;
+  if (mapTileOn() && new URLSearchParams(location.search).get('cidade') === '1') return 'antiga';
   return tema === 'cidade' ? 'enorme' : tema === 'vila' ? 'vila' : null;
 };
 // Tile sem POIs (só a 4E os põe): todo tile do cenário, menos ?cidade=1 (cidade antiga com os POIs do gerador antigo).
-const tileBare = () => mapTileOn() && new URLSearchParams(location.search).get('cidade') !== '1';
-const tileEmptyOn = tema => mapTileOn() && !tileCityKind(tema);
+const tileBare = () => mapTileGen() && (mapMundoOn() || new URLSearchParams(location.search).get('cidade') !== '1');
+const tileEmptyOn = tema => mapTileGen() && !tileCityKind(tema);
 
 // ---------- Etapa 4E: composição do tile (js/macro/tile.js posição do principal; js/local/tilecompose.js preenchimento) ----------
 // ?compor=0 volta ao tile vazio (4A) para comparar. Padrão: ligado em todo tile do cenário (?cidade=1 e ?pois=max seguem sem composição).
-const tileComposeOn = () => mapTileOn() && new URLSearchParams(location.search).get('compor') !== '0' && new URLSearchParams(location.search).get('cidade') !== '1'
+const tileComposeOn = () => mapMundoOn() || mapTileOn() && new URLSearchParams(location.search).get('compor') !== '0' && new URLSearchParams(location.search).get('cidade') !== '1'
   && new URLSearchParams(location.search).get('pois') !== 'max';
 // Onde fica o POI principal (arquétipos sorteados pela semente, rodada 8). margin: distância mínima do POI à borda do tile (70). openGap: distância mínima
 // a qualquer abertura, para sobrar espaço à defesa (80). bigEdge: folga da caixa da cidade/vila à borda; o deslocamento máximo é (tile - 2*half)/2 - bigEdge (14,
@@ -237,6 +237,11 @@ const WORLD_GRAPH = {
 const mapTileOn = () => new URLSearchParams(location.search).get('cenario') === 'tile';
 // ?mundo=1 (ou o cenário de tile) gera o mapa local como janela do campo do mundo, em vez do mapa antigo.
 const mapWorldOn = () => mapTileOn() || new URLSearchParams(location.search).get('mundo') === '1';
+// ?mundo=1 (etapa 8): o jogo no mundo novo. O mapa local é o tile do grafo onde o jogador está (STATE.wt.local; partida nova = a cidade inicial),
+// gerado como no cenário de tile (composição, cidade enorme, vila). O cenário de tile continua só com ?cenario=tile.
+const mapMundoOn = () => !mapTileOn() && new URLSearchParams(location.search).get('mundo') === '1';
+// Verdadeiro quando o mapa local é um tile (cenário ou jogo no mundo novo): liga a geração por tile.
+const mapTileGen = () => mapTileOn() || mapMundoOn();
 // Lado do tile: TILE_SIZE, ou ?tam=N (arredondado a múltiplo de 32, entre 128 e 768).
 const mapTileSize = () => {
   const t = +new URLSearchParams(location.search).get('tam');
@@ -264,10 +269,10 @@ const WORLD3D = { unit: 16, cell: 16, vScale: 0.25, terrace: 4, smooth: 4, baseY
   // limites (rad), giro máximo para cada lado (rad; 99 = livre), velocidade do passeio com WASD (por unidade de distância por segundo) e suavidade da
   // inércia (maior = mais ágil). Padrões: 150, [18, 700], 0.9, [0.2, 1.5], 99, 0.9, 9
   dist: 150, distLim: [18, 700], pitch: 0.9, pitchLim: [0.2, 1.5], yawMax: 99, panSpeed: 0.9, damp: 9,
-  // Dia e noite: o tempo só passa quando o jogador GASTA AÇÕES no mapa mundi (nada automático). actionsPerDay = ações para um dia inteiro; dayStart = hora ao abrir
-  // (0 a 1: 0,25 nascer do sol, 0,5 meio-dia, 0,75 pôr do sol). Cores do céu (dia, entardecer, noite) e do mar (dia, noite), luz ambiente (dia, noite), força do sol e da lua. Mar:
-  // altura e velocidade das ondas. Padrões: 12, 0.3, 0xa9d2f2, 0xf2a070, 0x16244c, 0x2f86d0, 0x244f86, 0.3, 0.4, 1.15, 0.6, 0.07, 1.4
-  actionsPerDay: 12, dayStart: 0.3, skyDay: 0xa9d2f2, skyDusk: 0xf2a070, skyNight: 0x16244c, seaDay: 0x2f86d0, seaNight: 0x244f86, ambDay: 0.3, ambNight: 0.4,
+  // Dia e noite: a parte do dia vem do relógio único (WT.clock em worldturn-modifiers.js; o movimento gasto no mapa mundi passa o tempo). Cores do céu (dia,
+  // entardecer, noite) e do mar (dia, noite), luz ambiente (dia, noite), força do sol e da lua. Mar: altura e velocidade das ondas.
+  // Padrões: 0xa9d2f2, 0xf2a070, 0x16244c, 0x2f86d0, 0x244f86, 0.3, 0.4, 1.15, 0.6, 0.07, 1.4
+  skyDay: 0xa9d2f2, skyDusk: 0xf2a070, skyNight: 0x16244c, seaDay: 0x2f86d0, seaNight: 0x244f86, ambDay: 0.3, ambNight: 0.4,
   sunPower: 1.15, moonPower: 0.6, waveAmp: 0.07, waveSpeed: 1.4,
   // Caminhos: largura (unidades) da linha da estrada e da trilha e transparência (0 a 1); passam por cima de tudo, menos dentro do tile. Padrões: 0.9, 0.55, 0.6
   roadW: 1, trailW: 0.55, lineAlpha: 0.6,

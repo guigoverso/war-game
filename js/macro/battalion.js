@@ -67,6 +67,7 @@ function batApply(s) {
       if (!o || typeof o.tile !== 'string' || !o.dono) continue;
       const b = { id: o.id, tile: o.tile, dono: o.dono, sold: {}, mun: Object.assign({}, o.mun) };
       for (const k of BAT.kinds) if (o.sold && o.sold[k] > 0) batGain(b, k, o.sold[k]);
+      if (typeof o.de === 'number') b.de = o.de;   // tile de onde chegou (worldturn.js wtMove): entra no tile pela estrada certa
       st.list.push(b); st.seq = Math.max(st.seq, b.id || 0);
     }
   }

@@ -107,6 +107,7 @@ Hoje o rótulo do tile é só o tema ("Fazenda", "Fortaleza"). Passa a ter um **
 - Os dois atalhos criativos aprovados entram onde passam a ser úteis: **anexar/desanexar tile** na 8.4 e **bandidos dominam o tile** na 8.7. Os outros (rodada 16, [PROPOSTA]) são oferecidos ao usuário na sessão em que fariam sentido.
 
 ### 8.1 Fundação: rodada única, entrar/sair do tile, relógio, grafo salvo (G) — doc 13: A1, A3, A4 (parte), E6
+> **CÓDIGO PRONTO em 2026-11-26** (falta o teste na tela pelo usuário; resumo em `docs/MAPA.md`, "Etapa 8.1"). Limites conhecidos: a economia do `endRound` ainda é a das cidades do mapa local carregado (8.4); tile sem cidade não tem escritório, então o turno do Líder abre só o livro (modo Líder no mapa mundi: 8.2); a cidade de todo tile ainda nasce sua (dono por tile: 8.4).
 - `endRound` e `wtEnd` viram **um só fim de rodada** (`rounds.js` chama o fechamento do turno do mapa mundi; o turno do Comandante passa a ser o turno no mapa mundi). Rodada 0 com pool de 4 ações e sem declarar guerra (`WT`).
 - Grafo no `STATE` (`wgPack`/`wgUnpack`), `STATE.wt` e `STATE.bat` salvos; salvar em marcha e dentro do tile (posição + marcas do tile, ainda só as que já existem).
 - Entrar no tile: botão direito > "Entrar no tile" (1 ação), geração pelo `mapwin`/`tileCompose` com o estado do tile, início no ponto da estrada de onde veio; sair grátis. Tela de carregamento (3 soldados correndo + texto a aprovar). Tile sem o jogador não simula NPCs.

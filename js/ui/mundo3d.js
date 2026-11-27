@@ -5,7 +5,7 @@
 // (buildHuman) que anda pela trilha ao clicar duas vezes. Câmera livre com inércia. Cena própria (sceneUse, render.js); a câmera do jogo é emprestada e
 // devolvida ao fechar. Números em WORLD3D (map-modifiers.js), textos em map-texts.js (txtWm3*).
 // Abre com J (jogo), pelo botão do modo criativo ou com ?cenario=mundo3d (&seed=N &forma=pangeia|continentes|arquipelagos|lago &dom=plains|forest|...).
-const WM = { time: 0.3, spent: 0, names: false, open: false, built: null, saved: null, hud: null, hover: -1, sel: -1, armed: false, at: 0, mx: 0, my: 0, drag: null, walk: null, seq: null, speed: 1, turnEl: null, follow: false, standalone: false,
+const WM = { time: 0.3, names: false, open: false, built: null, saved: null, hud: null, hover: -1, sel: -1, armed: false, at: 0, mx: 0, my: 0, drag: null, walk: null, seq: null, speed: 1, turnEl: null, follow: false, standalone: false,
   yaw: 0, pitch: 0.9, dist: 150, tx: 0, tz: 0, c: { yaw: 0, pitch: 0.9, dist: 150, tx: 0, ty: 0, tz: 0 } };
 const WM_BOX = new THREE.BoxGeometry(1, 1, 1), WM_MATS = new Map();
 // Todo voxel de modelo marca o stencil onde aparece (ZPass): as linhas dos caminhos não desenham nesses pixels (o modelo tem preferência sobre a estrada).
@@ -135,10 +135,11 @@ function wm3Pedestals(T, G, land) {
       }
     }
     if (nd.mar || nd.ponteNode) continue;
+    const bio = nd.terr ? nd.terr.biomas.indexOf(Math.max(...nd.terr.biomas)) : WF_BIO.PLAINS;   // bioma dominante do tile (o que o mapa local vai ter)
     const r = nd.tema === 'cidade' ? K.cityPlateau : K.plateau, hN = Math.min(Math.max(T.H[cj * n + ci], sea + 2), sea + K.pedMax);
     for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) {
       const i = ci + di, j = cj + dj; if (i < 0 || j < 0 || i >= n || j >= n || Math.hypot(di, dj) > r + 0.4) continue;
-      T.H[j * n + i] = hN; T.R[j * n + i] = 1; land[j * n + i] = 1; if (T.B[j * n + i] === WF_BIO.ROCK) T.B[j * n + i] = WF_BIO.PLAINS;
+      T.H[j * n + i] = hN; T.R[j * n + i] = 1; land[j * n + i] = 1; T.B[j * n + i] = bio;   // antes a rocha virava planície: vila e cidade pareciam sempre verdes
     }
   }
 }
@@ -701,9 +702,12 @@ function wm3Select(id) {
 // Recusa (sem ações, sem caminho) fica em silêncio: o contador de ações basta.
 function wm3Go(id) {
   const B = WM.built; if (WM.walk || WM.seq) return;
-  const r = wtMove(B.G, id); if (!r.ok) return;
+  const lv = wtX().inTile !== null && !wtX().enc ? wtLeave(B.G) : null;   // dentro do tile: marchar sai dele (grátis; os NPCs dão o que deviam)
+  if (lv && wtX().enc) { wm3TurnSeqStart(lv.steps); return }   // um NPC alcançou o batalhão na saída: o encontro vem antes da marcha
+  const r = wtMove(B.G, id); if (!r.ok) { if (!lv || !wm3TurnSeqStart(lv.steps)) wm3TurnSync(); return }
+  if (lv) r.steps = lv.steps.concat(r.steps);
   wm3TurnHud();   // o contador de movimento desce já ao partir
-  WM.spent += r.gasto;   // gastar movimento passa o tempo (dia e noite)
+  wm3ClockSpend(r.gasto);   // relógio único: cada WT.clock.mvPerPart de movimento passa uma parte do dia (ui/mundoturno.js)
   B.path.children.slice().forEach(c => B.path.remove(c)); WM.hud.info.style.display = 'none'; B.selRing.visible = false; B.batRing.visible = false;
   WM.follow = true; WM.seq = { steps: r.steps, i: -1, tw: null }; wm3SeqNext();
 }
@@ -855,7 +859,7 @@ function wm3ArmRing() {
 function wm3Disarm() { WM.armed = false; wm3ArmRing(); wm3ShowPath(null) }
 // Menu do batalhão selecionado, ao lado dele (segue o boneco na tela). Só mostra o que cabe agora (explorar fora do tile, sair dentro dele).
 function wm3MenuOpen() {
-  const w = wtX(), ok = { explorar: wm3CanExplore(), sair: w.inTile !== null && !w.enc, entrar: true, acampar: true, soldados: true, suprimentos: true, soltar: true, fechar: true };
+  const w = wtX(), ok = { explorar: false, sair: w.inTile !== null && !w.enc, entrar: wm3CanExplore(), acampar: true, soldados: true, suprimentos: true, soltar: true, fechar: true };
   WM.hud.menu.innerHTML = '<div class="wm3-head">' + TXT_WM3_MENU_TITLE + '</div>' + TXT_WM3_MENU.filter(o => ok[o.id]).map(o => '<button data-m="' + o.id + '"'
     + (o.ok ? '' : ' class="soon"') + '><i style="font-style:normal">' + o.ic + '</i>' + o.t + '</button>').join('');
   WM.menuOn = true; WM.hud.menu.style.display = 'block'; wm3MenuPlace();
@@ -868,7 +872,7 @@ function wm3MenuPlace() {
 }
 function wm3MenuAct(id) {
   wm3MenuClose();
-  if (id === 'explorar') wm3TurnClick('explore');
+  if (id === 'entrar' || id === 'explorar') wm3TurnClick('enter');
   else if (id === 'sair') wm3TurnClick('leave');
   else if (id === 'soltar') wm3Disarm();
   // GANCHO: aqui entram as ações reais que faltam (entrar no tile = abrir o mapa local do tile do batalhão; as demais, nas etapas 7 e 8). Ainda sem efeito.
@@ -934,14 +938,16 @@ function wm3Pan(fw, rt) {   // desloca o alvo: fw para o fundo da tela, rt para 
 function wm3Frame(dt) {
   if (!WM.open) return;
   if (G.panel === null) { G.panel = 'mundo3d'; if (document.pointerLockElement) document.exitPointerLock() }   // o livro fechou: volta ao mapa mundi
-  WM.hud.el.style.visibility = G.panel === 'ldbook' ? 'hidden' : '';
+  WM.hud.el.style.visibility = G.panel !== 'mundo3d' ? 'hidden' : '';   // livro ou pausa por cima: o painel do mapa some
   const B = WM.built, K = WORLD3D, k = G.keys, sp = WORLD3D.panSpeed * WM.dist * dt, on = (a, b) => (k[a] || k[b] ? 1 : 0);
   wm3Pan((on('KeyW', 'ArrowUp') - on('KeyS', 'ArrowDown')) * sp, (on('KeyD', 'ArrowRight') - on('KeyA', 'ArrowLeft')) * sp);
   if (k.KeyQ) WM.yaw -= dt * 1.4; if (k.KeyE) WM.yaw += dt * 1.4;
   wm3TurnAnim(dt);
+  WM.hud.el.querySelector('[data-v="volta"]').style.display = !WM.standalone && !wm3Locked() ? '' : 'none';   // só para olhar: dá para voltar ao jogo
+  if (document.pointerLockElement) document.exitPointerLock();   // o pedido de mouse travado do closePanel pode chegar depois de abrir o mapa: o mouse tem que ficar livre
   if (WM.walk) wm3WalkStep(dt); else if (B.token) B.token.position.y = B.tokenY + Math.abs(Math.sin(performance.now() / 700)) * 0.05;
   wm3Cam(dt);
-  WM.time += (K.dayStart + WM.spent / K.actionsPerDay - WM.time) * (1 - Math.exp(-dt * 0.9));   // a hora só anda quando se gastam ações; a luz acompanha devagar
+  WM.time += (wm3ClockLook() - WM.time) * (1 - Math.exp(-dt * 0.9));   // a luz da parte do dia (relógio único, DN); muda devagar
   wm3Env(); wm3Waves(performance.now() / 1000); wm3Life(dt, performance.now() / 1000);
   if (WM.menuOn) wm3MenuPlace();
   const h = WM.drag || WM.walk || G.panel !== 'mundo3d' ? -1 : wm3PickAt(WM.mx, WM.my);
@@ -956,7 +962,8 @@ function wm3Keys(e) {
   if (!WM.open || G.panel !== 'mundo3d') return;   // com o livro aberto, as teclas são do jogo
   if (e.code === 'Escape' || e.code === 'KeyJ') {
     if (WM.menuOn) wm3MenuClose(); else if (WM.pickEl && WM.pickEl.style.display === 'block') wm3EntClose();
-    else if (WM.hud.opts.style.display === 'block') wm3GearToggle(false); else if (WM.armed) wm3Disarm(); else if (!WM.standalone && !e.repeat) wm3Close();
+    else if (WM.hud.opts.style.display === 'block') wm3GearToggle(false); else if (WM.armed) wm3Disarm();
+    else if (!WM.standalone && !e.repeat) { if (wm3Locked()) openPanel('pause'); else wm3Close() }   // mundo novo fora do tile: o mapa é a tela principal
     e.preventDefault(); e.stopImmediatePropagation(); return;
   }
   if (e.code === 'KeyL' && !e.repeat) { wm3Book(); e.preventDefault(); e.stopImmediatePropagation(); return }
@@ -1031,7 +1038,7 @@ function wm3HudMake() {
     #wm3 .wm3-menu button.soon { opacity: .6; }`;
   document.head.appendChild(css);
   const el = document.createElement('div'); el.id = 'wm3';
-  el.innerHTML = '<div class="wm3-tl"><div id="wm3turn"></div><button class="wm3-btn off" data-v="nomes">' + TXT_WM3_VIEW.nomes + '</button>'
+  el.innerHTML = '<div class="wm3-tl"><button class="wm3-btn" data-v="volta" style="display:none">' + TXT_WM3_VIEW.volta + '</button><div id="wm3turn"></div><button class="wm3-btn off" data-v="nomes">' + TXT_WM3_VIEW.nomes + '</button>'
     + '<button class="wm3-btn" data-v="livro">' + TXT_WM3_VIEW.livro + '</button><div id="wm3info" class="wm3-panel" style="display:none"></div></div>'
     + '<div class="wm3-tr"><button class="wm3-btn wm3-gear" data-v="engrenagem">' + TXT_WM3_GEAR + '</button><div class="wm3-opts" style="display:none"><div class="wm3-head">'
     + TXT_WM3_OPTIONS.titulo + '</div><div class="wm3-body"><div class="wm3-sub">' + TXT_WM3_OPTIONS.vel + '</div><div class="wm3-btns">'
@@ -1041,6 +1048,7 @@ function wm3HudMake() {
   const nm = el.querySelector('[data-v="nomes"]');
   nm.onclick = () => { WM.names = !WM.names; WM.built.labels.forEach(l => { l.visible = WM.names }); nm.classList.toggle('off', !WM.names) };
   el.querySelector('[data-v="livro"]').onclick = wm3Book;
+  el.querySelector('[data-v="volta"]').onclick = () => { if (!WM.walk && !WM.seq) wm3Close() };
   el.querySelector('.wm3-menu').addEventListener('click', e => { const b = e.target.closest('button'); if (b) wm3MenuAct(b.dataset.m) });
   WM.hud = { el, info: el.querySelector('#wm3info'), menu: el.querySelector('.wm3-menu'), book: el.querySelector('[data-v="livro"]'), opts: el.querySelector('.wm3-opts') };
   el.querySelector('[data-v="engrenagem"]').onclick = () => { wm3EntClose(); wm3GearToggle() };
@@ -1056,7 +1064,9 @@ function wm3Open(F) {
     const q = new URLSearchParams(location.search), w = (typeof MAP !== 'undefined' && MAP.win) || null;
     F = w ? w.F : wfCreate((typeof MAP !== 'undefined' && MAP.seed) || 11, { dominant: MAP.dominant, format: q.get('forma') });
   }
-  if (!WM.built || WM.key !== wm3Key(F)) { const G2 = wgBuild(F); WM.built = wm3Build(F, G2); WM.key = wm3Key(F); wm3Token(WM.built) }
+  if (!WM.built || WM.key !== wm3Key(F)) {   // mundo novo: o mesmo grafo do jogo (salvo em STATE.wg; worldturn.js wtGraphLoad)
+    const G2 = (mapMundoOn() && wtGraph()) || wgBuild(F); WM.built = wm3Build(F, G2); WM.key = wm3Key(F); wm3Token(WM.built);
+  }
   const B = WM.built;
   WM.saved = { scene, pos: camera.position.clone(), rot: camera.rotation.clone(), fov: camera.fov, near: camera.near, far: camera.far, panel: G.panel,
     hud: !$('hud').classList.contains('hidden') };
@@ -1068,6 +1078,7 @@ function wm3Open(F) {
   WM.at = B.G.inicio ? B.G.inicio.id : (B.G.nodes.find(n => !n.mar) || B.G.nodes[0]).id; wm3TurnOpen(B); WM.walk = null;
   const t = B.token.position; WM.tx = WM.c.tx = t.x; WM.tz = WM.c.tz = t.z; WM.c.ty = B.nodeY[WM.at];
   WM.dist = WM.c.dist = WORLD3D.dist; WM.pitch = WM.c.pitch = WORLD3D.pitch; WM.yaw = WM.c.yaw = 0; WM.hover = -1; WM.drag = null; WM.follow = false;
+  WM.time = WT.clock.look[wtBand(DN.t)];   // a luz já abre na parte do dia certa
   WM.open = true; WM.hud.el.style.display = 'block'; wm3MenuClose(); wm3Select(-1); wm3Disarm(); wm3GearToggle(false);
   WM.hud.book.style.opacity = WM.standalone || !G.running ? 0.45 : 1;   // o livro só abre dentro do jogo
 }

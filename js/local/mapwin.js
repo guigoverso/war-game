@@ -10,6 +10,7 @@
 function mapWindowPick(seed, dominant) {
   if (!mapWorldOn()) return null;
   const q = new URLSearchParams(location.search), F = wfCreate(seed, { dominant, format: q.get('forma') });
+  if (mapMundoOn()) return mapMundoWindow(F, q);
   if (!mapTileOn()) {   // ?mundo=1: janela do tamanho do mapa atual (704), onde há mais terra perto do ideal; sem grade de tiles, borda toda fechada
     const c = wfPickWindow(F, W);
     return wfWindow(F, c.x, c.z, W, { tile: false, openings: [], neighbors: [] });
@@ -27,6 +28,18 @@ function mapWindowPick(seed, dominant) {
   win.neighbors = wfTrails(F, t.i, t.j);
   win.openings = wfOpenings(F, win, t.i, t.j);
   mapTileDescribe(win, q);
+  return win;
+}
+// Jogo no mundo novo (?mundo=1, etapa 8.1): o grafo vem do save (STATE.wg) ou é gerado (wtGraphLoad); o mapa local é o tile STATE.wt.local (partida
+// nova = a cidade inicial do grafo). Janela centrada no ponto do tile, aberturas = arestas de terra do grafo (wgOpenings), tema = o do grafo.
+function mapMundoWindow(F, q) {
+  const G = wtGraphLoad(F), w = wtX(), id = typeof w.local === 'number' && G.nodes[w.local] ? w.local : (G.inicio || G.nodes.find(n => !n.mar)).id;
+  const n = G.nodes[id], size = TILE_SIZE; w.local = id;
+  const win = wfWindow(F, n.x, n.z, size, { tile: true, ti: -1, tj: -1, kind: 'natureza', node: id, neighbors: [] });
+  win.openings = wgOpenings(G, F, id, size).filter(o => o.terra).map(o => Object.assign(o, { to: o.para }));
+  win.tema = tileThemeOk(n.tema) ? n.tema : 'passagem'; win.empty = tileEmptyOn(win.tema); win.cityKind = tileCityKind(win.tema); win.bare = tileBare();
+  win.battle = null; mapTilePlan(win);
+  win.desc = tileDescribe(F, win, { tema: win.tema, principal: win.mainPlan });
   return win;
 }
 // Tema (?tema=; sem ele, sorteio pela semente com ?temas=% de tiles temáticos), batalha (?batalha=&entrada=...) e descritor do tile (js/macro/tile.js).
@@ -346,3 +359,31 @@ document.addEventListener('click', e => {
   const o = WORLD.win.openings[0];
   if (b.dataset.tile === 'border' && o) { tilePlaceAt(o); closePanel(); }
 });
+
+// ---------- Jogo no mundo novo (?mundo=1, etapa 8.1): marcas do tile e entrada pela estrada ----------
+// O terreno vem da semente e o jogador não mexe em blocos: o que muda num tile são as MARCAS (baús abertos, acampamentos limpos ou sumidos), guardadas
+// como diferenças na ficha do tile (STATE.tiles['w'+id].dif.loot / .acamp, macro/tilestate.js). collectSave grava as do tile carregado; applySave aplica.
+const mundoTileKey = () => (WORLD.win && typeof WORLD.win.node === 'number' ? wtKey(WORLD.win.node) : null);
+function mundoMarksSave() {
+  const key = mundoTileKey(); if (!key) return;
+  for (const ch of WORLD.chests || []) if (ch.opened) tileDiffSet(key, 'loot', chestKey(ch), 1);
+  for (const c of WORLD.camps || []) {
+    const m = { gone: !!c.gone, goneAt: c.goneAt, completed: !!c.completed, cleared: c.state === 'cleared', cageOpened: !!(c.cage && c.cage.opened) };
+    const on = m.gone || m.completed || m.cleared || m.cageOpened;
+    if (on || tileStHas(key)) tileDiffSet(key, 'acamp', c.id, on ? m : null);   // sem marca: não cria a ficha do tile
+  }
+}
+// Marcas do tile carregado no formato do save antigo ({chests:[chave], camps:[{id, ...}]}), para applySave reaproveitar a mesma aplicação.
+function mundoMarks() {
+  const key = mundoTileKey(); if (!key) return { chests: [], camps: [] };
+  const ac = tileDiffs(key, 'acamp');
+  return { chests: Object.keys(tileDiffs(key, 'loot')), camps: Object.keys(ac).map(id => Object.assign({ id: +id }, ac[id])) };
+}
+// Põe o jogador na abertura da estrada que vem do tile `de` (chegou pelo sul, começa no sul), uns blocos para dentro e de frente para o tile.
+// Sem abertura para esse vizinho: a cidade do tile (se houver) ou a primeira abertura. Devolve true se usou uma abertura.
+function mundoPlaceEntry(de) {
+  const win = WORLD.win, ops = (win && win.openings) || [], o = ops.find(k => k.para && k.para[0] === de);
+  if (!o && WORLD.home && WORLD.home.half > 1) { placePlayerHome(); return false }
+  const e = o || ops[0]; if (!e) { tilePlaceFree(null); return false }
+  tilePlaceAt(e); P.yaw += Math.PI; return true;   // tilePlaceAt olha para fora; aqui o jogador olha para dentro do tile
+}

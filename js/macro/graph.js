@@ -364,14 +364,14 @@ function wgPack(G) {
   return {
     v: 1, seed: G.seed, fmt: G.fmt, dom: G.dominant, pct: G.pct, S: G.S, tile: G.tile,
     nodes: G.nodes.map(n => [n.x, n.z, n.mar ? 1 : 0, n.tema, Math.round(n.fit * 100) / 100, (n.forcado ? 1 : 0) | (n.home ? 2 : 0) | (n.porto ? 4 : 0) | (n.extra ? 8 : 0) | (n.ponteNode ? 16 : 0), n.agua || 0, Math.round((n.ang || 0) * 1000) / 1000]),
-    edges: G.edges.map(e => [e.a, e.b, e.kind, e.len, e.agua || 0, e.ponte ? 1 : 0])
+    edges: G.edges.map(e => [e.a, e.b, e.kind, e.len, e.agua || 0, e.ponte ? 1 : 0, Math.round((e.custo || 0) * 1000) / 1000])   // custo: o caminho em ações não muda ao carregar
   };
 }
 // Reconstrói o grafo salvo (sem refazer o sorteio: o resultado não depende das constantes de hoje). Precisa do campo (wfCreate com seed, fmt e dom).
 function wgUnpack(d, F) {
   const nodes = d.nodes.map((a, id) => ({ id, x: a[0], z: a[1], mar: !!a[2], tema: a[3], fit: a[4], forcado: !!(a[5] & 1), home: !!(a[5] & 2), porto: !!(a[5] & 4), extra: !!(a[5] & 8), ponteNode: !!(a[5] & 16), agua: a[6] || 0, ang: a[7] || 0,
     terr: tileTerrain(F, wfWindow(F, a[0], a[1], d.tile), WORLD_GRAPH.terrStep), onRoad: false, pass: 0 }));
-  const edges = d.edges.map((a, id) => ({ id, a: a[0], b: a[1], kind: a[2], len: a[3], agua: a[4], ponte: !!a[5], custo: 0 }));
+  const edges = d.edges.map((a, id) => ({ id, a: a[0], b: a[1], kind: a[2], len: a[3], agua: a[4], ponte: !!a[5], custo: a[6] || 0 }));
   const G = wgAdj({ v: d.v, seed: d.seed, fmt: d.fmt, dominant: d.dom, pct: d.pct, S: d.S, tile: d.tile, nodes, edges });
   for (const e of edges) if (e.kind === 'estrada') { nodes[e.a].onRoad = true; nodes[e.b].onRoad = true }
   wgIslands(G);

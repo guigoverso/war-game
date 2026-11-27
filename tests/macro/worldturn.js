@@ -3,7 +3,7 @@
 const { erros, run } = require('./carregar')();
 let falhas = 0; const ok = (c, n, w) => { if (!c) falhas++; console.log((c ? 'OK    ' : 'FALHA ') + n + (w ? ' — ' + w : '')) };
 ok(erros.length === 0, 'camada macro carrega (inclui worldturn.js)', erros.join(' | '));
-run('var P={coins:2000}; resetState(); STATE.rd={now:[]}');
+run('var P={coins:2000}; resetState(); STATE.round=1; STATE.rd={now:[]}');
 run('var F=wfCreate(11,{format:"pangeia",dominant:"plains"}); var G=wgBuild(F); var H=G.inicio.id');
 ok(run('G.nodes.length')>10 && run('H')>=0, 'grafo de teste', 'nós ' + run('G.nodes.length'));
 
@@ -93,7 +93,7 @@ if (car) {
 }
 
 // regras de ação: a ação inteira do jogador (até o movimento acabar) vem primeiro; só depois os NPCs dão UM passo cada
-run('resetState(); STATE.rd={now:[]}; wtCreate(G,H); wtCommanderBegin(G); wtX().actors=[]; wtX().enc=null');
+run('resetState(); STATE.round=1; STATE.rd={now:[]}; wtCreate(G,H); wtCommanderBegin(G); wtX().actors=[]; wtX().enc=null');
 const longo = run('(()=>{let best=null,bl=0;for(const n of G.nodes){if(n.mar||n.id===H)continue;const p=wtPath(G,H,n.id);if(p&&p.ids.length>=4&&p.ids.length>bl){best=n;bl=p.ids.length}}return best&&best.id})()');
 const pl = JSON.parse(run('JSON.stringify(wtPath(G,H,'+longo+'))'));
 run('wtX().actors.push({id:5,kind:"caravan",tile:H,str:3,route:[H,'+viz+'],ri:0,dir:1,stay:0})');
@@ -111,20 +111,20 @@ let ac = 0; while (run('wtActive().tile')!==run('wtKey('+longo+')') && ac < 20) 
 ok(run('wtActive().tile')===run('wtKey('+longo+')') && ac > 1, 'várias ações chegam ao destino', ac + ' ações');
 
 // batalha encerra a ação (os NPCs só andam depois dela) e explorar o tile adia os NPCs até o jogador sair
-run('resetState(); STATE.rd={now:[]}; wtCreate(G,H); wtCommanderBegin(G); wtX().enc=null; wtX().actors=[]');
+run('resetState(); STATE.round=1; STATE.rd={now:[]}; wtCreate(G,H); wtCommanderBegin(G); wtX().enc=null; wtX().actors=[]');
 run('wtX().actors.push({id:8,kind:"caravan",tile:H,str:3,route:[H,'+viz+'],ri:0,dir:1,stay:0},{id:9,kind:"bandit",tile:'+viz+',str:4,stay:0})');
 run('wtX().left=3');
 const mb = JSON.parse(run('JSON.stringify(wtMove(G,'+viz+'))'));
 ok(mb.enc && mb.steps.every(x => x.npc.length === 0) && run('wtX().left')===2 && run('wtX().actors.find(a=>a.id===8).tile')===run('H'), 'encontro no meio do caminho: a ação acaba e os NPCs ainda não andaram');
 const bw = JSON.parse(run('JSON.stringify(wtBattleEnd(G,true,0))'));
 ok(bw.steps.length === 1 && bw.steps[0].npc.some(m => m.id === 8) && run('wtX().actors.find(a=>a.id===8).tile')!==run('H'), 'depois da luta os NPCs dão o passo da ação');
-const ex = JSON.parse(run('JSON.stringify(wtExplore(G))'));
+const ex = JSON.parse(run('JSON.stringify(wtEnter(G))'));
 const pos0 = run('wtX().actors.find(a=>a.id===8).tile');
 ok(ex.ok && run('wtX().left')===1 && run('wtX().inTile')===run('wtNode(wtActive().tile)'), 'explorar o tile gasta a ação', 'ações ' + run('wtX().left'));
-ok(run('wtMove(G,H).why')==='turno' && run('wtExplore(G).why')==='turno' && run('wtX().actors.find(a=>a.id===8).tile')===pos0, 'dentro do tile não anda e os NPCs ficam parados');
+ok(run('wtMove(G,H).why')==='turno' && run('wtEnter(G).why')==='turno' && run('wtX().actors.find(a=>a.id===8).tile')===pos0, 'dentro do tile não anda e os NPCs ficam parados');
 const lv = JSON.parse(run('JSON.stringify(wtLeave(G))'));
 ok(lv.steps.length === 1 && run('wtX().inTile')===null && lv.steps[0].npc.length >= 1 && run('wtLeave(G)')===null, 'ao sair do tile os NPCs andam o que deviam');
-run('wtExplore(G)'); const e2 = JSON.parse(run('JSON.stringify(wtEnd(G))'));
+run('wtEnter(G)'); const e2 = JSON.parse(run('JSON.stringify(wtEnd(G))'));
 ok(e2.ok && run('wtX().inTile')===null && run('wtX().turn')==='leader', 'encerrar o turno dentro do tile sai dele antes');
 // bandido alcança caravana: ela é tomada
 run('wtX().actors=[]; wtX().enc=null; wtX().seq=0');
@@ -159,6 +159,35 @@ run('wtApply({turn:"x",actors:[null,{tile:"a"},{tile:3,str:5}],left:"q"})');
 ok(run('wtX().actors.length')===1 && run('wtX().turn')==='leader' && run('wtX().left')===0, 'save torto: ignora inválidos');
 run('wtApply(undefined)'); ok(run('wtX().actors.length')===0 && run('wtX().init')===false, 'save antigo: estado novo');
 // determinismo
-run('resetState(); STATE.rd={now:[]}'); run('wtInit(G)'); const A1 = run('JSON.stringify(wtX().actors)');
-run('resetState(); STATE.rd={now:[]}'); run('wtInit(G)'); ok(run('JSON.stringify(wtX().actors)') === A1, 'mesma semente = mesmos atores');
+run('resetState(); STATE.round=1; STATE.rd={now:[]}'); run('wtInit(G)'); const A1 = run('JSON.stringify(wtX().actors)');
+run('resetState(); STATE.round=1; STATE.rd={now:[]}'); run('wtInit(G)'); ok(run('JSON.stringify(wtX().actors)') === A1, 'mesma semente = mesmos atores');
+
+// etapa 8.1: rodada 0, entrar no tile, relógio único, diário para o fim da rodada e grafo salvo
+run('resetState(); STATE.round=1; STATE.rd={now:[]}; STATE.round=0; wtCommanderBegin(G)');
+ok(run('wtX().left')===run('WT.prepPool'), 'rodada 0: pool de preparação (WT.prepPool)');
+run('STATE.round=1; wtX().turn="leader"; wtCommanderBegin(G)');
+ok(run('wtX().left')===run('wtPoolMax(1)'), 'rodada 1: pool pelo nível');
+run('wtX().actors=[]');
+const nb = run('(()=>{const b=wtActive(),a=G.adj[wtNode(b.tile)].find(x=>!G.nodes[x.to].mar);return a?a.to:-1})()');
+const mv1 = JSON.parse(run('JSON.stringify(wtMove(G,' + nb + '))'));
+ok(mv1.ok && run('wtActive().de')===run('G.inicio.id'), 'marcha guarda de onde o batalhão chegou (b.de)');
+const en = JSON.parse(run('JSON.stringify(wtEnter(G))'));
+ok(en.ok && en.tile===nb && en.de===run('G.inicio.id') && run('wtX().mv')===0, 'entrar no tile: gasta a ação e devolve o tile e a entrada', JSON.stringify(en));
+run('wtLeave(G)');
+ok(run('wtBand(0.1)')===0 && run('wtBand(0.3)')===1 && run('wtBand(0.6)')===2 && run('wtBand(0.9)')===3 && run('wtBand(1.3)')===1,
+  'partes do dia (madrugada, manhã, tarde, noite)');
+run('wtX().mv=0');
+ok(run('wtClockSpend(0.3,3)')===0.3 && run('wtX().mv')===3, 'movimento abaixo de uma parte não passa o tempo');
+ok(run('wtClockSpend(0.3,1)')===0.5 && run('wtX().mv')===0, 'a cada 4 de movimento passa uma parte (vai ao início da seguinte)');
+ok(run('wtClockSpend(0.8,8)')===1.25, 'duas partes: a noite vira a manhã do dia seguinte');
+ok(run('wtEnterTime(0.46)')===0.25 && run('wtEnterTime(0.8)')===0.75, 'entrar: o Campo começa no início da parte do dia');
+run('wtX().turn="commander"; wtX().enc=null; wtX().inTile=null; wtX().left=0; wtX().log=["a","b"]');
+ok(run('wtEnd(G,true).ok') && run('wtX().log.length')===2 && run('JSON.stringify(wtTake())')==='["a","b"]' && run('wtX().log.length')===0,
+  'fim do turno guardando o diário para o fim da rodada (wtTake)');
+run('delete STATE.wg');
+ok(run('wtGraphLoad(F).nodes.length')===run('G.nodes.length') && run('STATE.wg.seed')===11, 'grafo novo é guardado em STATE.wg');
+run('STATE.wg.nodes[0][3]="ruinas"');
+ok(run('wtGraphLoad(F).nodes[0].tema')==='ruinas', 'grafo do save vale no lugar do gerado');
+ok(run('(()=>{const U=wgUnpack(JSON.parse(JSON.stringify(wgPack(G))),F);return G.edges.every(e=>wtEdgeCost(e)===wtEdgeCost(U.edges[e.id]))})()'),
+  'pack guarda o custo da aresta (caminho em ações igual ao carregar)');
 console.log(falhas ? '\n' + falhas + ' FALHA(S)' : '\nTudo OK'); process.exit(falhas ? 1 : 0);

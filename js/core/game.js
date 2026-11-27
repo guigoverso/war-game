@@ -759,7 +759,9 @@ async function startGame(creative,loadData){
   const seed=sv?(/^\d+$/.test(sv)?(+sv>>>0):hashStr(sv)):((Math.random()*4294967296)>>>0);
   if(G.creative){setGod(true);G.noReload=true}   // modo criativo: invencível, munição infinita e disparo infinito por padrão (dá para desligar na pausa)
   $('playbtn').disabled=true;$('createbtn').disabled=true;
-  if(loadData){if(loadData.state&&loadData.state.fac)STATE.fac=Object.assign(STATE.fac||{},loadData.state.fac)}   // save: identidade do jogador e cores das NPC já valem na geração do mundo
+  if(loadData){if(loadData.state&&loadData.state.fac)STATE.fac=Object.assign(STATE.fac||{},loadData.state.fac)   // save: identidade do jogador e cores das NPC já valem na geração do mundo
+    if(loadData.state&&mapMundoOn()){   // mundo novo: o grafo e o tile carregado (STATE.wt.local) também
+      if(loadData.state.wg)STATE.wg=loadData.state.wg;wtApply(loadData.state.wt)}}
   else if((!q.get('auto')&&!q.get('cenario'))||q.get('fac'))await facCreateScreen();   // partida nova: tela de criação da facção antes de gerar o mundo (?auto=1 pula; ?fac=1 força)
   const msg=m=>{$('loadmsg').textContent=m};
   try{
@@ -776,10 +778,11 @@ async function startGame(creative,loadData){
     refreshCheats();scenarioAfter();
     $('seed').value=String(seed);
     document.querySelector('#pause h2').textContent=(loadData?'✔ JOGO CARREGADO — semente ':'✔ MUNDO PRONTO — semente ')+seed;
+    const ent=G.tileEnter;G.tileEnter=null;if(mundoAfterStart(ent))return;   // mundo novo: entrou num tile ou o turno está no mapa mundi (ui/mundoturno.js)
     openPanel('pause');
     toast('Mapa: '+WORLD.shapeName+' ('+DOM_NAMES[WORLD.dominant]+' predominante).  Bem-vindo a '+WORLD.home.name+'! Visite o armeiro e a clínica; depois ataque as cidades vizinhas.',6000);
   }catch(err){
-    console.error(err);msg('Erro: '+err.message);$('playbtn').disabled=false;$('createbtn').disabled=false;
+    console.error(err);msg('Erro: '+err.message);$('playbtn').disabled=false;$('createbtn').disabled=false;mundoLoadHide();
   }
 }
 $('playbtn').onclick=()=>startGame(false);$('createbtn').onclick=()=>startGame(true);
@@ -788,7 +791,9 @@ $('playbtn').onclick=()=>startGame(false);$('createbtn').onclick=()=>startGame(t
   if(q.get('seed'))$('seed').value=q.get('seed');else if(q.get('cenario'))$('seed').value='11';   // o cenário usa a semente 11
   if(q.get('bio'))$('biosel').value=q.get('bio');
   let ls=null;try{ls=sessionStorage.getItem('fc_loadslot');sessionStorage.removeItem('fc_loadslot')}catch(e){}
-  if(ls)setTimeout(()=>startFromSave(+ls),200);          // carregar de dentro do jogo: a página recarregou e inicia direto do salvamento
+  const ent=mundoEnterTake(),ed=ent&&migrateSave(ent.d);   // mundo novo: a página recarregou para gerar o tile em que o jogador entrou (ui/mundoturno.js mundoGo)
+  if(ed){mundoLoadShow(ent.nome);G.tileEnter=true;$('seed').value=String(ed.seed);$('biosel').value=ed.bio||'';setTimeout(()=>startGame(!!ed.creative,ed),50)}
+  else if(ls)setTimeout(()=>startFromSave(+ls),200);          // carregar de dentro do jogo: a página recarregou e inicia direto do salvamento
   else if(q.get('load'))setTimeout(()=>startFromSave(+q.get('load')),200);   // ?load=1 carrega o espaço 1 (testes)
   else if(q.get('cenario')&&q.get('cenario')!=='mundo3d')setTimeout(()=>startGame(true),200);   // ?cenario=caravanas: modo criativo, sem tela de criação
   else if(q.get('auto'))setTimeout(()=>startGame(q.get('auto')!=='normal'),200);   // ?auto=1 inicia no modo criativo (testes); ?auto=normal inicia o normal

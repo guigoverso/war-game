@@ -85,7 +85,7 @@ function wm3TurnAnim(dt) {
   if (!live) { for (const t of q.tw) if (t.o.h) t.o.h.legs.forEach(l => { l.rotation.x = 0 }); q.tw = null; wm3SeqNext() }
 }
 // Depois de a marcha acabar: marcadores, caixa de Ações e anel do batalhão selecionado.
-function wm3TurnAfter() { wm3TurnActors(); wm3TurnHud(); wm3ArmRing() }
+function wm3TurnAfter() { wm3TurnActors(); wm3TurnHud(); wm3ArmRing(); wm3TurnRoundGo() }
 // Começa uma marcha só de passos de NPC (encerrar ações, sair do tile, luta): devolve true se havia passos para andar.
 function wm3TurnSeqStart(steps) {
   if (!steps || !steps.length) return false;
@@ -114,19 +114,35 @@ function wm3TurnHud() {
   else if (w.inTile !== null) h += '<div class="wm3-sub">' + txtWtInTile(wm3TurnTile(w.inTile)) + '</div><button data-a="leave">' + TXT_WT_LEAVE + '</button>';
   el.innerHTML = h; el.style.display = 'block';
 }
-// Ações do turno (caixa de Ações e menus): explore, leave, auto, skip (pula uma ação), end (encerra o turno). Recusas ficam em silêncio (o contador de ações basta).
+// Ações do turno (caixa de Ações e menus): enter (entrar no tile), leave, auto, skip (pula uma ação), end (encerra o turno). Recusas ficam em silêncio
+// (o contador de ações basta).
 function wm3TurnClick(a) {
-  const w = wtX(), G2 = WM.built.G; if (WM.walk || WM.seq) return;
-  if (a === 'explore') wtExplore(G2);
+  const G2 = WM.built.G; if (WM.walk || WM.seq) return;
+  if (a === 'enter') { wm3EnterTile(); return }
   else if (a === 'leave') { const r = wtLeave(G2); if (wm3TurnSeqStart(r && r.steps)) return }
-  else if (a === 'auto') { const r = wtAutoBattle(G2); if (r && r.fim) wtEnd(G2); else if (r && wm3TurnSeqStart(r.steps)) return }
-  else if (a === 'skip') { const r = wtSkip(G2); if (r.ok) WM.spent += 1; if (r.ok && wm3TurnSeqStart(r.steps)) return }   // o tempo passa como numa ação
-  else if (a === 'end') { const r = wtEnd(G2); if (wm3TurnSeqStart(r.steps)) return }
+  else if (a === 'auto') { const r = wtAutoBattle(G2); if (r && r.fim) { wm3TurnEnd(); return } else if (r && wm3TurnSeqStart(r.steps)) return }
+  else if (a === 'skip') {   // o tempo passa como numa marcha
+    const r = wtSkip(G2); if (r.ok) wm3ClockSpend(WT.clock.skipMv); if (r.ok && wm3TurnSeqStart(r.steps)) return;
+  }
+  else if (a === 'end') { wm3TurnEnd(); return }
   wm3TurnSync();
 }
+// Encerrar o turno do Comandante. No jogo do mundo novo (?mundo=1) é o fim ÚNICO da rodada: wtEnd (sem passar o diário ao livro; endRound o leva para o
+// relatório da rodada que fecha), os NPCs andam na tela e, ao fim da marcha, o mapa fecha e a rodada fecha (endRound, rounds.js) indo ao turno do Líder.
+function wm3TurnEnd() {
+  const G2 = WM.built.G, full = wm3RoundOn();
+  if (full && (STATE.phase === 'leader' || G.office || P.dead || (typeof rebPending === 'function' && rebPending()))) { wm3Close(); roundEnd(); return }
+  const r = wtEnd(G2, full); if (full && r.ok) WM.endRound = true;
+  if (wm3TurnSeqStart(r.steps)) return;
+  wm3TurnSync(); wm3TurnRoundGo();
+}
+// O jogo no mundo novo: o fim do turno no mapa mundi fecha a rodada.
+const wm3RoundOn = () => mapMundoOn() && G.running && !WM.standalone && !!wtGraph();
+// Depois da marcha do fim do turno: fecha o mapa e a rodada (endRound leva ao escritório do Líder).
+function wm3TurnRoundGo() { if (!WM.endRound) return; WM.endRound = false; wm3Close(); endRound() }
 // Pode encerrar as ações / explorar o tile agora? (turno do Comandante, sem encontro e fora do tile; explorar ainda pede uma ação.)
 const wm3CanEnd = () => { const w = wtX(); return w.turn === 'commander' && !w.enc && w.inTile === null };
-const wm3CanExplore = () => wm3CanEnd() && wtX().left > 0 && !!wtActive();
+const wm3CanExplore = () => wm3CanEnd() && wtX().left >= WT.enterCost && !!wtActive();
 // Reposiciona o boneco no batalhão ativo e refaz marcadores e painel (depois de trocar de batalhão, lutar ou encerrar).
 function wm3TurnSync() {
   const b = wtActive(); if (b) { WM.at = wtNode(b.tile); wm3TokenPlace(WM.at) }
@@ -187,12 +203,14 @@ function wm3EndMenu(mx, my) {
 }
 // Botão direito num tile: lista o que há nele (com um só item, abre direto). Sem nada no tile e sem batalhão selecionado, oferece encerrar as ações.
 function wm3EntMenu(mx, my, tile) {
-  const L = wm3Ents(tile); wm3EntClose();
+  const L = wm3Ents(tile), enter = tile === WM.at && wm3CanExplore(); wm3EntClose();   // enter: o batalhão ativo está aqui e pode entrar no tile
   if (!L.length) { wm3EndMenu(mx, my); return }
   wm3Select(tile);
   const mine = e => 1 + batList('player').findIndex(x => e.b && x.id === e.b.id);
-  if (L.length === 1) { wm3EntPick(tile, L[0], mine(L[0])); return }
-  wm3Pop(mx, my, L.map(e => ({ t: wm3EntLabel(e, mine(e)), on: () => wm3EntPick(tile, e, mine(e)) })));
+  if (L.length === 1 && !enter) { wm3EntPick(tile, L[0], mine(L[0])); return }
+  const items = L.map(e => ({ t: wm3EntLabel(e, mine(e)), on: () => wm3EntPick(tile, e, mine(e)) }));
+  if (enter) items.unshift({ t: TXT_WT_ENTER, on: () => wm3TurnClick('enter') });
+  wm3Pop(mx, my, items);
 }
 // Escolha de uma entrada do tile: batalhão seu = seleciona (o já selecionado abre o menu dele); o resto mostra a informação sob a do tile.
 function wm3EntPick(tile, E, i) {
@@ -202,4 +220,95 @@ function wm3EntPick(tile, E, i) {
     WM.armed = true; wm3ArmRing();
   }
   wm3Select(tile); WM.hud.info.innerHTML += wm3EntInfo(E, i);
+}
+
+// ---------- Entrar e sair do tile (etapa 8.1) ----------
+// Entrar (botão direito no tile do batalhão ou menu do batalhão): gasta WT.enterCost ações (wtEnter) e abre o mapa local do tile. Se o tile já é o mapa
+// carregado, só fecha o mapa mundi e põe o jogador na estrada de onde veio; senão grava tudo na sessão do navegador e recarrega a página gerando o tile
+// novo (mundoGo). Sair é o botão "Sair do tile" da caixa de Ações (wtLeave, grátis): os NPCs andam o que ficaram devendo.
+// Fora do jogo do mundo novo (mapa mundi aberto no jogo antigo ou ?cenario=mundo3d) entrar só marca o batalhão como dentro do tile (como era o "Explorar").
+function wm3EnterTile() {
+  const G2 = WM.built.G; if (!wm3CanExplore()) return;
+  const r = wtEnter(G2); if (!r.ok) return;
+  if (!wm3RoundOn()) { wm3TurnSync(); return }
+  wm3ClockEnter(); wm3Disarm();
+  if (r.tile === (WORLD.win && WORLD.win.node)) { wm3Close(); mundoPlaceEntry(r.de); return }
+  mundoGo(r.tile, r.de, tileName(G2, G2.nodes[r.tile]));
+}
+// Troca o mapa local: as marcas do tile atual vão para a ficha dele (collectSave), o tile novo vira STATE.wt.local e o jogador nasce na abertura da
+// estrada de `de` (STATE.wt.spawn/entry). Só o Comandante entra: os soldados que o seguiam não vão junto (allies = 0).
+function mundoGo(tile, de, nome) {
+  const w = wtX(); mundoMarksSave(); w.local = tile; w.spawn = true; w.entry = typeof de === 'number' ? de : -1;
+  const d = collectSave(); d.allies = 0;
+  try { sessionStorage.setItem('fc_enter', JSON.stringify({ d, nome })) } catch (e) { console.error(e); return }
+  mundoLoadShow(nome); setTimeout(() => location.reload(), 30);
+}
+// Começo da página depois de mundoGo (game.js): devolve {d, nome} guardado na sessão (e o apaga) ou null.
+function mundoEnterTake() {
+  let j = null; try { j = JSON.parse(sessionStorage.getItem('fc_enter') || 'null'); sessionStorage.removeItem('fc_enter') } catch (e) { j = null }
+  return j && j.d ? j : null;
+}
+// Fim de startGame no jogo do mundo novo: nasce na estrada certa (entrada num tile novo) e, se o turno do Comandante está no mapa mundi (fora de um tile),
+// abre o mapa mundi. Devolve true se tomou a tela (sem a pausa de "mundo pronto").
+function mundoAfterStart(entering) {
+  if (!mapMundoOn()) return false;
+  const w = wtX(); if (w.spawn) { w.spawn = false; mundoPlaceEntry(w.entry >= 0 ? w.entry : null) }
+  mundoLoadHide();
+  const map = STATE.phase === 'commander' && w.turn === 'commander' && w.inTile === null && !!wtGraph();
+  if (map || entering) closePanel();   // tira a tela inicial (a pausa de "mundo pronto" não abre)
+  if (map) wm3Open();
+  return map || !!entering;
+}
+// Começo do turno do Comandante no mundo novo (finishLeaderTurn, rounds.js): pool de ações (rodada 0 = WT.prepPool) e o mapa mundi aberto.
+function mundoCommanderStart() { const G2 = wtGraph(); if (!G2) return; wtCommanderBegin(G2); wm3Open() }
+// O mapa mundi do mundo novo, fora de um tile no turno do Comandante, é a tela principal: Esc/J abrem a pausa em vez de voltar ao Campo.
+const wm3Locked = () => wm3RoundOn() && STATE.phase === 'commander' && wtX().turn === 'commander' && wtX().inTile === null;
+
+// ---------- relógio único: partes do dia no mapa mundi (macro/worldturn.js wtClockSpend) sobre o relógio do Campo (DN, local/poi.js) ----------
+function wm3ClockSet(T) { const dt = T - DN.t; if (!dt) return; DN.days = Math.max(0, DN.days + dt); DN.t = ((T % 1) + 1) % 1 }   // entrar pode voltar umas horas
+// Gastou movimento no mapa mundi: a cada WT.clock.mvPerPart passa uma parte do dia.
+function wm3ClockSpend(mv) { wm3ClockSet(wtClockSpend(DN.t, mv)) }
+// Entrou no tile: o Campo começa no início da parte do dia.
+function wm3ClockEnter() { wm3ClockSet(wtEnterTime(DN.t)) }
+// Hora com que o mapa mundi desenha a luz (WT.clock.look da parte do dia), perto de WM.time (a luz anda sempre pelo caminho mais curto).
+function wm3ClockLook() {
+  let t = Math.floor(WM.time) + WT.clock.look[wtBand(DN.t)];
+  if (t < WM.time - 0.5) t += 1; else if (t > WM.time + 0.5) t -= 1;
+  return t;
+}
+
+// ---------- tela de carregamento (entrar num tile): 3 soldados correndo no lugar e o texto embaixo (txtTileLoading) ----------
+function mundoLoadShow(nome) {
+  let el = document.getElementById('tileload');
+  if (!el) {
+    const css = document.createElement('style');
+    css.textContent = `#tileload { position: fixed; inset: 0; z-index: 200; background: #1e150b; display: flex; flex-direction: column; align-items: center;
+        justify-content: center; gap: 28px; color: #f4ecd8; font: 22px Georgia, serif; }
+      #tileload .tl-row { display: flex; gap: 34px; }
+      #tileload .tl-s { position: relative; width: 26px; height: 64px; animation: tlbob .36s ease-in-out infinite; }
+      #tileload .tl-s:nth-child(2) { animation-delay: -.12s; } #tileload .tl-s:nth-child(3) { animation-delay: -.24s; }
+      #tileload .tl-s i { position: absolute; display: block; }
+      #tileload .tl-h { left: 7px; top: 0; width: 12px; height: 12px; background: #e3b48e; box-shadow: 0 -4px 0 #6a7a5a; }
+      #tileload .tl-b { left: 4px; top: 13px; width: 18px; height: 22px; background: #5a6a4a; }
+      #tileload .tl-g { left: 18px; top: 16px; width: 14px; height: 4px; background: #3a2a1a; }
+      #tileload .tl-l { top: 35px; width: 7px; height: 20px; background: #3b3f55; transform-origin: 50% 0; animation: tlleg .36s linear infinite alternate; }
+      #tileload .tl-l1 { left: 5px; } #tileload .tl-l2 { left: 14px; animation-direction: alternate-reverse; }
+      @keyframes tlbob { 50% { transform: translateY(-4px); } }
+      @keyframes tlleg { from { transform: rotate(32deg); } to { transform: rotate(-32deg); } }`;
+    document.head.appendChild(css);
+    el = document.createElement('div'); el.id = 'tileload';
+    const s = '<div class="tl-s"><i class="tl-h"></i><i class="tl-b"></i><i class="tl-g"></i><i class="tl-l tl-l1"></i><i class="tl-l tl-l2"></i></div>';
+    el.innerHTML = '<div class="tl-row">' + s + s + s + '</div><div class="tl-txt"></div>';
+    document.body.appendChild(el);
+  }
+  el.querySelector('.tl-txt').textContent = txtTileLoading(nome || ''); el.style.display = 'flex';
+}
+function mundoLoadHide() { const el = document.getElementById('tileload'); if (el) el.style.display = 'none' }
+
+// Sair do tile pelo livro/bolsa (botão do canto inferior direito, ui/book.js): fecha o livro, abre o mapa mundi e os NPCs andam o que deviam.
+const mundoCanLeave = () => mapMundoOn() && G.running && !!wtGraph() && !WM.open && wtX().turn === 'commander' && wtX().inTile !== null && !wtX().enc
+  && STATE.phase === 'commander' && !G.office;
+function mundoLeaveTile() {
+  const r = wtLeave(wtGraph()); closePanel(); wm3Open();
+  if (!wm3TurnSeqStart(r && r.steps)) wm3TurnSync();
 }

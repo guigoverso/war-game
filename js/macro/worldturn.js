@@ -5,7 +5,7 @@
 // (battalion.js) e o tile é a chave 'w'+id do ponto. Fluxo: turno do Líder (wtCreate/wtDonate) -> wtCommanderBegin -> o jogador age (wtMove) e, a cada ação gasta,
 // os NPCs dão UM passo (wtStepNpcs) -> encontro no mesmo tile = batalha (wtEnc) -> wtBattleEnd/wtAutoBattle -> wtEnd (sobra de ações vira passos, cerco cai, resumo).
 // Números em WT (worldturn-modifiers.js); textos em worldturn-texts.js. Determinístico: o sorteio usa G.seed e o contador STATE.wt.rs.
-const wtFresh = () => ({ rs: 0, seq: 0, pool: 0, left: 0, act: 0, turn: 'leader', actors: [], log: [], enc: null, idle: 0, init: false, inTile: null, owed: 0 });
+const wtFresh = () => ({ rs: 0, seq: 0, pool: 0, left: 0, act: 0, turn: 'leader', actors: [], log: [], enc: null, idle: 0, init: false, inTile: null, owed: 0, mv: 0, local: null, spawn: false, entry: -1 });
 const wtX = () => STATE.wt || (STATE.wt = wtFresh());
 const wtKey = id => 'w' + id, wtNode = key => +String(key).slice(1);
 const wtLvl = () => (STATE.rd && STATE.rd.lvl) || 1;
@@ -19,11 +19,12 @@ Hooks.on('resetState', () => { STATE.wt = wtFresh() });
 function wtApply(s) {
   const w = wtFresh();
   if (s && typeof s === 'object') {
-    for (const k of ['rs', 'seq', 'pool', 'left', 'act', 'idle', 'owed']) w[k] = +s[k] || 0;
+    for (const k of ['rs', 'seq', 'pool', 'left', 'act', 'idle', 'owed', 'mv']) w[k] = +s[k] || 0;
     w.turn = s.turn === 'commander' ? 'commander' : 'leader'; w.init = !!s.init;
     w.actors = Array.isArray(s.actors) ? s.actors.filter(a => a && typeof a.tile === 'number' && a.str > 0) : [];
     w.log = Array.isArray(s.log) ? s.log.filter(t => typeof t === 'string') : [];
     w.enc = s.enc && typeof s.enc === 'object' ? s.enc : null; w.inTile = typeof s.inTile === 'number' ? s.inTile : null;
+    w.local = typeof s.local === 'number' ? s.local : null; w.spawn = !!s.spawn; w.entry = typeof s.entry === 'number' ? s.entry : -1;
   }
   STATE.wt = w;
 }
@@ -81,7 +82,8 @@ function wtEnsureBat(G) {
 // Começa o turno do Comandante: pool pelo nível, batalhão ativo garantido.
 function wtCommanderBegin(G) {
   const w = wtX(); wtInit(G);
-  w.turn = 'commander'; w.pool = w.left = wtPoolMax(wtLvl()); w.enc = null; w.idle = 0;
+  w.turn = 'commander'; w.pool = w.left = wtPoolNow(wtLvl());   // rodada 0: WT.prepPool
+  w.enc = null; w.idle = 0; w.mv = 0;   // mv: o relógio do mapa mundi recomeça a contar a parte do dia
   wtEnsureBat(G);
 }
 // Troca o batalhão ativo (grátis: o comandante é um só e "teleporta").
@@ -176,14 +178,16 @@ function wtSkip(G) {
   if (w.left <= 0) return { ok: false, why: 'sem-acao' };
   w.left--; return { ok: true, steps: [{ npc: wtActionEnd(G) }], enc: w.enc, left: w.left };
 }
-// Explorar o tile (entrar no mapa local): gasta 1 ação e encerra a ação, mas os NPCs só andam quando o jogador SAI do tile (wtLeave). Devolve {ok} ou {ok:false, why}.
-function wtExplore(G) {
+// Entrar no tile (o mapa local do tile do batalhão ativo): gasta WT.enterCost ações e encerra a ação, mas os NPCs só andam quando o jogador SAI do tile
+// (wtLeave, grátis). Tile sem o jogador não simula NPCs. Devolve {ok, tile, de} (de = de onde o batalhão chegou, para nascer na estrada certa) ou {ok:false, why}.
+function wtEnter(G) {
   const w = wtX(), b = wtActive();
   if (w.turn !== 'commander' || w.enc || w.inTile !== null) return { ok: false, why: 'turno' };
   if (!b || b.dono !== 'player') return { ok: false, why: 'sem-batalhao' };
-  if (w.left <= 0) return { ok: false, why: 'sem-acao' };
-  w.left--; w.inTile = wtNode(b.tile); w.owed = 1; wtLog(txtWtExplored(wtName(G, w.inTile)));
-  return { ok: true };
+  if (w.left < WT.enterCost) return { ok: false, why: 'sem-acao' };
+  w.left -= WT.enterCost; w.inTile = wtNode(b.tile); w.owed = WT.enterCost; w.mv = 0;
+  wtLog(txtWtExplored(wtName(G, w.inTile)));   // mv: o Campo começa no início da parte do dia (wtEnterTime)
+  return { ok: true, tile: w.inTile, de: typeof b.de === 'number' ? b.de : null };
 }
 // Sair do tile explorado: agora os NPCs andam o que ficaram devendo. Devolve {steps:[{npc}]} ou null se não estava no tile.
 function wtLeave(G) {
@@ -206,7 +210,7 @@ function wtMove(G, to) {
   w.left--;
   for (let q = 0; q < n; q++) {
     const node = p.nodes[q + 1], key = wtKey(node), st = { from: p.nodes[q], node, edge: p.ids[q], npc: [] };
-    b.tile = key; gasto += wtEdgeCost(G.edges[p.ids[q]]); nodes.push(node); steps.push(st);
+    b.tile = key; b.de = p.nodes[q]; gasto += wtEdgeCost(G.edges[p.ids[q]]); nodes.push(node); steps.push(st);   // de: de onde chegou (entra pela estrada certa)
     if (siegeArrive(key)) { wtSetEnc(G, null, b, 'player', true); break }
     const hit = wtHostileAt(node); if (hit) { wtSetEnc(G, hit, b, 'player'); break }
   }
@@ -256,7 +260,8 @@ function wtAutoBattle(G) {
 // ---- fim do turno ----
 // Encerra o turno do Comandante: as ações que sobraram viram passos dos NPCs (WT.idleSteps), o cerco aberto cai e o resumo vai para o livro. Se um NPC
 // alcança um batalhão no meio, para com o encontro pendente (resolva e chame de novo; os passos que faltam ficam em idle). Devolve {ok, why, enc, steps:[{npc}]}.
-function wtEnd(G) {
+// keep = o diário fica em STATE.wt.log para o fim da rodada (endRound, rounds.js) pôr no relatório da rodada que fecha (wtTake), em vez de ir para rdNow.
+function wtEnd(G, keep) {
   const w = wtX(); if (w.enc) return { ok: false, why: 'encontro', enc: w.enc };
   if (w.turn !== 'commander') return { ok: false, why: 'turno' };
   const lv = wtLeave(G), n = w.idle > 0 ? w.idle : WT.idleSteps ? w.left : 0, steps = lv ? lv.steps : []; w.left = 0; w.idle = 0;
@@ -265,8 +270,35 @@ function wtEnd(G) {
     wtMoveLog = []; const enc = wtNpcStep(G); steps.push({ npc: wtMoveLog });
     if (enc) { w.idle = n - i - 1; return { ok: false, why: 'encontro', enc: w.enc, steps } }
   }
-  siegeEndTurn(); w.turn = 'leader'; wtFlush();
+  siegeEndTurn(); w.turn = 'leader'; if (!keep) wtFlush();
   return { ok: true, steps };
 }
 // Passa o diário do turno ao relatório da rodada (rdNow, sem toast) e esvazia. Devolve as linhas.
 function wtFlush() { const w = wtX(), L = w.log; w.log = []; for (const t of L) rdNow(t); return L }
+// Tira o diário do turno (para o relatório da rodada que fecha) e esvazia. Devolve as linhas.
+function wtTake() { const w = wtX(), L = w.log; w.log = []; return L }
+
+// ---- relógio único (etapa 8.1): partes do dia no mapa mundi, horas no Campo ----
+// T = tempo absoluto em dias (parte inteira = dia, fração = hora / 24). Parte do dia: 0 Madrugada, 1 Manhã, 2 Tarde, 3 Noite (cada uma 6 h).
+const wtBand = T => Math.floor((((T % 1) + 1) % 1) * 4) % 4;
+const wtBandStart = T => Math.floor(T * 4 + 1e-9) / 4;
+// Gasta mv pontos de movimento no mapa mundi: a cada WT.clock.mvPerPart passa uma parte do dia (o tempo vai para o início da parte seguinte).
+// Devolve o novo T (igual ao de entrada se nenhuma parte passou). Guarda o resto em STATE.wt.mv.
+function wtClockSpend(T, mv) {
+  const w = wtX(), k = WT.clock.mvPerPart; w.mv = (w.mv || 0) + Math.max(0, mv || 0);
+  const n = Math.floor(w.mv / k + 1e-9); if (!n) return T;
+  w.mv -= n * k; return wtBandStart(T) + n / 4;
+}
+// Entrar no tile: o Campo começa no início da parte do dia do mapa mundi (06h, 12h, 18h, 00h). wtEnter zera o movimento acumulado (STATE.wt.mv).
+const wtEnterTime = T => wtBandStart(T);
+// Sair do tile não mexe no relógio: a hora do Campo (que andou lá dentro) vira a parte do dia do mapa mundi (wtBand).
+
+// ---- grafo do mundo salvo (etapa 8.1) ----
+// O grafo vai no save (STATE.wg = wgPack) para o mundo não mudar se as constantes do gerador mudarem. Sem save (ou de outra semente/formato), gera e guarda.
+let WT_G = null;
+function wtGraphLoad(F) {
+  const d = STATE.wg, same = d && d.v && d.seed === F.seed && d.fmt === F.fmt && d.dom === F.dominant;
+  WT_G = same ? wgUnpack(d, F) : wgBuild(F); if (!same) STATE.wg = wgPack(WT_G);
+  return WT_G;
+}
+const wtGraph = () => WT_G;

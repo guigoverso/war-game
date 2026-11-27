@@ -6,6 +6,15 @@ const WT = {
   // AÇÕES do mapa por rodada, por nível da facção (índice 0 = nível 1; o último vale para os níveis acima). Uma ação = o batalhão marcha o que o movimento da
   // ação alcança e SÓ DEPOIS os NPCs dão um passo cada. Sem limite por batalhão. Padrão: 3, 4, 5, 6 e 8
   poolByLevel: [3, 4, 5, 6, 8],
+  // AÇÕES da rodada 0 (preparação), no lugar do pool por nível (etapa 8.1, rodada 16 de 5_mapa-mundi.md). Padrão: 4
+  prepPool: 4,
+  // Ações gastas para ENTRAR no tile onde o batalhão ativo está (sair é grátis; etapa 8.1). Padrão: 1
+  enterCost: 1,
+  // Relógio único (etapa 8.1): o mapa mundi tem 4 partes do dia (0 Madrugada 00-06, 1 Manhã 06-12, 2 Tarde 12-18, 3 Noite 18-00) e o Campo tem horas.
+  // mvPerPart = pontos de movimento gastos no mapa mundi para passar uma parte do dia (dia = 4 x isso); skipMv = movimento que "Encerrar ação" conta
+  // (o tempo passa como numa marcha); look = hora (fração do dia, 0,5 = meio-dia) com que o mapa mundi desenha a luz de cada parte. Padrão: 4, 4,
+  // [0.22, 0.38, 0.64, 0.88] (madrugada com o sol subindo tímido, manhã clara, tarde com o sol descendo, noite escura)
+  clock: { mvPerPart: 4, skipMv: 4, look: [0.22, 0.38, 0.64, 0.88] },
   // MOVIMENTO de cada ação: o custo do terreno de cada tile é descontado dele; sem movimento para o caminho todo, o batalhão para onde deu (1 tile sempre cabe). Padrão: 6
   movePerAction: 6,
   // Custo de uma aresta do grafo em pontos de movimento = máx(1, teto(custo x multiplicador / costPerAction)). Padrão: 2.5
@@ -39,5 +48,7 @@ const WT = {
   layoutMode: { campo: 'choque', defesa: 'defesa', invasao: 'ataque' }
 };
 // Regras: ações do pool no nível `lvl` e custo em ações de uma aresta do grafo.
+// wtPoolNow: o da rodada atual (a rodada 0 usa prepPool).
 const wtPoolMax = lvl => WT.poolByLevel[Math.max(0, Math.min(WT.poolByLevel.length - 1, (lvl || 1) - 1))];
 const wtEdgeCost = e => Math.max(1, Math.ceil((e.custo || e.len / TILE_SIZE * 2.2) * (e.kind === 'estrada' ? WT.roadMul : 1) / WT.costPerAction));
+const wtPoolNow = lvl => (typeof STATE !== 'undefined' && STATE.round < 1 ? WT.prepPool : wtPoolMax(lvl));
