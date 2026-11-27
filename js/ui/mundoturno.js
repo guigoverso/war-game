@@ -265,8 +265,8 @@ function wm3EnterTile() {
 function mundoGo(tile, de, nome) {
   const w = wtX(); mundoMarksSave(); w.local = tile; w.spawn = true; w.entry = typeof de === 'number' ? de : -1;
   const d = collectSave(); d.allies = 0;
-  try { sessionStorage.setItem('fc_enter', JSON.stringify({ d, nome })) } catch (e) { console.error(e); return }
-  mundoLoadShow(nome); setTimeout(() => location.reload(), 30);
+  try { sessionStorage.setItem('fc_enter', JSON.stringify({ d, nome, col: (STATE.fac && STATE.fac.color) || 0 })) } catch (e) { console.error(e); return }
+  mundoLoadShow(nome, (STATE.fac && STATE.fac.color) || 0); setTimeout(() => location.reload(), 30);
 }
 // Começo da página depois de mundoGo (game.js): devolve {d, nome} guardado na sessão (e o apaga) ou null.
 function mundoEnterTake() {
@@ -302,33 +302,47 @@ function wm3ClockLook() {
   return t;
 }
 
-// ---------- tela de carregamento (entrar num tile): 3 soldados correndo no lugar e o texto embaixo (txtTileLoading) ----------
-function mundoLoadShow(nome) {
+// ---------- tela de carregamento (entrar num tile): 3 soldados 3D correndo no lugar, com as cores da facção do jogador, e o texto embaixo (txtTileLoading) ----------
+// col = índice da cor da facção do jogador (FAC_COLORS; vai na sessão do navegador junto do save, porque a página recarrega). Um renderizador próprio, só
+// para esta tela, é criado ao mostrar e descartado ao esconder; os soldados são os mesmos do exército (buildHuman, como spawnAlly em allies.js).
+const mundoLoad = { raf: 0, r: null };
+function mundoLoadModels(col) {
+  const shirt = (FAC_COLORS[col] || FAC_COLORS[0]).c, g = [];
+  for (let i = 0; i < 3; i++) {
+    const m = buildHuman({ skin: SKINS[(i * 3 + 1) % SKINS.length], shirt, pants: 0x2a2a3a, hairStyle: 'helmet', hat: 0x8a9ab0, gun: { len: 0.75 }, scarf: 0xe0e0e0 });
+    m.arms[1].rotation.x = -1.2; m.arms[0].rotation.x = -1.0; m.group.position.x = (i - 1) * 2.1; m.group.rotation.y = 1.15; m.ph = i * 1.7; g.push(m);
+  }
+  return g;
+}
+function mundoLoadStart(cv, col) {
+  mundoLoadStop();
+  const r = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true }), sc = new THREE.Scene(), cam = new THREE.PerspectiveCamera(32, cv.width / cv.height, 0.1, 50);
+  r.setSize(cv.width, cv.height, false); cam.position.set(0, 1.0, 6.4); cam.lookAt(0, 0.95, 0);
+  sc.add(new THREE.AmbientLight(0xffffff, 0.75)); const dl = new THREE.DirectionalLight(0xffffff, 0.7); dl.position.set(3, 6, 5); sc.add(dl);
+  const ms = mundoLoadModels(col); ms.forEach(m => sc.add(m.group)); mundoLoad.r = r;
+  const loop = t => {
+    mundoLoad.raf = requestAnimationFrame(loop);
+    for (const m of ms) { const w = Math.sin(t / 110 + m.ph); m.legs[0].rotation.x = w * 0.8; m.legs[1].rotation.x = -w * 0.8; m.group.position.y = Math.abs(w) * 0.12 }
+    r.render(sc, cam);
+  };
+  mundoLoad.raf = requestAnimationFrame(loop);
+}
+function mundoLoadStop() { cancelAnimationFrame(mundoLoad.raf); if (mundoLoad.r) { mundoLoad.r.dispose(); mundoLoad.r = null } }
+function mundoLoadShow(nome, col) {
   let el = document.getElementById('tileload');
   if (!el) {
     const css = document.createElement('style');
     css.textContent = `#tileload { position: fixed; inset: 0; z-index: 200; background: #1e150b; display: flex; flex-direction: column; align-items: center;
-        justify-content: center; gap: 28px; color: #f4ecd8; font: 22px Georgia, serif; }
-      #tileload .tl-row { display: flex; gap: 34px; }
-      #tileload .tl-s { position: relative; width: 26px; height: 64px; animation: tlbob .36s ease-in-out infinite; }
-      #tileload .tl-s:nth-child(2) { animation-delay: -.12s; } #tileload .tl-s:nth-child(3) { animation-delay: -.24s; }
-      #tileload .tl-s i { position: absolute; display: block; }
-      #tileload .tl-h { left: 7px; top: 0; width: 12px; height: 12px; background: #e3b48e; box-shadow: 0 -4px 0 #6a7a5a; }
-      #tileload .tl-b { left: 4px; top: 13px; width: 18px; height: 22px; background: #5a6a4a; }
-      #tileload .tl-g { left: 18px; top: 16px; width: 14px; height: 4px; background: #3a2a1a; }
-      #tileload .tl-l { top: 35px; width: 7px; height: 20px; background: #3b3f55; transform-origin: 50% 0; animation: tlleg .36s linear infinite alternate; }
-      #tileload .tl-l1 { left: 5px; } #tileload .tl-l2 { left: 14px; animation-direction: alternate-reverse; }
-      @keyframes tlbob { 50% { transform: translateY(-4px); } }
-      @keyframes tlleg { from { transform: rotate(32deg); } to { transform: rotate(-32deg); } }`;
+        justify-content: center; gap: 8px; color: #f4ecd8; font: 22px Georgia, serif; }`;
     document.head.appendChild(css);
     el = document.createElement('div'); el.id = 'tileload';
-    const s = '<div class="tl-s"><i class="tl-h"></i><i class="tl-b"></i><i class="tl-g"></i><i class="tl-l tl-l1"></i><i class="tl-l tl-l2"></i></div>';
-    el.innerHTML = '<div class="tl-row">' + s + s + s + '</div><div class="tl-txt"></div>';
+    el.innerHTML = '<canvas width="560" height="220"></canvas><div class="tl-txt"></div>';
     document.body.appendChild(el);
   }
   el.querySelector('.tl-txt').textContent = txtTileLoading(nome || ''); el.style.display = 'flex';
+  mundoLoadStart(el.querySelector('canvas'), col | 0);
 }
-function mundoLoadHide() { const el = document.getElementById('tileload'); if (el) el.style.display = 'none' }
+function mundoLoadHide() { const el = document.getElementById('tileload'); if (el) el.style.display = 'none'; mundoLoadStop() }
 
 // Sair do tile pelo livro/bolsa (botão do canto inferior direito, ui/book.js): fecha o livro, abre o mapa mundi e os NPCs andam o que deviam.
 const mundoCanLeave = () => mapMundoOn() && G.running && !!wtGraph() && !WM.open && wtX().turn === 'commander' && wtX().inTile !== null && !wtX().enc

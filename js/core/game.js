@@ -793,7 +793,7 @@ $('playbtn').onclick=()=>startGame(false);$('createbtn').onclick=()=>startGame(t
   if(q.get('bio'))$('biosel').value=q.get('bio');
   let ls=null;try{ls=sessionStorage.getItem('fc_loadslot');sessionStorage.removeItem('fc_loadslot')}catch(e){}
   const ent=mundoEnterTake(),ed=ent&&migrateSave(ent.d);   // mundo novo: a página recarregou para gerar o tile em que o jogador entrou (ui/mundoturno.js mundoGo)
-  if(ed){mundoLoadShow(ent.nome);G.tileEnter=true;$('seed').value=String(ed.seed);$('biosel').value=ed.bio||'';setTimeout(()=>startGame(!!ed.creative,ed),50)}
+  if(ed){mundoLoadShow(ent.nome,ent.col);G.tileEnter=true;$('seed').value=String(ed.seed);$('biosel').value=ed.bio||'';setTimeout(()=>startGame(!!ed.creative,ed),50)}
   else if(ls)setTimeout(()=>startFromSave(+ls),200);          // carregar de dentro do jogo: a página recarregou e inicia direto do salvamento
   else if(q.get('load'))setTimeout(()=>startFromSave(+q.get('load')),200);   // ?load=1 carrega o espaço 1 (testes)
   else if(q.get('cenario')&&q.get('cenario')!=='mundo3d')setTimeout(()=>startGame(true),200);   // ?cenario=caravanas: modo criativo, sem tela de criação
