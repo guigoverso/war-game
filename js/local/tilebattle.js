@@ -49,6 +49,7 @@ function tbMainPoint() {
 // POIs reais do tile que entram na batalha (Ataque e Pequena): o principal (alvo) e os outros POIs inimigos (satélites; passam junto ao conquistar). Os bandidos
 // DESSES POIs saem do mapa: quem defende é a guarnição e os reforços da batalha (senão ficariam parados ali, atirando nos seus soldados e sem contar para a vitória).
 function tbPoiOpts() {
+  if (typeof mundoScnPois === 'function') mundoScnPois();   // cenário: um POI já seu perto do alvo
   const S = WORLD.tileS, main = S && S.main && S.main.poi || null, foe = p => !p.show && !p.war && (p.owner === 'bandit' || typeof p.owner === 'number');
   const pois = (WORLD.pois || []).filter(p => p !== main && foe(p));
   for (const p of (main ? [main] : []).concat(pois)) if (p.type !== 'ruins' && p.gar) poiGarrisonRemove(p);
@@ -88,10 +89,9 @@ function tbForces(enc) {
 // quando o tile do encontro já é o carregado (wm3Fight). mode = o do layout (WT.layoutMode).
 function tbStart() {
   const w = wtX(), e = w.enc, b = e && batGet(e.bat); if (!e || !b || battleOn()) return false;
-  const F = tbForces(e), mode = WT.layoutMode[e.layout] || 'choque', geo = tbGeo(tbEntry(typeof b.de === 'number' ? b.de : null));
+  const F = tbForces(e), mode = WT.layoutMode[e.layout] || 'choque', opts = mode === 'ataque' || mode === 'pequena' ? tbPoiOpts() : {}, geo = tbGeo(tbEntry(typeof b.de === 'number' ? b.de : null));
   Object.assign(geo, F, { real: { enc: e.id || 0, layout: e.layout, mode } });
   tbDirty = true; BATTLE.geo = geo; G.introBook = false; if (G.panel) closePanel();
-  const opts = mode === 'ataque' || mode === 'pequena' ? tbPoiOpts() : {};
   ({ choque: battleStartChoque, defesa: battleStartDefesa, ataque: battleStartAtaque, pequena: battleStartPequena })[mode](opts);
   return true;
 }

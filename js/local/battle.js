@@ -494,6 +494,7 @@ function battleStartAtaque(opts) {
     });
   }
   if (T.poi) T.pois.unshift(T.poi);
+  if (BATTLE.geo) for (const p of opts.pois || []) if (!T.pois.includes(p)) T.pois.push(p);   // tile real: conquistar o alvo passa ao jogador todos os POIs inimigos do tile
   BATTLE.total0 = er + base; BATTLE.ally.total0 = n + pr; BATTLE.ally.reserve = pr;   // total = reserva + guarnição original (ex.: 100 + 12 = 112)
   armyAssault(BATTLE.area, '');
   BATTLE.on = true; battleHudDraw();

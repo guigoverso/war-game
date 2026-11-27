@@ -5,6 +5,7 @@
 //   enc=campo|defesa|invasao  encontro pronto no mapa mundi (campo = no tile vizinho; defesa = o bando entra na sua cidade; invasao = bando estacionado no vizinho)
 //   soldados=N  soldados do batalhão 1 (padrão 10); soldados2=N  um 2º batalhão no mesmo tile (as forças se somam); mix=1  tipos de soldado variados
 //   inim=N      força do bando (padrão 14); explorar=1  sem encontro: o comandante já está dentro do tile da capital
+//   meu=1       no Ataque, o POI mais perto do alvo já é seu (a reposição dos soldados nasce nele)
 //   mortal=1    desliga o modo deus (o criativo é invencível; sem isto não dá para morrer); morrer=S  o comandante cai S segundos depois de estar jogando no tile
 // Só vale numa partida nova (um save, ou a página recarregada ao entrar num tile, já traz o estado e o cenário não refaz nada).
 const MUNDO_SCN = [
@@ -13,6 +14,7 @@ const MUNDO_SCN = [
   { id: 'campo-dois', t: 'Dois batalhões no mesmo tile', d: 'Dois batalhões de 30 somam 60 contra 40; as baixas se dividem igualmente entre eles ao vencer.', q: 'enc=campo&soldados=30&soldados2=30&inim=40&mix=1' },
   { id: 'defesa', t: 'Defesa da cidade', d: 'Um bando de 25 cai sobre a capital com o seu batalhão dentro. Sem fuga: sair do raio azul é perder.', q: 'enc=defesa&soldados=20&inim=25&mix=1' },
   { id: 'invasao', t: 'Invasão (Ataque)', d: 'Um bando estacionado no tile vizinho; conquiste o ponto principal (a guarnição vem da batalha; vencer conquista o POI). Não se sai do tile em combate.', q: 'enc=invasao&soldados=30&inim=30&mix=1' },
+  { id: 'invasao-poi', t: 'Invasão com POI seu perto', d: 'Como a invasão, mas um POI do tile já é seu: os soldados de reposição nascem nele. Vencer passa todos os POIs inimigos do tile para você.', q: 'enc=invasao&soldados=30&inim=30&mix=1&meu=1' },
   { id: 'morte-batalha', t: 'Morte em batalha grande (batalhão se desfaz)', d: 'Bando forte e comandante mortal: ele cai 40 s depois de começar a luta, e o batalhão se desfaz.', q: 'enc=campo&soldados=10&inim=60&mortal=1&morrer=40' },
   { id: 'morte-sozinho', t: 'Morte com o batalhão vazio', d: 'Comandante sem soldados contra um bando: cai e o batalhão (só ele) se desfaz.', q: 'enc=campo&soldados=0&inim=20&mortal=1&morrer=40' },
   { id: 'morte-campo', t: 'Morte fora de batalha (tile explorado)', d: 'O comandante já está dentro do tile, sem encontro, e cai 20 s depois: perde ouro, parte da munição e dos itens, (a ação da exploração já foi gasta; nenhuma a mais).', q: 'explorar=1&soldados=10&mortal=1&morrer=20' }
@@ -39,6 +41,14 @@ function mundoScenario() {
   if (kind === 'explorar') { w.inTile = home; w.owed = 1; w.left = Math.max(0, w.left - 1); return true }
   const a = { id: ++w.seq, kind: 'bandit', tile: next, str: foe, stay: kind === 'invasao' ? 3 : 0 }; w.actors.push(a);
   wtSetEnc(G2, a, b, kind === 'defesa' ? 'npc' : 'player'); return true;
+}
+// meu=1 (Ataque no tile real): o POI inimigo mais perto do alvo já é seu (a reposição dos soldados nasce nele). Chamada por tbPoiOpts (local/tilebattle.js).
+function mundoScnPois() {
+  if (new URLSearchParams(location.search).get('meu') !== '1') return;
+  const S = WORLD.tileS, main = S && S.main && S.main.poi; if (!main) return;
+  const c = (WORLD.pois || []).filter(p => p !== main && !p.show && !p.war && (p.owner === 'bandit' || typeof p.owner === 'number'))
+    .sort((a, b) => Math.hypot(a.cx - main.cx, a.cz - main.cz) - Math.hypot(b.cx - main.cx, b.cz - main.cz))[0];
+  if (c) poiSetOwner(c, 'player');
 }
 // morrer=S: depois de S segundos jogando dentro de um tile (mapa mundi fechado, sem painel), o comandante cai (die(), como se os inimigos o tivessem derrubado).
 function mundoScnDie(secs) {

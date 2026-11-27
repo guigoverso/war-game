@@ -76,6 +76,24 @@ srv.listen(0, '127.0.0.1', async () => {
     }
     await page.close();
   }
+  if (want('invasao-poi')) {   // reposição a partir de POI seu; formação parada; todos os POIs inimigos passam ao vencer
+    const page = await open('enc=invasao&soldados=30&inim=14&mix=1&meu=1');
+    await page.evaluate(() => WM.turnEl.querySelector('[data-a=fight]').click());
+    await inBattle(page);
+    const b = await page.evaluate(() => { const mine = (WORLD.pois || []).filter(p => p.owner === 'player' && !p.show); const m = mine[0];
+      return { n: mine.length, main: WORLD.tileS.main && [WORLD.tileS.main.x | 0, WORLD.tileS.main.z | 0], base: BATTLE.base, poi: m ? { x: m.cx | 0, z: m.cz | 0 } : null, geo: BATTLE.geo.ataque.base } });
+    ok(b.n >= 1 && b.geo && Math.abs(b.geo.x - b.poi.x) < 2, 'invasão-poi: a reposição vem do POI seu perto do alvo', JSON.stringify(b));
+    const y0 = await page.evaluate(() => ALLIES.filter(a => a.alive).map(a => a.yaw));
+    await page.waitForTimeout(6000);
+    const flips = await page.evaluate(async () => { const A = ALLIES.filter(a => a.alive); const y = A.map(a => a.yaw); await new Promise(r => setTimeout(r, 1500));
+      return A.filter((a, i) => Math.abs(Math.atan2(Math.sin(a.yaw - y[i]), Math.cos(a.yaw - y[i]))) > 1.5).length });
+    ok(flips === 0, 'formação: parados, os soldados não ficam virando', String(flips));
+    await page.evaluate(() => { for (const g of BATTLE.gens) if (g.side === 'enemy') g.reserve = 0; for (const e of BATTLE.area.enemies) if (e.alive) { e.alive = false; e.gone = true; BATTLE.area.aliveEnemies-- } });
+    await page.waitForFunction(() => BATTLE.over, null, { timeout: 30000 });
+    const c = await page.evaluate(() => (WORLD.pois || []).filter(p => !p.show && !p.war && p.type !== 'ruins' && p.owner !== 'player' && p.owner !== 'free').length);
+    ok(c === 0, 'invasão-poi: vencer passa todos os POIs inimigos do tile ao jogador', String(c));
+    await page.close();
+  }
   if (want('morte-sozinho')) {   // sem soldados: sem postos seus; texto de quem estava sozinho
     const page = await open('enc=campo&soldados=0&inim=20&mortal=1');
     await page.evaluate(() => WM.turnEl.querySelector('[data-a=fight]').click());
