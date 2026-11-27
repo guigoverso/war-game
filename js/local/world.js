@@ -363,6 +363,7 @@ async function worldNatureStage(X,status){
   status('Escondendo baús, grutas e acampamentos...');await tick();
   if(X.win){tileTrailLinks(cities);tileBorderPlan()}   // janela do campo do mundo: estrada das trilhas até as aberturas e plano da borda de árvores (mapwin.js)
   WORLD.snap={H:H.slice(),T:T.slice(),B:B.slice()};
+  if(X.win&&X.win.bare&&mapMundoOn())genDungeons(rng,cities,[]);   // mundo novo: a região embaixo do mapa (dungeons, escritório do Líder, sala de reunião) também nasce no tile
   if(X.win&&X.win.bare&&tileComposeOn())tileCompose(cities);   // tile com composição (4E, js/tilecompose.js): principal, estradas, zonas de guerra, tema, ambiente e baús
   else if((X.win&&X.win.bare)||tileTestOn()){WORLD.camps=[];WORLD.caves=[];WORLD.chests=[];WORLD.packs=[];WORLD.pois=[];WORLD.areas=cities.slice();FIRES.length=0}   // tile vazio (4A; ?compor=0) e mapa de teste ?cenario=batalha: sem POIs, acampamentos nem bandidos (campo neutro e vazio)
   else genPOIs(rng,cities);

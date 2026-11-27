@@ -15,9 +15,9 @@ const REWARD_NAMES={resource:'Recursos',weapon:'Arma lendária',relic:'Relíquia
 // acha o quadrado de 100x100 com menos terra (preferindo as bordas do mapa), longe das cidades. A região fica EMBAIXO do mapa:
 // como o terreno é um mapa de alturas, as colunas dessa área precisam ser rebaixadas; por isso ela deve ficar sob o mar (onde ninguém vê)
 function dgSite(cities){
-  const S=DG.S,M=12;let best=null,bs=1e9;
+  const S=DG.S,gap=mapMundoOn()?0:16;let best=null,bs=1e9;   // mundo novo: o tile de 384 é quase todo cidade; a região (embaixo do mapa) só não pode cobrir a cidade (a nav dela zera a grade)
   for(let z0=4;z0<=W-S-4;z0+=12)for(let x0=4;x0<=W-S-4;x0+=12){
-    if(cities.some(c=>Math.max(Math.abs(c.cx-(x0+S/2)),Math.abs(c.cz-(z0+S/2)))<S/2+c.half+M+4))continue;
+    if(cities.some(c=>Math.max(Math.abs(c.cx-(x0+S/2)),Math.abs(c.cz-(z0+S/2)))<S/2+c.half+gap))continue;
     let land=0;for(let dz=0;dz<S;dz+=5)for(let dx=0;dx<S;dx+=5)if(H[(z0+dz)*W+x0+dx]>=SEA)land++;
     const edge=Math.min(x0,z0,W-S-x0,W-S-z0),sc=land*1000+edge;
     if(sc<bs){bs=sc;best=[x0,z0]}
@@ -208,7 +208,7 @@ function updateBarrier(){
 n.alive=false;n.gone=true;scene.remove(n.group)}}
   for(const a of ALLIES){if(a.alive&&!a.gone&&a.y<BAR_UP){a.alive=false;a.gone=true;scene.remove(a.group)}}
 }
-Hooks.on('round',()=>{if(DG.ok&&!G.dg)spawnPortals()});
+Hooks.on('round',()=>{if(DG.ok&&!G.dg&&!mapMundoOn())spawnPortals()});   // mundo novo: dungeons não nascem sozinhas (8.5: só a torre as acha)
 
 // ---------- dungeon dourada (política) e a disputa pelo portal ----------
 // Um portal dourado fica no mapa até alguém levar o tesouro (a recompensa é ouro, sem itens). Ao chegar perto, 10 tropas (bandidos e soldados de duas cidades)

@@ -406,7 +406,7 @@ function tileCompose(cities) {
   const rng = new RNG((WORLD.seed * 977 + (win.ti | 0) * 31 + (win.tj | 0) * 17 + hashStr(tema)) >>> 0);
   const city = cities[0] && cities[0].half > 1 ? cities[0] : null, h0 = H.slice(), tt0 = T.slice();
   WORLD.camps = []; WORLD.caves = []; WORLD.chests = []; WORLD.packs = []; WORLD.pois = []; FIRES.length = 0;
-  const S = { win, rng, city, taken: [], counts: {}, falhas: [], foot: city ? tileFootDist(cities) : null, road: null, roadCells: [], main: null, ids: 300, zones: [], chests: 0 };
+  const S = { win, rng, city, taken: DG.ok ? [{ x: DG.rx + DG.S / 2, z: DG.rz + DG.S / 2, r: DG.S * 0.75 }] : [], counts: {}, falhas: [], foot: city ? tileFootDist(cities) : null, road: null, roadCells: [], main: null, ids: 300, zones: [], chests: 0 };
   WORLD.tileWar = { zones: S.zones, pois: [], battle: null }; WORLD.tileS = S;   // (tileS: estado interno, só para depurar)
   tcMain(S); tcRoads(S); tcRoadDist(S); tcBridge(S);
   tcRoadDist(S); tcZones(S);
