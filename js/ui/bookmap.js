@@ -29,6 +29,8 @@ function drawPickOverlay(g,s){
 (function(){
   let tip=null;const hide=()=>{if(tip)tip.style.display='none'};
   document.addEventListener('mousemove',e=>{
+    const sv=mapOpen()&&e.target&&e.target.id==='bigmap'?pickServiceAt(e):null;   // serviço de cidade grande: o nome aparece ao passar o mouse
+    if(sv){if(!tip){tip=document.createElement('div');tip.className='uitip';document.body.appendChild(tip)}tip.textContent=TXT_MAP_SERVICES[sv][0]+' '+TXT_MAP_SERVICES[sv][1];tip.style.display='block';tip.style.left=(e.clientX+14)+'px';tip.style.top=(e.clientY+14)+'px';return}
     const c=mapOpen()&&e.target&&e.target.id==='bigmap'?pickCityAt(e):null;
     if(!c){   // sem cidade sob o mouse: talvez um POI (nome e dono)
       const q=mapOpen()&&e.target&&e.target.id==='bigmap'?pickPoiAt(e):null;if(!q){hide();return}
@@ -41,6 +43,13 @@ function drawPickOverlay(g,s){
   });
   document.addEventListener('keydown',hide);document.addEventListener('click',hide);
 })();
+// Chave do serviço (TXT_MAP_SERVICES) de uma cidade grande sob o mouse no mapa grande, ou null. Raio de 9 px.
+function pickServiceAt(e){
+  const cv=document.getElementById('bigmap'),r=cv.getBoundingClientRect(),s=cv.width/W;
+  const x=(e.clientX-r.left)*cv.width/r.width,y=(e.clientY-r.top)*cv.height/r.height;
+  let best=null,bd=9;for(const c of WORLD.cities){if(!cityBig(c))continue;for(const key of Object.keys(TXT_MAP_SERVICES)){const p=c[key];if(!p||typeof p.x!=='number')continue;const d=Math.hypot(p.x*s-x,p.z*s-y);if(d<bd){bd=d;best=key}}}
+  return best;
+}
 function pickPoiAt(e){
   const cv=document.getElementById('bigmap'),r=cv.getBoundingClientRect(),s=cv.width/W;
   const x=(e.clientX-r.left)*cv.width/r.width,y=(e.clientY-r.top)*cv.height/r.height;

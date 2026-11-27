@@ -647,24 +647,17 @@ function drawIcon(ctx,x,y,ic,r){
   ctx.strokeStyle=ic.col;ctx.lineWidth=2;ctx.stroke();
   ctx.fillStyle=ic.col;ctx.font='bold '+Math.round(r*1.3)+'px monospace';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(ic.t,x,y+1);
 }
-// Mapa M: onde ficam os serviços de cada cidade ou vila grande (prefeitura, armazém, armeiro, clínica...): um ícone sobre o mapa e a legenda no canto.
+// Mapa M: onde ficam os serviços de cada cidade ou vila grande (prefeitura, armazém, armeiro, clínica...): um ícone sobre o mapa; o nome aparece ao passar o mouse (bookmap.js).
 // Só nas cidades grandes (cityBig: tile do mundo novo e cenários de tile); o mapa antigo de cidades pequenas fica como era.
 function mapServicesDraw(g,s,k){
-  const used=new Set();
   for(const c of WORLD.cities){
     if(!cityBig(c))continue;
     for(const key of Object.keys(TXT_MAP_SERVICES)){
-      const p=c[key];if(!p||typeof p.x!=='number')continue;used.add(key);
+      const p=c[key];if(!p||typeof p.x!=='number')continue;
       const x=p.x*s,y=p.z*s,r=6.5*k;g.fillStyle='rgba(20,14,8,0.85)';g.strokeStyle='#e8d6a0';g.lineWidth=1.2;g.beginPath();g.arc(x,y,r,0,6.283);g.fill();g.stroke();
       g.font=Math.round(9*k)+'px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillStyle='#fff';g.fillText(TXT_MAP_SERVICES[key][0],x,y+0.5);g.textBaseline='alphabetic';
     }
   }
-  if(!used.size)return;
-  const L=[...used],fs=Math.round(11*k),lh=fs+4;g.font='bold '+fs+'px monospace';g.textAlign='left';
-  const w=Math.max(...L.map(key=>g.measureText(TXT_MAP_SERVICES[key][0]+' '+TXT_MAP_SERVICES[key][1]).width))+12,h=L.length*lh+8,x0=8,y0=g.canvas.height-h-8;
-  g.fillStyle='rgba(20,14,8,0.78)';g.fillRect(x0,y0,w,h);g.fillStyle='#f4ecd8';
-  L.forEach((key,i)=>g.fillText(TXT_MAP_SERVICES[key][0]+' '+TXT_MAP_SERVICES[key][1],x0+6,y0+4+(i+1)*lh-4));
-  g.textAlign='center';
 }
 function drawBigMap(cvArg,mk){   // cvArg: outro canvas (popup de missão); mk: {x,z,label} marca extra
   const cv=cvArg||$('bigmap');if(!cv)return;
