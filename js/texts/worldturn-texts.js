@@ -1,6 +1,6 @@
 'use strict';
 // ---------- Textos: turno do Comandante no mapa mundi (etapa 7; js/macro/worldturn.js e js/ui/mundo3d.js) ----------
-// RASCUNHOS, a aprovar. Cada texto tem um comentário acima: onde aparece e para que serve. Os do resumo vão para o livro (rdNow), sem toast.
+// APROVADOS em 2026-11-27 (com ajustes do usuário). Cada texto tem um comentário acima: onde aparece e para que serve. Os do resumo vão para o livro (rdNow), sem toast.
 
 // Resumo do livro: o batalhão se moveu. nome = tile de destino.
 const txtWtMoved = nome => '🚩 O batalhão marchou até ' + nome + '.';
@@ -52,7 +52,7 @@ const txtWtEntInfo = d => '<div class="wm3-head" style="font-size:15px;padding:6
 // Tela de carregamento ao entrar num tile (3 soldados correndo no centro; o texto fica embaixo). nome = tile de destino. Aprovado em 2026-11-26.
 const txtTileLoading = nome => 'Marchando para ' + nome + '...';
 
-// ---------- Modo Líder no mapa mundi (etapa 8.2): caixa de batalhões no turno do Líder (js/ui/mundoturno.js, wm3LeadHud). RASCUNHOS, a aprovar ----------
+// ---------- Modo Líder no mapa mundi (etapa 8.2): caixa de batalhões no turno do Líder (js/ui/mundoturno.js, wm3LeadHud). APROVADOS em 2026-11-27 (com ajustes do usuário) ----------
 // Título da caixa: quantos batalhões você tem e o máximo do nível da facção.
 const txtWtLeadTitle = (n, max) => '🪖 Batalhões: ' + n + ' / ' + max;
 // Linha de cada batalhão da caixa: número, soldados e onde está.
@@ -62,7 +62,7 @@ const txtWtLeadCreate = (ouro, ponto) => '➕ Criar batalhão aqui' + (ouro || p
 // Botões de doar soldados entre dois batalhões do mesmo tile: n soldados (ou todos) do batalhão a para o b.
 const txtWtLeadDonate = (a, b, n) => '↪ Doar ' + (n ? n : 'todos') + ' do ' + a + ' ao ' + b;
 
-// ---------- Encontro vira batalha e morte (etapa 8.3). RASCUNHOS, a aprovar ----------
+// ---------- Encontro vira batalha e morte (etapa 8.3). APROVADOS em 2026-11-27 (com ajustes do usuário) ----------
 // Botão do painel de Ações quando há um encontro pendente: entrar no tile e lutar de verdade.
 const TXT_WT_ENC_FIGHT = '⚔ Lutar';
 // Tela de morte NARRATIVA (sem listar o que se perdeu). titulo/botao: forma 1 e 2; campo = forma 1 (caiu fora de batalha: os soldados o acharam e levaram de volta, os
@@ -70,7 +70,7 @@ const TXT_WT_ENC_FIGHT = '⚔ Lutar';
 // batalhão se desfez. A forma 3 usa o texto de cada batalha (TXT_BATTLE_LOSE).
 const TXT_WT_DEATH = {
   titulo: 'VOCÊ CAIU', botao: 'Continuar',
-  campo: 'Quando a escuridão se desfez, havia rostos conhecidos em volta. Os seus soldados o tinham achado caído no campo e carregado de volta. Quem o derrubou já havia passado pelo seu corpo, e levou tudo o que valia alguma coisa.',
+  campo: 'Quando a escuridão se desfez, havia rostos conhecidos em volta. Os seus soldados o tinham achado caído no campo e carregado de volta. Quem o derrubou já havia passado pelo seu corpo, levando o que achou de valioso.',
   poi: 'A posição não caiu, e o comandante também não, por muito pouco. Foi o sacrifício dos soldados que cobriram a retirada que o trouxe vivo de volta, e o preço deles ainda pesa.',
-  sozinho: 'Foi sozinho contra a posição, e o fim era previsível. Não restou ninguém para recolher o corpo, e o batalhão desapareceu junto com o seu comandante.'
+  sozinho: 'Foi sozinho contra a posição, e o fim era previsível. O batalhão desapareceu junto com o seu comandante, e seu corpo ficou ali jogado, sem honra, sem enterro, esquecido pelo tempo.'
 };
