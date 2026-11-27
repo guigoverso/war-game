@@ -54,6 +54,15 @@ function tbPoiOpts() {
   for (const p of (main ? [main] : []).concat(pois)) if (p.type !== 'ruins' && p.gar) poiGarrisonRemove(p);
   return { poi: main && foe(main) ? main : null, pois };
 }
+// De onde vêm os soldados de reposição do Ataque: de um POI SEU perto do alvo (até BATTLE_TILE.supplyRange); sem ele, null (vêm da entrada do tile).
+function tbSupply(main) {
+  let best = null, bd = BATTLE_TILE.supplyRange;
+  for (const p of WORLD.pois || []) {
+    const d = Math.hypot(p.cx - main.x, p.cz - main.z);
+    if (p.owner === 'player' && !p.show && !p.war && d > 1 && d <= bd) { bd = d; best = { x: p.cx, z: p.cz } }
+  }
+  return best;
+}
 // Coordenadas do tile para os quatro modos (mesmo formato de BATTLE_MOD). entry = tbEntry; enemyAng = direção de onde vem o inimigo (rad).
 function tbGeo(entry) {
   const K = BATTLE_TILE, M = BATTLE_MOD, C = tbFieldCenter(), main = tbMainPoint();
@@ -64,7 +73,7 @@ function tbGeo(entry) {
   const toEnemy = Math.atan2(main.z - entry.z, main.x - entry.x) * 180 / Math.PI;   // na Defesa o inimigo chega do lado oposto ao da sua entrada
   const defesa = Object.assign({}, M.defesa, { center: { x: main.x, z: main.z }, footprint: Math.max(K.defFoot, main.half * 2 * K.defCover),
     postAngles: K.defAngles.map(a => a + toEnemy + 180) });   // footprint: só a maior parte da cidade fica dentro do raio (defCover)
-  const ataque = Object.assign({}, M.ataque, { center: { x: main.x, z: main.z }, start: { x: entry.x, z: entry.z } });
+  const ataque = Object.assign({}, M.ataque, { center: { x: main.x, z: main.z }, start: { x: entry.x, z: entry.z }, base: tbSupply(main) });
   const pequena = Object.assign({}, M.pequena, { center: { x: main.x, z: main.z }, start: { x: entry.x, z: entry.z } });
   return { choque, defesa, ataque, pequena };
 }

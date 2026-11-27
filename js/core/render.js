@@ -26,10 +26,10 @@ class BoxBatch{
     for(let k=0;k<4;k++){this.n.push(n[0],n[1],n[2]);this.c.push(r,g,b)}
     this.i.push(vi,vi+1,vi+2,vi,vi+2,vi+3);this.vc+=4;
   }
-  box(x0,y0,z0,x1,y1,z1,color,o){
+  box(x0,y0,z0,x1,y1,z1,color,o,bot){   // bot: caixa suspensa (chão mais baixo que a base): ganha o fundo, que se vê por baixo
     const rgb=hex2rgb(color),j=(o&&o.j!==undefined)?o.j:0.07;
     for(let d=0;d<6;d++){
-      if(d===3&&!(o&&o.b))continue;
+      if(d===3&&!bot&&!(o&&o.b))continue;
       const f=1+(Math.random()-0.5)*j*2;
       this.face(d,x0,y0,z0,x1,y1,z1,rgb[0]*f,rgb[1]*f,rgb[2]*f);
     }

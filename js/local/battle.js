@@ -472,7 +472,7 @@ function battleStartAtaque(opts) {
   P.x = f[0]; P.z = f[1]; P.y = tH(P.x, P.z) + 0.1; P.vx = P.vz = P.vy = 0; P.camY = P.y;
   P.yaw = Math.atan2(-(c.x - P.x), -(c.z - P.z)); P.pitch = -0.05;
   battleConfig('ataque');
-  BATTLE.base = { x: A.start.x, z: A.start.z };   // a reposição do seu lado nasce na abertura da trilha, perto do alvo (4B-11)
+  BATTLE.base = A.base ? { x: A.base.x, z: A.base.z } : { x: A.start.x, z: A.start.z };   // a reposição do seu lado nasce num POI seu perto do alvo (tile real) ou na abertura da trilha (4B-11)
   const bat = !!BATTLE.geo || battleParam('batalhao', 1) !== 0, tot = battleEnemyTot(), base = BATTLE.geo ? Math.min(A.garrison, tot) : battleParam('guarnicao', A.garrison);
   const er = bat ? (BATTLE.geo ? tot - base : tot) : 0;   // no tile real o total do bando já inclui a guarnição (o resto é a reserva)
   const fill = bat ? clamp(A.garrisonBattalion - base, 0, er) : 0, gar = base + fill;   // o batalhão completa a guarnição com soldados da reserva (não cria novos)

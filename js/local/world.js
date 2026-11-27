@@ -19,10 +19,11 @@ function chunkOf(x,z){const cx=clamp(Math.floor(x/CHK),0,NCH-1),cz=clamp(Math.fl
 // captura: quando definida, as caixas vão para uma malha própria (removível) em vez da malha do chunk
 let BX_CAP=null,BX_LIFT=null;   // BX_LIFT: cidade multinível em construção (js/cityfoot.js): caixas e colisões sobem o nível local
 function Bx(x0,y0,z0,x1,y1,z1,color,col,o){
+  const bot=!(o&&o.b)&&y0>Math.min(tH(x0,z0),tH(x1,z0),tH(x0,z1),tH(x1,z1))+0.25;   // fundo só quando dá para ver por baixo (não gasta faces nas caixas assentadas no chão)
   if(BX_LIFT){const d=cityLv(BX_LIFT,(x0+x1)/2-BX_LIFT.cx,(z0+z1)/2-BX_LIFT.cz);y0+=d;y1+=d}
-  if(BX_CAP){BX_CAP.batch.box(x0,y0,z0,x1,y1,z1,color,o);if(col){const b={x0,y0,z0,x1,y1,z1};Col.add(b);BX_CAP.cols.push(b)}return}
-  if(o&&o.lf){leafOf((x0+x1)/2,(z0+z1)/2).box(x0,y0,z0,x1,y1,z1,color,o);return}   // folhas: malha à parte, que fica translúcida quando o jogador está sob a copa
-  chunkOf((x0+x1)/2,(z0+z1)/2).box(x0,y0,z0,x1,y1,z1,color,o);
+  if(BX_CAP){BX_CAP.batch.box(x0,y0,z0,x1,y1,z1,color,o,bot);if(col){const b={x0,y0,z0,x1,y1,z1};Col.add(b);BX_CAP.cols.push(b)}return}
+  if(o&&o.lf){leafOf((x0+x1)/2,(z0+z1)/2).box(x0,y0,z0,x1,y1,z1,color,o,bot);return}   // folhas: malha à parte, que fica translúcida quando o jogador está sob a copa
+  chunkOf((x0+x1)/2,(z0+z1)/2).box(x0,y0,z0,x1,y1,z1,color,o,bot);
   if(col)Col.add({x0,y0,z0,x1,y1,z1});
 }
 const LEAVES=[],LZ=new Map(),LEAF_U={uP:{value:new THREE.Vector3()},uOn:{value:0}};   // LZ: copas por célula de 8×8 (para saber se o jogador está sob uma)
