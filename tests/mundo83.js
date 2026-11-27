@@ -93,6 +93,10 @@ srv.listen(0, '127.0.0.1', async () => {
       const mov = A.filter((a, i) => Math.hypot(a.x - p0[i][0], a.z - p0[i][1]) > 0.6).length, fx = -Math.sin(BATTLE.head), fz = -Math.cos(BATTLE.head);
       const front = A.filter(a => (a.x - P.x) * fx + (a.z - P.z) * fz > 1).length; const dbg = A.map(a => { const q = battleFormSpot(a); return [Math.hypot(q.x - a.x, q.z - a.z).toFixed(1), a.state, !!a.path].join(':') }).join(' '); return { dbg, n: A.length, mov, tg: A.filter(a => a.tgtE).length, front, d: A.map(a => Math.hypot(a.x - P.x, a.z - P.z) | 0).join(',') } });
     ok(f.mov === 0 && f.front === 0, 'formação: parados ficam atrás do jogador e não se mexem quando ele gira a câmera', JSON.stringify(f));
+    const t = await page.evaluate(async () => { const T = BATTLE.target, R = battleCfg('ataque').alert; P.x = T.x - 20; P.z = T.z; P.y = tH(P.x, P.z) + 1;   // o jogador chega primeiro ao alvo
+      const a = ALLIES.find(q => q.alive); a.x = T.x + 170; a.z = T.z + 40; a.y = tH(a.x, a.z); await new Promise(r => setTimeout(r, 1500));
+      return { R, d: Math.hypot(a.x - T.x, a.z - T.z) | 0, ok: ALLIES.filter(q => q.alive && Math.hypot(q.x - P.x, q.z - P.z) > 150).length } });
+    ok(t.ok === 0 && Math.abs(t.d - t.R) < 12, 'chegou primeiro: o batalhão distante vai para a borda do raio', JSON.stringify(t));
     await page.evaluate(() => { for (const g of BATTLE.gens) if (g.side === 'enemy') g.reserve = 0; for (const e of BATTLE.area.enemies) if (e.alive) { e.alive = false; e.gone = true; BATTLE.area.aliveEnemies-- } });
     await page.waitForFunction(() => BATTLE.over, null, { timeout: 30000 });
     const c = await page.evaluate(() => (WORLD.pois || []).filter(p => !p.show && !p.war && p.type !== 'ruins' && p.owner !== 'player' && p.owner !== 'free').length);

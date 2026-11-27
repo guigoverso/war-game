@@ -147,6 +147,20 @@ function battleHeadTick() {
   if (Math.hypot(P.x - BATTLE.lx, P.z - BATTLE.lz) > 0.4) { BATTLE.head = P.yaw; BATTLE.lx = P.x; BATTLE.lz = P.z }
 }
 
+// Ataque e Choque: o jogador chegou primeiro (já está dentro do raio: o de alerta do alvo no Ataque, o da área central no Choque) e um soldado ficou muito longe dele
+// (BATTLE_MOD.teleFar): ele é levado para a borda do raio, do lado em que estava, e segue dali. Roda no tique de 0,4 s de updateBattle.
+function battleTickCatchUp() {
+  const A = battleCfg('ataque'), T = BATTLE.target, c = BATTLE.mode === 'ataque' && T ? T : BATTLE.mode === 'choque' ? BATTLE.center : null;
+  if (!c || P.dead) return;
+  const R = BATTLE.mode === 'ataque' ? A.alert : BATTLE.centerR;
+  if (Math.hypot(P.x - c.x, P.z - c.z) > R) return;
+  for (const a of ALLIES) {
+    if (!a.alive || Math.hypot(a.x - P.x, a.z - P.z) < BATTLE_MOD.teleFar) continue;
+    const dx = a.x - c.x, dz = a.z - c.z, d = Math.hypot(dx, dz) || 1, f = battleFree(c.x + dx / d * R, c.z + dz / d * R);
+    a.x = f[0]; a.z = f[1]; a.y = tH(a.x, a.z); a.vy = 0; a.path = null; if (a.group) a.group.position.set(a.x, a.y, a.z);
+  }
+}
+
 // Números do placar: do jogador (soldados em campo = vivos; reserva; mortos = o que falta para o total inicial) e do inimigo.
 function battleCounts() {
   const res = side => BATTLE.gens.reduce((s, g) => s + (g.side === side ? g.reserve : 0), 0);
@@ -246,7 +260,7 @@ function updateBattle(dt) {
   if (BATTLE.over) return;
   BATTLE.scanT -= dt;
   if (BATTLE.scanT <= 0) {
-    BATTLE.scanT = 0.4; A.enemies = A.enemies.filter(e => !e.gone);
+    BATTLE.scanT = 0.4; battleTickCatchUp(); A.enemies = A.enemies.filter(e => !e.gone);
     if (!P.dead && BATTLE.total0 > 0 && A.aliveEnemies <= 0 && (!BATTLE.target || BATTLE.target.captured) && BATTLE.gens.every(g => g.side === 'player' || g.reserve <= 0)) { battleWin(); return; }
   }
   BATTLE.hudT -= dt; if (BATTLE.hudT <= 0) { BATTLE.hudT = 0.2; battleHudDraw(); }
